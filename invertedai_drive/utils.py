@@ -11,7 +11,7 @@ class Client:
 
     def __init__(self):
         self.dev = not ('DEV' not in os.environ or not os.environ['DEV'])
-        self._endpoint = 'https://api.banana.dev/' if not self.dev else 'http://localhost:8000/invertedai/drive/0.0.1/'
+        self._endpoint = 'https://api.banana.dev/' if not self.dev else 'http://localhost:8000/'
 
     def run(self, api_key: str, model_key: str, model_inputs: dict) -> ModelOutputs:
         if self.dev:
