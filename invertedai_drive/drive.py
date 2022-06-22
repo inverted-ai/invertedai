@@ -38,7 +38,7 @@ def run(
                             f"Expect {agent_counts}, but got {input_data.shape[1]}")
         if len(input_data.shape) > 2:
             if input_data.shape[2] != obs_length:
-                raise Exception(f"{input_name} has the wrong batch size (dim 2)"
+                raise Exception(f"{input_name} has the wrong time observation length (dim 2)"
                                 f"Expect {obs_length}, but got {input_data.shape[2]}")
         return input_data
 
