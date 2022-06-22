@@ -4,55 +4,55 @@ from invertedai_drive.drive import run
 def test_mock():
     result = run(api_key='', model_key='', location='Town03_Roundabout',
                  x=[
+                     [
                          [
-                                 [
-                                         0
-                                 ]
+                             0
                          ]
+                     ]
                  ],
                  y=[
+                     [
                          [
-                                 [
-                                         0
-                                 ]
+                             0
                          ]
+                     ]
                  ],
                  psi=[
+                     [
                          [
-                                 [
-                                         0
-                                 ]
+                             0
                          ]
+                     ]
                  ],
                  speed=[
+                     [
                          [
-                                 [
-                                         0
-                                 ]
+                             0
                          ]
+                     ]
                  ],
                  length=[
-                         [
-                                 0
-                         ]
+                     [
+                         0
+                     ]
                  ],
                  width=[
-                         [
-                                 0
-                         ]
+                     [
+                         0
+                     ]
                  ],
                  lr=[
-                         [
-                                 0
-                         ]
+                     [
+                         0
+                     ]
                  ],
                  recurrent_states=None,
                  present_masks=[
+                     [
                          [
-                                 [
-                                         True
-                                 ]
+                             True
                          ]
+                     ]
                  ],
                  batch_size=1,
                  agent_counts=1,

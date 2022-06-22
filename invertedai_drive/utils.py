@@ -9,15 +9,12 @@ from dotenv import load_dotenv
 
 
 class Client:
-    def __init__(self, endpoint=None):
-        if endpoint is None:
-            load_dotenv()
-            self.dev = not ("DEV" not in os.environ or not os.environ["DEV"])
-            self._endpoint = (
-                "https://api.banana.dev/" if not self.dev else "http://localhost:8000/"
-            )
-        else:
-            self._endpoint = endpoint
+    def __init__(self):
+        load_dotenv()
+        self.dev = not ("DEV" not in os.environ or not os.environ["DEV"])
+        self._endpoint = (
+            "https://api.banana.dev/" if not self.dev else os.environ.get('HOST', "http://localhost:8000/")
+        )
 
     def run(self, api_key: str, model_key: str, model_inputs: dict) -> ModelOutputs:
         if self.dev:

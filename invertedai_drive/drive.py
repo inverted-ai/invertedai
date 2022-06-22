@@ -3,56 +3,60 @@ import torch
 import numpy as np
 from typing import List, Union, Optional
 
-
 InputDataType = Union[torch.Tensor, np.ndarray, List]
+client = Client()
 
 
 def run(
-    api_key: str,
-    model_key: str,
-    location: str,
-    x: InputDataType,
-    y: InputDataType,
-    psi: InputDataType,
-    speed: InputDataType,
-    length: InputDataType,
-    width: InputDataType,
-    lr: InputDataType,
-    recurrent_states: Optional[InputDataType],
-    present_masks: Optional[InputDataType],
-    batch_size: int,
-    agent_counts: int,
-    obs_length: int,
-    step_times: int = 1,
-    num_predictions: int = 1,
-    endpoint=None,
-):
-
-    client = Client(endpoint)
+        api_key: str,
+        model_key: str,
+        location: str,
+        x: InputDataType,
+        y: InputDataType,
+        psi: InputDataType,
+        speed: InputDataType,
+        length: InputDataType,
+        width: InputDataType,
+        lr: InputDataType,
+        recurrent_states: Optional[InputDataType],
+        present_masks: Optional[InputDataType],
+        batch_size: int,
+        agent_counts: int,
+        obs_length: int,
+        step_times: int = 1,
+        num_predictions: int = 1,
+        ):
 
     def _validate(input_data: InputDataType, input_name: str):
         if isinstance(input_data, list):
             input_data = torch.Tensor(input_data)
         if input_data.shape[0] != batch_size:
-            raise Exception(f"{input_name} has the wrong batch size (dim 0)")
+            raise Exception(f"{input_name} has the wrong batch size (dim 0). "
+                            f"Expect {batch_size}, but got {input_data.shape[0]}")
         if input_data.shape[1] != agent_counts:
-            raise Exception(f"{input_name} has the wrong agent counts (dim 1)")
+            raise Exception(f"{input_name} has the wrong agent counts (dim 1). "
+                            f"Expect {agent_counts}, but got {input_data.shape[1]}")
         if len(input_data.shape) > 2:
             if input_data.shape[2] != obs_length:
-                raise Exception(f"{input_name} has the wrong batch size")
+                raise Exception(f"{input_name} has the wrong batch size (dim 2)"
+                                f"Expect {obs_length}, but got {input_data.shape[2]}")
         return input_data
 
     def _validate_recurrent_states(input_data: InputDataType):
         if isinstance(input_data, list):
             input_data = torch.Tensor(input_data)
         if input_data.shape[0] != batch_size:
-            raise Exception("Recurrent states has the wrong batch size (dim 0)")
+            raise Exception(f"Recurrent states has the wrong batch size (dim 0). "
+                            f"Expect {batch_size}, but got {input_data.shape[0]}")
         if input_data.shape[1] != agent_counts:
-            raise Exception("Recurrent states has the wrong agent counts (dim 2)")
+            raise Exception(f"Recurrent states has the wrong agent counts (dim 1). "
+                            f"Expect {agent_counts}, but got {input_data.shape[1]}")
         if input_data.shape[2] != 2:
-            raise Exception("Recurrent states has the wrong number of layers (dim 4)")
+            raise Exception(f"Recurrent states has the wrong number of layers (dim 2). "
+                            f"Expect 2, but got {input_data.shape[2]}")
         if input_data.shape[3] != 64:
-            raise Exception("Recurrent states has the wrong dimension (dim 5)")
+            raise Exception(f"Recurrent states has the wrong dimension (dim 3). "
+                            f"Expect 64, but got {input_data.shape[3]}")
         return input_data
 
     def _tolist(input_data: InputDataType):
@@ -75,12 +79,12 @@ def run(
         _validate_and_tolist(present_masks, "present_masks")
         if present_masks is not None
         else None
-    )  # BxA
+    )  # BxAxT_obs
     recurrent_states = (
         _tolist(_validate_recurrent_states(recurrent_states))
         if recurrent_states is not None
         else None
-    )  # Bx(num_predictions)xAxTx2x64
+    )  # BxAx2x64
 
     model_inputs = dict(
         location=location,
