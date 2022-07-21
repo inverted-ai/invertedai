@@ -12,7 +12,7 @@ class MapLocation(Enum):
     two_lane_intersection: str = '2lane_intersection'
     four_lane_t_intersection: str = '4lane_t_intersection'
     four_lane_intersection: str = '4lane_intersection'
-    six_lane_intersectio: str = '6lane_intersection'
+    six_lane_intersection: str = '6lane_intersection'
     cloverleaf: str = 'cloverleaf'
     figure_eight: str = 'figure_eight'
     i80: str = 'i80'
