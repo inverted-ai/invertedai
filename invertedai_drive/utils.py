@@ -1,96 +1,87 @@
 import requests
-import time
 import os
-import json
-from uuid import uuid4
 import torch
-from invertedai_drive.models import ModelOutputs
+from invertedai_drive.models import DriveResponse, AgentStatesWithSample
 from dotenv import load_dotenv
+
+from enum import Enum
+
+
+class MapLocation(Enum):
+    two_lane_circle: str = '2lane_circle'
+    two_lane_intersection: str = '2lane_intersection'
+    four_lane_t_intersection: str = '4lane_t_intersection'
+    four_lane_intersection: str = '4lane_intersection'
+    six_lane_intersectio: str = '6lane_intersection'
+    cloverleaf: str = 'cloverleaf'
+    figure_eight: str = 'figure_eight'
+    i80: str = 'i80'
+    loop: str = 'loop'
+    minicity_toronto: str = 'minicity_toronto'
+    od_4lane: str = 'od_4lane'
+    od_merge: str = 'od_merge'
+    od_newmarket: str = 'od_newmarket'
+    peachtree: str = 'peachtree'
+    straight: str = 'straight'
+    us101: str = 'us101'
+    Town01_3way: str = 'Town01_3way'
+    Town01_Straight: str = 'Town01_Straight'
+    Town02_3way: str = 'Town02_3way'
+    Town02_Straight: str = 'Town02_Straight'
+    Town03_3way_Protected: str = 'Town03_3way_Protected'
+    Town03_3way_Unprotected: str = 'Town03_3way_Unprotected'
+    Town03_4way: str = 'Town03_4way'
+    Town03_5way: str = 'Town03_5way'
+    Town03_GasStation: str = 'Town03_GasStation'
+    Town03_Roundabout: str = 'Town03_Roundabout'
+    Town04_3way_Large: str = 'Town04_3way_Large'
+    Town04_3way_Small: str = 'Town04_3way_Small'
+    Town04_4way_Stop: str = 'Town04_4way_Stop'
+    Town04_Merging: str = 'Town04_Merging'
+    Town04_Parking: str = 'Town04_Parking'
+    Town06_4way_large: str = 'Town06_4way_large'
+    Town06_Merge_Double: str = 'Town06_Merge_Double'
+    Town06_Merge_Single: str = 'Town06_Merge_Single'
+    Town07_3way: str = 'Town07_3way'
+    Town07_4way: str = 'Town07_4way'
+    Town10HD_3way_Protected: str = 'Town10HD_3way_Protected'
+    Town10HD_3way_Stop: str = 'Town10HD_3way_Stop'
+    Town10HD_4way: str = 'Town10HD_4way'
 
 
 class Client:
     def __init__(self):
         load_dotenv()
-        self.dev = not ("DEV" not in os.environ or not os.environ["DEV"])
-        self._endpoint = (
-            "https://api.banana.dev/" if not self.dev else "http://localhost:8000/"
-        )
-
-    def run(self, api_key: str, model_key: str, model_inputs: dict) -> ModelOutputs:
-        if self.dev:
-            response = requests.post(self._endpoint, json=model_inputs)
-            return response.json()
+        self.dev = "DEV" in os.environ
+        if not self.dev:
+            self._endpoint = "https://gzjse7c92i.execute-api.us-west-2.amazonaws.com/dev"
         else:
-            result = self._start(api_key, model_key, model_inputs)
+            self._endpoint = "http://localhost:8000"
 
-            def _extract_model_outputs(dict_model_output):
-                states = torch.Tensor(dict_model_output["states"])
-                recurrent_states = torch.Tensor(dict_model_output["recurrent_states"])
-                model_outputs = ModelOutputs(states, recurrent_states)
-                return model_outputs
+    def run(self, api_key: str, model_inputs: dict) -> DriveResponse:
+        def _extract_model_outputs(dict_model_output):
+            states = dict_model_output["states"]
+            states = AgentStatesWithSample(x=states['x'], y=states['y'], psi=states['psi'], speed=states['speed'])
+            recurrent_states = dict_model_output["recurrent_states"]
+            bird_views = dict_model_output["bird_view"]
+            model_outputs = DriveResponse(states, recurrent_states, bird_views)
+            return model_outputs
+        response = requests.post(f'{self._endpoint}/drive',
+                                 json=model_inputs,
+                                 headers={'Content-Type': 'application/json',
+                                          'Accept-Encoding': 'gzip, deflate, br',
+                                          'Connection': 'keep-alive',
+                                          'x-api-key': api_key,
+                                          'api-key': api_key})
+        return _extract_model_outputs(response.json())
 
-            if result["finished"]:
-                return _extract_model_outputs(result["modelOutputs"])
+    def initialize(self, location, agents_counts=10, num_samples=1, min_speed=1, max_speed=3):
+        response = requests.get(f'{self._endpoint}/initialize',
+                                params={'location': location, 'num_agents_to_spawn': agents_counts,
+                                        'num_samples': num_samples,
+                                        'spawn_min_speed': min_speed, 'spawn_max_speed': max_speed},
+                                headers={'Content-Type': 'application/json',
+                                         'Accept-Encoding': 'gzip, deflate, br',
+                                         'Connection': 'keep-alive'})
 
-            # If it's long running, so poll for result
-            while True:
-                dict_out = self._check(api_key, result["callID"])
-                if dict_out["message"].lower() == "success":
-                    return _extract_model_outputs(result["modelOutputs"])
-
-    def _start(self, api_key, model_key, model_inputs, start_only=False):
-        route_start = "start/v3/"
-        url_start = self._endpoint + route_start
-
-        payload = {
-            "id": str(uuid4()),
-            "created": int(time.time()),
-            "apiKey": api_key,
-            "modelKey": model_key,
-            "modelInputs": model_inputs,
-            "startOnly": start_only,
-        }
-
-        response = requests.post(url_start, json=payload)
-
-        if response.status_code != 200:
-            raise Exception(f"server error: status code {response.status_code}")
-
-        try:
-            out = response.json()
-        except:
-            raise Exception("server error: returned invalid json")
-
-        if "error" in out["message"].lower():
-            raise Exception(out["message"])
-
-        return out
-
-    def _check(self, api_key, call_id):
-        route_check = "check/v3/"
-        url_check = self._endpoint + route_check
-        # Poll server for completed task
-
-        payload = {
-            "id": str(uuid4()),
-            "created": int(time.time()),
-            "longPoll": True,
-            "callID": call_id,
-            "apiKey": api_key,
-        }
-        response = requests.post(url_check, json=payload)
-
-        if response.status_code != 200:
-            raise Exception(f"server error: status code {response.status_code}")
-
-        try:
-            out = response.json()
-        except:
-            raise Exception("server error: returned invalid json")
-
-        try:
-            if "error" in out["message"].lower():
-                raise Exception(out["message"])
-            return out
-        except Exception as e:
-            raise e
+        return response.json()
