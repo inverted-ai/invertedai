@@ -22,6 +22,7 @@ maps = [
 config = drive.config(
     api_key="",
     location=random.choice(maps),
+    # location="Town04_Merging",
     agent_count=30,
     batch_size=1,
     obs_length=1,
@@ -30,6 +31,7 @@ config = drive.config(
     max_speed=20,
 )
 
+print(config.location)
 
 response = drive.initialize(config)
 
