@@ -183,7 +183,7 @@ class jupyter_render(widgets.HBox):
         self.int_slider.value = self.int_slider.max
         self.play.value = self.play.max
 
-    def _make_box_layout():
+    def _make_box_layout(self):
         return widgets.Layout(
             border="solid 1px black",
             margin="0px 10px 10px 0px",
