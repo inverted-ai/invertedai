@@ -1,4 +1,8 @@
 # InvertedAI Drive
+
+## Get Started
+
+### Installation
 ```
 python -m venv .venv
 source .venv/bin/activate
