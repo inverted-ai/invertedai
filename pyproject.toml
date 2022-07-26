@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "invertedai_drive"
-version = "0.1.0-dev0"
+version = "0.1.0"
 description = "Client SDK for InvertedAI Drive"
 authors = ["Inverted AI <info@inverted.ai>"]
 readme = "README.md"
