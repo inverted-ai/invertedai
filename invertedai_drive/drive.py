@@ -1,10 +1,11 @@
 try:
     import google.colab
-    from google.colab import output
+    from google.colab import output as colab_output
 
-    output.enable_custom_widget_manager()
+    IN_COLAB = True
+    colab_output.enable_custom_widget_manager()
 except:
-    pass
+    IN_COLAB = False
 from invertedai_drive.utils import Client
 from dataclasses import dataclass
 import torch
@@ -148,7 +149,10 @@ def make_box_layout():
 class jupyter_render(widgets.HBox):
     def __init__(self):
         super().__init__()
-        output = widgets.Output()
+        if IN_COLAB:
+            output = colab_output
+        else:
+            output = widgets.Output()
         self.buffer = [np.zeros([128, 128, 3], dtype=np.uint8)]
 
         with output:

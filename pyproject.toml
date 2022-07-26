@@ -18,10 +18,11 @@ jupyterlab = "3.4.4"
 opencv-python = "4.6.0.66"
 ipympl = "0.9.1"
 ipywidgets = "7.7.1"
+matplotlib = "3.5.2"
+mageio = "2.20.0"
 
 [tool.poetry.dev-dependencies]
 twine = "==4.0.0"
-mageio = "2.20.0"
 
 
 [build-system]
