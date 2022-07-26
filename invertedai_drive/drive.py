@@ -3,6 +3,8 @@ from dataclasses import dataclass
 import torch
 import numpy as np
 from typing import List, Union, Optional
+import ipywidgets as widgets
+import matplotlib.pyplot as plt
 
 client = Client()
 
@@ -31,24 +33,25 @@ def initialize(config) -> dict:
     initial_states = client.initialize(
         api_key, location, agent_count, batch_size, min_speed, max_speed
     )
-    return initial_states
+    response = {
+        "states": initial_states["initial_condition"]["agent_states"],
+        "recurrent_states": None,
+        "attributes": initial_states["initial_condition"]["agent_sizes"],
+    }
+    return response
 
 
 def run(
     config: config,
     location: str,
-    x: InputDataType,
-    y: InputDataType,
-    psi: InputDataType,
-    speed: InputDataType,
-    length: InputDataType,
-    width: InputDataType,
-    lr: InputDataType,
+    states: dict,
+    agent_attributes: dict,
     recurrent_states: Optional[InputDataType] = None,
     present_masks: Optional[InputDataType] = None,
     return_birdviews: bool = False,
 ) -> dict:
-    def _validate(input_data: InputDataType, input_name: str):
+    def _validate(input_dict: dict, input_name: str):
+        input_data = input_dict[input_name]
         if isinstance(input_data, list):
             input_data = torch.Tensor(input_data)
         if input_data.shape[0] != batch_size:
@@ -79,21 +82,25 @@ def run(
         else:
             return input_data
 
-    def _validate_and_tolist(input_data: InputDataType, input_name: str):
+    def _validate_and_tolist(input_data: dict, input_name: str):
         return _tolist(_validate(input_data, input_name))
+
+        # length=agent_sizes["length"],
+        # width=agent_sizes["width"],
+        # lr=agent_sizes["lr"],
 
     api_key = config.api_key
     batch_size = config.batch_size
     agent_count = config.agent_count
     obs_length = config.obs_length
     step_times = config.step_times
-    x = _validate_and_tolist(x, "x")  # BxAxT
-    y = _validate_and_tolist(y, "y")  # BxAxT
-    psi = _validate_and_tolist(psi, "psi")  # BxAxT
-    speed = _validate_and_tolist(speed, "speed")  # BxAxT
-    agent_length = _validate_and_tolist(length, "agent_length")  # BxA
-    agent_width = _validate_and_tolist(width, "agent_width")  # BxA
-    agent_lr = _validate_and_tolist(lr, "agent_lr")  # BxA
+    x = _validate_and_tolist(states, "x")  # BxAxT
+    y = _validate_and_tolist(states, "y")  # BxAxT
+    psi = _validate_and_tolist(states, "psi")  # BxAxT
+    speed = _validate_and_tolist(states, "speed")  # BxAxT
+    agent_length = _validate_and_tolist(agent_attributes, "length")  # BxA
+    agent_width = _validate_and_tolist(agent_attributes, "width")  # BxA
+    agent_lr = _validate_and_tolist(agent_attributes, "lr")  # BxA
     present_masks = (
         _validate_and_tolist(present_masks, "present_masks")
         if present_masks is not None
@@ -123,3 +130,61 @@ def run(
     output = client.run(api_key, model_inputs)
 
     return output
+
+
+def make_box_layout():
+    return widgets.Layout(
+        border="solid 1px black", margin="0px 10px 10px 0px", padding="5px 5px 5px 5px"
+    )
+
+
+class jupyter_render(widgets.HBox):
+    def __init__(self):
+        super().__init__()
+        output = widgets.Output()
+        self.buffer = [np.zeros([128, 128, 3], dtype=np.uint8)]
+
+        with output:
+            self.fig, self.ax = plt.subplots(constrained_layout=True, figsize=(5, 5))
+        self.im = self.ax.imshow(self.buffer[0])
+        self.ax.set_axis_off()
+
+        self.fig.canvas.toolbar_position = "bottom"
+
+        self.max = 0
+        # define widgets
+        self.play = widgets.Play(
+            value=0,
+            min=0,
+            max=self.max,
+            step=1,
+            description="Press play",
+            disabled=False,
+        )
+        self.int_slider = widgets.IntSlider(
+            value=0, min=0, max=self.max, step=1, description="Frame"
+        )
+
+        controls = widgets.HBox(
+            [
+                self.play,
+                self.int_slider,
+            ]
+        )
+        controls.layout = make_box_layout()
+        widgets.jslink((self.play, "value"), (self.int_slider, "value"))
+        output.layout = make_box_layout()
+
+        self.int_slider.observe(self.update, "value")
+        self.children = [controls, output]
+
+    def update(self, change):
+        self.im.set_data(self.buffer[self.int_slider.value])
+        self.fig.canvas.draw()
+
+    def add_frame(self, frame):
+        self.buffer.append(frame)
+        self.int_slider.max += 1
+        self.play.max += 1
+        self.int_slider.value = self.int_slider.max
+        self.play.value = self.play.max
