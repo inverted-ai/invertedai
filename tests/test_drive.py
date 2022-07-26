@@ -1,8 +1,8 @@
-from invertedai_drive.drive import run
-
+from invertedai_drive.drive import run, initialize
+from invertedai_drive.utils import MapLocation
 
 def test_mock():
-    result = run(api_key='', model_key='', location='Town03_Roundabout',
+    result = run(api_key='', location=MapLocation.Town03_Roundabout,
                  x=[
                          [
                                  [
@@ -59,4 +59,9 @@ def test_mock():
                  obs_length=1,
                  step_times=1,
                  num_predictions=1)
+    print(result)
+
+
+def test_initialize():
+    result = initialize(MapLocation.Town03_Roundabout, 1, 1, 1, 1)
     print(result)
