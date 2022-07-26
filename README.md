@@ -1,18 +1,18 @@
 # InvertedAI Drive
 
-## Get Started
+## Getting Started
 
 ### Installation
 ```
 python -m venv .venv
 source .venv/bin/activate
 pip install invertedai_drive
-jupyter notebook
+jupyter notebook Drive-Demo.ipynb
 ```
 If there were issues in rendering the bird-view images try:
 
 ```
 deactivate
 source .venv/bin/activate
-jupyter notebook
+jupyter notebook Drive-Demo.ipynb
 ```
