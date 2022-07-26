@@ -11,8 +11,8 @@ import cv2
 
 
 config = drive.config(
-    api_key="q8DKBdwaL99EIMeQk5YRl5Li8t6AhPC6aHkDDYSo",
-    location="Town01_Straight",
+    api_key="",
+    location="",
     agent_count=10,
     batch_size=1,
     obs_length=1,

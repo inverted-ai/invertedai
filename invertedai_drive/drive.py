@@ -1,3 +1,10 @@
+try:
+    import google.colab
+    from google.colab import output
+
+    output.enable_custom_widget_manager()
+except:
+    pass
 from invertedai_drive.utils import Client
 from dataclasses import dataclass
 import torch
