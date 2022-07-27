@@ -8,11 +8,11 @@ from PIL import Image as PImage
 import imageio
 import numpy as np
 import cv2
-
+from tqdm import tqdm
 
 config = drive.config(
-    api_key="q8DKBdwaL99EIMeQk5YRl5Li8t6AhPC6aHkDDYSo",
-    location="Town01_Straight",
+    api_key="",
+    location="",
     agent_count=10,
     batch_size=1,
     obs_length=1,
@@ -26,7 +26,7 @@ response = drive.initialize(config)
 agent_attributes = response["attributes"]
 frames = []
 
-for t in range(10):
+for i in tqdm(range(50)):
     response = drive.run(
         config=config,
         location=config.location,

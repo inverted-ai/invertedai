@@ -132,12 +132,6 @@ def run(
     return output
 
 
-def make_box_layout():
-    return widgets.Layout(
-        border="solid 1px black", margin="0px 10px 10px 0px", padding="5px 5px 5px 5px"
-    )
-
-
 class jupyter_render(widgets.HBox):
     def __init__(self):
         super().__init__()
@@ -171,9 +165,9 @@ class jupyter_render(widgets.HBox):
                 self.int_slider,
             ]
         )
-        controls.layout = make_box_layout()
+        controls.layout = self._make_box_layout()
         widgets.jslink((self.play, "value"), (self.int_slider, "value"))
-        output.layout = make_box_layout()
+        output.layout = self._make_box_layout()
 
         self.int_slider.observe(self.update, "value")
         self.children = [controls, output]
@@ -188,3 +182,10 @@ class jupyter_render(widgets.HBox):
         self.play.max += 1
         self.int_slider.value = self.int_slider.max
         self.play.value = self.play.max
+
+    def _make_box_layout(self):
+        return widgets.Layout(
+            border="solid 1px black",
+            margin="0px 10px 10px 0px",
+            padding="5px 5px 5px 5px",
+        )
