@@ -4,12 +4,12 @@
 
 ### Running demo locally
 
-Download the [Drive-Demo.ipynb](https://github.com/inverted-ai/invertedai-drive/blob/master/Drive-Demo.ipynb) notebook and run:
+Download the examples [directory](https://github.com/inverted-ai/invertedai-drive/blob/master/examples) and run:
 
 ```
 python -m venv .venv
 source .venv/bin/activate
-pip install invertedai_drive
+pip install -r requirements.txt
 .venv/bin/jupyter notebook Drive-Demo.ipynb
 ```
 
