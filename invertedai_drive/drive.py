@@ -7,7 +7,7 @@ import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import time
 
-TIMEOUT = 30
+TIMEOUT = 10
 client = Client()
 
 InputDataType = Union[torch.Tensor, np.ndarray, List]
