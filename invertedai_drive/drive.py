@@ -1,3 +1,4 @@
+from requests.api import request
 from invertedai_drive.utils import Client
 from dataclasses import dataclass
 import torch
@@ -46,9 +47,9 @@ def initialize(config) -> dict:
                 "attributes": initial_states["initial_condition"]["agent_sizes"],
             }
             return response
-        except:
+        except Exception as e:
             if timeout is not None and time.time() > start + timeout:
-                raise
+                raise e
 
 
 def run(
@@ -143,9 +144,9 @@ def run(
     while True:
         try:
             return client.run(api_key, model_inputs)
-        except:
+        except Exception as e:
             if timeout is not None and time.time() > start + timeout:
-                raise
+                raise e
 
 
 class jupyter_render(widgets.HBox):
