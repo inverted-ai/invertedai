@@ -5,7 +5,9 @@ import numpy as np
 from typing import List, Union, Optional
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
+import time
 
+TIMEOUT = 30
 client = Client()
 
 InputDataType = Union[torch.Tensor, np.ndarray, List]
@@ -30,15 +32,23 @@ def initialize(config) -> dict:
     min_speed = config.min_speed
     max_speed = config.max_speed
     api_key = config.api_key
-    initial_states = client.initialize(
-        api_key, location, agent_count, batch_size, min_speed, max_speed
-    )
-    response = {
-        "states": initial_states["initial_condition"]["agent_states"],
-        "recurrent_states": None,
-        "attributes": initial_states["initial_condition"]["agent_sizes"],
-    }
-    return response
+    start = time.time()
+    timeout = TIMEOUT
+
+    while True:
+        try:
+            initial_states = client.initialize(
+                api_key, location, agent_count, batch_size, min_speed, max_speed
+            )
+            response = {
+                "states": initial_states["initial_condition"]["agent_states"],
+                "recurrent_states": None,
+                "attributes": initial_states["initial_condition"]["agent_sizes"],
+            }
+            return response
+        except:
+            if timeout is not None and time.time() > start + timeout:
+                raise
 
 
 def run(
@@ -127,9 +137,15 @@ def run(
         return_birdviews=return_birdviews,
     )
 
-    output = client.run(api_key, model_inputs)
+    start = time.time()
+    timeout = TIMEOUT
 
-    return output
+    while True:
+        try:
+            return client.run(api_key, model_inputs)
+        except:
+            if timeout is not None and time.time() > start + timeout:
+                raise
 
 
 class jupyter_render(widgets.HBox):
