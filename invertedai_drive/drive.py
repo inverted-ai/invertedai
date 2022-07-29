@@ -4,18 +4,15 @@ from dataclasses import dataclass
 import torch
 import numpy as np
 from typing import List, Union, Optional
-import ipywidgets as widgets
-import matplotlib.pyplot as plt
 import time
 
 TIMEOUT = 10
-client = Client()
 
 InputDataType = Union[torch.Tensor, np.ndarray, List]
 
 
 @dataclass
-class config:
+class Config:
     api_key: str
     location: str
     agent_count: int
@@ -26,183 +23,131 @@ class config:
     max_speed: int
 
 
-def initialize(config) -> dict:
-    location = config.location
-    agent_count = config.agent_count
-    batch_size = config.batch_size
-    min_speed = config.min_speed
-    max_speed = config.max_speed
-    api_key = config.api_key
-    start = time.time()
-    timeout = TIMEOUT
+class Drive:
+    def __init__(self, config) -> None:
+        self.location = config.location
+        self.config = config
+        self.client = Client(self.config.api_key)
 
-    while True:
-        try:
-            initial_states = client.initialize(
-                api_key, location, agent_count, batch_size, min_speed, max_speed
-            )
-            response = {
-                "states": initial_states["initial_condition"]["agent_states"],
-                "recurrent_states": None,
-                "attributes": initial_states["initial_condition"]["agent_sizes"],
-            }
-            return response
-        except Exception as e:
-            if timeout is not None and time.time() > start + timeout:
-                raise e
+    def initialize(
+        self,
+        location=None,
+        agent_count=None,
+        batch_size=None,
+        min_speed=None,
+        max_speed=None,
+    ) -> dict:
+        start = time.time()
+        timeout = TIMEOUT
 
+        while True:
+            try:
+                initial_states = self.client.initialize(
+                    location=location or self.config.location,
+                    agent_count=agent_count or self.config.agent_count,
+                    batch_size=batch_size or self.config.batch_size,
+                    min_speed=min_speed or self.config.min_speed,
+                    max_speed=max_speed or self.config.max_speed,
+                )
+                response = {
+                    "states": initial_states["initial_condition"]["agent_states"],
+                    "recurrent_states": None,
+                    "attributes": initial_states["initial_condition"]["agent_sizes"],
+                }
+                return response
+            except Exception as e:
+                # TODO: Add logger
+                print("Retrying")
+                if timeout is not None and time.time() > start + timeout:
+                    raise e
 
-def run(
-    config: config,
-    location: str,
-    states: dict,
-    agent_attributes: dict,
-    recurrent_states: Optional[InputDataType] = None,
-    present_masks: Optional[InputDataType] = None,
-    return_birdviews: bool = False,
-) -> dict:
-    def _validate(input_dict: dict, input_name: str):
-        input_data = input_dict[input_name]
-        if isinstance(input_data, list):
-            input_data = torch.Tensor(input_data)
-        if input_data.shape[0] != batch_size:
-            raise Exception(f"{input_name} has the wrong batch size (dim 0)")
-        if input_data.shape[1] != agent_count:
-            raise Exception(f"{input_name} has the wrong agent counts (dim 1)")
-        if len(input_data.shape) > 2:
-            if input_data.shape[2] != obs_length:
-                raise Exception(f"{input_name} has the wrong batch size")
-        return input_data
-
-    def _validate_recurrent_states(input_data: InputDataType):
-        if isinstance(input_data, list):
-            input_data = torch.Tensor(input_data)
-        if input_data.shape[0] != batch_size:
-            raise Exception("Recurrent states has the wrong batch size (dim 0)")
-        if input_data.shape[1] != agent_count:
-            raise Exception("Recurrent states has the wrong agent counts (dim 2)")
-        if input_data.shape[2] != 2:
-            raise Exception("Recurrent states has the wrong number of layers (dim 4)")
-        if input_data.shape[3] != 64:
-            raise Exception("Recurrent states has the wrong dimension (dim 5)")
-        return input_data
-
-    def _tolist(input_data: InputDataType):
-        if not isinstance(input_data, list):
-            return input_data.tolist()
-        else:
+    def run(
+        self,
+        location: str,
+        states: dict,
+        agent_attributes: dict,
+        recurrent_states: Optional[InputDataType] = None,
+        present_masks: Optional[InputDataType] = None,
+        return_birdviews: bool = False,
+    ) -> dict:
+        def _validate(input_dict: dict, input_name: str):
+            input_data = input_dict[input_name]
+            if isinstance(input_data, list):
+                input_data = torch.Tensor(input_data)
+            if input_data.shape[0] != self.config.batch_size:
+                raise Exception(f"{input_name} has the wrong batch size (dim 0)")
+            if input_data.shape[1] != self.config.agent_count:
+                raise Exception(f"{input_name} has the wrong agent counts (dim 1)")
+            if len(input_data.shape) > 2:
+                if input_data.shape[2] != self.config.obs_length:
+                    raise Exception(f"{input_name} has the wrong batch size")
             return input_data
 
-    def _validate_and_tolist(input_data: dict, input_name: str):
-        return _tolist(_validate(input_data, input_name))
+        def _validate_recurrent_states(input_data: InputDataType):
+            if isinstance(input_data, list):
+                input_data = torch.Tensor(input_data)
+            if input_data.shape[0] != self.config.batch_size:
+                raise Exception("Recurrent states has the wrong batch size (dim 0)")
+            if input_data.shape[1] != self.config.agent_count:
+                raise Exception("Recurrent states has the wrong agent counts (dim 2)")
+            if input_data.shape[2] != 2:
+                raise Exception(
+                    "Recurrent states has the wrong number of layers (dim 4)"
+                )
+            if input_data.shape[3] != 64:
+                raise Exception("Recurrent states has the wrong dimension (dim 5)")
+            return input_data
 
-        # length=agent_sizes["length"],
-        # width=agent_sizes["width"],
-        # lr=agent_sizes["lr"],
+        def _tolist(input_data: InputDataType):
+            if not isinstance(input_data, list):
+                return input_data.tolist()
+            else:
+                return input_data
 
-    api_key = config.api_key
-    batch_size = config.batch_size
-    agent_count = config.agent_count
-    obs_length = config.obs_length
-    step_times = config.step_times
-    x = _validate_and_tolist(states, "x")  # BxAxT
-    y = _validate_and_tolist(states, "y")  # BxAxT
-    psi = _validate_and_tolist(states, "psi")  # BxAxT
-    speed = _validate_and_tolist(states, "speed")  # BxAxT
-    agent_length = _validate_and_tolist(agent_attributes, "length")  # BxA
-    agent_width = _validate_and_tolist(agent_attributes, "width")  # BxA
-    agent_lr = _validate_and_tolist(agent_attributes, "lr")  # BxA
-    present_masks = (
-        _validate_and_tolist(present_masks, "present_masks")
-        if present_masks is not None
-        else None
-    )  # BxA
-    recurrent_states = (
-        _tolist(_validate_recurrent_states(recurrent_states))
-        if recurrent_states is not None
-        else None
-    )  # Bx(num_predictions)xAxTx2x64
+        def _validate_and_tolist(input_data: dict, input_name: str):
+            return _tolist(_validate(input_data, input_name))
 
-    model_inputs = dict(
-        location=location,
-        initial_conditions=dict(
-            agent_states=dict(x=x, y=y, psi=psi, speed=speed),
-            agent_sizes=dict(length=agent_length, width=agent_width, lr=agent_lr),
-        ),
-        recurrent_states=recurrent_states,
-        present_masks=present_masks,
-        batch_size=batch_size,
-        agent_counts=agent_count,
-        obs_length=obs_length,
-        step_times=step_times,
-        return_birdviews=return_birdviews,
-    )
+        x = _validate_and_tolist(states, "x")  # BxAxT
+        y = _validate_and_tolist(states, "y")  # BxAxT
+        psi = _validate_and_tolist(states, "psi")  # BxAxT
+        speed = _validate_and_tolist(states, "speed")  # BxAxT
+        agent_length = _validate_and_tolist(agent_attributes, "length")  # BxA
+        agent_width = _validate_and_tolist(agent_attributes, "width")  # BxA
+        agent_lr = _validate_and_tolist(agent_attributes, "lr")  # BxA
+        present_masks = (
+            _validate_and_tolist(present_masks, "present_masks")
+            if present_masks is not None
+            else None
+        )  # BxA
+        recurrent_states = (
+            _tolist(_validate_recurrent_states(recurrent_states))
+            if recurrent_states is not None
+            else None
+        )  # Bx(num_predictions)xAxTx2x64
 
-    start = time.time()
-    timeout = TIMEOUT
-
-    while True:
-        try:
-            return client.run(api_key, model_inputs)
-        except Exception as e:
-            if timeout is not None and time.time() > start + timeout:
-                raise e
-
-
-class jupyter_render(widgets.HBox):
-    def __init__(self):
-        super().__init__()
-        output = widgets.Output()
-        self.buffer = [np.zeros([128, 128, 3], dtype=np.uint8)]
-
-        with output:
-            self.fig, self.ax = plt.subplots(constrained_layout=True, figsize=(5, 5))
-        self.im = self.ax.imshow(self.buffer[0])
-        self.ax.set_axis_off()
-
-        self.fig.canvas.toolbar_position = "bottom"
-
-        self.max = 0
-        # define widgets
-        self.play = widgets.Play(
-            value=0,
-            min=0,
-            max=self.max,
-            step=1,
-            description="Press play",
-            disabled=False,
-        )
-        self.int_slider = widgets.IntSlider(
-            value=0, min=0, max=self.max, step=1, description="Frame"
+        model_inputs = dict(
+            location=location,
+            initial_conditions=dict(
+                agent_states=dict(x=x, y=y, psi=psi, speed=speed),
+                agent_sizes=dict(length=agent_length, width=agent_width, lr=agent_lr),
+            ),
+            recurrent_states=recurrent_states,
+            present_masks=present_masks,
+            batch_size=self.config.batch_size,
+            agent_counts=self.config.agent_count,
+            obs_length=self.config.obs_length,
+            step_times=self.config.step_times,
+            return_birdviews=return_birdviews,
         )
 
-        controls = widgets.HBox(
-            [
-                self.play,
-                self.int_slider,
-            ]
-        )
-        controls.layout = self._make_box_layout()
-        widgets.jslink((self.play, "value"), (self.int_slider, "value"))
-        output.layout = self._make_box_layout()
+        start = time.time()
+        timeout = TIMEOUT
 
-        self.int_slider.observe(self.update, "value")
-        self.children = [controls, output]
-
-    def update(self, change):
-        self.im.set_data(self.buffer[self.int_slider.value])
-        self.fig.canvas.draw()
-
-    def add_frame(self, frame):
-        self.buffer.append(frame)
-        self.int_slider.max += 1
-        self.play.max += 1
-        self.int_slider.value = self.int_slider.max
-        self.play.value = self.play.max
-
-    def _make_box_layout(self):
-        return widgets.Layout(
-            border="solid 1px black",
-            margin="0px 10px 10px 0px",
-            padding="5px 5px 5px 5px",
-        )
+        while True:
+            try:
+                return self.client.run(model_inputs)
+            except Exception as e:
+                # TODO: Add logger
+                print("Retrying")
+                if timeout is not None and time.time() > start + timeout:
+                    raise e
