@@ -37,6 +37,7 @@ def initialize(config) -> dict:
         "states": initial_states["initial_condition"]["agent_states"],
         "recurrent_states": None,
         "attributes": initial_states["initial_condition"]["agent_sizes"],
+        "present_mask": None
     }
     return response
 
@@ -59,8 +60,8 @@ def run(
         if input_data.shape[1] != agent_count:
             raise Exception(f"{input_name} has the wrong agent counts (dim 1)")
         if len(input_data.shape) > 2:
-            if input_data.shape[2] != obs_length:
-                raise Exception(f"{input_name} has the wrong batch size")
+            # TODO: We hide the time dimension of the present masks for the client for now
+            pass
         return input_data
 
     def _validate_recurrent_states(input_data: InputDataType):
@@ -102,10 +103,10 @@ def run(
     agent_width = _validate_and_tolist(agent_attributes, "width")  # BxA
     agent_lr = _validate_and_tolist(agent_attributes, "lr")  # BxA
     present_masks = (
-        _validate_and_tolist(present_masks, "present_masks")
+        _tolist(present_masks)
         if present_masks is not None
         else None
-    )  # BxA
+    )  # BxA  We hide the time dimension of the present_masks for client now
     recurrent_states = (
         _tolist(_validate_recurrent_states(recurrent_states))
         if recurrent_states is not None
@@ -119,7 +120,10 @@ def run(
             agent_sizes=dict(length=agent_length, width=agent_width, lr=agent_lr),
         ),
         recurrent_states=recurrent_states,
-        present_masks=present_masks,
+        # Expand from BxA to BxAxT_total for the API interface
+        present_masks=
+        [[[a for _ in range(config.obs_length + config.step_times)]for a in b] for b in present_masks]
+        if present_masks else None,
         batch_size=batch_size,
         agent_counts=agent_count,
         obs_length=obs_length,
