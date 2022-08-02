@@ -1,18 +1,23 @@
 #!/usr/bin/env ipython
-from dataclasses import dataclass
 import os
 
 # os.environ["DEV"] = "1"
-from invertedai_drive import drive
+from invertedai_drive import Drive, Config
 from PIL import Image as PImage
 import imageio
 import numpy as np
 import cv2
 from tqdm import tqdm
+import argparse
 
-config = drive.config(
-    api_key="",
-    location="",
+parser = argparse.ArgumentParser(description="Simulation Parameters.")
+parser.add_argument("--api_key", type=str, default="")
+parser.add_argument("--location", type=str, default="")
+args = parser.parse_args()
+
+config = Config(
+    api_key=args.api_key,
+    location=args.location,
     agent_count=10,
     batch_size=1,
     obs_length=1,
@@ -22,13 +27,13 @@ config = drive.config(
 )
 
 print(config.location)
-response = drive.initialize(config)
+drive = Drive(config)
+response = drive.initialize()
 agent_attributes = response["attributes"]
 frames = []
 
 for i in tqdm(range(50)):
     response = drive.run(
-        config=config,
         location=config.location,
         agent_attributes=agent_attributes,
         states=response["states"],
@@ -40,4 +45,4 @@ for i in tqdm(range(50)):
     image = cv2.imdecode(birdview, cv2.IMREAD_COLOR)
     frames.append(image)
     im = PImage.fromarray(image)
-imageio.mimsave("iai-drive.gif", np.array(frames), format="GIF-PIL")
+imageio.mimsave("dev/iai-drive.gif", np.array(frames), format="GIF-PIL")
