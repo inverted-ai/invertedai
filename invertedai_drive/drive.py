@@ -107,13 +107,6 @@ class Drive:
         def _validate_and_tolist(input_data: dict, input_name: str):
             return _tolist(_validate(input_data, input_name))
 
-        x = _validate_and_tolist(states, "x")  # BxAxT
-        y = _validate_and_tolist(states, "y")  # BxAxT
-        psi = _validate_and_tolist(states, "psi")  # BxAxT
-        speed = _validate_and_tolist(states, "speed")  # BxAxT
-        agent_length = _validate_and_tolist(agent_attributes, "length")  # BxA
-        agent_width = _validate_and_tolist(agent_attributes, "width")  # BxA
-        agent_lr = _validate_and_tolist(agent_attributes, "lr")  # BxA
         present_masks = (
             _validate_and_tolist(present_masks, "present_masks")
             if present_masks is not None
@@ -128,14 +121,20 @@ class Drive:
         model_inputs = dict(
             location=location,
             initial_conditions=dict(
-                agent_states=dict(x=x, y=y, psi=psi, speed=speed),
-                agent_sizes=dict(length=agent_length, width=agent_width, lr=agent_lr),
+                agent_states=states,
+                agent_sizes=agent_attributes,
             ),
             recurrent_states=recurrent_states,
             # Expand from BxA to BxAxT_total for the API interface
-            present_masks=
-            [[[a for _ in range(self.config.obs_length + self.config.step_times)] for a in b] for b in present_masks]
-            if present_masks else None,
+            present_masks=[
+                [
+                    [a for _ in range(self.config.obs_length + self.config.step_times)]
+                    for a in b
+                ]
+                for b in present_masks
+            ]
+            if present_masks
+            else None,
             batch_size=self.config.batch_size,
             agent_counts=self.config.agent_count,
             obs_length=self.config.obs_length,
