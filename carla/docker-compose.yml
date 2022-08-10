@@ -1,0 +1,41 @@
+version: "3.3"
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: "host"
+    restart: always
+    environment:
+      DISPLAY: $DISPLAY
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    privileged: true
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/home/carla/carla/data
+    network_mode: "host"
+    restart: always
+    environment:
+      DISPLAY: $DISPLAY
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    privileged: true
+    command: jupyter notebook
+
+    # depends_on:
+      # - sqs
