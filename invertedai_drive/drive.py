@@ -15,12 +15,12 @@ InputDataType = Union[torch.Tensor, np.ndarray, List]
 class Config:
     api_key: str
     location: str
-    agent_count: int
-    batch_size: int
-    obs_length: int
-    step_times: int
-    min_speed: int
-    max_speed: int
+    agent_count: int = 10
+    batch_size: int = 1
+    obs_length: int = 1
+    step_times: int = 1
+    min_speed: int = 10
+    max_speed: int = 20
 
 
 class Drive:

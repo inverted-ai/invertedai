@@ -1,7 +1,10 @@
 #!/usr/bin/env ipython
 import os
+import sys
 
-# os.environ["DEV"] = "1"
+sys.path.append("../")
+os.environ["DEV"] = "1"
+from IPython import get_ipython
 from invertedai_drive import Drive, Config
 from PIL import Image as PImage
 import imageio
@@ -13,11 +16,16 @@ import argparse
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default="")
 parser.add_argument("--location", type=str, default="")
-args = parser.parse_args()
+
+if get_ipython() is None:
+    args = parser.parse_args()
+else:
+    args = parser.parse_args([])
 
 config = Config(
     api_key=args.api_key,
-    location=args.location,
+    # location=args.location,
+    location="Town03_Roundabout",
     agent_count=10,
     batch_size=1,
     obs_length=1,
