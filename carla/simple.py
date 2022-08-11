@@ -20,6 +20,7 @@ world_settings = carla.WorldSettings(
 def npcs_in_roi(npcs):
     vehicles_stats = []
     actor_geo_centers = []
+    actors = []
     for actor in npcs:
         actor_geo_center = actor.get_location()
 
@@ -44,28 +45,26 @@ def npcs_in_roi(npcs):
             front_left_wheel_position = physics_control.wheels[0].position / 100
             lf = front_left_wheel_position.distance(rear_left_wheel_position) - lr
             max_steer_angle = math.radians(physics_control.wheels[0].max_steer_angle)
-            vehicles_stats.extend([lr, lf, length, width, max_steer_angle])
+            vehicles_stats.append([lr, lf, length, width, max_steer_angle])
             actor_geo_centers.append(actor_geo_center)
-    return (actor_geo_centers, vehicles_stats)
+            actors.append(actor)
+    return (actors, actor_geo_centers, vehicles_stats)
 
 
 client = carla.Client("localhost", 2000)
 traffic_manager = client.get_trafficmanager()
 world = client.load_world(map_name)
 debug = world.debug
-## Setting weather
-# world.set_weather(self.weather)
-# world = client.get_world()
 original_settings = client.get_world().get_settings()
 world.apply_settings(world_settings)
 traffic_manager.set_synchronous_mode(True)
 
 # spectator as a free camera
 spectator = world.get_spectator()
-camera_loc = carla.Location(roi_center["x"], roi_center["y"], z=70)
-camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
-transform = carla.Transform(camera_loc, camera_rot)
-spectator.set_transform(transform)
+# camera_loc = carla.Location(roi_center["x"], roi_center["y"], z=70)
+# camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
+# transform = carla.Transform(camera_loc, camera_rot)
+# spectator.set_transform(transform)
 
 bp_lib = world.get_blueprint_library()
 spawn_points = world.get_map().get_spawn_points()
@@ -82,9 +81,11 @@ clock = pygame.time.Clock()
 
 for i in range(simulation_time * fps):
     world.tick()
-    actor_geo_centers, vehicles_stats = npcs_in_roi(npcs)
-    for loc in actor_geo_centers:
-        loc.z += 2
+    actors, actor_geo_centers, vehicles_stats = npcs_in_roi(npcs)
+    for npc in actors:
+        # npc.set_autopilot(False)
+        loc = npc.get_location()
+        loc.z += 3
         debug.draw_point(
             location=loc,
             size=0.1,
