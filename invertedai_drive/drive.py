@@ -63,7 +63,6 @@ class Drive:
 
     def run(
         self,
-        location: str,
         states: dict,
         agent_attributes: dict,
         recurrent_states: Optional[InputDataType] = None,
@@ -107,6 +106,7 @@ class Drive:
         def _validate_and_tolist(input_data: dict, input_name: str):
             return _tolist(_validate(input_data, input_name))
 
+        self.config.agent_count = len(states[0])
         present_masks = (
             _validate_and_tolist(present_masks, "present_masks")
             if present_masks is not None
@@ -119,7 +119,7 @@ class Drive:
         )  # Bx(num_predictions)xAxTx2x64
 
         model_inputs = dict(
-            location=location,
+            location=self.location,
             initial_conditions=dict(
                 agent_states=states,
                 agent_sizes=agent_attributes,

@@ -52,7 +52,7 @@ def npcs_in_roi(npcs):
 
 
 client = carla.Client("localhost", 2000)
-traffic_manager = client.get_trafficmanager(8001)
+traffic_manager = client.get_trafficmanager(57621)
 world = client.load_world(map_name)
 debug = world.debug
 original_settings = client.get_world().get_settings()

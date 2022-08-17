@@ -88,7 +88,7 @@ class Client:
         if not invertedai_drive.dev:
             base_url = "https://api.inverted.ai/drive"
         else:
-            base_url = "http://localhost:8000"
+            base_url = "http://localhost:8888"
         # TODO: Add endpoint option and versioning to base_url
         return base_url
 
