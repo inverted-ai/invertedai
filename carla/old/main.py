@@ -17,7 +17,7 @@ import os
 import sys
 import torch
 
-sys.path.append("../")
+sys.path.append("../..")
 os.environ["DEV"] = "1"
 from IPython import get_ipython
 from invertedai_drive import Drive, Config

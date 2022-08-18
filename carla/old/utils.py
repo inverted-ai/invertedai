@@ -1,7 +1,7 @@
 import sys
 import os
 
-sys.path.append("../")
+sys.path.append("../..")
 os.environ["DEV"] = "1"
 
 import collections
