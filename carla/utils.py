@@ -11,12 +11,11 @@ import carla
 from carla import Location, Rotation, Transform
 import math
 import numpy as np
-from collections import namedtuple
+from collections import namedtuple, deque
 import socket
 import random
 import time
 from typing import Tuple, Union, List
-from queue import Queue
 import gym
 
 
@@ -75,12 +74,37 @@ class CarlaSimulationConfig:
         self.npc_bps = NPC_BPS
 
 
-@dataclass
 class Car:
-    actor: carla.Actor
-    recurrent_state: List[List[float]]
-    dimension: Tuple
-    states: Queue = Queue(10)
+    def __init__(
+        self,
+        actor: carla.Actor,
+    ) -> None:
+        self.actor = actor
+        self.recurrent_state = RS
+        self.dimension = self.get_actor_dimensions(actor)
+        self.states = deque(maxlen=10)
+
+    @staticmethod
+    def get_actor_dimensions(actor):
+        bb = actor.bounding_box.extent
+        length = max(
+            2 * bb.x, 1.0
+        )  # provide minimum value since CARLA returns 0 for some agents
+        width = max(2 * bb.y, 0.2)
+        physics_control = actor.get_physics_control()
+        # Wheel position is in centimeter: https://github.com/carla-simulator/carla/issues/2153
+        rear_left_wheel_position = physics_control.wheels[2].position / 100
+        rear_right_wheel_position = physics_control.wheels[3].position / 100
+        real_mid_position = 0.5 * (rear_left_wheel_position + rear_right_wheel_position)
+        actor_geo_center = actor.get_location()
+        lr = actor_geo_center.distance(real_mid_position)
+        # front_left_wheel_position = physics_control.wheels[0].position / 100
+        # lf = front_left_wheel_position.distance(rear_left_wheel_position) - lr
+        # max_steer_angle = math.radians(physics_control.wheels[0].max_steer_angle)
+        # vehicles_stats.extend([lr, lf, length, width, max_steer_angle])
+        return (length, width, lr)
+
+    # self.states =
 
 
 class CarlaEnv(gym.Env):
@@ -227,14 +251,8 @@ class CarlaEnv(gym.Env):
             if actor is None:
                 print(f"Cannot spawn NPC at:{str(self.ego_spawn_point)}")
             else:
-                # self.npcs.append({"actor": npc, "recurrent_state": RS, "sta"})
-                npc = Car(
-                    actor=actor,
-                    recurrent_state=RS,
-                    dimension=self.get_actor_dimensions(actor),
-                )
+                npc = Car(actor)
                 self.npcs.append(npc)
-                # self.npcs.append(Npc(actor=npc, recurrent_state=RS, states=))
 
     def _spawn_ego(self):
         blueprint = self.world.get_blueprint_library().find(self.config.ego_bp)
@@ -244,11 +262,7 @@ class CarlaEnv(gym.Env):
                 f"Cannot spawn ego vehicle at:{str(self.ego_spawn_point)}"
             )
         else:
-            self.ego = Car(
-                actor=ego,
-                recurrent_state=RS,
-                dimension=self.get_actor_dimensions(ego),
-            )
+            self.ego = Car(ego)
 
     def _flag_npc(self, actors, color):
         for actor in actors:
@@ -266,38 +280,17 @@ class CarlaEnv(gym.Env):
         remaining_npcs = []
         for npc in self.npcs:
             actor_geo_center = npc.actor.get_location()
+            # TODO: Use a Car method to get the location and store the states at the same time
             distance = math.sqrt(
                 ((actor_geo_center.x - self.config.roi_center.x) ** 2)
                 + ((actor_geo_center.y - self.config.roi_center.y) ** 2)
             )
             if distance < self.config.proximity_threshold + self.config.slack:
-                state = self.get_actor_state(npc)
-                # npc.states.put(state)
                 remaining_npcs.append(npc)
             else:
                 exit_npcs.append(npc)
         self._destory_npcs(exit_npcs)
         self.npcs = remaining_npcs
-
-    @staticmethod
-    def get_actor_dimensions(actor):
-        bb = actor.bounding_box.extent
-        length = max(
-            2 * bb.x, 1.0
-        )  # provide minimum value since CARLA returns 0 for some agents
-        width = max(2 * bb.y, 0.2)
-        physics_control = actor.get_physics_control()
-        # Wheel position is in centimeter: https://github.com/carla-simulator/carla/issues/2153
-        rear_left_wheel_position = physics_control.wheels[2].position / 100
-        rear_right_wheel_position = physics_control.wheels[3].position / 100
-        real_mid_position = 0.5 * (rear_left_wheel_position + rear_right_wheel_position)
-        actor_geo_center = actor.get_location()
-        lr = actor_geo_center.distance(real_mid_position)
-        # front_left_wheel_position = physics_control.wheels[0].position / 100
-        # lf = front_left_wheel_position.distance(rear_left_wheel_position) - lr
-        # max_steer_angle = math.radians(physics_control.wheels[0].max_steer_angle)
-        # vehicles_stats.extend([lr, lf, length, width, max_steer_angle])
-        return (length, width, lr)
 
     @staticmethod
     def get_actor_state(actor):
