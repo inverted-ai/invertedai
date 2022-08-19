@@ -21,6 +21,7 @@ class Config:
     step_times: int = 1
     min_speed: int = 10
     max_speed: int = 20
+    carla_simulator: bool = False
 
 
 class Drive:
@@ -140,6 +141,7 @@ class Drive:
             obs_length=self.config.obs_length,
             step_times=self.config.step_times,
             return_birdviews=return_birdviews,
+            fix_carla_coord=self.config.carla_simulator,
         )
 
         start = time.time()

@@ -58,7 +58,7 @@ class CarlaSimulationConfig:
     npc_bps: List[str]
     roi_center: cord = cord(x=0, y=0)  # region of interest center
     map_name: str = "Town03"
-    fps: int = 30
+    fps: int = 10
     traffic_count: int = 15
     episode_lenght: int = 20  # In Seconds
     proximity_threshold: int = 50
@@ -81,22 +81,38 @@ class Car:
     ) -> None:
         self.actor = actor
         self.recurrent_state = RS
-        self.dimension = self.get_actor_dimensions(actor)
-        self.states = deque(maxlen=10)
+        self._dimension = self._get_actor_dimensions()
+        self._states = deque(maxlen=10)
 
-    @staticmethod
-    def get_actor_dimensions(actor):
-        bb = actor.bounding_box.extent
+    @property
+    def dims(self):
+        return self._dimension
+
+    def get_state(self):
+        transform, state = self._get_actor_state()
+        self._states.append(state)
+        return dict(
+            transform=transform,
+            states=list(self._states),
+            recurrent_state=self.recurrent_state,
+        )
+
+    def update(self, state, recurrent_state):
+        pass
+
+    # @staticmethod
+    def _get_actor_dimensions(self):
+        bb = self.actor.bounding_box.extent
         length = max(
             2 * bb.x, 1.0
         )  # provide minimum value since CARLA returns 0 for some agents
         width = max(2 * bb.y, 0.2)
-        physics_control = actor.get_physics_control()
+        physics_control = self.actor.get_physics_control()
         # Wheel position is in centimeter: https://github.com/carla-simulator/carla/issues/2153
         rear_left_wheel_position = physics_control.wheels[2].position / 100
         rear_right_wheel_position = physics_control.wheels[3].position / 100
         real_mid_position = 0.5 * (rear_left_wheel_position + rear_right_wheel_position)
-        actor_geo_center = actor.get_location()
+        actor_geo_center = self.actor.get_location()
         lr = actor_geo_center.distance(real_mid_position)
         # front_left_wheel_position = physics_control.wheels[0].position / 100
         # lf = front_left_wheel_position.distance(rear_left_wheel_position) - lr
@@ -105,6 +121,18 @@ class Car:
         return (length, width, lr)
 
     # self.states =
+    # @staticmethod
+    def _get_actor_state(self):
+        # breakpoint()
+        t = self.actor.get_transform()
+        loc, rot = t.location, t.rotation
+        xs = loc.x
+        ys = loc.y
+        psis = np.radians(rot.yaw)
+        v = self.actor.get_velocity()
+        vs = np.sqrt(v.x**2 + v.y**2)
+        # actor.states.put((xs, ys, psis, vs))
+        return t, (xs, ys, psis, vs)
 
 
 class CarlaEnv(gym.Env):
@@ -160,11 +188,20 @@ class CarlaEnv(gym.Env):
     def reset(self):
         pass
 
-    def step(self):
+    def step(self, ego="autopilot", npcs=None):
         if self.config.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.config.flag_npcs:
             self._flag_npc(self.npcs, NPC_FLAG_COLOR)
+        if npcs is not None:
+            states = npcs["states"]
+            recurrent_states = npcs["recurrent_states"]
+            for npc in self.npcs:
+                pass
+                # loc = carla.Location(state[0].item(), state[1].item(), self.z)
+                # rot = carla.Rotation(yaw=np.degrees(state[2].item()), pitch=self.pitch, roll=self.roll)
+                # actor.set_transform(next_transform)
+
         self._filter_npcs()
         self.world.tick()
         # return action
@@ -182,8 +219,23 @@ class CarlaEnv(gym.Env):
             self.client.get_world().apply_settings(self.original_settings)
             self.traffic_manager.set_synchronous_mode(False)
 
-    def get_obs(self):
-        pass
+    def get_obs(self, obs_len=1, include_ego=True):
+        states = []
+        rec_state = []
+        dims = []
+        for npc in self.npcs:
+            obs = npc.get_state()
+            states.append(obs["states"][-1:])
+            rec_state.append(obs["recurrent_state"])
+            dims.append(npc.dims)
+        if include_ego:
+            obs = self.ego.get_state()
+            states.append(obs["states"][-1:])
+            rec_state.append(obs["recurrent_state"])
+            dims.append(self.ego.dims)
+        return states, rec_state, dims
+
+    # def update_states(self, states)
 
     def get_reward(self):
         pass
@@ -279,8 +331,7 @@ class CarlaEnv(gym.Env):
         exit_npcs = []
         remaining_npcs = []
         for npc in self.npcs:
-            actor_geo_center = npc.actor.get_location()
-            # TODO: Use a Car method to get the location and store the states at the same time
+            actor_geo_center = npc.get_state()["transform"].location
             distance = math.sqrt(
                 ((actor_geo_center.x - self.config.roi_center.x) ** 2)
                 + ((actor_geo_center.y - self.config.roi_center.y) ** 2)
@@ -291,19 +342,6 @@ class CarlaEnv(gym.Env):
                 exit_npcs.append(npc)
         self._destory_npcs(exit_npcs)
         self.npcs = remaining_npcs
-
-    @staticmethod
-    def get_actor_state(actor):
-        # breakpoint()
-        t = actor.actor.get_transform()
-        loc, rot = t.location, t.rotation
-        xs = loc.x
-        ys = loc.y
-        psis = np.radians(rot.yaw)
-        v = actor.actor.get_velocity()
-        vs = np.sqrt(v.x**2 + v.y**2)
-        # actor.states.put((xs, ys, psis, vs))
-        return (xs, ys, psis, vs)
 
 
 def get_entrance(spawn_points, config):
