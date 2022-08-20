@@ -49,6 +49,7 @@ class Drive:
                     batch_size=batch_size or self.config.batch_size,
                     min_speed=min_speed or self.config.min_speed,
                     max_speed=max_speed or self.config.max_speed,
+                    fix_carla_coord=self.config.carla_simulator,
                 )
                 response = {
                     "states": initial_states["initial_condition"]["agent_states"],

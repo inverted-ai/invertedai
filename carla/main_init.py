@@ -7,6 +7,7 @@ from PIL import Image as PImage
 import cv2
 import imageio
 import torch
+import carla
 
 sys.path.append("../..")
 os.environ["DEV"] = "1"
@@ -19,7 +20,7 @@ iai_config = Config(
     # location="Town04_Merging",
     obs_length=1,
     step_times=1,
-    agent_count=10,
+    agent_count=100,
     batch_size=1,
     min_speed=10,
     max_speed=20,
@@ -27,19 +28,24 @@ iai_config = Config(
 )
 
 
+def to_transform(poses: list) -> list:
+    t = []
+    for pos in poses:
+        loc = carla.Location(x=pos[0][0], y=pos[0][1], z=1.5)
+        rot = carla.Rotation(yaw=np.degrees(pos[0][2]))
+        t.append(carla.Transform(loc, rot))
+    return t
+
+
 drive = Drive(iai_config)
-sim = CarlaEnv.from_preset_data()
+response = drive.initialize()
+spawn_points = to_transform(response["states"][0])
+sim = CarlaEnv.from_preset_data(npc_roi_spawn_points=spawn_points)
 sim.set_npc_autopilot()
 sim.set_ego_autopilot()
 
 clock = pygame.time.Clock()
 frames = []
-
-
-for _ in range(10):
-    states, recurrent_states, dimensions = sim.step(npcs=None, ego="autopilot")
-    clock.tick_busy_loop(sim.config.fps)
-sim.set_npc_autopilot(False)
 
 states, recurrent_states, dimensions = sim.get_obs(obs_len=1)
 
@@ -51,8 +57,8 @@ for i in range(10 * sim.config.fps):
         return_birdviews=True,
     )
 
-    states, recurrent_states, dimensions = sim.step(npcs=None, ego="autopilot")
-    # states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")
+    # states, recurrent_states, dimensions = sim.step(npcs=None, ego="autopilot")
+    states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")
     clock.tick_busy_loop(sim.config.fps)
     # recurrent_states = response["recurrent_states"]
     birdview = np.array(response["bird_view"], dtype=np.uint8)

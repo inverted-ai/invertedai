@@ -58,10 +58,12 @@ class CarlaSimulationConfig:
     npc_bps: List[str]
     roi_center: cord = cord(x=0, y=0)  # region of interest center
     map_name: str = "Town03"
+    # roi_center: cord = cord(x=-100, y=-150)  # region of interest center
+    # map_name: str = "Town04"
     fps: int = 10
-    traffic_count: int = 15
+    traffic_count: int = 50
     episode_lenght: int = 20  # In Seconds
-    proximity_threshold: int = 50
+    proximity_threshold: int = 100
     entrance_interval: int = 2  # In Seconds
     follow_ego: bool = False
     slack: int = 3
@@ -89,16 +91,26 @@ class Car:
         return self._dimension
 
     def get_state(self):
-        transform, state = self._get_actor_state()
+        self.transform, state = self._get_actor_state()
         self._states.append(state)
         return dict(
-            transform=transform,
+            transform=self.transform,
             states=list(self._states),
             recurrent_state=self.recurrent_state,
         )
 
-    def update(self, state, recurrent_state):
-        pass
+    def set_state(self, state=None, recurrent_state=None):
+        self.recurrent_state = recurrent_state
+        if state is not None:
+            # NOTE: state is of size 4 : [x, y, angle, speed]
+            loc = carla.Location(state[0], state[1], self.transform.location.z)
+            rot = carla.Rotation(
+                yaw=np.degrees(state[2]),
+                pitch=self.transform.rotation.pitch,
+                roll=self.transform.rotation.roll,
+            )
+            next_transform = carla.Transform(loc, rot)
+            self.actor.set_transform(next_transform)
 
     # @staticmethod
     def _get_actor_dimensions(self):
@@ -159,7 +171,7 @@ class CarlaEnv(gym.Env):
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_hybrid_physics_mode(True)
         if spectator_transform is None:
-            camera_loc = carla.Location(config.roi_center.x, config.roi_center.y, z=110)
+            camera_loc = carla.Location(config.roi_center.x, config.roi_center.y, z=100)
             camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
             spectator_transform = carla.Transform(camera_loc, camera_rot)
         if npc_roi_spawn_points is None:
@@ -188,22 +200,25 @@ class CarlaEnv(gym.Env):
     def reset(self):
         pass
 
-    def step(self, ego="autopilot", npcs=None):
+    def step(self, ego="autopilot", npcs=None, time_step=0):
+        if npcs is not None:
+            states = npcs["states"]
+            recurrent_states = npcs["recurrent_states"]
+            for id, npc in enumerate(self.npcs):
+                # NOTE: states is of size (batch_size x actor x time x state)
+                # state is of size 4 : [x, y, angle, speed]
+                rs = None if recurrent_states is None else recurrent_states[0][id]
+                npc.set_state(states[0][id][time_step], rs)
+
+            rs = None if recurrent_states is None else recurrent_states[0][id + 1]
+            self.ego.set_state(recurrent_state=rs)
+        self._filter_npcs()
         if self.config.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.config.flag_npcs:
             self._flag_npc(self.npcs, NPC_FLAG_COLOR)
-        if npcs is not None:
-            states = npcs["states"]
-            recurrent_states = npcs["recurrent_states"]
-            for npc in self.npcs:
-                pass
-                # loc = carla.Location(state[0].item(), state[1].item(), self.z)
-                # rot = carla.Rotation(yaw=np.degrees(state[2].item()), pitch=self.pitch, roll=self.roll)
-                # actor.set_transform(next_transform)
-
-        self._filter_npcs()
         self.world.tick()
+        return self.get_obs()
         # return action
         # self.simulator.step(action)
         # return self.get_obs(), self.get_reward(), self.is_done(), self.get_info()
@@ -225,12 +240,12 @@ class CarlaEnv(gym.Env):
         dims = []
         for npc in self.npcs:
             obs = npc.get_state()
-            states.append(obs["states"][-1:])
+            states.append(obs["states"][-obs_len:])
             rec_state.append(obs["recurrent_state"])
             dims.append(npc.dims)
         if include_ego:
             obs = self.ego.get_state()
-            states.append(obs["states"][-1:])
+            states.append(obs["states"][-obs_len:])
             rec_state.append(obs["recurrent_state"])
             dims.append(self.ego.dims)
         return states, rec_state, dims
@@ -260,10 +275,12 @@ class CarlaEnv(gym.Env):
     def render(self, mode="human"):
         pass
 
-    def set_npc_autopilot(self):
+    def set_npc_autopilot(self, on=True):
         for npc in self.npcs:
             try:
-                npc.actor.set_autopilot(True)
+                npc.actor.set_autopilot(on)
+                if not on:
+                    npc.actor.set_simulate_physics(False)
             except:
                 print("Unable to set autopilot")
                 # TODO: add logger
@@ -276,9 +293,21 @@ class CarlaEnv(gym.Env):
             # TODO: add logger
 
     @classmethod
-    def from_preset_data(cls):
+    def from_preset_data(
+        cls,
+        ego_spawn_point=None,
+        npc_roi_spawn_points=None,
+        npc_entrance_spawn_points=None,
+        spectator_transform=None,
+    ):
         config = CarlaSimulationConfig()
-        return cls(config)
+        return cls(
+            config,
+            ego_spawn_point,
+            npc_roi_spawn_points,
+            npc_entrance_spawn_points,
+            spectator_transform,
+        )
 
     def _destory_npcs(self, npcs: List):
         for npc in npcs:

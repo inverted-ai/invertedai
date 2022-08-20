@@ -37,7 +37,13 @@ class Client:
         return response.json()
 
     def initialize(
-        self, location, agent_count=10, batch_size=1, min_speed=1, max_speed=3
+        self,
+        location,
+        agent_count=10,
+        batch_size=1,
+        min_speed=1,
+        max_speed=3,
+        fix_carla_coord=False,
     ):
         params = {
             "location": location,
@@ -45,6 +51,7 @@ class Client:
             "num_samples": batch_size,
             "spawn_min_speed": min_speed,
             "spawn_max_speed": max_speed,
+            "fix_carla_coord": fix_carla_coord,
         }
 
         response = self._request(

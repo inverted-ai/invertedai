@@ -131,7 +131,6 @@ for i in range(sim_config.simulation_time * sim_config.fps):
     states = torch.tensor(npcs["states"]).unsqueeze(-2).unsqueeze(0).tolist()
     dimensions = torch.tensor(npcs["dimenstions"]).unsqueeze(0).tolist()
     recurrent_states = torch.tensor(npcs["recurrent_states"]).unsqueeze(0).tolist()
-    breakpoint()
     response = drive.run(
         agent_attributes=dimensions,
         states=states,
