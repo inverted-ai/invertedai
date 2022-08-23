@@ -19,30 +19,35 @@ iai_config = Config(
     # location="Town04_Merging",
     obs_length=1,
     step_times=1,
-    agent_count=10,
+    agent_count=100,
     batch_size=1,
-    min_speed=10,
-    max_speed=20,
+    min_speed=1,
+    max_speed=5,
     carla_simulator=True,
 )
 
 
 drive = Drive(iai_config)
-sim = CarlaEnv.from_preset_data()
+response = drive.initialize()
+initial_states = response["states"][0]
+
+sim = CarlaEnv.from_preset_data(initial_states=initial_states)
 sim.set_npc_autopilot()
 sim.set_ego_autopilot()
+sim.set_npc_autopilot(False)
 
 clock = pygame.time.Clock()
 frames = []
 
 
-for _ in range(10):
-    states, recurrent_states, dimensions = sim.step(npcs=None, ego="autopilot")
-    clock.tick_busy_loop(sim.config.fps)
-sim.set_npc_autopilot(False)
+states, recurrent_states, dimensions = sim.reset()
 
-states, recurrent_states, dimensions = sim.get_obs(obs_len=1)
-
+agent_attributes = torch.tensor(dimensions).unsqueeze(0).tolist()
+response_nocarla = dict(
+    states=torch.tensor(states).unsqueeze(0).tolist(),
+    recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
+)
+frames_nocarla = []
 for i in range(10 * sim.config.fps):
     response = drive.run(
         agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
@@ -50,15 +55,27 @@ for i in range(10 * sim.config.fps):
         recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
         return_birdviews=True,
     )
+    states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")
 
-    states, recurrent_states, dimensions = sim.step(npcs=None, ego="autopilot")
-    # states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")
     clock.tick_busy_loop(sim.config.fps)
     # recurrent_states = response["recurrent_states"]
     birdview = np.array(response["bird_view"], dtype=np.uint8)
     image = cv2.imdecode(birdview, cv2.IMREAD_COLOR)
     frames.append(image)
-    im = PImage.fromarray(image)
+
+    response_nocarla = drive.run(
+        agent_attributes=agent_attributes,
+        states=response_nocarla["states"],
+        recurrent_states=response_nocarla["recurrent_states"],
+        return_birdviews=True,
+    )
+
+    birdview_nocarla = np.array(response_nocarla["bird_view"], dtype=np.uint8)
+    image_nocarla = cv2.imdecode(birdview_nocarla, cv2.IMREAD_COLOR)
+    frames_nocarla.append(image_nocarla)
+
+
+imageio.mimsave("iai-drive_nocarla.gif", np.array(frames_nocarla), format="GIF-PIL")
 
 
 imageio.mimsave("iai-drive.gif", np.array(frames), format="GIF-PIL")

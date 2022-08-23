@@ -61,9 +61,9 @@ class CarlaSimulationConfig:
     # roi_center: cord = cord(x=-100, y=-150)  # region of interest center
     # map_name: str = "Town04"
     fps: int = 10
-    traffic_count: int = 50
+    traffic_count: int = 20
     episode_lenght: int = 20  # In Seconds
-    proximity_threshold: int = 100
+    proximity_threshold: int = 50
     entrance_interval: int = 2  # In Seconds
     follow_ego: bool = False
     slack: int = 3
@@ -77,21 +77,19 @@ class CarlaSimulationConfig:
 
 
 class Car:
-    def __init__(
-        self,
-        actor: carla.Actor,
-    ) -> None:
+    def __init__(self, actor: carla.Actor, speed: float = 0.0) -> None:
         self.actor = actor
         self.recurrent_state = RS
         self._dimension = self._get_actor_dimensions()
         self._states = deque(maxlen=10)
+        self.speed = speed
 
     @property
     def dims(self):
         return self._dimension
 
-    def get_state(self):
-        self.transform, state = self._get_actor_state()
+    def get_state(self, warmup=False):
+        self.transform, state = self._get_actor_state(warmup)
         self._states.append(state)
         return dict(
             transform=self.transform,
@@ -111,6 +109,7 @@ class Car:
             )
             next_transform = carla.Transform(loc, rot)
             self.actor.set_transform(next_transform)
+            self.speed = state[3]
 
     # @staticmethod
     def _get_actor_dimensions(self):
@@ -134,15 +133,18 @@ class Car:
 
     # self.states =
     # @staticmethod
-    def _get_actor_state(self):
+    def _get_actor_state(self, warmup=False):
         # breakpoint()
         t = self.actor.get_transform()
         loc, rot = t.location, t.rotation
         xs = loc.x
         ys = loc.y
         psis = np.radians(rot.yaw)
-        v = self.actor.get_velocity()
-        vs = np.sqrt(v.x**2 + v.y**2)
+        if warmup:
+            v = self.actor.get_velocity()
+            vs = np.sqrt(v.x**2 + v.y**2)
+        else:
+            vs = self.speed
         # actor.states.put((xs, ys, psis, vs))
         return t, (xs, ys, psis, vs)
 
@@ -152,7 +154,7 @@ class CarlaEnv(gym.Env):
         self,
         config: CarlaSimulationConfig,
         ego_spawn_point=None,
-        npc_roi_spawn_points=None,
+        initial_states=None,
         npc_entrance_spawn_points=None,
         spectator_transform=None,
     ) -> None:
@@ -174,12 +176,22 @@ class CarlaEnv(gym.Env):
             camera_loc = carla.Location(config.roi_center.x, config.roi_center.y, z=100)
             camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
             spectator_transform = carla.Transform(camera_loc, camera_rot)
-        if npc_roi_spawn_points is None:
+        if initial_states is None:
             spawn_points = world.get_map().get_spawn_points()
-            npc_roi_spawn_points = get_roi_spawn_points(spawn_points, config)
+            npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
+                config, spawn_points, speed=np.zeros_like(spawn_points)
+            )
+        else:
+            spawn_points, speed = self._to_transform(initial_states)
+            npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
+                config, spawn_points, speed
+            )
         if npc_entrance_spawn_points is None:
             spawn_points = world.get_map().get_spawn_points()
-            npc_entrance_spawn_points = get_entrance(spawn_points, config)
+            npc_entrance_spawn_points = self.get_entrance(config, spawn_points)
+        else:
+            spawn_points = self._to_transform(npc_roi_spawn_points)
+            npc_entrance_spawn_points = self.get_roi_spawn_points(config, spawn_points)
         if ego_spawn_point is None:
             ego_spawn_point = self.rng.choice(TOWN03_ROUNDABOUT_DEMO_LOCATIONS)
 
@@ -190,6 +202,7 @@ class CarlaEnv(gym.Env):
         self.client = client
         self.traffic_manager = traffic_manager
         self.roi_spawn_points = npc_roi_spawn_points
+        self.initial_speed = initial_speed
         self.entrance_spawn_points = npc_entrance_spawn_points
         self.ego_spawn_point = ego_spawn_point
         self.npcs = []
@@ -198,7 +211,7 @@ class CarlaEnv(gym.Env):
         self.world.tick()
 
     def reset(self):
-        pass
+        return self.get_obs()
 
     def step(self, ego="autopilot", npcs=None, time_step=0):
         if npcs is not None:
@@ -212,7 +225,7 @@ class CarlaEnv(gym.Env):
 
             rs = None if recurrent_states is None else recurrent_states[0][id + 1]
             self.ego.set_state(recurrent_state=rs)
-        self._filter_npcs()
+        # self._filter_npcs()
         if self.config.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.config.flag_npcs:
@@ -234,17 +247,17 @@ class CarlaEnv(gym.Env):
             self.client.get_world().apply_settings(self.original_settings)
             self.traffic_manager.set_synchronous_mode(False)
 
-    def get_obs(self, obs_len=1, include_ego=True):
+    def get_obs(self, obs_len=1, include_ego=True, warmup=False):
         states = []
         rec_state = []
         dims = []
         for npc in self.npcs:
-            obs = npc.get_state()
+            obs = npc.get_state(warmup)
             states.append(obs["states"][-obs_len:])
             rec_state.append(obs["recurrent_state"])
             dims.append(npc.dims)
         if include_ego:
-            obs = self.ego.get_state()
+            obs = self.ego.get_state(warmup)
             states.append(obs["states"][-obs_len:])
             rec_state.append(obs["recurrent_state"])
             dims.append(self.ego.dims)
@@ -258,7 +271,7 @@ class CarlaEnv(gym.Env):
     def is_done(self):
         pass
 
-    def get_info(self):
+    def get_info(self, warmup=False):
         x = self.simulator.get_state()[..., 0]
         info = dict(
             invasion=self.simulator.compute_offroad() > self.offroad_threshold,
@@ -296,7 +309,7 @@ class CarlaEnv(gym.Env):
     def from_preset_data(
         cls,
         ego_spawn_point=None,
-        npc_roi_spawn_points=None,
+        initial_states=None,
         npc_entrance_spawn_points=None,
         spectator_transform=None,
     ):
@@ -304,7 +317,7 @@ class CarlaEnv(gym.Env):
         return cls(
             config,
             ego_spawn_point,
-            npc_roi_spawn_points,
+            initial_states,
             npc_entrance_spawn_points,
             spectator_transform,
         )
@@ -332,7 +345,7 @@ class CarlaEnv(gym.Env):
             if actor is None:
                 print(f"Cannot spawn NPC at:{str(self.ego_spawn_point)}")
             else:
-                npc = Car(actor)
+                npc = Car(actor, self.initial_speed[i])
                 self.npcs.append(npc)
 
     def _spawn_ego(self):
@@ -372,34 +385,47 @@ class CarlaEnv(gym.Env):
         self._destory_npcs(exit_npcs)
         self.npcs = remaining_npcs
 
+    @staticmethod
+    def _to_transform(poses: list) -> Tuple[list, list]:
+        t = []
+        speed = []
+        for pos in poses:
+            loc = carla.Location(x=pos[0][0], y=pos[0][1], z=1.5)
+            rot = carla.Rotation(yaw=np.degrees(pos[0][2]))
+            t.append(carla.Transform(loc, rot))
+            speed.append(pos[0][3])
+        return (t, speed)
 
-def get_entrance(spawn_points, config):
-    slack = 1
-    entrance = []
-    for sp in spawn_points:
-        distance = math.sqrt(
-            ((sp.location.x - config.roi_center.x) ** 2)
-            + ((sp.location.y - config.roi_center.y) ** 2)
-        )
-        if (
-            config.proximity_threshold - slack
-            < distance
-            < config.proximity_threshold + slack
-        ):
-            entrance.append(sp)
-    return entrance
+    @staticmethod
+    def get_entrance(config, spawn_points):
+        slack = 1
+        entrance = []
+        for sp in spawn_points:
+            distance = math.sqrt(
+                ((sp.location.x - config.roi_center.x) ** 2)
+                + ((sp.location.y - config.roi_center.y) ** 2)
+            )
+            if (
+                config.proximity_threshold - slack
+                < distance
+                < config.proximity_threshold + slack
+            ):
+                entrance.append(sp)
+        return entrance
 
-
-def get_roi_spawn_points(spawn_points, config):
-    roi_spawn_points = []
-    for sp in spawn_points:
-        distance = math.sqrt(
-            ((sp.location.x - config.roi_center.x) ** 2)
-            + ((sp.location.y - config.roi_center.y) ** 2)
-        )
-        if distance < config.proximity_threshold:
-            roi_spawn_points.append(sp)
-    return roi_spawn_points
+    @staticmethod
+    def get_roi_spawn_points(config, spawn_points, speed):
+        roi_spawn_points = []
+        initial_speed = []
+        for ind, sp in enumerate(spawn_points):
+            distance = math.sqrt(
+                ((sp.location.x - config.roi_center.x) ** 2)
+                + ((sp.location.y - config.roi_center.y) ** 2)
+            )
+            if distance < config.proximity_threshold:
+                roi_spawn_points.append(sp)
+                initial_speed.append(speed[ind])
+        return roi_spawn_points, initial_speed
 
 
 def get_available_port(subsequent_ports: int = 2) -> int:

@@ -28,18 +28,10 @@ iai_config = Config(
 )
 
 
-def to_transform(poses: list) -> list:
-    t = []
-    for pos in poses:
-        loc = carla.Location(x=pos[0][0], y=pos[0][1], z=1.5)
-        rot = carla.Rotation(yaw=np.degrees(pos[0][2]))
-        t.append(carla.Transform(loc, rot))
-    return t
-
-
 drive = Drive(iai_config)
 response = drive.initialize()
-spawn_points = to_transform(response["states"][0])
+spawn_points = response["states"][0]
+
 sim = CarlaEnv.from_preset_data(npc_roi_spawn_points=spawn_points)
 sim.set_npc_autopilot()
 sim.set_ego_autopilot()
