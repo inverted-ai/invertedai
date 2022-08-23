@@ -23,13 +23,13 @@ TOWN03_ROUNDABOUT_DEMO_LOCATIONS = [
     Transform(
         Location(x=-54.5, y=-0.1, z=0.5), Rotation(pitch=0.0, yaw=1.76, roll=0.0)
     ),
-    Transform(
-        Location(x=-1.6, y=-87.4, z=0.5), Rotation(pitch=0.0, yaw=91.0, roll=0.0)
-    ),
-    Transform(Location(x=1.5, y=78.6, z=0.5), Rotation(pitch=0.0, yaw=-83.5, roll=0.0)),
-    Transform(
-        Location(x=68.1, y=-4.1, z=0.5), Rotation(pitch=0.0, yaw=178.7, roll=0.0)
-    ),
+    # Transform(
+    #     Location(x=-1.6, y=-87.4, z=0.5), Rotation(pitch=0.0, yaw=91.0, roll=0.0)
+    # ),
+    # Transform(Location(x=1.5, y=78.6, z=0.5), Rotation(pitch=0.0, yaw=-83.5, roll=0.0)),
+    # Transform(
+    # Location(x=68.1, y=-4.1, z=0.5), Rotation(pitch=0.0, yaw=178.7, roll=0.0)
+    # ),
 ]
 
 NPC_BPS: List[str] = [
@@ -71,6 +71,8 @@ class CarlaSimulationConfig:
     seed: float = time.time()
     flag_npcs: bool = True
     flag_ego: bool = True
+    ego_autopilot: bool = True
+    npcs_autopilot: bool = False
 
     def __init__(self) -> None:
         self.npc_bps = NPC_BPS
@@ -80,16 +82,20 @@ class Car:
     def __init__(self, actor: carla.Actor, speed: float = 0.0) -> None:
         self.actor = actor
         self.recurrent_state = RS
-        self._dimension = self._get_actor_dimensions()
+        self._dimension = None
+        # self._dimension = self._get_actor_dimensions()
         self._states = deque(maxlen=10)
         self.speed = speed
+
+    def update_dimension(self):
+        self._dimension = self._get_actor_dimensions()
 
     @property
     def dims(self):
         return self._dimension
 
-    def get_state(self, warmup=False):
-        self.transform, state = self._get_actor_state(warmup)
+    def get_state(self, from_carla=False):
+        self.transform, state = self._get_actor_state(from_carla)
         self._states.append(state)
         return dict(
             transform=self.transform,
@@ -133,14 +139,13 @@ class Car:
 
     # self.states =
     # @staticmethod
-    def _get_actor_state(self, warmup=False):
-        # breakpoint()
+    def _get_actor_state(self, from_carla=False):
         t = self.actor.get_transform()
         loc, rot = t.location, t.rotation
         xs = loc.x
         ys = loc.y
         psis = np.radians(rot.yaw)
-        if warmup:
+        if from_carla:
             v = self.actor.get_velocity()
             vs = np.sqrt(v.x**2 + v.y**2)
         else:
@@ -206,14 +211,31 @@ class CarlaEnv(gym.Env):
         self.entrance_spawn_points = npc_entrance_spawn_points
         self.ego_spawn_point = ego_spawn_point
         self.npcs = []
-        self._spawn_ego()  # Keep the order of first spawining ego then NPCs
+
+    def initialize(self):
+        # try:
+        #     self.destroy()
+        # except:
+        #     pass
+        self._spawn_ego()
+        # Keep the order of first spawining ego then NPCs
+        # to avoid spawning npc in ego location
         self._spawn_npcs()
+        # self.set_npc_autopilot()
+        # self.set_ego_autopilot()
         self.world.tick()
+        for npc in self.npcs:
+            npc.update_dimension()
+        self.ego.update_dimension()
+        # (npc.update_dimension() for npc in self.npcs)
+        # self.set_npc_autopilot(self.config.npcs_autopilot)
+        # self.set_ego_autopilot(self.config.ego_autopilot)
 
-    def reset(self):
-        return self.get_obs()
+    def reset(self, include_ego=True):
+        self.initialize()
+        return self.get_obs(include_ego=include_ego)
 
-    def step(self, ego="autopilot", npcs=None, time_step=0):
+    def step(self, ego="autopilot", npcs=None, time_step=0, include_ego=True):
         if npcs is not None:
             states = npcs["states"]
             recurrent_states = npcs["recurrent_states"]
@@ -223,9 +245,11 @@ class CarlaEnv(gym.Env):
                 rs = None if recurrent_states is None else recurrent_states[0][id]
                 npc.set_state(states[0][id][time_step], rs)
 
-            rs = None if recurrent_states is None else recurrent_states[0][id + 1]
-            self.ego.set_state(recurrent_state=rs)
-        # self._filter_npcs()
+            if include_ego:
+                rs = None if recurrent_states is None else recurrent_states[0][id + 1]
+                self.ego.set_state(recurrent_state=rs)
+        self._filter_npcs()
+        # TODO: Uncomment above to filter npcs going out
         if self.config.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.config.flag_npcs:
@@ -252,12 +276,12 @@ class CarlaEnv(gym.Env):
         rec_state = []
         dims = []
         for npc in self.npcs:
-            obs = npc.get_state(warmup)
+            obs = npc.get_state(from_carla=warmup)
             states.append(obs["states"][-obs_len:])
             rec_state.append(obs["recurrent_state"])
             dims.append(npc.dims)
         if include_ego:
-            obs = self.ego.get_state(warmup)
+            obs = self.ego.get_state(from_carla=True)
             states.append(obs["states"][-obs_len:])
             rec_state.append(obs["recurrent_state"])
             dims.append(self.ego.dims)
@@ -271,16 +295,16 @@ class CarlaEnv(gym.Env):
     def is_done(self):
         pass
 
-    def get_info(self, warmup=False):
-        x = self.simulator.get_state()[..., 0]
-        info = dict(
-            invasion=self.simulator.compute_offroad() > self.offroad_threshold,
-            collision=self.simulator.compute_collision() > self.collision_threshold,
-            gear=torch.ones_like(x, dtype=torch.long),
-            expert_action=torch.zeros_like(self.prev_action),
-            outcome=None,
-        )
-        return info
+    # def get_info(self, warmup=False):
+    #     x = self.simulator.get_state()[..., 0]
+    #     info = dict(
+    #         invasion=self.simulator.compute_offroad() > self.offroad_threshold,
+    #         collision=self.simulator.compute_collision() > self.collision_threshold,
+    #         gear=torch.ones_like(x, dtype=torch.long),
+    #         expert_action=torch.zeros_like(self.prev_action),
+    #         outcome=None,
+    #     )
+    #     return info
 
     def seed(self, seed=None):
         pass
@@ -298,9 +322,9 @@ class CarlaEnv(gym.Env):
                 print("Unable to set autopilot")
                 # TODO: add logger
 
-    def set_ego_autopilot(self):
+    def set_ego_autopilot(self, on=True):
         try:
-            self.ego.actor.set_autopilot(True)
+            self.ego.actor.set_autopilot(on)
         except:
             print("Unable to set autopilot")
             # TODO: add logger
