@@ -22,8 +22,8 @@ iai_config = Config(
     step_times=1,
     agent_count=100,
     batch_size=1,
-    min_speed=1,
-    max_speed=5,
+    min_speed=1,  # Km/h
+    max_speed=5,  # Km/h
     carla_simulator=True,
 )
 

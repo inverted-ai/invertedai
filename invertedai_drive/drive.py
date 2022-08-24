@@ -19,8 +19,8 @@ class Config:
     batch_size: int = 1
     obs_length: int = 1
     step_times: int = 1
-    min_speed: int = 10
-    max_speed: int = 20
+    min_speed: int = 1  # Km/h
+    max_speed: int = 10  # Km/h
     carla_simulator: bool = False
 
 
@@ -47,8 +47,12 @@ class Drive:
                     location=location or self.config.location,
                     agent_count=agent_count or self.config.agent_count,
                     batch_size=batch_size or self.config.batch_size,
-                    min_speed=min_speed or self.config.min_speed,
-                    max_speed=max_speed or self.config.max_speed,
+                    min_speed=np.ceil(
+                        (min_speed or self.config.min_speed) / 3.6
+                    ).astype(int),
+                    max_speed=np.ceil(
+                        (max_speed or self.config.max_speed) / 3.6
+                    ).astype(int),
                     fix_carla_coord=self.config.carla_simulator,
                 )
                 response = {
