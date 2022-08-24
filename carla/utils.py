@@ -185,6 +185,7 @@ class CarlaEnv:
         self.initial_speed = initial_speed
         self.entrance_spawn_points = npc_entrance_spawn_points
         self.ego_spawn_point = ego_spawn_point
+        self.populate_step = self.config.fps * self.config.npc_population_interval
         self.npcs = []
         self.new_npcs = []
 
@@ -224,36 +225,18 @@ class CarlaEnv:
         return self.get_obs(include_ego=include_ego)
 
     def step(self, ego="autopilot", npcs=None, time_step=0, include_ego=True):
-        if npcs is not None:
-            states = npcs["states"]
-            recurrent_states = npcs["recurrent_states"]
-            for id, npc in enumerate(self.npcs):
-                # NOTE: states is of size (batch_size x actor x time x state)
-                # state is of size 4 : [x, y, angle, speed]
-                rs = None if recurrent_states is None else recurrent_states[0][id]
-                npc.set_state(states[0][id][time_step], rs)
-
-            if include_ego:
-                rs = None if recurrent_states is None else recurrent_states[0][id + 1]
-                self.ego.set_state(recurrent_state=rs)
-        self._filter_npcs()
         self.step_counter += 1
+        self._set_state_and_filter_npcs(ego, npcs, time_step, include_ego)
         if self.config.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.config.flag_npcs:
             self._flag_npc(self.npcs, NPC_FLAG_COLOR)
-        if self.config.populate_npcs & (
-            not (
-                self.step_counter
-                % (self.config.fps * self.config.npc_population_interval)
-            )
-        ):
+        if self.config.populate_npcs & (not (self.step_counter % self.populate_step)):
             self.new_npcs = self._spawn_npcs(
                 self.entrance_spawn_points,
                 (1.5 * np.ones_like(self.entrance_spawn_points)).tolist(),
                 self.config.npc_bps,
             )
-
         self.world.tick()
         if len(self.new_npcs) > 0:
             for npc in self.new_npcs:
@@ -372,7 +355,21 @@ class CarlaEnv:
                 life_time=2 / self.config.fps,
             )
 
-    def _filter_npcs(self):
+    def _set_state_and_filter_npcs(
+        self, ego="autopilot", npcs=None, time_step=0, include_ego=True
+    ):
+        if npcs is not None:
+            states = npcs["states"]
+            recurrent_states = npcs["recurrent_states"]
+            for id, npc in enumerate(self.npcs):
+                # NOTE: states is of size (batch_size x actor x time x state)
+                # where state is a list: [x, y, angle, speed]
+                rs = None if recurrent_states is None else recurrent_states[0][id]
+                npc.set_state(states[0][id][time_step], rs)
+
+            if include_ego:
+                rs = None if recurrent_states is None else recurrent_states[0][id + 1]
+                self.ego.set_state(recurrent_state=rs)
         exit_npcs = []
         remaining_npcs = []
         for npc in self.npcs:

@@ -36,6 +36,7 @@ python Carla-Demo-Script.py
 
 - [ ] Complete and move static data (roi_center of each scene, Ego spawn location of for each scene) to a YML file
 - [ ] Handoff the NPCs inside and outside roi to iai-drive and caral traffic-manager
+- [ ] Calculate infractions
 
 ## development
 
