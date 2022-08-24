@@ -1,11 +1,3 @@
-import sys
-import os
-
-sys.path.append("../")
-os.environ["DEV"] = "1"
-
-import collections
-from invertedai_drive import Drive, Config
 from dataclasses import dataclass
 import carla
 from carla import Location, Rotation, Transform
@@ -88,7 +80,6 @@ class Car:
         self.actor = actor
         self.recurrent_state = RS
         self._dimension = None
-        # self._dimension = self._get_actor_dimensions()
         self._states = deque(maxlen=10)
         self.speed = speed
 
@@ -272,7 +263,7 @@ class CarlaEnv(gym.Env):
         ):
             self.new_npcs = self._spawn_npcs(
                 self.entrance_spawn_points,
-                (3 * np.ones_like(self.entrance_spawn_points)).tolist(),
+                (1.5 * np.ones_like(self.entrance_spawn_points)).tolist(),
                 self.config.npc_bps,
             )
 
@@ -282,6 +273,7 @@ class CarlaEnv(gym.Env):
                 npc.update_dimension()
             self.npcs.extend(self.new_npcs)
             self.new_npcs = []
+            self.set_npc_autopilot(self.config.npcs_autopilot)
 
         return self.get_obs()
 
@@ -381,16 +373,6 @@ class CarlaEnv(gym.Env):
                 npc = Car(actor, speed)
                 npcs.append(npc)
         return npcs
-
-    # def _spawn_ego(self):
-    #     blueprint = self.world.get_blueprint_library().find(self.config.ego_bp)
-    #     ego = self.world.try_spawn_actor(blueprint, self.ego_spawn_point)
-    #     if ego is None:
-    #         raise RuntimeError(
-    #             f"Cannot spawn ego vehicle at:{str(self.ego_spawn_point)}"
-    #         )
-    #     else:
-    #         self.ego = Car(ego)
 
     def _flag_npc(self, actors, color):
         for actor in actors:

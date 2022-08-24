@@ -7,10 +7,13 @@ from PIL import Image as PImage
 import cv2
 import imageio
 import torch
+from dotenv import load_dotenv
 
-sys.path.append("../..")
-os.environ["DEV"] = "1"
+load_dotenv()
+if os.environ.get("DEV", False):
+    sys.path.append("../")
 from invertedai_drive import Drive, Config
+
 
 iai_config = Config(
     api_key=" ",
@@ -32,7 +35,6 @@ initial_states = response["states"][0]
 sim = CarlaEnv.from_preset_data(initial_states=initial_states)
 states, recurrent_states, dimensions = sim.reset()
 clock = pygame.time.Clock()
-frames = []
 
 
 for i in range(sim.config.episode_lenght * sim.config.fps):
@@ -40,15 +42,9 @@ for i in range(sim.config.episode_lenght * sim.config.fps):
         agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
         states=torch.tensor(states).unsqueeze(0).tolist(),
         recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
-        return_birdviews=True,
     )
     states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")
 
     clock.tick_busy_loop(sim.config.fps)
-    # recurrent_states = response["recurrent_states"]
-    birdview = np.array(response["bird_view"], dtype=np.uint8)
-    image = cv2.imdecode(birdview, cv2.IMREAD_COLOR)
-    frames.append(image)
 
-imageio.mimsave("iai-drive.gif", np.array(frames), format="GIF-PIL")
 sim.destroy()

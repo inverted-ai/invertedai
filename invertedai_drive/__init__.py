@@ -5,6 +5,8 @@ from invertedai_drive.utils import Jupyter_Render
 
 
 load_dotenv()
-dev = "DEV" in os.environ
+dev = os.environ.get("DEV", False)
+if dev:
+    dev_url = os.environ.get("DEV_URL", "http://localhost:8000")
 
 __all__ = [Drive, Config, Jupyter_Render]
