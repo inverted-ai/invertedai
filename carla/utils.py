@@ -14,7 +14,7 @@ TOWN03_ROUNDABOUT_DEMO_LOCATIONS = [
     Transform(Location(x=-54.5, y=-0.1, z=0.5), Rotation(pitch=0.0, yaw=1.76, roll=0.0))
 ]
 
-NPC_BPS: List[str] = [
+NPC_BPS: Tuple[str] = (
     "vehicle.audi.a2",
     "vehicle.audi.etron",
     "vehicle.audi.tt",
@@ -32,7 +32,7 @@ NPC_BPS: List[str] = [
     "vehicle.seat.leon",
     "vehicle.toyota.prius",
     "vehicle.volkswagen.t2_2021",
-]
+)
 EGO_FLAG_COLOR = carla.Color(255, 0, 0, 0)
 NPC_FLAG_COLOR = carla.Color(0, 0, 255, 0)
 RS = np.zeros([2, 64]).tolist()
@@ -42,7 +42,7 @@ cord = namedtuple("cord", ["x", "y"])
 
 @dataclass
 class CarlaSimulationConfig:
-    npc_bps: List[str]
+    npc_bps: Tuple[str] = NPC_BPS
     roi_center: cord = cord(x=0, y=0)  # region of interest center
     map_name: str = "Town03"
     fps: int = 10
@@ -60,9 +60,6 @@ class CarlaSimulationConfig:
     npcs_autopilot: bool = False
     populate_npcs: bool = True
     npc_population_interval: int = 1  # In Seconds
-
-    def __init__(self) -> None:
-        self.npc_bps = NPC_BPS
 
 
 class Car:
