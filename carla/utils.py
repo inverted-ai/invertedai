@@ -7,21 +7,11 @@ from collections import namedtuple, deque
 import socket
 import random
 import time
-from typing import Tuple, Union, List
-import gym
+from typing import Tuple, List
 
 
 TOWN03_ROUNDABOUT_DEMO_LOCATIONS = [
-    Transform(
-        Location(x=-54.5, y=-0.1, z=0.5), Rotation(pitch=0.0, yaw=1.76, roll=0.0)
-    ),
-    Transform(
-        Location(x=-1.6, y=-87.4, z=0.5), Rotation(pitch=0.0, yaw=91.0, roll=0.0)
-    ),
-    Transform(Location(x=1.5, y=78.6, z=0.5), Rotation(pitch=0.0, yaw=-83.5, roll=0.0)),
-    Transform(
-        Location(x=68.1, y=-4.1, z=0.5), Rotation(pitch=0.0, yaw=178.7, roll=0.0)
-    ),
+    Transform(Location(x=-54.5, y=-0.1, z=0.5), Rotation(pitch=0.0, yaw=1.76, roll=0.0))
 ]
 
 NPC_BPS: List[str] = [
@@ -142,7 +132,7 @@ class Car:
         return t, (xs, ys, psis, vs)
 
 
-class CarlaEnv(gym.Env):
+class CarlaEnv:
     def __init__(
         self,
         config: CarlaSimulationConfig,

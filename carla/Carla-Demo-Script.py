@@ -3,9 +3,6 @@ import pygame
 import os
 import sys
 import numpy as np
-from PIL import Image as PImage
-import cv2
-import imageio
 import torch
 from dotenv import load_dotenv
 

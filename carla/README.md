@@ -20,10 +20,16 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-- Finally run the simulation
+- To run the simulation in the notebook
 
 ```sh
-python main.py
+.venv/bin/jupyter notebook Carla-Demo.ipynb
+```
+
+- To run the simulation script
+
+```sh
+python Carla-Demo-Script.py
 ```
 
 ## TODO:
@@ -33,9 +39,16 @@ python main.py
 
 ## development
 
-Add the following environment variables to _.evn_ file
+- Add the following environment variables to _.evn_ file
 
 ```
 DEV=1
 DEV_URL=http://localhost:8888
+```
+
+- Change the port mapping in iai-drive-server
+
+```yaml
+ports:
+  - "8888:8000"
 ```
