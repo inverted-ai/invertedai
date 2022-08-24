@@ -15,12 +15,13 @@ InputDataType = Union[torch.Tensor, np.ndarray, List]
 class Config:
     api_key: str
     location: str
-    agent_count: int
-    batch_size: int
-    obs_length: int
-    step_times: int
-    min_speed: int
-    max_speed: int
+    agent_count: int = 10
+    batch_size: int = 1
+    obs_length: int = 1
+    step_times: int = 1
+    min_speed: int = 1  # Km/h
+    max_speed: int = 10  # Km/h
+    carla_simulator: bool = False
 
 
 class Drive:
@@ -46,8 +47,13 @@ class Drive:
                     location=location or self.config.location,
                     agent_count=agent_count or self.config.agent_count,
                     batch_size=batch_size or self.config.batch_size,
-                    min_speed=min_speed or self.config.min_speed,
-                    max_speed=max_speed or self.config.max_speed,
+                    min_speed=np.ceil(
+                        (min_speed or self.config.min_speed) / 3.6
+                    ).astype(int),
+                    max_speed=np.ceil(
+                        (max_speed or self.config.max_speed) / 3.6
+                    ).astype(int),
+                    fix_carla_coord=self.config.carla_simulator,
                 )
                 response = {
                     "states": initial_states["initial_condition"]["agent_states"],
@@ -63,7 +69,6 @@ class Drive:
 
     def run(
         self,
-        location: str,
         states: dict,
         agent_attributes: dict,
         recurrent_states: Optional[InputDataType] = None,
@@ -107,6 +112,7 @@ class Drive:
         def _validate_and_tolist(input_data: dict, input_name: str):
             return _tolist(_validate(input_data, input_name))
 
+        self.config.agent_count = len(states[0])
         present_masks = (
             _validate_and_tolist(present_masks, "present_masks")
             if present_masks is not None
@@ -119,7 +125,7 @@ class Drive:
         )  # Bx(num_predictions)xAxTx2x64
 
         model_inputs = dict(
-            location=location,
+            location=self.location,
             initial_conditions=dict(
                 agent_states=states,
                 agent_sizes=agent_attributes,
@@ -140,6 +146,7 @@ class Drive:
             obs_length=self.config.obs_length,
             step_times=self.config.step_times,
             return_birdviews=return_birdviews,
+            fix_carla_coord=self.config.carla_simulator,
         )
 
         start = time.time()
