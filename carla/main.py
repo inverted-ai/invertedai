@@ -14,9 +14,7 @@ from invertedai_drive import Drive, Config
 
 iai_config = Config(
     api_key=" ",
-    # location=args.location,
     location="Town03_Roundabout",
-    # location="Town04_Merging",
     obs_length=1,
     step_times=1,
     agent_count=100,
@@ -33,13 +31,11 @@ initial_states = response["states"][0]
 
 sim = CarlaEnv.from_preset_data(initial_states=initial_states)
 states, recurrent_states, dimensions = sim.reset()
-sim.set_npc_autopilot(False)
-sim.set_ego_autopilot()
 clock = pygame.time.Clock()
 frames = []
 
 
-for i in range(40 * sim.config.fps):
+for i in range(sim.config.episode_lenght * sim.config.fps):
     response = drive.run(
         agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
         states=torch.tensor(states).unsqueeze(0).tolist(),

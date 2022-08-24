@@ -23,13 +23,13 @@ TOWN03_ROUNDABOUT_DEMO_LOCATIONS = [
     Transform(
         Location(x=-54.5, y=-0.1, z=0.5), Rotation(pitch=0.0, yaw=1.76, roll=0.0)
     ),
-    # Transform(
-    #     Location(x=-1.6, y=-87.4, z=0.5), Rotation(pitch=0.0, yaw=91.0, roll=0.0)
-    # ),
-    # Transform(Location(x=1.5, y=78.6, z=0.5), Rotation(pitch=0.0, yaw=-83.5, roll=0.0)),
-    # Transform(
-    # Location(x=68.1, y=-4.1, z=0.5), Rotation(pitch=0.0, yaw=178.7, roll=0.0)
-    # ),
+    Transform(
+        Location(x=-1.6, y=-87.4, z=0.5), Rotation(pitch=0.0, yaw=91.0, roll=0.0)
+    ),
+    Transform(Location(x=1.5, y=78.6, z=0.5), Rotation(pitch=0.0, yaw=-83.5, roll=0.0)),
+    Transform(
+        Location(x=68.1, y=-4.1, z=0.5), Rotation(pitch=0.0, yaw=178.7, roll=0.0)
+    ),
 ]
 
 NPC_BPS: List[str] = [
@@ -37,12 +37,17 @@ NPC_BPS: List[str] = [
     "vehicle.audi.etron",
     "vehicle.audi.tt",
     "vehicle.bmw.grandtourer",
-    "vehicle.carlamotors.carlacola",
     "vehicle.citroen.c3",
+    "vehicle.chevrolet.impala",
     "vehicle.dodge.charger_2020",
     "vehicle.ford.mustang",
+    "vehicle.ford.crown",
+    "vehicle.jeep.wrangler_rubicon",
     "vehicle.lincoln.mkz_2020",
     "vehicle.mercedes.coupe_2020",
+    "vehicle.nissan.micra",
+    "vehicle.nissan.patrol_2021",
+    "vehicle.seat.leon",
     "vehicle.toyota.prius",
     "vehicle.volkswagen.t2_2021",
 ]
@@ -58,21 +63,21 @@ class CarlaSimulationConfig:
     npc_bps: List[str]
     roi_center: cord = cord(x=0, y=0)  # region of interest center
     map_name: str = "Town03"
-    # roi_center: cord = cord(x=-100, y=-150)  # region of interest center
-    # map_name: str = "Town04"
     fps: int = 10
     traffic_count: int = 20
     episode_lenght: int = 20  # In Seconds
     proximity_threshold: int = 50
     entrance_interval: int = 2  # In Seconds
     follow_ego: bool = False
-    slack: int = 3
+    slack: int = 5
     ego_bp: str = "vehicle.tesla.model3"
     seed: float = time.time()
     flag_npcs: bool = True
     flag_ego: bool = True
     ego_autopilot: bool = True
     npcs_autopilot: bool = False
+    populate_npcs: bool = True
+    npc_population_interval: int = 1  # In Seconds
 
     def __init__(self) -> None:
         self.npc_bps = NPC_BPS
@@ -117,7 +122,6 @@ class Car:
             self.actor.set_transform(next_transform)
             self.speed = state[3]
 
-    # @staticmethod
     def _get_actor_dimensions(self):
         bb = self.actor.bounding_box.extent
         length = max(
@@ -131,14 +135,8 @@ class Car:
         real_mid_position = 0.5 * (rear_left_wheel_position + rear_right_wheel_position)
         actor_geo_center = self.actor.get_location()
         lr = actor_geo_center.distance(real_mid_position)
-        # front_left_wheel_position = physics_control.wheels[0].position / 100
-        # lf = front_left_wheel_position.distance(rear_left_wheel_position) - lr
-        # max_steer_angle = math.radians(physics_control.wheels[0].max_steer_angle)
-        # vehicles_stats.extend([lr, lf, length, width, max_steer_angle])
         return (length, width, lr)
 
-    # self.states =
-    # @staticmethod
     def _get_actor_state(self, from_carla=False):
         t = self.actor.get_transform()
         loc, rot = t.location, t.rotation
@@ -150,7 +148,6 @@ class Car:
             vs = np.sqrt(v.x**2 + v.y**2)
         else:
             vs = self.speed
-        # actor.states.put((xs, ys, psis, vs))
         return t, (xs, ys, psis, vs)
 
 
@@ -211,28 +208,41 @@ class CarlaEnv(gym.Env):
         self.entrance_spawn_points = npc_entrance_spawn_points
         self.ego_spawn_point = ego_spawn_point
         self.npcs = []
+        self.new_npcs = []
 
-    def initialize(self):
-        # try:
-        #     self.destroy()
-        # except:
-        #     pass
-        self._spawn_ego()
+    def _initialize(self):
         # Keep the order of first spawining ego then NPCs
         # to avoid spawning npc in ego location
-        self._spawn_npcs()
-        # self.set_npc_autopilot()
-        # self.set_ego_autopilot()
+        self.ego = self._spawn_npcs(
+            [self.ego_spawn_point],
+            [0],
+            [self.config.ego_bp],
+        ).pop()
+        if len(self.roi_spawn_points) < self.config.traffic_count:
+            print("Number of roi_spawn_points is less than traffic_count")
+            # TODO: Add logger
+        num_npcs = min(len(self.roi_spawn_points), self.config.traffic_count)
+        self.npcs.extend(
+            self._spawn_npcs(
+                self.roi_spawn_points[:num_npcs],
+                self.initial_speed,
+                self.config.npc_bps,
+            )
+        )
         self.world.tick()
         for npc in self.npcs:
             npc.update_dimension()
         self.ego.update_dimension()
-        # (npc.update_dimension() for npc in self.npcs)
-        # self.set_npc_autopilot(self.config.npcs_autopilot)
-        # self.set_ego_autopilot(self.config.ego_autopilot)
+        self.set_npc_autopilot(self.config.npcs_autopilot)
+        self.set_ego_autopilot(self.config.ego_autopilot)
+        self.step_counter = 0
 
     def reset(self, include_ego=True):
-        self.initialize()
+        try:
+            self.destroy()
+        except:
+            pass
+        self._initialize()
         return self.get_obs(include_ego=include_ego)
 
     def step(self, ego="autopilot", npcs=None, time_step=0, include_ego=True):
@@ -249,16 +259,31 @@ class CarlaEnv(gym.Env):
                 rs = None if recurrent_states is None else recurrent_states[0][id + 1]
                 self.ego.set_state(recurrent_state=rs)
         self._filter_npcs()
-        # TODO: Uncomment above to filter npcs going out
+        self.step_counter += 1
         if self.config.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.config.flag_npcs:
             self._flag_npc(self.npcs, NPC_FLAG_COLOR)
+        if self.config.populate_npcs & (
+            not (
+                self.step_counter
+                % (self.config.fps * self.config.npc_population_interval)
+            )
+        ):
+            self.new_npcs = self._spawn_npcs(
+                self.entrance_spawn_points,
+                (3 * np.ones_like(self.entrance_spawn_points)).tolist(),
+                self.config.npc_bps,
+            )
+
         self.world.tick()
+        if len(self.new_npcs) > 0:
+            for npc in self.new_npcs:
+                npc.update_dimension()
+            self.npcs.extend(self.new_npcs)
+            self.new_npcs = []
+
         return self.get_obs()
-        # return action
-        # self.simulator.step(action)
-        # return self.get_obs(), self.get_reward(), self.is_done(), self.get_info()
 
     def destroy(self, npcs=True, ego=True, world=True):
         if npcs:
@@ -287,24 +312,14 @@ class CarlaEnv(gym.Env):
             dims.append(self.ego.dims)
         return states, rec_state, dims
 
-    # def update_states(self, states)
+    def get_infractions(self):
+        pass
 
     def get_reward(self):
         pass
 
     def is_done(self):
         pass
-
-    # def get_info(self, warmup=False):
-    #     x = self.simulator.get_state()[..., 0]
-    #     info = dict(
-    #         invasion=self.simulator.compute_offroad() > self.offroad_threshold,
-    #         collision=self.simulator.compute_collision() > self.collision_threshold,
-    #         gear=torch.ones_like(x, dtype=torch.long),
-    #         expert_action=torch.zeros_like(self.prev_action),
-    #         outcome=None,
-    #     )
-    #     return info
 
     def seed(self, seed=None):
         pass
@@ -316,8 +331,7 @@ class CarlaEnv(gym.Env):
         for npc in self.npcs:
             try:
                 npc.actor.set_autopilot(on)
-                if not on:
-                    npc.actor.set_simulate_physics(False)
+                npc.actor.set_simulate_physics(on)
             except:
                 print("Unable to set autopilot")
                 # TODO: add logger
@@ -355,32 +369,28 @@ class CarlaEnv(gym.Env):
                 # TODO: add logger
             npc.actor.destroy()
 
-    def _spawn_npcs(self):
-        if len(self.roi_spawn_points) < self.config.traffic_count:
-            print("Number of roi_spawn_points is less than traffic_count")
-            # TODO: Add logger
-
-        for i in range(min(len(self.roi_spawn_points), self.config.traffic_count)):
-            blueprint = self.world.get_blueprint_library().find(
-                self.rng.choice(self.config.npc_bps)
-            )
-            ego_spawn_point = self.roi_spawn_points[i]
-            actor = self.world.try_spawn_actor(blueprint, ego_spawn_point)
+    def _spawn_npcs(self, spawn_points, speeds, bps):
+        npcs = []
+        for spawn_point, speed in zip(spawn_points, speeds):
+            blueprint = self.world.get_blueprint_library().find(self.rng.choice(bps))
+            # ego_spawn_point = self.roi_spawn_points[i]
+            actor = self.world.try_spawn_actor(blueprint, spawn_point)
             if actor is None:
-                print(f"Cannot spawn NPC at:{str(self.ego_spawn_point)}")
+                print(f"Cannot spawn NPC at:{str(spawn_point)}")
             else:
-                npc = Car(actor, self.initial_speed[i])
-                self.npcs.append(npc)
+                npc = Car(actor, speed)
+                npcs.append(npc)
+        return npcs
 
-    def _spawn_ego(self):
-        blueprint = self.world.get_blueprint_library().find(self.config.ego_bp)
-        ego = self.world.try_spawn_actor(blueprint, self.ego_spawn_point)
-        if ego is None:
-            raise RuntimeError(
-                f"Cannot spawn ego vehicle at:{str(self.ego_spawn_point)}"
-            )
-        else:
-            self.ego = Car(ego)
+    # def _spawn_ego(self):
+    #     blueprint = self.world.get_blueprint_library().find(self.config.ego_bp)
+    #     ego = self.world.try_spawn_actor(blueprint, self.ego_spawn_point)
+    #     if ego is None:
+    #         raise RuntimeError(
+    #             f"Cannot spawn ego vehicle at:{str(self.ego_spawn_point)}"
+    #         )
+    #     else:
+    #         self.ego = Car(ego)
 
     def _flag_npc(self, actors, color):
         for actor in actors:
