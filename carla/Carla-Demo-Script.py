@@ -1,4 +1,5 @@
 from utils import CarlaEnv, CarlaSimulationConfig
+import json
 import pygame
 import os
 import sys
@@ -10,31 +11,32 @@ load_dotenv()
 if os.environ.get("DEV", False):
     sys.path.append("../")
 from invertedai_drive import Drive, Config
+import argparse
 
 
-iai_config = Config(
-    api_key=" ",
-    location="Town03_Roundabout",
-    obs_length=1,
-    step_times=1,
-    agent_count=100,
-    batch_size=1,
-    min_speed=1,  # Km/h
-    max_speed=5,  # Km/h
-    carla_simulator=True,
+parser = argparse.ArgumentParser(description="Simulation Parameters.")
+parser.add_argument("-n", "--scene_name", type=str, default="Town10HD_4way")
+parser.add_argument("-c", "--agent_count", type=str, default=50)
+parser.add_argument("-l", "--episode_lenght", type=int, default=20)
+args = parser.parse_args()
+
+
+iai_cfg = Config(
+    location=args.scene_name, simulator="CARLA", agent_count=args.agent_count
+)
+carla_cfg = CarlaSimulationConfig(
+    scene_name=args.scene_name, episode_lenght=args.episode_lenght
 )
 
-
-drive = Drive(iai_config)
+drive = Drive(iai_cfg)
 response = drive.initialize()
 initial_states = response["states"][0]
-
-sim = CarlaEnv.from_preset_data(initial_states=initial_states)
+sim = CarlaEnv(cfg=carla_cfg, initial_states=initial_states, ego_spawn_point="demo")
 states, recurrent_states, dimensions = sim.reset()
 clock = pygame.time.Clock()
 
 
-for i in range(sim.config.episode_lenght * sim.config.fps):
+for i in range(carla_cfg.episode_lenght * carla_cfg.fps):
     response = drive.run(
         agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
         states=torch.tensor(states).unsqueeze(0).tolist(),
@@ -42,6 +44,6 @@ for i in range(sim.config.episode_lenght * sim.config.fps):
     )
     states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")
 
-    clock.tick_busy_loop(sim.config.fps)
+    clock.tick_busy_loop(carla_cfg.fps)
 
 sim.destroy()

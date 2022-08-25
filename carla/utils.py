@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import json
 import carla
 from carla import Location, Rotation, Transform
 import math
@@ -45,7 +46,8 @@ class CarlaSimulationConfig:
     npc_bps: Tuple[str] = NPC_BPS
     roi_center: cord = cord(x=0, y=0)  # region of interest center
     map_name: str = "Town03"
-    fps: int = 10
+    scene_name: str = "Town03_Roundabout"
+    fps: int = 10  # Should not be compatible with invertedAI fps
     traffic_count: int = 20
     episode_lenght: int = 20  # In Seconds
     proximity_threshold: int = 50
@@ -132,50 +134,58 @@ class Car:
 class CarlaEnv:
     def __init__(
         self,
-        config: CarlaSimulationConfig,
+        cfg: CarlaSimulationConfig,
         ego_spawn_point=None,
         initial_states=None,
         npc_entrance_spawn_points=None,
         spectator_transform=None,
     ) -> None:
-        self.rng = random.Random(config.seed)
+        self.rng = random.Random(cfg.seed)
+        self.cfg = cfg
+        with open("map_center.json", "r") as f:
+            centers = json.load(f)[cfg.scene_name]
+        self.cfg.roi_center = cord(x=centers[0], y=centers[1])
+        self.cfg.map_name = cfg.scene_name.split("_")[0]
         world_settings = carla.WorldSettings(
             synchronous_mode=True,
-            fixed_delta_seconds=1 / float(config.fps),
+            fixed_delta_seconds=1 / float(cfg.fps),
         )
         client = carla.Client("localhost", 2000)
         traffic_manager = client.get_trafficmanager(
             get_available_port(subsequent_ports=0)
         )
-        world = client.load_world(config.map_name)
+        world = client.load_world(cfg.map_name)
         self.original_settings = client.get_world().get_settings()
         world.apply_settings(world_settings)
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_hybrid_physics_mode(True)
         if spectator_transform is None:
-            camera_loc = carla.Location(config.roi_center.x, config.roi_center.y, z=100)
+            camera_loc = carla.Location(cfg.roi_center.x, cfg.roi_center.y, z=100)
             camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
             spectator_transform = carla.Transform(camera_loc, camera_rot)
         if initial_states is None:
             spawn_points = world.get_map().get_spawn_points()
             npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
-                config, spawn_points, speed=np.zeros_like(spawn_points)
+                cfg, spawn_points, speed=np.zeros_like(spawn_points)
             )
         else:
             spawn_points, speed = self._to_transform(initial_states)
             npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
-                config, spawn_points, speed
+                cfg, spawn_points, speed
             )
         if npc_entrance_spawn_points is None:
             spawn_points = world.get_map().get_spawn_points()
-            npc_entrance_spawn_points = self.get_entrance(config, spawn_points)
+            npc_entrance_spawn_points = self.get_entrance(cfg, spawn_points)
         else:
             spawn_points = self._to_transform(npc_roi_spawn_points)
-            npc_entrance_spawn_points = self.get_roi_spawn_points(config, spawn_points)
+            npc_entrance_spawn_points = self.get_roi_spawn_points(cfg, spawn_points)
         if ego_spawn_point is None:
+            ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
+        elif ego_spawn_point == "demo":
             ego_spawn_point = self.rng.choice(TOWN03_ROUNDABOUT_DEMO_LOCATIONS)
+        else:
+            assert isinstance(ego_spawn_point, carla.Transform)
 
-        self.config = config
         self.spectator = world.get_spectator()
         self.spectator.set_transform(spectator_transform)
         self.world = world
@@ -185,7 +195,7 @@ class CarlaEnv:
         self.initial_speed = initial_speed
         self.entrance_spawn_points = npc_entrance_spawn_points
         self.ego_spawn_point = ego_spawn_point
-        self.populate_step = self.config.fps * self.config.npc_population_interval
+        self.populate_step = self.cfg.fps * self.cfg.npc_population_interval
         self.npcs = []
         self.new_npcs = []
 
@@ -195,25 +205,25 @@ class CarlaEnv:
         self.ego = self._spawn_npcs(
             [self.ego_spawn_point],
             [0],
-            [self.config.ego_bp],
+            [self.cfg.ego_bp],
         ).pop()
-        if len(self.roi_spawn_points) < self.config.traffic_count:
+        if len(self.roi_spawn_points) < self.cfg.traffic_count:
             print("Number of roi_spawn_points is less than traffic_count")
             # TODO: Add logger
-        num_npcs = min(len(self.roi_spawn_points), self.config.traffic_count)
+        num_npcs = min(len(self.roi_spawn_points), self.cfg.traffic_count)
         self.npcs.extend(
             self._spawn_npcs(
                 self.roi_spawn_points[:num_npcs],
                 self.initial_speed,
-                self.config.npc_bps,
+                self.cfg.npc_bps,
             )
         )
         self.world.tick()
         for npc in self.npcs:
             npc.update_dimension()
         self.ego.update_dimension()
-        self.set_npc_autopilot(self.config.npcs_autopilot)
-        self.set_ego_autopilot(self.config.ego_autopilot)
+        self.set_npc_autopilot(self.cfg.npcs_autopilot)
+        self.set_ego_autopilot(self.cfg.ego_autopilot)
         self.step_counter = 0
 
     def reset(self, include_ego=True):
@@ -227,15 +237,15 @@ class CarlaEnv:
     def step(self, ego="autopilot", npcs=None, time_step=0, include_ego=True):
         self.step_counter += 1
         self._set_state_and_filter_npcs(ego, npcs, time_step, include_ego)
-        if self.config.flag_ego:
+        if self.cfg.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
-        if self.config.flag_npcs:
+        if self.cfg.flag_npcs:
             self._flag_npc(self.npcs, NPC_FLAG_COLOR)
-        if self.config.populate_npcs & (not (self.step_counter % self.populate_step)):
+        if self.cfg.populate_npcs & (not (self.step_counter % self.populate_step)):
             self.new_npcs = self._spawn_npcs(
                 self.entrance_spawn_points,
                 (1.5 * np.ones_like(self.entrance_spawn_points)).tolist(),
-                self.config.npc_bps,
+                self.cfg.npc_bps,
             )
         self.world.tick()
         if len(self.new_npcs) > 0:
@@ -243,7 +253,7 @@ class CarlaEnv:
                 npc.update_dimension()
             self.npcs.extend(self.new_npcs)
             self.new_npcs = []
-            self.set_npc_autopilot(self.config.npcs_autopilot)
+            self.set_npc_autopilot(self.cfg.npcs_autopilot)
 
         return self.get_obs()
 
@@ -313,9 +323,9 @@ class CarlaEnv:
         npc_entrance_spawn_points=None,
         spectator_transform=None,
     ):
-        config = CarlaSimulationConfig()
+        cfg = CarlaSimulationConfig()
         return cls(
-            config,
+            cfg,
             ego_spawn_point,
             initial_states,
             npc_entrance_spawn_points,
@@ -352,7 +362,7 @@ class CarlaEnv:
                 location=loc,
                 size=0.1,
                 color=color,
-                life_time=2 / self.config.fps,
+                life_time=2 / self.cfg.fps,
             )
 
     def _set_state_and_filter_npcs(
@@ -361,6 +371,7 @@ class CarlaEnv:
         if npcs is not None:
             states = npcs["states"]
             recurrent_states = npcs["recurrent_states"]
+            id = -1  # In case all NPCs vanish!
             for id, npc in enumerate(self.npcs):
                 # NOTE: states is of size (batch_size x actor x time x state)
                 # where state is a list: [x, y, angle, speed]
@@ -375,10 +386,10 @@ class CarlaEnv:
         for npc in self.npcs:
             actor_geo_center = npc.get_state()["transform"].location
             distance = math.sqrt(
-                ((actor_geo_center.x - self.config.roi_center.x) ** 2)
-                + ((actor_geo_center.y - self.config.roi_center.y) ** 2)
+                ((actor_geo_center.x - self.cfg.roi_center.x) ** 2)
+                + ((actor_geo_center.y - self.cfg.roi_center.y) ** 2)
             )
-            if distance < self.config.proximity_threshold + self.config.slack:
+            if distance < self.cfg.proximity_threshold + self.cfg.slack:
                 remaining_npcs.append(npc)
             else:
                 exit_npcs.append(npc)
@@ -397,32 +408,32 @@ class CarlaEnv:
         return (t, speed)
 
     @staticmethod
-    def get_entrance(config, spawn_points):
+    def get_entrance(cfg, spawn_points):
         slack = 1
         entrance = []
         for sp in spawn_points:
             distance = math.sqrt(
-                ((sp.location.x - config.roi_center.x) ** 2)
-                + ((sp.location.y - config.roi_center.y) ** 2)
+                ((sp.location.x - cfg.roi_center.x) ** 2)
+                + ((sp.location.y - cfg.roi_center.y) ** 2)
             )
             if (
-                config.proximity_threshold - slack
+                cfg.proximity_threshold - slack
                 < distance
-                < config.proximity_threshold + slack
+                < cfg.proximity_threshold + slack
             ):
                 entrance.append(sp)
         return entrance
 
     @staticmethod
-    def get_roi_spawn_points(config, spawn_points, speed):
+    def get_roi_spawn_points(cfg, spawn_points, speed):
         roi_spawn_points = []
         initial_speed = []
         for ind, sp in enumerate(spawn_points):
             distance = math.sqrt(
-                ((sp.location.x - config.roi_center.x) ** 2)
-                + ((sp.location.y - config.roi_center.y) ** 2)
+                ((sp.location.x - cfg.roi_center.x) ** 2)
+                + ((sp.location.y - cfg.roi_center.y) ** 2)
             )
-            if distance < config.proximity_threshold:
+            if distance < cfg.proximity_threshold:
                 roi_spawn_points.append(sp)
                 initial_speed.append(speed[ind])
         return roi_spawn_points, initial_speed

@@ -34,9 +34,12 @@ python Carla-Demo-Script.py
 
 ## TODO:
 
-- [ ] Complete and move static data (roi_center of each scene, Ego spawn location of for each scene) to a YML file
-- [ ] Handoff the NPCs inside and outside roi to iai-drive and caral traffic-manager
+- [ ] Change the naming convention of the maps, carla:town03:roundabout
+- [x] Complete and move static data to a JSON file
+  - [x] roi_center of each scene
+  - [ ] Ego spawn location of for each scene
 - [ ] Calculate infractions
+- [ ] Handoff the NPCs inside and outside roi to iai-drive and caral traffic-manager
 
 ## development
 

@@ -13,15 +13,15 @@ InputDataType = Union[torch.Tensor, np.ndarray, List]
 
 @dataclass
 class Config:
-    api_key: str
-    location: str
-    agent_count: int = 10
+    api_key: str = ""
+    location: str = "Town03_Roundabout"
+    agent_count: int = 100
     batch_size: int = 1
     obs_length: int = 1
     step_times: int = 1
     min_speed: int = 1  # Km/h
-    max_speed: int = 10  # Km/h
-    carla_simulator: bool = False
+    max_speed: int = 5  # Km/h
+    simulator: str = "None"
 
 
 class Drive:
@@ -29,6 +29,7 @@ class Drive:
         self.location = config.location
         self.config = config
         self.client = Client(self.config.api_key)
+        self.fix_carla_coord = True if config.simulator == "CARLA" else False
 
     def initialize(
         self,
@@ -53,7 +54,7 @@ class Drive:
                     max_speed=np.ceil(
                         (max_speed or self.config.max_speed) / 3.6
                     ).astype(int),
-                    fix_carla_coord=self.config.carla_simulator,
+                    fix_carla_coord=self.fix_carla_coord,
                 )
                 response = {
                     "states": initial_states["initial_condition"]["agent_states"],
@@ -146,7 +147,7 @@ class Drive:
             obs_length=self.config.obs_length,
             step_times=self.config.step_times,
             return_birdviews=return_birdviews,
-            fix_carla_coord=self.config.carla_simulator,
+            fix_carla_coord=self.fix_carla_coord,
         )
 
         start = time.time()
