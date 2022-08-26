@@ -15,9 +15,12 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
-parser.add_argument("-n", "--scene_name", type=str, default="Town10HD_4way")
+parser.add_argument("-n", "--scene_name", type=str, default="CARLA:Town03:Roundabout")
 parser.add_argument("-c", "--agent_count", type=str, default=50)
 parser.add_argument("-l", "--episode_lenght", type=int, default=20)
+parser.add_argument("-e", "--ego_spawn_point", default=None)
+parser.add_argument("-s", "--spectator_transform", default=None)
+
 args = parser.parse_args()
 
 
@@ -31,7 +34,12 @@ carla_cfg = CarlaSimulationConfig(
 drive = Drive(iai_cfg)
 response = drive.initialize()
 initial_states = response["states"][0]
-sim = CarlaEnv(cfg=carla_cfg, initial_states=initial_states, ego_spawn_point="demo")
+sim = CarlaEnv(
+    cfg=carla_cfg,
+    initial_states=initial_states,
+    ego_spawn_point=args.ego_spawn_point,
+    spectator_transform=args.spectator_transform,
+)
 states, recurrent_states, dimensions = sim.reset()
 clock = pygame.time.Clock()
 

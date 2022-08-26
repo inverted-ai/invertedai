@@ -46,7 +46,7 @@ class CarlaSimulationConfig:
     npc_bps: Tuple[str] = NPC_BPS
     roi_center: cord = cord(x=0, y=0)  # region of interest center
     map_name: str = "Town03"
-    scene_name: str = "Town03_Roundabout"
+    scene_name: str = "CARLA:Town03:Roundabout"
     fps: int = 10  # Should not be compatible with invertedAI fps
     traffic_count: int = 20
     episode_lenght: int = 20  # In Seconds
@@ -62,6 +62,10 @@ class CarlaSimulationConfig:
     npcs_autopilot: bool = False
     populate_npcs: bool = True
     npc_population_interval: int = 1  # In Seconds
+    non_roi_npc_mode: str = (
+        "carla_handoff"  # ["no_non_roi_npc", "spawn_at_entrance", "carla_handoff"]
+    )
+    max_cars_in_map: int = 200
 
 
 class Car:
@@ -145,7 +149,7 @@ class CarlaEnv:
         with open("map_center.json", "r") as f:
             centers = json.load(f)[cfg.scene_name]
         self.cfg.roi_center = cord(x=centers[0], y=centers[1])
-        self.cfg.map_name = cfg.scene_name.split("_")[0]
+        self.cfg.map_name = cfg.scene_name.split(":")[1]
         world_settings = carla.WorldSettings(
             synchronous_mode=True,
             fixed_delta_seconds=1 / float(cfg.fps),
@@ -159,10 +163,6 @@ class CarlaEnv:
         world.apply_settings(world_settings)
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_hybrid_physics_mode(True)
-        if spectator_transform is None:
-            camera_loc = carla.Location(cfg.roi_center.x, cfg.roi_center.y, z=100)
-            camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
-            spectator_transform = carla.Transform(camera_loc, camera_rot)
         if initial_states is None:
             spawn_points = world.get_map().get_spawn_points()
             npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
@@ -173,18 +173,48 @@ class CarlaEnv:
             npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
                 cfg, spawn_points, speed
             )
-        if npc_entrance_spawn_points is None:
+        if cfg.non_roi_npc_mode == "spawn_at_entrance":
+            self.nroi_npc_mode = 0
+            # TODO: use enum to combine self.nroi_npc_mode and cfg.non_roi_npc_mode
+            if npc_entrance_spawn_points is None:
+                spawn_points = world.get_map().get_spawn_points()
+                npc_entrance_spawn_points = self.get_entrance(cfg, spawn_points)
+            else:
+                spawn_points = self._to_transform(npc_roi_spawn_points)
+                npc_entrance_spawn_points = self.get_roi_spawn_points(cfg, spawn_points)
+        elif cfg.non_roi_npc_mode == "carla_handoff":
+            self.nroi_npc_mode = 1
             spawn_points = world.get_map().get_spawn_points()
-            npc_entrance_spawn_points = self.get_entrance(cfg, spawn_points)
+            self.non_roi_spawn_points, _ = self.get_roi_spawn_points(
+                cfg, spawn_points, roi=False
+            )
         else:
-            spawn_points = self._to_transform(npc_roi_spawn_points)
-            npc_entrance_spawn_points = self.get_roi_spawn_points(cfg, spawn_points)
+            self.nroi_npc_mode = 2
         if ego_spawn_point is None:
             ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
         elif ego_spawn_point == "demo":
             ego_spawn_point = self.rng.choice(TOWN03_ROUNDABOUT_DEMO_LOCATIONS)
         else:
-            assert isinstance(ego_spawn_point, carla.Transform)
+            assert isinstance(
+                ego_spawn_point, carla.Transform
+            ), "ego_spawn_point must be a Carla.Transform"
+
+        if spectator_transform is None:
+            camera_loc = carla.Location(cfg.roi_center.x, cfg.roi_center.y, z=100)
+            camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
+            spectator_transform = carla.Transform(camera_loc, camera_rot)
+            self.spectator_mode = "birdview"
+        elif spectator_transform == "follow_ego":
+            spectator_transform = carla.Transform(
+                ego_spawn_point.transform(carla.Location(x=-6, z=2.5)),
+                ego_spawn_point.rotation,
+            )
+            self.spectator_mode = "follow_ego"
+        else:
+            assert isinstance(
+                spectator_transform, carla.Transform
+            ), "spectator_transform must be a Carla.Transform"
+            self.spectator_mode = "user_defined"
 
         self.spectator = world.get_spectator()
         self.spectator.set_transform(spectator_transform)
@@ -197,7 +227,7 @@ class CarlaEnv:
         self.ego_spawn_point = ego_spawn_point
         self.populate_step = self.cfg.fps * self.cfg.npc_population_interval
         self.npcs = []
-        self.new_npcs = []
+        self.non_roi_npcs = []
 
     def _initialize(self):
         # Keep the order of first spawining ego then NPCs
@@ -218,12 +248,25 @@ class CarlaEnv:
                 self.cfg.npc_bps,
             )
         )
-        self.world.tick()
+        if self.cfg.non_roi_npc_mode == "carla_handoff":
+            num_npcs = min(len(self.non_roi_spawn_points), self.cfg.max_cars_in_map)
+            self.non_roi_npcs.extend(
+                self._spawn_npcs(
+                    self.non_roi_spawn_points[:num_npcs],
+                    [0 for _ in range(num_npcs)],
+                    self.cfg.npc_bps,
+                )
+            )
+        self.set_npc_autopilot(self.npcs, True)
+        for _ in range(10):  # Ticking the world to place cars on the ground
+            self.world.tick()
         for npc in self.npcs:
             npc.update_dimension()
         self.ego.update_dimension()
-        self.set_npc_autopilot(self.cfg.npcs_autopilot)
+        self.set_npc_autopilot(self.npcs, self.cfg.npcs_autopilot)
         self.set_ego_autopilot(self.cfg.ego_autopilot)
+        if self.cfg.non_roi_npc_mode == "carla_handoff":
+            self.set_npc_autopilot(self.non_roi_npcs, True)
         self.step_counter = 0
 
     def reset(self, include_ego=True):
@@ -241,26 +284,23 @@ class CarlaEnv:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.cfg.flag_npcs:
             self._flag_npc(self.npcs, NPC_FLAG_COLOR)
-        if self.cfg.populate_npcs & (not (self.step_counter % self.populate_step)):
-            self.new_npcs = self._spawn_npcs(
-                self.entrance_spawn_points,
-                (1.5 * np.ones_like(self.entrance_spawn_points)).tolist(),
-                self.cfg.npc_bps,
+        if self.spectator_mode == "follow_ego":
+            ego_transform = self.ego.transform
+            spectator_transform = carla.Transform(
+                ego_transform.transform(carla.Location(x=-6, z=2.5)),
+                ego_transform.rotation,
             )
-        self.world.tick()
-        if len(self.new_npcs) > 0:
-            for npc in self.new_npcs:
-                npc.update_dimension()
-            self.npcs.extend(self.new_npcs)
-            self.new_npcs = []
-            self.set_npc_autopilot(self.cfg.npcs_autopilot)
+            self.spectator.set_transform(spectator_transform)
 
+        self.world.tick()
         return self.get_obs()
 
     def destroy(self, npcs=True, ego=True, world=True):
         if npcs:
             self._destory_npcs(self.npcs)
+            self._destory_npcs(self.non_roi_npcs)
             self.npcs = []
+            self.non_roi_npcs = []
         if ego:
             self._destory_npcs([self.ego])
             self.ego = None
@@ -269,6 +309,15 @@ class CarlaEnv:
             self.traffic_manager.set_synchronous_mode(False)
 
     def get_obs(self, obs_len=1, include_ego=True, warmup=False):
+        if self.cfg.non_roi_npc_mode == "spawn_at_entrance":
+            if len(self.non_roi_npcs) > 0:
+                for npc in self.non_roi_npcs:
+                    npc.update_dimension()
+                self.npcs.extend(self.non_roi_npcs)
+                self.non_roi_npcs = []
+                self.set_npc_autopilot(self.npcs, self.cfg.npcs_autopilot)
+        # if len(self.non_roi_npcs):
+        # self.set_npc_autopilot(self.non_roi_npcs, True)
         states = []
         rec_state = []
         dims = []
@@ -299,8 +348,9 @@ class CarlaEnv:
     def render(self, mode="human"):
         pass
 
-    def set_npc_autopilot(self, on=True):
-        for npc in self.npcs:
+    @staticmethod
+    def set_npc_autopilot(npcs, on=True):
+        for npc in npcs:
             try:
                 npc.actor.set_autopilot(on)
                 npc.actor.set_simulate_physics(on)
@@ -393,6 +443,30 @@ class CarlaEnv:
                 remaining_npcs.append(npc)
             else:
                 exit_npcs.append(npc)
+        if self.cfg.non_roi_npc_mode == "carla_handoff":
+            for npc in self.non_roi_npcs:
+                actor_geo_center = npc.get_state()["transform"].location
+                distance = math.sqrt(
+                    ((actor_geo_center.x - self.cfg.roi_center.x) ** 2)
+                    + ((actor_geo_center.y - self.cfg.roi_center.y) ** 2)
+                )
+                if distance < self.cfg.proximity_threshold + self.cfg.slack:
+                    npc.update_dimension()
+                    self.set_npc_autopilot([npc], on=self.cfg.npcs_autopilot)
+                    remaining_npcs.append(npc)
+                else:
+                    exit_npcs.append(npc)
+            self.non_roi_npcs = exit_npcs
+            self.set_npc_autopilot(self.non_roi_npcs, True)
+            exit_npcs = []
+        elif self.cfg.non_roi_npc_mode == "spawn_at_entrance":
+            if not (self.step_counter % self.populate_step):
+                self.non_roi_npcs = self._spawn_npcs(
+                    self.entrance_spawn_points,
+                    (3 * np.ones_like(self.entrance_spawn_points)).tolist(),
+                    self.cfg.npc_bps,
+                )
+
         self._destory_npcs(exit_npcs)
         self.npcs = remaining_npcs
 
@@ -401,7 +475,7 @@ class CarlaEnv:
         t = []
         speed = []
         for pos in poses:
-            loc = carla.Location(x=pos[0][0], y=pos[0][1], z=1.5)
+            loc = carla.Location(x=pos[0][0], y=pos[0][1], z=1)
             rot = carla.Rotation(yaw=np.degrees(pos[0][2]))
             t.append(carla.Transform(loc, rot))
             speed.append(pos[0][3])
@@ -425,7 +499,7 @@ class CarlaEnv:
         return entrance
 
     @staticmethod
-    def get_roi_spawn_points(cfg, spawn_points, speed):
+    def get_roi_spawn_points(cfg, spawn_points, speed=None, roi=True):
         roi_spawn_points = []
         initial_speed = []
         for ind, sp in enumerate(spawn_points):
@@ -433,9 +507,12 @@ class CarlaEnv:
                 ((sp.location.x - cfg.roi_center.x) ** 2)
                 + ((sp.location.y - cfg.roi_center.y) ** 2)
             )
-            if distance < cfg.proximity_threshold:
+            if roi & (distance < cfg.proximity_threshold):
                 roi_spawn_points.append(sp)
-                initial_speed.append(speed[ind])
+                if speed is not None:
+                    initial_speed.append(speed[ind])
+            elif (not roi) & (distance > cfg.proximity_threshold):
+                roi_spawn_points.append(sp)
         return roi_spawn_points, initial_speed
 
 
