@@ -8,12 +8,126 @@ from collections import namedtuple, deque
 import socket
 import random
 import time
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 
 TOWN03_ROUNDABOUT_DEMO_LOCATIONS = [
-    Transform(Location(x=-54.5, y=-0.1, z=0.5), Rotation(pitch=0.0, yaw=1.76, roll=0.0))
+    Transform(Location(x=-1.6, y=-87.4, z=0.5), Rotation(pitch=0.0, yaw=91.0, roll=0.0))
+    # Transform(Location(x=-54.5, y=-0.1, z=0.5), Rotation(pitch=0.0, yaw=1.76, roll=0.0))
 ]
+DEMO_LOCATIONS = {
+    "CARLA:Town01:3way": dict(
+        proximity_threshold=40,
+        spawning_locations=[
+            Transform(
+                Location(x=184.2, y=194.3, z=0.5),
+                Rotation(pitch=0.0, yaw=174.4, roll=0.0),
+            )
+        ],
+    ),
+    "CARLA:Town02:3way": dict(
+        proximity_threshold=25,
+        spawning_locations=[
+            Transform(
+                Location(x=-7.2, y=154.1, z=0.5), Rotation(pitch=0.0, yaw=92, roll=0.0)
+            )
+        ],
+    ),
+    "CARLA:Town03:Roundabout": dict(
+        proximity_threshold=60,
+        spawning_locations=[
+            Transform(
+                Location(x=-54.5, y=-0.1, z=0.5),
+                Rotation(pitch=0.0, yaw=1.76, roll=0.0),
+            ),
+            Transform(
+                Location(x=-1.6, y=-87.4, z=0.5),
+                Rotation(pitch=0.0, yaw=91.0, roll=0.0),
+            ),
+            Transform(
+                Location(x=1.5, y=78.6, z=0.5), Rotation(pitch=0.0, yaw=-83.5, roll=0.0)
+            ),
+            Transform(
+                Location(x=68.1, y=-4.1, z=0.5),
+                Rotation(pitch=0.0, yaw=178.7, roll=0.0),
+            ),
+        ],
+    ),
+    "CARLA:Town03:4way": dict(
+        proximity_threshold=45,
+        spawning_locations=[
+            Transform(
+                Location(x=-145.7, y=-18.7, z=0.5),
+                Rotation(pitch=0.0, yaw=-89.2, roll=0.0),
+            ),
+            Transform(
+                Location(x=0.56, y=-183.0, z=0.5),
+                Rotation(pitch=0.0, yaw=93.2, roll=0.0),
+            ),
+            Transform(
+                Location(x=-14.2, y=-141.8, z=0.5),
+                Rotation(pitch=0.0, yaw=-175.6, roll=-0.0),
+            ),
+            Transform(
+                Location(x=-77.8, y=-10.2, z=0.5),
+                Rotation(pitch=-0.5, yaw=-88.6, roll=0.0),
+            ),
+        ],
+    ),
+    "CARLA:Town03:GasStation": dict(
+        proximity_threshold=40,
+        spawning_locations=[
+            Transform(
+                Location(x=-10.7, y=46.2, z=0.5),
+                Rotation(pitch=0.0, yaw=90.4, roll=0.0),
+            )
+        ],
+    ),
+    "CARLA:Town04:Merging": dict(
+        proximity_threshold=80,
+        spawning_locations=[
+            Transform(
+                Location(x=-49.8, y=37.2, z=10.2),
+                Rotation(pitch=0.1, yaw=1.5, roll=-0.1),
+            ),
+            Transform(
+                Location(x=44.7, y=-99.3, z=0.5),
+                Rotation(pitch=0.0, yaw=-22.0, roll=0.0),
+            ),
+        ],
+    ),
+    "CARLA:Town04:4way_Stop": dict(
+        proximity_threshold=50,
+        spawning_locations=[
+            Transform(
+                Location(x=150.8, y=-169.6, z=0.5),
+                Rotation(pitch=0.0, yaw=1.0, roll=0.0),
+            ),
+            Transform(
+                Location(x=223.3, y=-124.6, z=0.5),
+                Rotation(pitch=0.0, yaw=-151.2, roll=0.0),
+            ),
+        ],
+    ),
+    "CARLA:Town10HD:4way": dict(
+        proximity_threshold=50,
+        spawning_locations=[
+            Transform(
+                Location(x=-103.6, y=47.1, z=0.5),
+                Rotation(pitch=0.0, yaw=-85.8, roll=0.0),
+            ),
+            Transform(
+                Location(x=-41.8, y=110.8, z=0.5),
+                Rotation(pitch=0.0, yaw=-80.6, roll=0.0),
+            ),
+            Transform(
+                Location(x=-41.8, y=110.8, z=0.5),
+                Rotation(pitch=0.0, yaw=-80.6, roll=0.0),
+            ),
+        ],
+    ),
+}
+
 
 NPC_BPS: Tuple[str] = (
     "vehicle.audi.a2",
@@ -50,10 +164,9 @@ class CarlaSimulationConfig:
     fps: int = 10  # Should not be compatible with invertedAI fps
     traffic_count: int = 20
     episode_length: int = 20  # In Seconds
-    proximity_threshold: int = 50
     entrance_interval: int = 2  # In Seconds
     follow_ego: bool = False
-    slack: int = 5
+    slack: int = 3
     ego_bp: str = "vehicle.tesla.model3"
     seed: float = time.time()
     flag_npcs: bool = True
@@ -66,6 +179,7 @@ class CarlaSimulationConfig:
         "carla_handoff"  # ["no_non_roi_npc", "spawn_at_entrance", "carla_handoff"]
     )
     max_cars_in_map: int = 200
+    proximity_threshold = None
 
 
 class Car:
@@ -78,6 +192,11 @@ class Car:
 
     def update_dimension(self):
         self._dimension = self._get_actor_dimensions()
+
+    def update_speed(self):
+        v = self.actor.get_velocity()
+        vs = np.sqrt(v.x**2 + v.y**2)
+        self.speed = vs
 
     @property
     def dims(self):
@@ -163,42 +282,46 @@ class CarlaEnv:
         world.apply_settings(world_settings)
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_hybrid_physics_mode(True)
+        self.proximity_threshold = (
+            cfg.proximity_threshold
+            or DEMO_LOCATIONS[cfg.scene_name]["proximity_threshold"]
+        )
         if initial_states is None:
             spawn_points = world.get_map().get_spawn_points()
             npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
-                cfg, spawn_points, speed=np.zeros_like(spawn_points)
+                spawn_points, speed=np.zeros_like(spawn_points)
             )
         else:
             spawn_points, speed = self._to_transform(initial_states)
             npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
-                cfg, spawn_points, speed
+                spawn_points, speed
             )
+        if ego_spawn_point is None:
+            ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
+        elif ego_spawn_point == "demo":
+            locs = DEMO_LOCATIONS[cfg.scene_name]
+            ego_spawn_point = self.rng.choice(locs["spawning_locations"])
+        else:
+            assert isinstance(
+                ego_spawn_point, carla.Transform
+            ), "ego_spawn_point must be a Carla.Transform"
         if cfg.non_roi_npc_mode == "spawn_at_entrance":
             self.nroi_npc_mode = 0
             # TODO: use enum to combine self.nroi_npc_mode and cfg.non_roi_npc_mode
             if npc_entrance_spawn_points is None:
                 spawn_points = world.get_map().get_spawn_points()
-                npc_entrance_spawn_points = self.get_entrance(cfg, spawn_points)
+                npc_entrance_spawn_points = self.get_entrance(spawn_points)
             else:
                 spawn_points = self._to_transform(npc_roi_spawn_points)
-                npc_entrance_spawn_points = self.get_roi_spawn_points(cfg, spawn_points)
+                npc_entrance_spawn_points = self.get_roi_spawn_points(spawn_points)
         elif cfg.non_roi_npc_mode == "carla_handoff":
             self.nroi_npc_mode = 1
             spawn_points = world.get_map().get_spawn_points()
             self.non_roi_spawn_points, _ = self.get_roi_spawn_points(
-                cfg, spawn_points, roi=False
+                spawn_points, roi=False
             )
         else:
             self.nroi_npc_mode = 2
-        if ego_spawn_point is None:
-            ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
-        elif ego_spawn_point == "demo":
-            ego_spawn_point = self.rng.choice(TOWN03_ROUNDABOUT_DEMO_LOCATIONS)
-        else:
-            assert isinstance(
-                ego_spawn_point, carla.Transform
-            ), "ego_spawn_point must be a Carla.Transform"
-
         if spectator_transform is None:
             camera_loc = carla.Location(cfg.roi_center.x, cfg.roi_center.y, z=100)
             camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
@@ -439,7 +562,7 @@ class CarlaEnv:
                 ((actor_geo_center.x - self.cfg.roi_center.x) ** 2)
                 + ((actor_geo_center.y - self.cfg.roi_center.y) ** 2)
             )
-            if distance < self.cfg.proximity_threshold + self.cfg.slack:
+            if distance < self.proximity_threshold + self.cfg.slack:
                 remaining_npcs.append(npc)
             else:
                 exit_npcs.append(npc)
@@ -450,10 +573,11 @@ class CarlaEnv:
                     ((actor_geo_center.x - self.cfg.roi_center.x) ** 2)
                     + ((actor_geo_center.y - self.cfg.roi_center.y) ** 2)
                 )
-                if distance < self.cfg.proximity_threshold + self.cfg.slack:
+                if distance < self.proximity_threshold + self.cfg.slack:
                     npc.update_dimension()
                     self.set_npc_autopilot([npc], on=self.cfg.npcs_autopilot)
                     remaining_npcs.append(npc)
+                    npc.update_speed()
                 else:
                     exit_npcs.append(npc)
             self.non_roi_npcs = exit_npcs
@@ -481,37 +605,34 @@ class CarlaEnv:
             speed.append(pos[0][3])
         return (t, speed)
 
-    @staticmethod
-    def get_entrance(cfg, spawn_points):
-        slack = 1
+    def get_entrance(self, spawn_points):
         entrance = []
         for sp in spawn_points:
             distance = math.sqrt(
-                ((sp.location.x - cfg.roi_center.x) ** 2)
-                + ((sp.location.y - cfg.roi_center.y) ** 2)
+                ((sp.location.x - self.cfg.roi_center.x) ** 2)
+                + ((sp.location.y - self.cfg.roi_center.y) ** 2)
             )
             if (
-                cfg.proximity_threshold - slack
+                self.proximity_threshold - self.cfg.slack
                 < distance
-                < cfg.proximity_threshold + slack
+                < self.proximity_threshold + self.cfg.slack
             ):
                 entrance.append(sp)
         return entrance
 
-    @staticmethod
-    def get_roi_spawn_points(cfg, spawn_points, speed=None, roi=True):
+    def get_roi_spawn_points(self, spawn_points, speed=None, roi=True):
         roi_spawn_points = []
         initial_speed = []
         for ind, sp in enumerate(spawn_points):
             distance = math.sqrt(
-                ((sp.location.x - cfg.roi_center.x) ** 2)
-                + ((sp.location.y - cfg.roi_center.y) ** 2)
+                ((sp.location.x - self.cfg.roi_center.x) ** 2)
+                + ((sp.location.y - self.cfg.roi_center.y) ** 2)
             )
-            if roi & (distance < cfg.proximity_threshold):
+            if roi & (distance < self.proximity_threshold):
                 roi_spawn_points.append(sp)
                 if speed is not None:
                     initial_speed.append(speed[ind])
-            elif (not roi) & (distance > cfg.proximity_threshold):
+            elif (not roi) & (distance > self.proximity_threshold):
                 roi_spawn_points.append(sp)
         return roi_spawn_points, initial_speed
 
