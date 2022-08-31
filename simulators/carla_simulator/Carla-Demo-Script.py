@@ -17,7 +17,7 @@ import argparse
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("-n", "--scene_name", type=str, default="CARLA:Town03:Roundabout")
 parser.add_argument("-c", "--agent_count", type=str, default=50)
-parser.add_argument("-l", "--episode_lenght", type=int, default=20)
+parser.add_argument("-l", "--episode_length", type=int, default=20)
 parser.add_argument("-e", "--ego_spawn_point", default=None)
 parser.add_argument("-s", "--spectator_transform", default=None)
 
@@ -28,7 +28,7 @@ iai_cfg = Config(
     location=args.scene_name, simulator="CARLA", agent_count=args.agent_count
 )
 carla_cfg = CarlaSimulationConfig(
-    scene_name=args.scene_name, episode_lenght=args.episode_lenght
+    scene_name=args.scene_name, episode_length=args.episode_length
 )
 
 drive = Drive(iai_cfg)
@@ -44,7 +44,7 @@ states, recurrent_states, dimensions = sim.reset()
 clock = pygame.time.Clock()
 
 
-for i in range(carla_cfg.episode_lenght * carla_cfg.fps):
+for i in range(carla_cfg.episode_length * carla_cfg.fps):
     response = drive.run(
         agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
         states=torch.tensor(states).unsqueeze(0).tolist(),

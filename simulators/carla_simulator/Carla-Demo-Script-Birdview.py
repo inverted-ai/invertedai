@@ -19,7 +19,7 @@ import argparse
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("-n", "--scene_name", type=str, default="CARLA:Town10HD:4way")
 parser.add_argument("-c", "--agent_count", type=str, default=50)
-parser.add_argument("-l", "--episode_lenght", type=int, default=10)
+parser.add_argument("-l", "--episode_length", type=int, default=10)
 parser.add_argument("-e", "--ego_spawn_point", default=None)
 parser.add_argument("-s", "--spectator_transform", default=None)
 args = parser.parse_args()
@@ -30,7 +30,7 @@ iai_cfg = Config(
 )
 carla_cfg = CarlaSimulationConfig(
     scene_name=args.scene_name,
-    episode_lenght=args.episode_lenght,
+    episode_length=args.episode_length,
     non_roi_npc_mode="carla_handoff",
 )
 
@@ -49,7 +49,7 @@ clock = pygame.time.Clock()
 frames = []
 
 
-for i in range(carla_cfg.episode_lenght * carla_cfg.fps):
+for i in range(carla_cfg.episode_length * carla_cfg.fps):
     response = drive.run(
         agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
         states=torch.tensor(states).unsqueeze(0).tolist(),

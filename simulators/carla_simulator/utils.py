@@ -49,7 +49,7 @@ class CarlaSimulationConfig:
     scene_name: str = "CARLA:Town03:Roundabout"
     fps: int = 10  # Should not be compatible with invertedAI fps
     traffic_count: int = 20
-    episode_lenght: int = 20  # In Seconds
+    episode_length: int = 20  # In Seconds
     proximity_threshold: int = 50
     entrance_interval: int = 2  # In Seconds
     follow_ego: bool = False
