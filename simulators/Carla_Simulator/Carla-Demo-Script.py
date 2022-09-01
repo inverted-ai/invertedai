@@ -16,19 +16,33 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("-n", "--scene_name", type=str, default="CARLA:Town03:Roundabout")
-parser.add_argument("-c", "--agent_count", type=str, default=50)
+parser.add_argument("-c", "--agent_count", type=int, default=50)
 parser.add_argument("-l", "--episode_length", type=int, default=20)
 parser.add_argument("-e", "--ego_spawn_point", default=None)
 parser.add_argument("-s", "--spectator_transform", default=None)
+parser.add_argument("-i", "--initial_states", default=None)
+parser.add_argument("-m", "--non_roi_npc_mode", type=int, default=0)
+parser.add_argument("-pi", "--npc_population_interval", type=int, default=6)
+parser.add_argument("-ca", "--max_cars_in_map", type=int, default=100)
 
 args = parser.parse_args()
+if args.non_roi_npc_mode == 0:
+    non_roi_npc_mode = "spawn_at_entrance"
+elif args.non_roi_npc_mode == 1:
+    non_roi_npc_mode = "carla_handoff"
+else:
+    non_roi_npc_mode = "None"
 
 
 iai_cfg = Config(
     location=args.scene_name, simulator="CARLA", agent_count=args.agent_count
 )
 carla_cfg = CarlaSimulationConfig(
-    scene_name=args.scene_name, episode_length=args.episode_length
+    scene_name=args.scene_name,
+    episode_length=args.episode_length,
+    non_roi_npc_mode=non_roi_npc_mode,
+    npc_population_interval=args.npc_population_interval,
+    max_cars_in_map=args.max_cars_in_map,
 )
 
 drive = Drive(iai_cfg)

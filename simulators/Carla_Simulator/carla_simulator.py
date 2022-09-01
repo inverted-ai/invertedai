@@ -8,8 +8,7 @@ from collections import namedtuple, deque
 import socket
 import random
 import time
-from typing import Tuple, List, Union
-import sys
+from typing import Tuple, List
 
 TOWN03_ROUNDABOUT_DEMO_LOCATIONS = [
     Transform(Location(x=-1.6, y=-87.4, z=0.5), Rotation(pitch=0.0, yaw=91.0, roll=0.0))
@@ -97,7 +96,7 @@ DEMO_LOCATIONS = {
         ],
     ),
     "CARLA:Town04:4way_Stop": dict(
-        proximity_threshold=50,
+        proximity_threshold=80,
         spawning_locations=[
             Transform(
                 Location(x=150.8, y=-169.6, z=0.5),
@@ -110,7 +109,7 @@ DEMO_LOCATIONS = {
         ],
     ),
     "CARLA:Town10HD:4way": dict(
-        proximity_threshold=50,
+        proximity_threshold=70,
         spawning_locations=[
             Transform(
                 Location(x=-103.6, y=47.1, z=0.5),
@@ -178,7 +177,7 @@ class CarlaSimulationConfig:
     non_roi_npc_mode: str = (
         "carla_handoff"  # ["no_non_roi_npc", "spawn_at_entrance", "carla_handoff"]
     )
-    max_cars_in_map: int = 200
+    max_cars_in_map: int = 100
     proximity_threshold = None
 
 
@@ -282,9 +281,10 @@ class CarlaEnv:
         world.apply_settings(world_settings)
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_hybrid_physics_mode(True)
-        self.proximity_threshold = (
-            cfg.proximity_threshold
-            or DEMO_LOCATIONS[cfg.scene_name]["proximity_threshold"]
+        self.proximity_threshold = cfg.proximity_threshold or (
+            50
+            if cfg.scene_name not in DEMO_LOCATIONS.keys()
+            else DEMO_LOCATIONS[cfg.scene_name]["proximity_threshold"]
         )
         if initial_states is None:
             spawn_points = world.get_map().get_spawn_points()
@@ -299,8 +299,11 @@ class CarlaEnv:
         if ego_spawn_point is None:
             ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
         elif ego_spawn_point == "demo":
-            locs = DEMO_LOCATIONS[cfg.scene_name]
-            ego_spawn_point = self.rng.choice(locs["spawning_locations"])
+            if cfg.scene_name not in DEMO_LOCATIONS.keys():
+                ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
+            else:
+                locs = DEMO_LOCATIONS[cfg.scene_name]
+                ego_spawn_point = self.rng.choice(locs["spawning_locations"])
         else:
             assert isinstance(
                 ego_spawn_point, carla.Transform
