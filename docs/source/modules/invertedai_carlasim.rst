@@ -7,7 +7,7 @@ Submodules
 carla_examples.utils module
 --------------------------------------
 
-.. automodule:: simulators.carla_simulator.utils
+.. automodule:: invertedai_drive.simulators.CarlaEnv
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ carla_examples.utils module
 Module contents
 ---------------
 
-.. automodule:: simulators.carla_simulator
+.. automodule:: invertedai_drive.simulators.carla_simulator
    :members:
    :undoc-members:
    :show-inheritance:

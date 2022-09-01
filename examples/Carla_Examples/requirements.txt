@@ -1,0 +1,11 @@
+invertedai-drive==0.1.3
+jupyterlab==3.4.4
+opencv-python==4.6.0.66
+ipympl==0.9.1
+ipywidgets==7.7.1
+matplotlib==3.5.2
+imageio==2.20.0
+tqdm==4.64.0
+ipython==8.4.0
+pygame==2.1.2
+carla==0.9.13
