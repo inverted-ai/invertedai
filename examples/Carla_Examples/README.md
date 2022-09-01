@@ -36,16 +36,27 @@ python Carla-Demo-Script.py
 
 - [x] Change the naming convention of the maps, carla:town03:roundabout
 - [x] Handoff the NPCs inside and outside roi to iai-drive and caral traffic-manager
+  - [ ] Issue: vehicles stop when handed to carla:
+    - [ ] Possible solution: Turn on physics before handing to carla
 - [x] Complete and move static data to a JSON file
   - [x] roi_center of each scene
-  - [ ] Suggested (or demo) Ego spawn location of for each scene
+  - [x] Suggested (or demo) Ego spawn location of for each scene
   - [ ] Suggested (or demo) entry points for each scene
-- [ ] Calculate infractions
-- [ ] Documentation, Readthedocs
-  - [ ] IAI-Drive
-  - [ ] Carla Simulator config
+- [x] Setup Sphinx and autodoc
+  - [x] IAI-Drive
+  - [x] Carla Simulator config
+- [ ] Finish documentation
+  - [ ] Guide
+  - [ ] API
+  - [ ] SDK
+  - [ ] Examples
+- [ ] Readthedocs
 - [ ] Ego manual driving
 - [ ] Scenarios
+- [ ] Calculate infractions or get from server
+- [ ] Traffic light and signs
+  - [ ] Communicate data with Server (simple drive demo)
+  - [ ] Get data from and pass to carla (carla drive demo)
 
 ## development
 
