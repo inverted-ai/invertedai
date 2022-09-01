@@ -1,18 +1,22 @@
 #!/usr/bin/env ipython
 import os
-
-# os.environ["DEV"] = "1"
-from invertedai_drive import Drive, Config
+import sys
 from PIL import Image as PImage
 import imageio
 import numpy as np
 import cv2
 from tqdm import tqdm
 import argparse
+from dotenv import load_dotenv
+
+load_dotenv()
+if os.environ.get("DEV", False):
+    sys.path.append("../")
+from invertedai_drive import Drive, Config
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default="")
-parser.add_argument("--location", type=str, default="")
+parser.add_argument("--location", type=str, default="CARLA:Town03:Roundabout")
 args = parser.parse_args()
 
 config = Config(
@@ -34,7 +38,6 @@ frames = []
 
 for i in tqdm(range(50)):
     response = drive.run(
-        location=config.location,
         agent_attributes=agent_attributes,
         states=response["states"],
         recurrent_states=response["recurrent_states"],
@@ -45,4 +48,4 @@ for i in tqdm(range(50)):
     image = cv2.imdecode(birdview, cv2.IMREAD_COLOR)
     frames.append(image)
     im = PImage.fromarray(image)
-imageio.mimsave("dev/iai-drive.gif", np.array(frames), format="GIF-PIL")
+imageio.mimsave("iai-drive.gif", np.array(frames), format="GIF-PIL")
