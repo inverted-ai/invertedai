@@ -25,11 +25,36 @@ class Config:
 
 
 class Drive:
-    def __init__(self, config) -> None:
-        self.location = config.location
-        self.config = config
-        self.client = Client(self.config.api_key)
-        self.fix_carla_coord = True if config.simulator == "CARLA" else False
+    def __init__(self, ) -> None:
+        pass
+        # self.location = config.location
+        # self.config = config
+        # self.client = Client(self.config.api_key)
+        # self.fix_carla_coord = True if config.simulator == "CARLA" else False
+
+    @property
+    def fix_carla_coord(self):
+        fix_carla_coord = True if self.config.simulator == "CARLA" else False
+        return fix_carla_coord
+
+    @property
+    def client(self):
+        client = Client(self.config.api_key) if hasattr(self.config, 'api_key') else None
+        return client
+
+    @property
+    def config(self):
+        config = type('', (), {})()
+        config.api_key = self.api_key if hasattr(self, 'api_key') else ''
+        config.location = self.location if hasattr(self, 'location') else "Town03_Roundabout"
+        config.agent_count = self.agent_count if hasattr(self, 'agent_count') else 100
+        config.batch_size = self.batch_size if hasattr(self, 'batch_size') else 1
+        config.obs_length = self.obs_length if hasattr(self, 'obs_length') else 1
+        config.step_times = self.step_times if hasattr(self, 'step_times') else 1
+        config.min_speed = self.min_speed if hasattr(self, 'min_speed') else 1
+        config.max_speed = self.max_speed if hasattr(self, 'max_speed') else 5
+        config.simulator = self.simulator if hasattr(self, 'simulator') else "None"
+        return config
 
     def initialize(
         self,
