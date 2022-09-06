@@ -22,6 +22,7 @@ class Config:
     min_speed: int = 1  # Km/h
     max_speed: int = 5  # Km/h
     simulator: str = "None"
+    get_infractions: bool = False
 
 
 class Drive:
@@ -148,6 +149,7 @@ class Drive:
             step_times=self.config.step_times,
             return_birdviews=return_birdviews,
             fix_carla_coord=self.fix_carla_coord,
+            get_infractions=self.config.get_infractions,
         )
 
         start = time.time()

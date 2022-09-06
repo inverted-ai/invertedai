@@ -41,7 +41,7 @@ python Carla-Demo-Script.py
 - [x] Complete and move static data to a JSON file
   - [x] roi_center of each scene
   - [x] Suggested (or demo) Ego spawn location of for each scene
-  - [ ] Suggested (or demo) entry points for each scene
+- [ ] Suggested (or demo) entry points for each scene (automatically get from map or hand picking)
 - [x] Setup Sphinx and autodoc
   - [x] IAI-Drive
   - [x] Carla Simulator config
@@ -52,8 +52,8 @@ python Carla-Demo-Script.py
   - [ ] Examples
 - [ ] Readthedocs
 - [ ] Ego manual driving
-- [ ] Scenarios
-- [ ] Calculate infractions or get from server
+- [x] Scenarios
+- [x] Calculate infractions or get from server
 - [ ] Traffic light and signs
   - [ ] Communicate data with Server (simple drive demo)
   - [ ] Get data from and pass to carla (carla drive demo)
@@ -73,3 +73,17 @@ DEV_URL=http://localhost:8888
 ports:
   - "8888:8000"
 ```
+
+- Docs:
+
+  - For building the html files
+
+  ```sh
+  sphinx-build docs/source docs/build/html
+  ```
+
+  - For testing and dev
+
+  ```sh
+  sphinx-autobuild docs/source docs/build/html --port 8001
+  ```
