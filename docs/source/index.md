@@ -59,8 +59,9 @@ quickstart
 
 
 guides
-examples
 apireference
+sdk
+examples
 miscellaneous
 modules/modules
 ```

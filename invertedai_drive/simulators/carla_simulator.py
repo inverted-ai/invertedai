@@ -1,158 +1,22 @@
 from dataclasses import dataclass
-import json
 import carla
 from carla import Location, Rotation, Transform
 import math
 import numpy as np
-from collections import namedtuple, deque
+from collections import deque
 import socket
 import random
 import time
 from typing import Tuple, List
-import os
-
-TOWN03_ROUNDABOUT_DEMO_LOCATIONS = [
-    Transform(Location(x=-1.6, y=-87.4, z=0.5), Rotation(pitch=0.0, yaw=91.0, roll=0.0))
-    # Transform(Location(x=-54.5, y=-0.1, z=0.5), Rotation(pitch=0.0, yaw=1.76, roll=0.0))
-]
-DEMO_LOCATIONS = {
-    "CARLA:Town01:3way": dict(
-        proximity_threshold=40,
-        spawning_locations=[
-            Transform(
-                Location(x=184.2, y=194.3, z=0.5),
-                Rotation(pitch=0.0, yaw=174.4, roll=0.0),
-            )
-        ],
-    ),
-    "CARLA:Town02:3way": dict(
-        proximity_threshold=25,
-        spawning_locations=[
-            Transform(
-                Location(x=-7.2, y=154.1, z=0.5), Rotation(pitch=0.0, yaw=92, roll=0.0)
-            )
-        ],
-    ),
-    "CARLA:Town03:Roundabout": dict(
-        proximity_threshold=60,
-        spawning_locations=[
-            Transform(
-                Location(x=-54.5, y=-0.1, z=0.5),
-                Rotation(pitch=0.0, yaw=1.76, roll=0.0),
-            ),
-            Transform(
-                Location(x=-1.6, y=-87.4, z=0.5),
-                Rotation(pitch=0.0, yaw=91.0, roll=0.0),
-            ),
-            Transform(
-                Location(x=1.5, y=78.6, z=0.5), Rotation(pitch=0.0, yaw=-83.5, roll=0.0)
-            ),
-            Transform(
-                Location(x=68.1, y=-4.1, z=0.5),
-                Rotation(pitch=0.0, yaw=178.7, roll=0.0),
-            ),
-        ],
-    ),
-    "CARLA:Town03:4way": dict(
-        proximity_threshold=45,
-        spawning_locations=[
-            Transform(
-                Location(x=-145.7, y=-18.7, z=0.5),
-                Rotation(pitch=0.0, yaw=-89.2, roll=0.0),
-            ),
-            Transform(
-                Location(x=0.56, y=-183.0, z=0.5),
-                Rotation(pitch=0.0, yaw=93.2, roll=0.0),
-            ),
-            Transform(
-                Location(x=-14.2, y=-141.8, z=0.5),
-                Rotation(pitch=0.0, yaw=-175.6, roll=-0.0),
-            ),
-            Transform(
-                Location(x=-77.8, y=-10.2, z=0.5),
-                Rotation(pitch=-0.5, yaw=-88.6, roll=0.0),
-            ),
-        ],
-    ),
-    "CARLA:Town03:GasStation": dict(
-        proximity_threshold=40,
-        spawning_locations=[
-            Transform(
-                Location(x=-10.7, y=46.2, z=0.5),
-                Rotation(pitch=0.0, yaw=90.4, roll=0.0),
-            )
-        ],
-    ),
-    "CARLA:Town04:Merging": dict(
-        proximity_threshold=80,
-        spawning_locations=[
-            Transform(
-                Location(x=-49.8, y=37.2, z=10.2),
-                Rotation(pitch=0.1, yaw=1.5, roll=-0.1),
-            ),
-            Transform(
-                Location(x=44.7, y=-99.3, z=0.5),
-                Rotation(pitch=0.0, yaw=-22.0, roll=0.0),
-            ),
-        ],
-    ),
-    "CARLA:Town04:4way_Stop": dict(
-        proximity_threshold=80,
-        spawning_locations=[
-            Transform(
-                Location(x=150.8, y=-169.6, z=0.5),
-                Rotation(pitch=0.0, yaw=1.0, roll=0.0),
-            ),
-            Transform(
-                Location(x=223.3, y=-124.6, z=0.5),
-                Rotation(pitch=0.0, yaw=-151.2, roll=0.0),
-            ),
-        ],
-    ),
-    "CARLA:Town10HD:4way": dict(
-        proximity_threshold=70,
-        spawning_locations=[
-            Transform(
-                Location(x=-103.6, y=47.1, z=0.5),
-                Rotation(pitch=0.0, yaw=-85.8, roll=0.0),
-            ),
-            Transform(
-                Location(x=-41.8, y=110.8, z=0.5),
-                Rotation(pitch=0.0, yaw=-80.6, roll=0.0),
-            ),
-            Transform(
-                Location(x=-41.8, y=110.8, z=0.5),
-                Rotation(pitch=0.0, yaw=-80.6, roll=0.0),
-            ),
-        ],
-    ),
-}
-
-
-NPC_BPS: Tuple[str] = (
-    "vehicle.audi.a2",
-    "vehicle.audi.etron",
-    "vehicle.audi.tt",
-    "vehicle.bmw.grandtourer",
-    "vehicle.citroen.c3",
-    "vehicle.chevrolet.impala",
-    "vehicle.dodge.charger_2020",
-    "vehicle.ford.mustang",
-    "vehicle.ford.crown",
-    "vehicle.jeep.wrangler_rubicon",
-    "vehicle.lincoln.mkz_2020",
-    "vehicle.mercedes.coupe_2020",
-    "vehicle.nissan.micra",
-    "vehicle.nissan.patrol_2021",
-    "vehicle.seat.leon",
-    "vehicle.toyota.prius",
-    "vehicle.volkswagen.t2_2021",
+from invertedai_drive.simulators.data.static_carla import (
+    MAP_CENTERS,
+    DEMO_LOCATIONS,
+    NPC_BPS,
+    EGO_FLAG_COLOR,
+    NPC_FLAG_COLOR,
+    RS,
+    cord,
 )
-EGO_FLAG_COLOR = carla.Color(255, 0, 0, 0)
-NPC_FLAG_COLOR = carla.Color(0, 0, 255, 0)
-RS = np.zeros([2, 64]).tolist()
-
-cord = namedtuple("cord", ["x", "y"])
 
 
 @dataclass
@@ -265,9 +129,7 @@ class CarlaEnv:
     ) -> None:
         self.rng = random.Random(cfg.seed)
         self.cfg = cfg
-        base_path = os.path.abspath(os.path.dirname(__file__))
-        with open(base_path + "/map_center.json", "r") as f:
-            centers = json.load(f)[cfg.scene_name]
+        centers = MAP_CENTERS[cfg.scene_name]
         self.cfg.roi_center = cord(x=centers[0], y=centers[1])
         self.cfg.map_name = cfg.scene_name.split(":")[1]
         world_settings = carla.WorldSettings(
@@ -298,14 +160,11 @@ class CarlaEnv:
             npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
                 spawn_points, speed
             )
-        if ego_spawn_point is None:
+        if (ego_spawn_point is None) or (cfg.scene_name not in DEMO_LOCATIONS.keys()):
             ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
         elif ego_spawn_point == "demo":
-            if cfg.scene_name not in DEMO_LOCATIONS.keys():
-                ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
-            else:
-                locs = DEMO_LOCATIONS[cfg.scene_name]
-                ego_spawn_point = self.rng.choice(locs["spawning_locations"])
+            locs = DEMO_LOCATIONS[cfg.scene_name]
+            ego_spawn_point = self.rng.choice(locs["spawning_locations"])
         else:
             assert isinstance(
                 ego_spawn_point, carla.Transform
@@ -444,8 +303,6 @@ class CarlaEnv:
                 self.npcs.extend(self.non_roi_npcs)
                 self.non_roi_npcs = []
                 self.set_npc_autopilot(self.npcs, self.cfg.npcs_autopilot)
-        # if len(self.non_roi_npcs):
-        # self.set_npc_autopilot(self.non_roi_npcs, True)
         states = []
         rec_state = []
         dims = []
