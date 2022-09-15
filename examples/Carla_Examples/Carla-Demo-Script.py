@@ -42,6 +42,7 @@ carla_cfg = CarlaSimulationConfig(
     max_cars_in_map=args.max_cars_in_map,
 )
 
+iai.add_apikey("")
 response = iai.initialize(
     location=args.scene_name,
     agent_count=args.agent_count,

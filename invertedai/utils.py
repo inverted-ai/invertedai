@@ -14,7 +14,7 @@ TIMEOUT_SECS = 600
 MAX_RETRIES = 10
 
 
-class Client:
+class Session:
     def __init__(self, api_token: str = ""):
         self.session = requests.Session()
         self.session.auth = APITokenAuth(api_token)
@@ -30,6 +30,9 @@ class Client:
             }
         )
         self.base_url = self._get_base_url()
+
+    def add_apikey(self, api_token: str = ""):
+        self.session.auth = APITokenAuth(api_token)
 
     def run(self, model_inputs: dict) -> dict:
         response = self._request(

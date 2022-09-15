@@ -30,6 +30,7 @@ carla_cfg = CarlaSimulationConfig(
     non_roi_npc_mode="carla_handoff",
 )
 
+iai.add_apikey("")
 response = iai.initialize(
     location=args.scene_name,
     agent_count=args.agent_count,

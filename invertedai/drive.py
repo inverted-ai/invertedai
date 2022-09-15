@@ -39,7 +39,7 @@ def initialize(
 
     while True:
         try:
-            initial_states = iai.client.initialize(
+            initial_states = iai.session.initialize(
                 location=location,
                 agent_count=agent_count,
                 batch_size=batch_size,
@@ -147,7 +147,7 @@ def drive(
 
     while True:
         try:
-            return iai.client.run(model_inputs)
+            return iai.session.run(model_inputs)
         except Exception as e:
             # TODO: Add logger
             iai.logger.warning("Retrying")

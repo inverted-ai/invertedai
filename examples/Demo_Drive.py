@@ -21,6 +21,7 @@ parser.add_argument("--api_key", type=str, default="")
 parser.add_argument("--location", type=str, default="CARLA:Town03:Roundabout")
 args = parser.parse_args()
 
+iai.add_apikey("")
 response = iai.initialize(
     location=args.location,
     agent_count=10,
