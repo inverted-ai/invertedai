@@ -260,22 +260,22 @@ class Jupyter_Render(widgets.HBox):
         )
 
 
-class IAI_Logger(logging.Logger):
+class IAILogger(logging.Logger):
     def __init__(
         self,
-        name: str = "IAI_Logger",
+        name: str = "IAILogger",
         level: str = "WARNING",
         consoel: bool = True,
         log_file: bool = False,
     ) -> None:
 
-        log_level = level if type(level := logging.getLevelName(level)) == int else 40
+        log_level = level if type(level := logging.getLevelName(level)) == int else 30
         super().__init__(name, log_level)
         if consoel:
             consoel_handler = logging.StreamHandler()
             self.addHandler(consoel_handler)
         if log_file:
-            file_handler = logging.FileHandler("iai-loggs.txt")
+            file_handler = logging.FileHandler("iai.log")
             self.addHandler(file_handler)
 
     @staticmethod
@@ -294,6 +294,6 @@ class IAI_Logger(logging.Logger):
             # key should already be a string
             if re.search(r"\s", key):
                 key = repr(key)
-            return "{key}={val}".format(key=key, val=val)
+            return f"{key}={val}"
 
         return " ".join([fmt(key, val) for key, val in sorted(props.items())])

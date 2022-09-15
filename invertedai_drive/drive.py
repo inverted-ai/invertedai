@@ -31,7 +31,6 @@ class Drive:
     def __init__(self, config) -> None:
         self.location = config.location
         self.config = config
-        # self.client = Client(self.config.api_key)
         self.client = iai.client
         self.fix_carla_coord = True if config.simulator == "CARLA" else False
 
@@ -72,7 +71,6 @@ class Drive:
                 iai.logger.info(
                     iai.logger.logfmt("Waiting for model to warm up", error=e)
                 )
-                breakpoint()
 
     def run(
         self,
@@ -165,6 +163,6 @@ class Drive:
                 return self.client.run(model_inputs)
             except Exception as e:
                 # TODO: Add logger
-                iai.logger.info("Retrying")
+                iai.logger.warning("Retrying")
                 if timeout is not None and time.time() > start + timeout:
                     raise e
