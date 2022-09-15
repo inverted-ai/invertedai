@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 if os.environ.get("DEV", False):
     sys.path.append("../../")
-from invertedai_drive import Drive, Config
-from invertedai_drive.simulators import CarlaEnv, CarlaSimulationConfig
+import invertedai as iai
+from invertedai.simulators import CarlaEnv, CarlaSimulationConfig
 import argparse
 
 
@@ -35,12 +35,6 @@ else:
     non_roi_npc_mode = "None"
 
 
-iai_cfg = Config(
-    location=args.scene_name,
-    simulator="CARLA",
-    agent_count=args.agent_count,
-    get_infractions=True,
-)
 carla_cfg = CarlaSimulationConfig(
     scene_name=args.scene_name,
     episode_length=args.episode_length,
@@ -49,8 +43,11 @@ carla_cfg = CarlaSimulationConfig(
     max_cars_in_map=args.max_cars_in_map,
 )
 
-drive = Drive(iai_cfg)
-response = drive.initialize()
+response = iai.initialize(
+    location=args.scene_name,
+    agent_count=args.agent_count,
+    fix_carla_coord=True,
+)
 initial_states = response["states"][0]
 sim = CarlaEnv(
     cfg=carla_cfg,
@@ -63,10 +60,15 @@ clock = pygame.time.Clock()
 for episode in range(args.episodes):
     states, recurrent_states, dimensions = sim.reset()
     for i in range(carla_cfg.episode_length * carla_cfg.fps):
-        response = drive.run(
+        response = iai.drive(
             agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
             states=torch.tensor(states).unsqueeze(0).tolist(),
             recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
+            location=args.scene_name,
+            obs_length=1,
+            step_times=1,
+            fix_carla_coord=True,
+            get_infractions=True,
         )
         print(
             f"Collision rate: {100*np.array(response['collision'])[-1, 0, :].mean():.2f}% | "
