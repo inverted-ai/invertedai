@@ -12,7 +12,9 @@ from dotenv import load_dotenv
 load_dotenv()
 if os.environ.get("DEV", False):
     sys.path.append("../")
-from invertedai_drive import Drive, Config
+from invertedai_drive import Drive, Config, logger
+
+# logger.setLevel(10)
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default="")

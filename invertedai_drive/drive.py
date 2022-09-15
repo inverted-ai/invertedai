@@ -1,10 +1,12 @@
-from requests.api import request
 from invertedai_drive.utils import Client
+from invertedai_drive.error import TryAgain
 from dataclasses import dataclass
 import torch
 import numpy as np
 from typing import List, Union, Optional
 import time
+import invertedai_drive as iai
+
 
 TIMEOUT = 10
 
@@ -29,7 +31,7 @@ class Drive:
     def __init__(self, config) -> None:
         self.location = config.location
         self.config = config
-        self.client = Client(self.config.api_key)
+        self.client = iai.client
         self.fix_carla_coord = True if config.simulator == "CARLA" else False
 
     def initialize(
@@ -63,11 +65,12 @@ class Drive:
                     "attributes": initial_states["initial_condition"]["agent_sizes"],
                 }
                 return response
-            except Exception as e:
-                # TODO: Add logger
-                print("Retrying")
+            except TryAgain as e:
                 if timeout is not None and time.time() > start + timeout:
                     raise e
+                iai.logger.info(
+                    iai.logger.logfmt("Waiting for model to warm up", error=e)
+                )
 
     def run(
         self,
@@ -160,6 +163,6 @@ class Drive:
                 return self.client.run(model_inputs)
             except Exception as e:
                 # TODO: Add logger
-                print("Retrying")
+                iai.logger.warning("Retrying")
                 if timeout is not None and time.time() > start + timeout:
                     raise e
