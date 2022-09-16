@@ -7,7 +7,7 @@ Submodules
 invertedai\_drive.drive module
 -------------------------------------
 
-.. automodule:: invertedai_drive.drive
+.. automodule:: invertedai.drive
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ invertedai\_drive.drive module
 Module contents
 ---------------
 
-.. automodule:: invertedai_drive
+.. automodule:: invertedai
    :members:
    :undoc-members:
    :show-inheritance:
