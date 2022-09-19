@@ -22,7 +22,7 @@ pip install invertedai
 
 Import the _invertedai_ package and set the API key with **add_apikey** method.
 
-Refer to the [product page](https://www.inverted.ai) to get (or recharge) your API key.
+Refer to the [product page](https://www.inverted.ai) to get your API key (or recharge for more tokens).
 
 ```python
 
@@ -30,9 +30,59 @@ import invertedai as iai
 iai.add_apikey("XXXXXXXXXXXXXX")
 ```
 
+## Select a scene (location)
+Inverted AI provides an assortment of diverse road configurations and geometries, including real-world locations and maps from simulators (CARLA, Huawei SMARTS, ...).\
+To search the catalog use **iai.scene_search** method by providing keywords
+```python
+iai.scene_search("roundabout", "carla")
+```
+
+To get information about a scene use **iai.scene_info**.
+```python
+iai.scene_info("CARLA:Town03:Roundabout")
+```
+The scene information include the map in [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, map in JPEG format, maximum number of allowed (driveable) vehicles, latitude longitude coordinates (for real-world locations), id and list of traffic light and signs (if any exist in the map), etc.
+
 ## Initialize
+To run the simulation, the map must be first populated with agents.
+Inverted AI provides the **initialize**, a state-of-the-art model trained with real-life driving scenarios which can generate realistic positions for the initial state of the simulation.\
+Having realistic, complicated and diverse initial conditions are particularly crucial to observer interesting and informative interaction between the agents, i.e., the ego vehicle and NPCs (non-player characters).
+
+You can use **initialize** in two modes:
+- _Initialize all agents_: generates initial conditions (position and speed) for all the agents including the ego vehicle
+```python
+response = iai.initialize(
+    location="CARLA:Town03:Roundabout",
+    agent_count=10,
+)
+```
+- _Initialize NPCs_: generates initial conditions (position and speed) only for the NPCs according to the provided state of the ego vehicle.
+```python
+response = iai.initialize(
+    location="CARLA:Town03:Roundabout",
+    agent_count=10,
+    ego_state=[-11.75, 26.58, 1.36, 4.94],
+    ego_attribute=[4.97, 2.04, 1.96]
+)
+```
+> _response_ is a dictionary of _states_, and _agent-attribute_  (_recurrent-states_ is also returned for compatibility with **drive**)\
+> _response["states"]_ is a list of agent states, by default the first on the list is always the ego vehicle.
 
 ## Drive
+**drive** is Inverted AI's cutting-edge realistic driving model trained on millions of miles of traffic data.
+This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **initialize**) or with multiple past observations.
+```python
+response = iai.drive(
+    agent_attributes=response["attributes"],
+    states=response["states"],
+    recurrent_states=response["recurrent_states"],
+    get_birdviews=True,
+    location="CARLA:Town03:Roundabout",
+    steps=1,
+)
+```
+>For convenience and to reduce data overhead, ***drive** also returns _recurrent-states_ which can be feedbacked to the model instead of providing all the past observations.\
+>Furthermore, **drive** drive all the agents for $steps\times \frac{1}{FPS}$ where by default $FPS=10[frames/sec]$, should you require other time resolutions [contact us](mailto:info@inverted.ai).
 
 ## Running demo locally
 

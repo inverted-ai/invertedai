@@ -31,13 +31,12 @@ response = iai.initialize(
 )
 agent_attributes = response["attributes"]
 frames = []
-
 for i in tqdm(range(50)):
     response = iai.drive(
         agent_attributes=agent_attributes,
         states=response["states"],
         recurrent_states=response["recurrent_states"],
-        return_birdviews=True,
+        get_birdviews=True,
         location=args.location,
         obs_length=1,
         step_times=1,

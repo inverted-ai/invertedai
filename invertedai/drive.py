@@ -64,7 +64,7 @@ def drive(
     agent_attributes: dict,
     recurrent_states: Optional[InputDataType] = None,
     present_masks: Optional[InputDataType] = None,
-    return_birdviews: bool = False,
+    get_birdviews: bool = False,
     location="CARLA:Town03:Roundabout",
     obs_length: int = 1,
     step_times: int = 1,
@@ -121,7 +121,7 @@ def drive(
 
     model_inputs = dict(
         location=location,
-        initial_conditions=dict(
+        past_observations=dict(
             agent_states=states,
             agent_sizes=agent_attributes,
         ),
@@ -134,10 +134,8 @@ def drive(
         if present_masks
         else None,
         batch_size=batch_size,
-        agent_counts=agent_count,
-        obs_length=obs_length,
-        step_times=step_times,
-        return_birdviews=return_birdviews,
+        steps=step_times,
+        get_birdviews=get_birdviews,
         fix_carla_coord=fix_carla_coord,
         get_infractions=get_infractions,
     )

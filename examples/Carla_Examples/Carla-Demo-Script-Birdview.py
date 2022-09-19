@@ -54,7 +54,7 @@ for i in range(carla_cfg.episode_length * carla_cfg.fps):
         agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
         states=torch.tensor(states).unsqueeze(0).tolist(),
         recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
-        return_birdviews=True,
+        get_birdviews=True,
         location=args.scene_name,
         obs_length=1,
         step_times=1,

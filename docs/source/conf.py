@@ -119,5 +119,7 @@ todo_include_todos = True
 myst_enable_extensions = [
     "colon_fence",
     "deflist",
+    "dollarmath",
+    "amsmath"
 ]
 myst_heading_anchors = 3

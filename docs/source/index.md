@@ -1,6 +1,6 @@
-<!-- --- -->
-<!-- hide-toc: true -->
-<!-- --- -->
+---
+hide-toc: true
+---
 
 ```{eval-rst}
 .. image:: ../images/banner.svg
@@ -60,12 +60,23 @@ quickstart
 
 
 guides
+carlasim
+smarts
+```
+
+```{toctree}
+:caption: API REFERENCE
+:hidden:
+:maxdepth: 2
+
+
 apireference
 sdk
-examples
 miscellaneous
 modules/modules
 ```
+
+
 
 ```{eval-rst}
 
