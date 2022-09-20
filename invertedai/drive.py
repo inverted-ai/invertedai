@@ -67,7 +67,7 @@ def drive(
     get_birdviews: bool = False,
     location="CARLA:Town03:Roundabout",
     obs_length: int = 1,
-    step_times: int = 1,
+    steps: int = 1,
     batch_size: int = 1,
     fix_carla_coord: bool = False,
     get_infractions: bool = False,
@@ -128,13 +128,13 @@ def drive(
         recurrent_states=recurrent_states,
         # Expand from BxA to BxAxT_total for the API interface
         present_masks=[
-            [[a for _ in range(obs_length + step_times)] for a in b]
+            [[a for _ in range(obs_length + steps)] for a in b]
             for b in present_masks
         ]
         if present_masks
         else None,
         batch_size=batch_size,
-        steps=step_times,
+        steps=steps,
         get_birdviews=get_birdviews,
         fix_carla_coord=fix_carla_coord,
         get_infractions=get_infractions,
