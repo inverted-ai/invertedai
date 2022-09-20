@@ -1,4 +1,4 @@
-# Getting Started
+# Stand-alone Simulation
 
 IAI-Powered Carla SimaaS:
 Inverted-AI client [package](https://pypi.org/project/iai-client/)

@@ -8,9 +8,9 @@ hide-toc: true
   :alt: Alternative text
 ```
 
-# Overview
+# Introduction
 
-## InvertedAI-Drive
+## Overview
 
 Breaking Down Barriers to Level 4-5 Autonomy
 
@@ -45,6 +45,7 @@ Inverted-AI also provides another product:
   - Currently [Carla](https://carla.org/) ([Huawei SMARTS](https://github.com/huawei-noah/SMARTS) and [NVIDIA DRIVE Sim](https://www.nvidia.com/en-us/self-driving-cars/simulation/) in production.)
 
 ```{toctree}
+:caption: GET STARTED
 :hidden:
 :maxdepth: 4
 
@@ -59,12 +60,23 @@ quickstart
 
 
 guides
+carlasim
+smarts
+```
+
+```{toctree}
+:caption: API REFERENCE
+:hidden:
+:maxdepth: 2
+
+
 apireference
 sdk
-examples
 miscellaneous
 modules/modules
 ```
+
+
 
 ```{eval-rst}
 
