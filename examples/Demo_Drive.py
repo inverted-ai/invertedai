@@ -39,7 +39,7 @@ for i in tqdm(range(50)):
         get_birdviews=True,
         location=args.location,
         obs_length=1,
-        step_times=1,
+        steps=1,
     )
 
     birdview = np.array(response["bird_view"], dtype=np.uint8)

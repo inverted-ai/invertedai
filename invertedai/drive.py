@@ -19,7 +19,7 @@ class Config:
     agent_count: int = 100
     batch_size: int = 1
     obs_length: int = 1
-    step_times: int = 1
+    steps: int = 1
     min_speed: int = 1  # Km/h
     max_speed: int = 5  # Km/h
     simulator: str = "None"

@@ -66,7 +66,7 @@ for i in range(carla_cfg.episode_length * carla_cfg.fps):
         recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
         location=args.scene_name,
         obs_length=1,
-        step_times=1,
+        steps=1,
         fix_carla_coord=True,
     )
     states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")

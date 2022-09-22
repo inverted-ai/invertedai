@@ -66,7 +66,7 @@ for episode in range(args.episodes):
             recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
             location=args.scene_name,
             obs_length=1,
-            step_times=1,
+            steps=1,
             fix_carla_coord=True,
             get_infractions=True,
         )
