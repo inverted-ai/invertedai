@@ -29,6 +29,7 @@ response = iai.initialize(
     min_speed=10,
     max_speed=20,
 )
+breakpoint()
 agent_attributes = response["attributes"]
 frames = []
 for i in tqdm(range(50)):
@@ -40,8 +41,10 @@ for i in tqdm(range(50)):
         location=args.location,
         obs_length=1,
         steps=1,
+        traffic_timer=response["traffic_timer"],
     )
 
+    breakpoint()
     birdview = np.array(response["bird_view"], dtype=np.uint8)
     image = cv2.imdecode(birdview, cv2.IMREAD_COLOR)
     frames.append(image)
