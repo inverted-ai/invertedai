@@ -57,7 +57,7 @@ def test_mock():
                  batch_size=1,
                  agent_counts=1,
                  obs_length=1,
-                 step_times=1,
+                 steps=1,
                  num_predictions=1)
     print(result)
 
