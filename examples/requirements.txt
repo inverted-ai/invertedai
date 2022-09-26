@@ -1,4 +1,4 @@
-invertedai-drive==0.1.2
+invertedai==0.0.1
 jupyterlab==3.4.4
 opencv-python==4.6.0.66
 ipympl==0.9.1
