@@ -14,7 +14,7 @@ In this quickstart tutorial, you’ll run a simple sample AV simulation with Inv
 
 ## Installation
 
-[pypi-badge]: https://badge.fury.io/py/invertedai_drive.svg
+[pypi-badge]: https://badge.fury.io/py/invertedai.svg
 [pypi-link]: https://pypi.org/project/invertedai/
 
 To install use [![PyPI][pypi-badge]][pypi-link]:
