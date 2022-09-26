@@ -17,8 +17,7 @@ In this quickstart tutorial, you’ll run a simple sample AV simulation with Inv
 [pypi-badge]: https://badge.fury.io/py/invertedai.svg
 [pypi-link]: https://pypi.org/project/invertedai/
 
-To install use [![PyPI version](https://badge.fury.io/py/invertedai.svg)](https://badge.fury.io/py/invertedai)
-<!-- To install use [![PyPI][pypi-badge]][pypi-link]: -->
+To install use [![PyPI][pypi-badge]][pypi-link]:
 
 ```bash
 pip install invertedai
