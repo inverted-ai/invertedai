@@ -78,7 +78,7 @@ response = iai.drive(
 
 ## Running demo locally
 
-Download the examples [directory](https://github.com/inverted-ai/invertedai-drive/blob/master/examples) and run:
+Download the [examples directory](https://github.com/inverted-ai/invertedai-drive/blob/master/examples) and run:
 
 ```
 python -m venv .venv
