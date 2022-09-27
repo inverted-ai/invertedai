@@ -5,9 +5,8 @@ build:
   tools:
     python: "3.8"
 
-python:
-  install:
-    - method: poetry
-      path: .
-      extra_requirements:
-        - dev-dependencies
+  jobs:
+    post_install:
+      - pip install poetry==1.2.1
+      - poetry config virtualenvs.create false
+      - poetry install --with dev-dependencies
