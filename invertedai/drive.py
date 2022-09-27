@@ -51,8 +51,8 @@ def initialize(
                 "states": initial_states["initial_condition"]["agent_states"],
                 "recurrent_states": None,
                 "attributes": initial_states["initial_condition"]["agent_sizes"],
-                "traffic_light_state": initial_states["traffic_light_state"],
-                "traffic_timer": initial_states["traffic_timer"],
+                # "traffic_light_state": initial_states["traffic_light_state"],
+                # "traffic_timer": initial_states["traffic_timer"],
             }
             return response
         except TryAgain as e:
@@ -73,7 +73,7 @@ def drive(
     batch_size: int = 1,
     fix_carla_coord: bool = False,
     get_infractions: bool = False,
-    traffic_timer: int = 1,
+    # traffic_timer: int = 1,
 ) -> dict:
     def _validate(input_dict: dict, input_name: str):
         input_data = input_dict[input_name]
@@ -140,7 +140,7 @@ def drive(
         get_birdviews=get_birdviews,
         fix_carla_coord=fix_carla_coord,
         get_infractions=get_infractions,
-        traffic_timer=traffic_timer,
+        # traffic_timer=traffic_timer,
     )
 
     start = time.time()
