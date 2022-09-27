@@ -1,4 +1,9 @@
+[pypi-badge]: https://badge.fury.io/py/invertedai.svg
+[pypi-link]: https://pypi.org/project/invertedai/
+
+
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
+[![PyPI][pypi-badge]][pypi-link]
 
 # InvertedAI
 ## Overview
