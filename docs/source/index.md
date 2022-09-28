@@ -72,7 +72,6 @@ smarts
 
 apireference
 sdk
-miscellaneous
 modules/modules
 ```
 
