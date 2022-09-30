@@ -50,15 +50,13 @@ class Session:
         batch_size=1,
         min_speed=1,
         max_speed=3,
-        fix_carla_coord=False,
     ):
         params = {
             "location": location,
             "num_agents_to_spawn": agent_count,
             "num_samples": batch_size,
-            "spawn_min_speed": min_speed,
-            "spawn_max_speed": max_speed,
-            "fix_carla_coord": fix_carla_coord,
+            # "spawn_min_speed": min_speed,
+            # "spawn_max_speed": max_speed,
         }
 
         response = self._request(
@@ -106,7 +104,7 @@ class Session:
         The method path should be appended to the base_url
         """
         if not iai.dev:
-            base_url = "https://api.inverted.ai/drive"
+            base_url = "https://api.inverted.ai/v0/aws/m1"
         else:
             base_url = iai.dev_url
         # TODO: Add endpoint option and versioning to base_url

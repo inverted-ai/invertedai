@@ -38,7 +38,6 @@ for i in tqdm(range(50)):
         recurrent_states=response["recurrent_states"],
         get_birdviews=True,
         location=args.location,
-        obs_length=1,
         steps=1,
     )
 
