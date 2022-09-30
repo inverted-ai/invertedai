@@ -104,7 +104,7 @@ class Session:
         The method path should be appended to the base_url
         """
         if not iai.dev:
-            base_url = "https://api.inverted.ai/drive"
+            base_url = "https://api.inverted.ai/v0/aws/m1"
         else:
             base_url = iai.dev_url
         # TODO: Add endpoint option and versioning to base_url

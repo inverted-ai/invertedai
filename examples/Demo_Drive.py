@@ -37,7 +37,6 @@ for i in tqdm(range(50)):
         recurrent_states=response["recurrent_states"],
         get_birdviews=True,
         location=args.location,
-        obs_length=1,
         steps=1,
         traffic_states_id=response["traffic_states_id"]
         # traffic_timer=response["traffic_timer"],
