@@ -15,7 +15,7 @@ InputDataType = Union[torch.Tensor, np.ndarray, List]
 @dataclass
 class Config:
     api_key: str = ""
-    location: str = "Town03_Roundabout"
+    location: str = "CARLA:Town03:Roundabout"
     agent_count: int = 100
     batch_size: int = 1
     obs_length: int = 1
@@ -65,6 +65,7 @@ def drive(
     location="CARLA:Town03:Roundabout",
     steps: int = 1,
     get_infractions: bool = False,
+    exclude_ego_agent: bool = True
 ) -> dict:
     def _validate(input_dict: dict, input_name: str):
         input_data = input_dict[input_name]
@@ -115,6 +116,7 @@ def drive(
         steps=steps,
         get_birdviews=get_birdviews,
         get_infractions=get_infractions,
+        exclude_ego_agent=exclude_ego_agent
     )
 
     start = time.time()
