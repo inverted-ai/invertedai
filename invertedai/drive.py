@@ -15,7 +15,7 @@ InputDataType = Union[torch.Tensor, np.ndarray, List]
 @dataclass
 class Config:
     api_key: str = ""
-    location: str = "Town03_Roundabout"
+    location: str = "CARLA:Town03:Roundabout"
     agent_count: int = 100
     batch_size: int = 1
     obs_length: int = 1
@@ -30,9 +30,8 @@ def initialize(
     location="CARLA:Town03:Roundabout",
     agent_count=1,
     batch_size=1,
-    min_speed=1,
-    max_speed=5,
-    fix_carla_coord=False,
+    min_speed=None,
+    max_speed=None,
 ) -> dict:
     start = time.time()
     timeout = TIMEOUT
@@ -43,16 +42,15 @@ def initialize(
                 location=location,
                 agent_count=agent_count,
                 batch_size=batch_size,
-                min_speed=np.ceil(min_speed / 3.6).astype(int),
-                max_speed=np.ceil(max_speed / 3.6).astype(int),
-                fix_carla_coord=fix_carla_coord,
+                min_speed=min_speed and np.ceil(min_speed / 3.6).astype(int),
+                max_speed=max_speed and np.ceil(max_speed / 3.6).astype(int),
             )
             response = {
                 "states": initial_states["initial_condition"]["agent_states"],
-                "recurrent_states": None,
+                "recurrent_states": initial_states["recurrent_states"],
                 "attributes": initial_states["initial_condition"]["agent_sizes"],
-                # "traffic_light_state": initial_states["traffic_light_state"],
-                # "traffic_timer": initial_states["traffic_timer"],
+                "traffic_light_state": initial_states["traffic_light_state"],
+                "traffic_states_id": initial_states["traffic_states_id"],
             }
             return response
         except TryAgain as e:
@@ -65,22 +63,17 @@ def drive(
     states: dict,
     agent_attributes: dict,
     recurrent_states: Optional[InputDataType] = None,
-    present_masks: Optional[InputDataType] = None,
     get_birdviews: bool = False,
     location="CARLA:Town03:Roundabout",
-    obs_length: int = 1,
     steps: int = 1,
-    batch_size: int = 1,
-    fix_carla_coord: bool = False,
     get_infractions: bool = False,
-    # traffic_timer: int = 1,
+    traffic_states_id: str = "000:0",
+    exclude_ego_agent: bool = True,
 ) -> dict:
     def _validate(input_dict: dict, input_name: str):
         input_data = input_dict[input_name]
         if isinstance(input_data, list):
             input_data = torch.Tensor(input_data)
-        if input_data.shape[0] != batch_size:
-            raise Exception(f"{input_name} has the wrong batch size (dim 0)")
         if input_data.shape[1] != agent_count:
             raise Exception(f"{input_name} has the wrong agent counts (dim 1)")
         if len(input_data.shape) > 2:
@@ -91,8 +84,6 @@ def drive(
     def _validate_recurrent_states(input_data: InputDataType):
         if isinstance(input_data, list):
             input_data = torch.Tensor(input_data)
-        if input_data.shape[0] != batch_size:
-            raise Exception("Recurrent states has the wrong batch size (dim 0)")
         if input_data.shape[1] != agent_count:
             raise Exception("Recurrent states has the wrong agent counts (dim 2)")
         if input_data.shape[2] != 2:
@@ -111,11 +102,6 @@ def drive(
         return _tolist(_validate(input_data, input_name))
 
     agent_count = len(states[0])
-    present_masks = (
-        _validate_and_tolist(present_masks, "present_masks")
-        if present_masks is not None
-        else None
-    )  # BxA
     recurrent_states = (
         _tolist(_validate_recurrent_states(recurrent_states))
         if recurrent_states is not None
@@ -130,17 +116,11 @@ def drive(
         ),
         recurrent_states=recurrent_states,
         # Expand from BxA to BxAxT_total for the API interface
-        present_masks=[
-            [[a for _ in range(obs_length + steps)] for a in b] for b in present_masks
-        ]
-        if present_masks
-        else None,
-        batch_size=batch_size,
         steps=steps,
         get_birdviews=get_birdviews,
-        fix_carla_coord=fix_carla_coord,
         get_infractions=get_infractions,
-        # traffic_timer=traffic_timer,
+        traffic_states_id=traffic_states_id,
+        exclude_ego_agent=exclude_ego_agent,
     )
 
     start = time.time()
