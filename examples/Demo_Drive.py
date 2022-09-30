@@ -26,9 +26,8 @@ response = iai.initialize(
     location=args.location,
     agent_count=10,
     batch_size=1,
-    min_speed=10,
-    max_speed=20,
 )
+# breakpoint()
 agent_attributes = response["attributes"]
 frames = []
 for i in tqdm(range(50)):
@@ -40,6 +39,7 @@ for i in tqdm(range(50)):
         location=args.location,
         obs_length=1,
         steps=1,
+        traffic_states_id=response["traffic_states_id"]
         # traffic_timer=response["traffic_timer"],
     )
 

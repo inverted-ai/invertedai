@@ -30,9 +30,8 @@ def initialize(
     location="CARLA:Town03:Roundabout",
     agent_count=1,
     batch_size=1,
-    min_speed=1,
-    max_speed=5,
-    fix_carla_coord=False,
+    min_speed=None,
+    max_speed=None,
 ) -> dict:
     start = time.time()
     timeout = TIMEOUT
@@ -43,16 +42,15 @@ def initialize(
                 location=location,
                 agent_count=agent_count,
                 batch_size=batch_size,
-                min_speed=np.ceil(min_speed / 3.6).astype(int),
-                max_speed=np.ceil(max_speed / 3.6).astype(int),
-                fix_carla_coord=fix_carla_coord,
+                min_speed=min_speed and np.ceil(min_speed / 3.6).astype(int),
+                max_speed=max_speed and np.ceil(max_speed / 3.6).astype(int),
             )
             response = {
                 "states": initial_states["initial_condition"]["agent_states"],
-                "recurrent_states": None,
+                "recurrent_states": initial_states["recurrent_states"],
                 "attributes": initial_states["initial_condition"]["agent_sizes"],
-                # "traffic_light_state": initial_states["traffic_light_state"],
-                # "traffic_timer": initial_states["traffic_timer"],
+                "traffic_light_state": initial_states["traffic_light_state"],
+                "traffic_states_id": initial_states["traffic_states_id"],
             }
             return response
         except TryAgain as e:
@@ -73,7 +71,7 @@ def drive(
     batch_size: int = 1,
     fix_carla_coord: bool = False,
     get_infractions: bool = False,
-    # traffic_timer: int = 1,
+    traffic_states_id: str = "000:0",
 ) -> dict:
     def _validate(input_dict: dict, input_name: str):
         input_data = input_dict[input_name]
@@ -140,6 +138,7 @@ def drive(
         get_birdviews=get_birdviews,
         fix_carla_coord=fix_carla_coord,
         get_infractions=get_infractions,
+        traffic_states_id=traffic_states_id,
         # traffic_timer=traffic_timer,
     )
 

@@ -48,9 +48,8 @@ class Session:
         location,
         agent_count=10,
         batch_size=1,
-        min_speed=1,
-        max_speed=3,
-        fix_carla_coord=False,
+        min_speed=None,
+        max_speed=None,
     ):
         params = {
             "location": location,
@@ -58,7 +57,6 @@ class Session:
             "num_samples": batch_size,
             "spawn_min_speed": min_speed,
             "spawn_max_speed": max_speed,
-            "fix_carla_coord": fix_carla_coord,
         }
 
         response = self._request(
