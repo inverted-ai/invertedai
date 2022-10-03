@@ -46,7 +46,6 @@ carla_cfg = CarlaSimulationConfig(
 response = iai.initialize(
     location=args.scene_name,
     agent_count=args.agent_count,
-    fix_carla_coord=True,
 )
 initial_states = response["states"][0]
 sim = CarlaEnv(
@@ -67,7 +66,6 @@ for episode in range(args.episodes):
             location=args.scene_name,
             obs_length=1,
             steps=1,
-            fix_carla_coord=True,
             get_infractions=True,
         )
         print(

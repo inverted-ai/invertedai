@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 from invertedai.api_resources import drive, initialize
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
-
 load_dotenv()
 dev = os.environ.get("DEV", False)
 if dev:
@@ -18,6 +17,11 @@ logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log
 session = Session(api_key)
 add_apikey = session.add_apikey
 model_resources = {"initialize": ("get", "/initialize"), "drive": ("post", "/drive")}
+try:
+    from invertedai.simulators import CarlaEnv, CarlaSimulationConfig
+except:
+    logger.warning("Carla Python API is not installed")
+
 
 __all__ = [
     "drive",

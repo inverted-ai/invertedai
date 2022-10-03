@@ -27,7 +27,6 @@ response = iai.initialize(
     agent_count=10,
     batch_size=1,
 )
-# breakpoint()
 agent_attributes = response["attributes"]
 frames = []
 for i in tqdm(range(50)):
@@ -38,8 +37,7 @@ for i in tqdm(range(50)):
         get_birdviews=True,
         location=args.location,
         steps=1,
-        traffic_states_id=response["traffic_states_id"]
-        # traffic_timer=response["traffic_timer"],
+        traffic_states_id=response["traffic_states_id"],
     )
 
     birdview = np.array(response["bird_view"], dtype=np.uint8)

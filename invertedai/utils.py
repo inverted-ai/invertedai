@@ -250,7 +250,8 @@ class IAILogger(logging.Logger):
         log_file: bool = False,
     ) -> None:
 
-        log_level = level if type(level := logging.getLevelName(level)) == int else 30
+        level = logging.getLevelName(level)
+        log_level = level if type(level) == int else 30
         super().__init__(name, log_level)
         if consoel:
             consoel_handler = logging.StreamHandler()
