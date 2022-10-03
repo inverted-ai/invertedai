@@ -1,7 +1,7 @@
 import requests
 import json
 import re
-from typing import Dict
+from typing import Dict, Optional
 import numpy as np
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
@@ -34,37 +34,17 @@ class Session:
     def add_apikey(self, api_token: str = ""):
         self.session.auth = APITokenAuth(api_token)
 
-    def run(self, model_inputs: dict) -> dict:
-        response = self._request(
-            method="post",
-            relative_path="/drive",
-            json=model_inputs,
-        )
-        # TODO: Add high-level reponse parser, error handling
-        return response
-
-    def initialize(
-        self,
-        location,
-        agent_count=10,
-        batch_size=1,
-        min_speed=None,
-        max_speed=None,
+    def request(
+        self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
     ):
-        params = {
-            "location": location,
-            "num_agents_to_spawn": agent_count,
-            "num_samples": batch_size,
-            "spawn_min_speed": min_speed,
-            "spawn_max_speed": max_speed,
-        }
-
+        method, relative_path = iai.model_resources[model]
         response = self._request(
-            method="get",
-            relative_path="/initialize",
+            method=method,
+            relative_path=relative_path,
             params=params,
+            json=data,
         )
-        # TODO: Add high-level reponse parser, error handling
+
         return response
 
     def _request(

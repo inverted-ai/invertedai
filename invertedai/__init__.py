@@ -1,8 +1,7 @@
 import os
 from dotenv import load_dotenv
-from invertedai.drive import drive, initialize
+from invertedai.api_resources import drive, initialize
 from invertedai.utils import Jupyter_Render, IAILogger, Session
-from invertedai.simulators import CarlaEnv, CarlaSimulationConfig
 
 
 load_dotenv()
@@ -18,13 +17,12 @@ logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log
 
 session = Session(api_key)
 add_apikey = session.add_apikey
+model_resources = {"initialize": ("get", "/initialize"), "drive": ("post", "/drive")}
 
 __all__ = [
     "drive",
     "initialize",
     "Jupyter_Render",
-    "CarlaEnv",
-    "CarlaSimulationConfig",
     "logger",
     "session",
     "add_apikey",
