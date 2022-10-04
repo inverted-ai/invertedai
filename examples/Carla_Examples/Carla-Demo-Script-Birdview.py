@@ -5,7 +5,6 @@ import numpy as np
 from PIL import Image as PImage
 import cv2
 import imageio
-import torch
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -50,9 +49,9 @@ frames = []
 
 for i in range(carla_cfg.episode_length * carla_cfg.fps):
     response = iai.drive(
-        agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
-        states=torch.tensor(states).unsqueeze(0).tolist(),
-        recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
+        agent_attributes=[dimensions],
+        states=[states],
+        recurrent_states=[recurrent_states],
         get_birdviews=True,
         location=args.scene_name,
         steps=1,

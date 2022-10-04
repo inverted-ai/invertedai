@@ -1,14 +1,11 @@
 from invertedai.error import TryAgain
-from dataclasses import dataclass
-import numpy as np
-from typing import List, Union, Optional
+import math
+from typing import List, Optional
 import time
 import invertedai as iai
 
 
 TIMEOUT = 10
-
-InputDataType = Union[np.ndarray, np.ndarray, List]
 
 
 def initialize(
@@ -27,8 +24,8 @@ def initialize(
                 "location": location,
                 "num_agents_to_spawn": agent_count,
                 "num_samples": batch_size,
-                "spawn_min_speed": min_speed and np.ceil(min_speed / 3.6).astype(int),
-                "spawn_max_speed": max_speed and np.ceil(max_speed / 3.6).astype(int),
+                "spawn_min_speed": min_speed and int(math.ceil(min_speed / 3.6)),
+                "spawn_max_speed": max_speed and int(math.ceil(max_speed / 3.6)),
             }
             initial_states = iai.session.request(model="initialize", params=params)
             response = {
@@ -48,7 +45,7 @@ def initialize(
 def drive(
     states: dict,
     agent_attributes: dict,
-    recurrent_states: Optional[InputDataType] = None,
+    recurrent_states: Optional[List] = None,
     get_birdviews: bool = False,
     location="CARLA:Town03:Roundabout",
     steps: int = 1,
@@ -56,7 +53,7 @@ def drive(
     traffic_states_id: str = "000:0",
     exclude_ego_agent: bool = True,
 ) -> dict:
-    def _tolist(input_data: InputDataType):
+    def _tolist(input_data: List):
         if not isinstance(input_data, list):
             return input_data.tolist()
         else:

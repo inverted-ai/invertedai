@@ -2,7 +2,6 @@ import requests
 import json
 import re
 from typing import Dict, Optional
-import numpy as np
 from requests.auth import AuthBase
 import invertedai as iai
 from invertedai import error
@@ -183,6 +182,7 @@ class APITokenAuth(AuthBase):
 def Jupyter_Render():
     import ipywidgets as widgets
     import matplotlib.pyplot as plt
+    import numpy as np
 
     class Jupyter_Render(widgets.HBox):
         def __init__(self):
