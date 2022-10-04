@@ -20,7 +20,11 @@ model_resources = {"initialize": ("get", "/initialize"), "drive": ("post", "/dri
 try:
     from invertedai.simulators import CarlaEnv, CarlaSimulationConfig
 except:
-    logger.warning("Carla Python API is not installed")
+    logger.warning(
+        "Cannot import CarlaEnv\n"
+        + "Carla Python API is not installed\n"
+        + "Ignore these warnings if you are not running Carla"
+    )
 
 
 __all__ = [

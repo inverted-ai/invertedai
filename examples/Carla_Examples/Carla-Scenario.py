@@ -42,11 +42,11 @@ carla_cfg = CarlaSimulationConfig(
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
 )
-
 response = iai.initialize(
     location=args.scene_name,
     agent_count=args.agent_count,
 )
+
 initial_states = response["states"][0]
 sim = CarlaEnv(
     cfg=carla_cfg,
@@ -64,8 +64,8 @@ for episode in range(args.episodes):
             states=torch.tensor(states).unsqueeze(0).tolist(),
             recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
             location=args.scene_name,
-            obs_length=1,
             steps=1,
+            traffic_states_id=response["traffic_states_id"],
             get_infractions=True,
         )
         print(

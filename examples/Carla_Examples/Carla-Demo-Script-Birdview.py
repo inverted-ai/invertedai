@@ -34,7 +34,6 @@ iai.add_apikey("")
 response = iai.initialize(
     location=args.scene_name,
     agent_count=args.agent_count,
-    fix_carla_coord=True,
 )
 initial_states = response["states"][0]
 sim = CarlaEnv(
@@ -56,9 +55,8 @@ for i in range(carla_cfg.episode_length * carla_cfg.fps):
         recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
         get_birdviews=True,
         location=args.scene_name,
-        obs_length=1,
         steps=1,
-        fix_carla_coord=True,
+        traffic_states_id=response["traffic_states_id"],
     )
     states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")
 

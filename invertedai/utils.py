@@ -3,8 +3,6 @@ import json
 import re
 from typing import Dict, Optional
 import numpy as np
-import ipywidgets as widgets
-import matplotlib.pyplot as plt
 from requests.auth import AuthBase
 import invertedai as iai
 from invertedai import error
@@ -182,63 +180,71 @@ class APITokenAuth(AuthBase):
         return r
 
 
-class Jupyter_Render(widgets.HBox):
-    def __init__(self):
-        super().__init__()
-        output = widgets.Output()
-        self.buffer = [np.zeros([128, 128, 3], dtype=np.uint8)]
+def Jupyter_Render():
+    import ipywidgets as widgets
+    import matplotlib.pyplot as plt
 
-        with output:
-            self.fig, self.ax = plt.subplots(constrained_layout=True, figsize=(5, 5))
-        self.im = self.ax.imshow(self.buffer[0])
-        self.ax.set_axis_off()
+    class Jupyter_Render(widgets.HBox):
+        def __init__(self):
+            super().__init__()
+            output = widgets.Output()
+            self.buffer = [np.zeros([128, 128, 3], dtype=np.uint8)]
 
-        self.fig.canvas.toolbar_position = "bottom"
+            with output:
+                self.fig, self.ax = plt.subplots(
+                    constrained_layout=True, figsize=(5, 5)
+                )
+            self.im = self.ax.imshow(self.buffer[0])
+            self.ax.set_axis_off()
 
-        self.max = 0
-        # define widgets
-        self.play = widgets.Play(
-            value=0,
-            min=0,
-            max=self.max,
-            step=1,
-            description="Press play",
-            disabled=False,
-        )
-        self.int_slider = widgets.IntSlider(
-            value=0, min=0, max=self.max, step=1, description="Frame"
-        )
+            self.fig.canvas.toolbar_position = "bottom"
 
-        controls = widgets.HBox(
-            [
-                self.play,
-                self.int_slider,
-            ]
-        )
-        controls.layout = self._make_box_layout()
-        widgets.jslink((self.play, "value"), (self.int_slider, "value"))
-        output.layout = self._make_box_layout()
+            self.max = 0
+            # define widgets
+            self.play = widgets.Play(
+                value=0,
+                min=0,
+                max=self.max,
+                step=1,
+                description="Press play",
+                disabled=False,
+            )
+            self.int_slider = widgets.IntSlider(
+                value=0, min=0, max=self.max, step=1, description="Frame"
+            )
 
-        self.int_slider.observe(self.update, "value")
-        self.children = [controls, output]
+            controls = widgets.HBox(
+                [
+                    self.play,
+                    self.int_slider,
+                ]
+            )
+            controls.layout = self._make_box_layout()
+            widgets.jslink((self.play, "value"), (self.int_slider, "value"))
+            output.layout = self._make_box_layout()
 
-    def update(self, change):
-        self.im.set_data(self.buffer[self.int_slider.value])
-        self.fig.canvas.draw()
+            self.int_slider.observe(self.update, "value")
+            self.children = [controls, output]
 
-    def add_frame(self, frame):
-        self.buffer.append(frame)
-        self.int_slider.max += 1
-        self.play.max += 1
-        self.int_slider.value = self.int_slider.max
-        self.play.value = self.play.max
+        def update(self, change):
+            self.im.set_data(self.buffer[self.int_slider.value])
+            self.fig.canvas.draw()
 
-    def _make_box_layout(self):
-        return widgets.Layout(
-            border="solid 1px black",
-            margin="0px 10px 10px 0px",
-            padding="5px 5px 5px 5px",
-        )
+        def add_frame(self, frame):
+            self.buffer.append(frame)
+            self.int_slider.max += 1
+            self.play.max += 1
+            self.int_slider.value = self.int_slider.max
+            self.play.value = self.play.max
+
+        def _make_box_layout(self):
+            return widgets.Layout(
+                border="solid 1px black",
+                margin="0px 10px 10px 0px",
+                padding="5px 5px 5px 5px",
+            )
+
+    return Jupyter_Render()
 
 
 class IAILogger(logging.Logger):
