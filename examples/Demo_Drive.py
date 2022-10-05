@@ -26,8 +26,6 @@ response = iai.initialize(
     location=args.location,
     agent_count=10,
     batch_size=1,
-    min_speed=10,
-    max_speed=20,
 )
 agent_attributes = response["attributes"]
 frames = []
@@ -39,6 +37,13 @@ for i in tqdm(range(50)):
         get_birdviews=True,
         location=args.location,
         steps=1,
+        traffic_states_id=response["traffic_states_id"],
+        get_infractions=True,
+    )
+    print(
+        f"Collision rate: {100*np.array(response['collision'])[-1, 0, :].mean():.2f}% | "
+        + f"Off-road rate: {100*np.array(response['offroad'])[-1, 0, :].mean():.2f}% | "
+        + f"Wrong-way rate: {100*np.array(response['wrong_way'])[-1, 0, :].mean():.2f}%"
     )
 
     birdview = np.array(response["bird_view"], dtype=np.uint8)
