@@ -1,10 +1,7 @@
 import requests
 import json
 import re
-from typing import Dict
-import numpy as np
-import ipywidgets as widgets
-import matplotlib.pyplot as plt
+from typing import Dict, Optional
 from requests.auth import AuthBase
 import invertedai as iai
 from invertedai import error
@@ -32,39 +29,21 @@ class Session:
         self.base_url = self._get_base_url()
 
     def add_apikey(self, api_token: str = ""):
+        if not iai.dev and not api_token:
+            raise error.InvalidAPIKeyError("Empty API key received.")
         self.session.auth = APITokenAuth(api_token)
 
-    def run(self, model_inputs: dict) -> dict:
-        response = self._request(
-            method="post",
-            relative_path="/drive",
-            json=model_inputs,
-        )
-        # TODO: Add high-level reponse parser, error handling
-        return response
-
-    def initialize(
-        self,
-        location,
-        agent_count=10,
-        batch_size=1,
-        min_speed=1,
-        max_speed=3,
+    def request(
+        self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
     ):
-        params = {
-            "location": location,
-            "num_agents_to_spawn": agent_count,
-            "num_samples": batch_size,
-            # "spawn_min_speed": min_speed,
-            # "spawn_max_speed": max_speed,
-        }
-
+        method, relative_path = iai.model_resources[model]
         response = self._request(
-            method="get",
-            relative_path="/initialize",
+            method=method,
+            relative_path=relative_path,
             params=params,
+            json=data,
         )
-        # TODO: Add high-level reponse parser, error handling
+
         return response
 
     def _request(
@@ -85,8 +64,12 @@ class Session:
                 data=data,
                 json=json,
             )
+            result.raise_for_status()
         except requests.exceptions.RequestException as e:
-            raise error.APIConnectionError("Error communicating with IAI") from e
+            if e.response.status_code == 403:
+                raise error.APIConnectionError("Connection forbidden. Please check the provided API key.")
+            else:
+                raise error.APIConnectionError("Error communicating with IAI") from e
         iai.logger.info(
             iai.logger.logfmt(
                 "IAI API response",
@@ -202,63 +185,72 @@ class APITokenAuth(AuthBase):
         return r
 
 
-class Jupyter_Render(widgets.HBox):
-    def __init__(self):
-        super().__init__()
-        output = widgets.Output()
-        self.buffer = [np.zeros([128, 128, 3], dtype=np.uint8)]
+def Jupyter_Render():
+    import ipywidgets as widgets
+    import matplotlib.pyplot as plt
+    import numpy as np
 
-        with output:
-            self.fig, self.ax = plt.subplots(constrained_layout=True, figsize=(5, 5))
-        self.im = self.ax.imshow(self.buffer[0])
-        self.ax.set_axis_off()
+    class Jupyter_Render(widgets.HBox):
+        def __init__(self):
+            super().__init__()
+            output = widgets.Output()
+            self.buffer = [np.zeros([128, 128, 3], dtype=np.uint8)]
 
-        self.fig.canvas.toolbar_position = "bottom"
+            with output:
+                self.fig, self.ax = plt.subplots(
+                    constrained_layout=True, figsize=(5, 5)
+                )
+            self.im = self.ax.imshow(self.buffer[0])
+            self.ax.set_axis_off()
 
-        self.max = 0
-        # define widgets
-        self.play = widgets.Play(
-            value=0,
-            min=0,
-            max=self.max,
-            step=1,
-            description="Press play",
-            disabled=False,
-        )
-        self.int_slider = widgets.IntSlider(
-            value=0, min=0, max=self.max, step=1, description="Frame"
-        )
+            self.fig.canvas.toolbar_position = "bottom"
 
-        controls = widgets.HBox(
-            [
-                self.play,
-                self.int_slider,
-            ]
-        )
-        controls.layout = self._make_box_layout()
-        widgets.jslink((self.play, "value"), (self.int_slider, "value"))
-        output.layout = self._make_box_layout()
+            self.max = 0
+            # define widgets
+            self.play = widgets.Play(
+                value=0,
+                min=0,
+                max=self.max,
+                step=1,
+                description="Press play",
+                disabled=False,
+            )
+            self.int_slider = widgets.IntSlider(
+                value=0, min=0, max=self.max, step=1, description="Frame"
+            )
 
-        self.int_slider.observe(self.update, "value")
-        self.children = [controls, output]
+            controls = widgets.HBox(
+                [
+                    self.play,
+                    self.int_slider,
+                ]
+            )
+            controls.layout = self._make_box_layout()
+            widgets.jslink((self.play, "value"), (self.int_slider, "value"))
+            output.layout = self._make_box_layout()
 
-    def update(self, change):
-        self.im.set_data(self.buffer[self.int_slider.value])
-        self.fig.canvas.draw()
+            self.int_slider.observe(self.update, "value")
+            self.children = [controls, output]
 
-    def add_frame(self, frame):
-        self.buffer.append(frame)
-        self.int_slider.max += 1
-        self.play.max += 1
-        self.int_slider.value = self.int_slider.max
-        self.play.value = self.play.max
+        def update(self, change):
+            self.im.set_data(self.buffer[self.int_slider.value])
+            self.fig.canvas.draw()
 
-    def _make_box_layout(self):
-        return widgets.Layout(
-            border="solid 1px black",
-            margin="0px 10px 10px 0px",
-            padding="5px 5px 5px 5px",
-        )
+        def add_frame(self, frame):
+            self.buffer.append(frame)
+            self.int_slider.max += 1
+            self.play.max += 1
+            self.int_slider.value = self.int_slider.max
+            self.play.value = self.play.max
+
+        def _make_box_layout(self):
+            return widgets.Layout(
+                border="solid 1px black",
+                margin="0px 10px 10px 0px",
+                padding="5px 5px 5px 5px",
+            )
+
+    return Jupyter_Render()
 
 
 class IAILogger(logging.Logger):
@@ -270,7 +262,8 @@ class IAILogger(logging.Logger):
         log_file: bool = False,
     ) -> None:
 
-        log_level = level if type(level := logging.getLevelName(level)) == int else 30
+        level = logging.getLevelName(level)
+        log_level = level if type(level) == int else 30
         super().__init__(name, log_level)
         if consoel:
             consoel_handler = logging.StreamHandler()

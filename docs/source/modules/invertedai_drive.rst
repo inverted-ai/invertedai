@@ -1,13 +1,13 @@
-invertedai\_drive package
+invertedai package
 ============================
 
 Submodules
 ----------
 
-invertedai\_drive.drive module
+invertedai module
 -------------------------------------
 
-.. automodule:: invertedai.drive
+.. automodule:: invertedai.api_resources
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "invertedai"
-version = "0.0.2post3"
+version = "0.0.2post4"
 description = "Client SDK for InvertedAI"
 authors = ["Inverted AI <info@inverted.ai>"]
 readme = "README.md"
@@ -10,22 +10,22 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
-torch = "^1.11.0"
-python-dotenv = "^0.20.0"
-numpy = "1.21.2"
-ipython = "^8.4.0"
-ipywidgets = "^8.0.1"
-matplotlib = "^3.5.3"
-carla = "^0.9.13"
+python = ">=3.7,<3.11"
+python-dotenv = "^0.21.0"
 
-[tool.poetry.dev-dependencies]
-jupyterlab = "^3.4.5"
-twine = "==4.0.0"
-Sphinx = "^5.1.1"
-myst-parser = "^0.18.0"
-furo = "^2022.6.21"
-sphinx-rtd-theme = "^1.0.0"
+[tool.poetry.group.dev.dependencies]
+numpy = "^1.17.0"
+matplotlib = "^3.5"
+ipython = "^7.34"
+ipywidgets = "^8.0.2"
+carla = "^0.9.13"
+jupyterlab = "^3.3"
+twine = "^4.0.1"
+
+[tool.poetry.group.docs.dependencies]
+Sphinx = "^5.2.3"
+myst-parser = "^0.18.1"
+furo = "^2022.9.29"
 sphinx-copybutton = "^0.5.0"
 sphinx_design = "^0.3.0"
 sphinxcontrib-applehelp = "^1.0.2"

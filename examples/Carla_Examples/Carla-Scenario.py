@@ -1,9 +1,7 @@
-import json
 import pygame
 import os
 import sys
 import numpy as np
-import torch
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,12 +40,11 @@ carla_cfg = CarlaSimulationConfig(
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
 )
-
 response = iai.initialize(
     location=args.scene_name,
     agent_count=args.agent_count,
-    fix_carla_coord=True,
 )
+
 initial_states = response["states"][0]
 sim = CarlaEnv(
     cfg=carla_cfg,
@@ -61,13 +58,12 @@ for episode in range(args.episodes):
     states, recurrent_states, dimensions = sim.reset()
     for i in range(carla_cfg.episode_length * carla_cfg.fps):
         response = iai.drive(
-            agent_attributes=torch.tensor(dimensions).unsqueeze(0).tolist(),
-            states=torch.tensor(states).unsqueeze(0).tolist(),
-            recurrent_states=torch.tensor(recurrent_states).unsqueeze(0).tolist(),
+            agent_attributes=[dimensions],
+            states=[states],
+            recurrent_states=[recurrent_states],
             location=args.scene_name,
-            obs_length=1,
             steps=1,
-            fix_carla_coord=True,
+            traffic_states_id=response["traffic_states_id"],
             get_infractions=True,
         )
         print(
