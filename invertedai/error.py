@@ -57,6 +57,10 @@ class TryAgain(InvertedAIError):
     pass
 
 
+class InvalidAPIKeyError(InvertedAIError):
+    pass
+
+
 class APIConnectionError(InvertedAIError):
     def __init__(
         self,

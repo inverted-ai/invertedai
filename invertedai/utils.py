@@ -29,6 +29,8 @@ class Session:
         self.base_url = self._get_base_url()
 
     def add_apikey(self, api_token: str = ""):
+        if not iai.dev and not api_token:
+            raise error.InvalidAPIKeyError("Empty API key received.")
         self.session.auth = APITokenAuth(api_token)
 
     def request(
@@ -62,8 +64,12 @@ class Session:
                 data=data,
                 json=json,
             )
+            result.raise_for_status()
         except requests.exceptions.RequestException as e:
-            raise error.APIConnectionError("Error communicating with IAI") from e
+            if e.response.status_code == 403:
+                raise error.APIConnectionError("Connection forbidden. Please check the provided API key.")
+            else:
+                raise error.APIConnectionError("Error communicating with IAI") from e
         iai.logger.info(
             iai.logger.logfmt(
                 "IAI API response",
