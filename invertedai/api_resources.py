@@ -89,3 +89,8 @@ def drive(
             iai.logger.warning("Retrying")
             if timeout is not None and time.time() > start + timeout:
                 raise e
+
+
+def get_map(location="CARLA:Town03:Roundabout", include_map_source=0):
+    params = {"location": location, "include_map_source": include_map_source}
+    return iai.session.request(model="map", params=params)
