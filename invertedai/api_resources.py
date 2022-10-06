@@ -54,12 +54,14 @@ def initialize(
 
     while True:
         try:
+            include_recurrent_states = False if location.split(':')[0] == 'huawei' else True
             params = {
                 "location": location,
                 "num_agents_to_spawn": agent_count,
                 "num_samples": batch_size,
-                "spawn_min_speed": min_speed and int(math.ceil(min_speed / 3.6)),
-                "spawn_max_speed": max_speed and int(math.ceil(max_speed / 3.6)),
+                "spawn_min_speed": min_speed and int(math.ceil(min_speed / 3.6)) and not include_recurrent_states,
+                "spawn_max_speed": max_speed and int(math.ceil(max_speed / 3.6)) and not include_recurrent_states,
+                "include_recurrent_states": include_recurrent_states
             }
             initial_states = iai.session.request(model="initialize", params=params)
             response = {
@@ -123,3 +125,8 @@ def drive(
             iai.logger.warning("Retrying")
             if timeout is not None and time.time() > start + timeout:
                 raise e
+
+
+def get_map(location="CARLA:Town03:Roundabout", include_map_source=0):
+    params = {"location": location, "include_map_source": include_map_source}
+    return iai.session.request(model="map", params=params)

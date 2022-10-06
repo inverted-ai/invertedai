@@ -35,6 +35,7 @@ except:
 __all__ = [
     "drive",
     "initialize",
+    "get_map",
     "Jupyter_Render",
     "logger",
     "session",
