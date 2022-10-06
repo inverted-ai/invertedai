@@ -20,12 +20,14 @@ def initialize(
 
     while True:
         try:
+            include_recurrent_states = False if location.split(':')[0] == 'huawei' else True
             params = {
                 "location": location,
                 "num_agents_to_spawn": agent_count,
                 "num_samples": batch_size,
-                "spawn_min_speed": min_speed and int(math.ceil(min_speed / 3.6)),
-                "spawn_max_speed": max_speed and int(math.ceil(max_speed / 3.6)),
+                "spawn_min_speed": min_speed and int(math.ceil(min_speed / 3.6)) and not include_recurrent_states,
+                "spawn_max_speed": max_speed and int(math.ceil(max_speed / 3.6)) and not include_recurrent_states,
+                "include_recurrent_states": include_recurrent_states
             }
             initial_states = iai.session.request(model="initialize", params=params)
             response = {
