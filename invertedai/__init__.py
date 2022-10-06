@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from invertedai.api_resources import drive, initialize, get_map, avaialbe_maps
+from invertedai.api_resources import drive, initialize, get_map, available_maps
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 load_dotenv()
@@ -41,5 +41,5 @@ __all__ = [
     "session",
     "add_apikey",
     "get_map",
-    "avaialbe_maps",
+    "available_maps",
 ]

@@ -23,8 +23,8 @@ args = parser.parse_args()
 
 iai.add_apikey("")
 
-response = iai.avaialbe_maps("carla", "roundabout")
-
+response = iai.available_maps("carla", "roundabout")
+breakpoint()
 response = iai.get_map(location=args.location)
 file_name = args.location.replace(":", "_")
 if response["lanelet_map_source"] is not None:
