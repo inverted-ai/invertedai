@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from invertedai.api_resources import drive, initialize
+from invertedai.api_resources import drive, initialize, get_map, avaialbe_maps
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 load_dotenv()
@@ -16,7 +16,12 @@ logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log
 
 session = Session(api_key)
 add_apikey = session.add_apikey
-model_resources = {"initialize": ("get", "/initialize"), "drive": ("post", "/drive")}
+model_resources = {
+    "initialize": ("get", "/initialize"),
+    "drive": ("post", "/drive"),
+    "get_map": ("get", "/map"),
+    "available_maps": ("get", "/available_maps"),
+}
 try:
     from invertedai.simulators import CarlaEnv, CarlaSimulationConfig
 except:
@@ -34,4 +39,6 @@ __all__ = [
     "logger",
     "session",
     "add_apikey",
+    "get_map",
+    "avaialbe_maps",
 ]

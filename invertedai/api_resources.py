@@ -8,6 +8,40 @@ import invertedai as iai
 TIMEOUT = 10
 
 
+def avaialbe_maps(*args):
+    start = time.time()
+    timeout = TIMEOUT
+    keywords = "+".join(list(args))
+    while True:
+        try:
+            params = {
+                "keywords": keywords,
+            }
+            response = iai.session.request(model="available_maps", params=params)
+            return response
+        except TryAgain as e:
+            if timeout is not None and time.time() > start + timeout:
+                raise e
+            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
+
+
+def get_map(location="CARLA:Town03:Roundabout") -> dict:
+    start = time.time()
+    timeout = TIMEOUT
+
+    while True:
+        try:
+            params = {
+                "location": location,
+            }
+            response = iai.session.request(model="get_map", params=params)
+            return response
+        except TryAgain as e:
+            if timeout is not None and time.time() > start + timeout:
+                raise e
+            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
+
+
 def initialize(
     location="CARLA:Town03:Roundabout",
     agent_count=1,
