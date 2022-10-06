@@ -92,6 +92,7 @@ def drive(
     get_infractions: bool = False,
     traffic_states_id: str = "000:0",
     exclude_ego_agent: bool = True,
+    present_mask: Optional[List] = None
 ) -> dict:
     def _tolist(input_data: List):
         if not isinstance(input_data, list):
@@ -116,6 +117,7 @@ def drive(
         get_infractions=get_infractions,
         traffic_states_id=traffic_states_id,
         exclude_ego_agent=exclude_ego_agent,
+        present_mask=present_mask
     )
 
     start = time.time()
