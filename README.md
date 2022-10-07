@@ -7,12 +7,14 @@
 
 # InvertedAI
 ## Overview
-
+<!-- start elevator-pitch -->
 Inverted AI has trained cutting-edge realistic behavioral driving models that are human-like and close the SIM2Real. Our API provides access to these behavioral models and can be useful for several tasks in autonomous vehicle (AV) research and development.
 
 ![](docs/images/top_camera.gif)
+<!-- end elevator-pitch -->
 
 # Get Started
+<!-- start quickstart -->
 In this quickstart tutorial, you’ll run a simple sample AV simulation with Inverted AI Python API. Along the way, you’ll learn key concepts and techniques that are fundamental to using the API for other tasks. In particular, you will be familiar with two main Inverted AI models:
 
 - Drive
@@ -41,6 +43,19 @@ import invertedai as iai
 iai.add_apikey("XXXXXXXXXXXXXX")
 ```
 
+## Browse through available maps (location)
+Inverted AI provides an assortment of diverse road configurations and geometries, including real-world locations and maps from simulators (CARLA, Huawei SMARTS, ...).\
+To search the catalog use **iai.available_maps** method by providing keywords
+```python
+iai.available_maps("roundabout", "carla")
+```
+
+To get information about a scene use **iai.get_map**.
+```python
+iai.get_map**("CARLA:Town03:Roundabout")
+```
+The scene information include the map in [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, map in JPEG format, maximum number of allowed (driveable) vehicles, latitude longitude coordinates (for real-world locations), id and list of traffic light and signs (if any exist in the map), etc.
+
 ## Initialize
 To run the simulation, the map must be first populated with agents.
 Inverted AI provides the **initialize**, a state-of-the-art model trained with real-life driving scenarios which can generate realistic positions for the initial state of the simulation.\
@@ -59,8 +74,8 @@ response = iai.initialize(
 response = iai.initialize(
     location="CARLA:Town03:Roundabout",
     agent_count=10,
-    ego_state=[-11.75, 26.58, 1.36, 4.94],
-    ego_attribute=[4.97, 2.04, 1.96]
+    <!-- ego_state=[-11.75, 26.58, 1.36, 4.94], -->
+    <!-- ego_attribute=[4.97, 2.04, 1.96] -->
 )
 ```
 > _response_ is a dictionary of _states_, and _agent-attribute_  (_recurrent-states_ is also returned for compatibility with **drive**)\
@@ -71,12 +86,14 @@ response = iai.initialize(
 This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **initialize**) or with multiple past observations.
 ```python
 response = iai.drive(
+    location="CARLA:Town03:Roundabout",
     agent_attributes=response["attributes"],
     states=response["states"],
     recurrent_states=response["recurrent_states"],
-    get_birdviews=True,
-    location="CARLA:Town03:Roundabout",
+    traffic_states_id=response["traffic_states_id"],
     steps=1,
+    get_birdviews=True,
+    get_infractions=True,
 )
 ```
 >For convenience and to reduce data overhead, ***drive** also returns _recurrent-states_ which can be feedbacked to the model instead of providing all the past observations.\
@@ -84,15 +101,17 @@ response = iai.drive(
 
 ## Running demo locally
 
-Download the [examples directory](https://github.com/inverted-ai/invertedai-drive/blob/master/examples) and run:
-
+Download the 
+<a href="https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/inverted-ai/invertedai/tree/master/examples" target="_blank">examples directory</a>
+and run:
 ```
 python -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 .venv/bin/jupyter notebook Drive-Demo.ipynb
 ```
 
 ## Running demo in Colab
-
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb)
+<!-- end quickstart -->

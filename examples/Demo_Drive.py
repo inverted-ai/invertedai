@@ -22,6 +22,21 @@ parser.add_argument("--location", type=str, default="CARLA:Town03:Roundabout")
 args = parser.parse_args()
 
 iai.add_apikey("")
+
+response = iai.available_maps("carla", "roundabout")
+breakpoint()
+response = iai.get_map(location=args.location)
+file_name = args.location.replace(":", "_")
+if response["lanelet_map_source"] is not None:
+    file_path = f"{file_name}.osm"
+    with open(file_path, "w") as f:
+        f.write(response["lanelet_map_source"])
+if response["rendered_map"] is not None:
+    file_path = f"{file_name}.jpg"
+    rendered_map = np.array(response["rendered_map"], dtype=np.uint8)
+    image = cv2.imdecode(rendered_map, cv2.IMREAD_COLOR)
+    cv2.imwrite(file_path, image)
+
 response = iai.initialize(
     location=args.location,
     agent_count=10,
