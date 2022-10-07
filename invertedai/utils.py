@@ -68,6 +68,8 @@ class Session:
         except requests.exceptions.RequestException as e:
             if e.response.status_code == 403:
                 raise error.APIConnectionError("Connection forbidden. Please check the provided API key.")
+            elif e.response.status_code in [400, 422]:
+                raise e
             else:
                 raise error.APIConnectionError("Error communicating with IAI") from e
         iai.logger.info(

@@ -1,3 +1,4 @@
 # API Reference
 
-## H2
+## available-maps
+

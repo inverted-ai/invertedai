@@ -1,3 +1,15 @@
+"""
+Python SDK for
+
+Functions
+---------
+.. autosummary::
+   :toctree: generated/
+    available_maps
+    drive
+    get_map
+    initialize
+"""
 from invertedai.error import TryAgain
 import math
 from typing import List, Optional
@@ -6,6 +18,64 @@ import invertedai as iai
 
 
 TIMEOUT = 10
+
+
+def available_maps(*args):
+    """
+    Searching the available maps using the provided keywords as *args
+
+    Parameters
+    ----------
+    *args: str
+        Variable length argument list of keywords.
+
+    Returns
+    -------
+    out : List[str]
+        A list of "availalbe maps" to your account (api-key)
+
+    See Also
+    --------
+    invertedai.get_map
+
+    Notes
+    -----
+    Providing more than three keywords is uncessary
+
+    Examples
+    --------
+    >>> iai.available_maps("carla", "roundabout")
+    ["CARLA:Town03:Roundabout"]
+    """
+    start = time.time()
+    timeout = TIMEOUT
+    keywords = "+".join(list(args))
+    while True:
+        try:
+            params = {
+                "keywords": keywords,
+            }
+            response = iai.session.request(model="available_maps", params=params)
+            return response
+        except TryAgain as e:
+            if timeout is not None and time.time() > start + timeout:
+                raise e
+            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
+
+
+def get_map(location="CARLA:Town03:Roundabout", include_map_source=True) -> dict:
+    start = time.time()
+    timeout = TIMEOUT
+
+    params = {"location": location, "include_map_source": include_map_source}
+    while True:
+        try:
+            response = iai.session.request(model="get_map", params=params)
+            return response
+        except TryAgain as e:
+            if timeout is not None and time.time() > start + timeout:
+                raise e
+            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
 
 
 def initialize(
@@ -20,12 +90,20 @@ def initialize(
 
     while True:
         try:
+            include_recurrent_states = (
+                False if location.split(":")[0] == "huawei" else True
+            )
             params = {
                 "location": location,
                 "num_agents_to_spawn": agent_count,
                 "num_samples": batch_size,
-                "spawn_min_speed": min_speed and int(math.ceil(min_speed / 3.6)),
-                "spawn_max_speed": max_speed and int(math.ceil(max_speed / 3.6)),
+                "spawn_min_speed": min_speed
+                and int(math.ceil(min_speed / 3.6))
+                and not include_recurrent_states,
+                "spawn_max_speed": max_speed
+                and int(math.ceil(max_speed / 3.6))
+                and not include_recurrent_states,
+                "include_recurrent_states": include_recurrent_states,
             }
             initial_states = iai.session.request(model="initialize", params=params)
             response = {
@@ -43,15 +121,16 @@ def initialize(
 
 
 def drive(
-    states: dict,
-    agent_attributes: dict,
+    location: str = "CARLA:Town03:Roundabout",
+    states: dict = {},
+    agent_attributes: dict = {},
     recurrent_states: Optional[List] = None,
     get_birdviews: bool = False,
-    location="CARLA:Town03:Roundabout",
     steps: int = 1,
     get_infractions: bool = False,
     traffic_states_id: str = "000:0",
     exclude_ego_agent: bool = True,
+    present_mask: Optional[List] = None,
 ) -> dict:
     def _tolist(input_data: List):
         if not isinstance(input_data, list):
@@ -76,6 +155,7 @@ def drive(
         get_infractions=get_infractions,
         traffic_states_id=traffic_states_id,
         exclude_ego_agent=exclude_ego_agent,
+        present_mask=present_mask,
     )
 
     start = time.time()
