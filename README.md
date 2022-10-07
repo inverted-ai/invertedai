@@ -17,8 +17,8 @@ Inverted AI has trained cutting-edge realistic behavioral driving models that ar
 <!-- start quickstart -->
 In this quickstart tutorial, you’ll run a simple sample AV simulation with Inverted AI Python API. Along the way, you’ll learn key concepts and techniques that are fundamental to using the API for other tasks. In particular, you will be familiar with two main Inverted AI models:
 
-- Drive
-- Initialize
+- DRIVE
+- INITIALIZE
 
 ## Quick Start
 - **Goolge Colab***: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb)
@@ -70,12 +70,12 @@ iai.get_map**("CARLA:Town03:Roundabout")
 ```
 The scene information include the map in [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, map in JPEG format, maximum number of allowed (driveable) vehicles, latitude longitude coordinates (for real-world locations), id and list of traffic light and signs (if any exist in the map), etc.
 
-## Initialize
+## INITIALIZE
 To run the simulation, the map must be first populated with agents.
-Inverted AI provides the **initialize**, a state-of-the-art model trained with real-life driving scenarios which can generate realistic positions for the initial state of the simulation.\
+Inverted AI provides the **INITIALIZE**, a state-of-the-art model trained with real-life driving scenarios which can generate realistic positions for the initial state of the simulation.\
 Having realistic, complicated and diverse initial conditions are particularly crucial to observer interesting and informative interaction between the agents, i.e., the ego vehicle and NPCs (non-player characters).
 
-You can use **initialize** in two modes:
+You can use **INITIALIZE** in two modes:
 - _Initialize all agents_: generates initial conditions (position and speed) for all the agents including the ego vehicle
 ```python
 response = iai.initialize(
@@ -93,9 +93,9 @@ response = iai.initialize(
 > _response_ is a dictionary of _states_, and _agent-attribute_  (_recurrent-states_ is also returned for compatibility with **drive**)\
 > _response["states"]_ is a list of agent states, by default the first on the list is always the ego vehicle.
 
-## Drive
-**drive** is Inverted AI's cutting-edge realistic driving model trained on millions of miles of traffic data.
-This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **initialize**) or with multiple past observations.
+## DRIVE
+**DRIVE** is Inverted AI's cutting-edge realistic driving model trained on millions of miles of traffic data.
+This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **INITIALIZE**) or with multiple past observations.
 ```python
 response = iai.drive(
     location="CARLA:Town03:Roundabout",
