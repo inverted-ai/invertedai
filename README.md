@@ -17,8 +17,22 @@ Inverted AI has trained cutting-edge realistic behavioral driving models that ar
 <!-- start quickstart -->
 In this quickstart tutorial, you’ll run a simple sample AV simulation with Inverted AI Python API. Along the way, you’ll learn key concepts and techniques that are fundamental to using the API for other tasks. In particular, you will be familiar with two main Inverted AI models:
 
-- Drive
-- Initialize
+- DRIVE
+- INITIALIZE
+
+## Quick Start
+- **Goolge Colab***: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb)
+
+- **Locally**: Download the 
+<a href="https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/inverted-ai/invertedai/tree/master/examples" target="_blank">examples directory</a>, navigate to the unzipped directory in terminal and run 
+
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+.venv/bin/jupyter notebook Drive-Demo.ipynb
+```
 
 ## Installation
 
@@ -56,12 +70,12 @@ iai.get_map**("CARLA:Town03:Roundabout")
 ```
 The scene information include the map in [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, map in JPEG format, maximum number of allowed (driveable) vehicles, latitude longitude coordinates (for real-world locations), id and list of traffic light and signs (if any exist in the map), etc.
 
-## Initialize
+## INITIALIZE
 To run the simulation, the map must be first populated with agents.
-Inverted AI provides the **initialize**, a state-of-the-art model trained with real-life driving scenarios which can generate realistic positions for the initial state of the simulation.\
+Inverted AI provides the **INITIALIZE**, a state-of-the-art model trained with real-life driving scenarios which can generate realistic positions for the initial state of the simulation.\
 Having realistic, complicated and diverse initial conditions are particularly crucial to observer interesting and informative interaction between the agents, i.e., the ego vehicle and NPCs (non-player characters).
 
-You can use **initialize** in two modes:
+You can use **INITIALIZE** in two modes:
 - _Initialize all agents_: generates initial conditions (position and speed) for all the agents including the ego vehicle
 ```python
 response = iai.initialize(
@@ -74,16 +88,14 @@ response = iai.initialize(
 response = iai.initialize(
     location="CARLA:Town03:Roundabout",
     agent_count=10,
-    <!-- ego_state=[-11.75, 26.58, 1.36, 4.94], -->
-    <!-- ego_attribute=[4.97, 2.04, 1.96] -->
 )
 ```
 > _response_ is a dictionary of _states_, and _agent-attribute_  (_recurrent-states_ is also returned for compatibility with **drive**)\
 > _response["states"]_ is a list of agent states, by default the first on the list is always the ego vehicle.
 
-## Drive
-**drive** is Inverted AI's cutting-edge realistic driving model trained on millions of miles of traffic data.
-This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **initialize**) or with multiple past observations.
+## DRIVE
+**DRIVE** is Inverted AI's cutting-edge realistic driving model trained on millions of miles of traffic data.
+This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **INITIALIZE**) or with multiple past observations.
 ```python
 response = iai.drive(
     location="CARLA:Town03:Roundabout",
@@ -99,19 +111,4 @@ response = iai.drive(
 >For convenience and to reduce data overhead, ***drive** also returns _recurrent-states_ which can be feedbacked to the model instead of providing all the past observations.\
 >Furthermore, **drive** drive all the agents for $steps\times \frac{1}{FPS}$ where by default $FPS=10[frames/sec]$, should you require other time resolutions [contact us](mailto:info@inverted.ai).
 
-## Running demo locally
-
-Download the 
-<a href="https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/inverted-ai/invertedai/tree/master/examples" target="_blank">examples directory</a>
-and run:
-```
-python -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-.venv/bin/jupyter notebook Drive-Demo.ipynb
-```
-
-## Running demo in Colab
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb)
 <!-- end quickstart -->
