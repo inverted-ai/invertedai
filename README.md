@@ -94,7 +94,7 @@ response = iai.initialize(
 > _response["states"]_ is a list of agent states, by default the first on the list is always the ego vehicle.
 
 ## DRIVE
-{py:func}`invertedai.api_resources.drive` **DRIVE** is Inverted AI's cutting-edge realistic driving model trained on millions of miles of traffic data.
+**DRIVE** is Inverted AI's cutting-edge realistic driving model trained on millions of miles of traffic data.
 This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **INITIALIZE**) or with multiple past observations.
 ```python
 response = iai.drive(

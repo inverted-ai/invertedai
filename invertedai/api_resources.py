@@ -1,3 +1,15 @@
+"""
+Python SDK for
+
+Functions
+---------
+.. autosummary::
+   :toctree: generated/
+    available_maps
+    drive
+    get_map
+    initialize
+"""
 from invertedai.error import TryAgain
 import math
 from typing import List, Optional
@@ -9,6 +21,32 @@ TIMEOUT = 10
 
 
 def available_maps(*args):
+    """
+    Searching the available maps using the provided keywords as *args
+
+    Parameters
+    ----------
+    *args: str
+        Variable length argument list of keywords.
+
+    Returns
+    -------
+    out : List[str]
+        A list of "availalbe maps" to your account (api-key)
+
+    See Also
+    --------
+    invertedai.get_map
+
+    Notes
+    -----
+    Providing more than three keywords is uncessary
+
+    Examples
+    --------
+    >>> iai.available_maps("carla", "roundabout")
+    ["CARLA:Town03:Roundabout"]
+    """
     start = time.time()
     timeout = TIMEOUT
     keywords = "+".join(list(args))
@@ -83,18 +121,17 @@ def initialize(
 
 
 def drive(
-    location="CARLA:Town03:Roundabout",
-    states: dict,
-    agent_attributes: dict,
+    location: str = "CARLA:Town03:Roundabout",
+    states: dict = {},
+    agent_attributes: dict = {},
     recurrent_states: Optional[List] = None,
     get_birdviews: bool = False,
     steps: int = 1,
     get_infractions: bool = False,
     traffic_states_id: str = "000:0",
     exclude_ego_agent: bool = True,
-    present_mask: Optional[List] = None
+    present_mask: Optional[List] = None,
 ) -> dict:
-
     def _tolist(input_data: List):
         if not isinstance(input_data, list):
             return input_data.tolist()
@@ -118,7 +155,7 @@ def drive(
         get_infractions=get_infractions,
         traffic_states_id=traffic_states_id,
         exclude_ego_agent=exclude_ego_agent,
-        present_mask=present_mask
+        present_mask=present_mask,
     )
 
     start = time.time()
