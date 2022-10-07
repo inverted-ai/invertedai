@@ -83,17 +83,18 @@ def initialize(
 
 
 def drive(
+    location="CARLA:Town03:Roundabout",
     states: dict,
     agent_attributes: dict,
     recurrent_states: Optional[List] = None,
     get_birdviews: bool = False,
-    location="CARLA:Town03:Roundabout",
     steps: int = 1,
     get_infractions: bool = False,
     traffic_states_id: str = "000:0",
     exclude_ego_agent: bool = True,
     present_mask: Optional[List] = None
 ) -> dict:
+
     def _tolist(input_data: List):
         if not isinstance(input_data, list):
             return input_data.tolist()
