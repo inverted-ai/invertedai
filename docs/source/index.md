@@ -54,24 +54,30 @@ quickstart
 ```
 
 ```{toctree}
-:caption: GUIDES
-:hidden:
-:maxdepth: 2
-
-
-guides
-carlasim
-smarts
-```
-
-```{toctree}
 :caption: API REFERENCE
 :hidden:
 :maxdepth: 2
 
 
-apireference
 sdk
+apireference
+```
+
+```{toctree}
+:caption: GUIDES
+:hidden:
+:maxdepth: 2
+
+
+carlasim
+smarts
+```
+
+```{toctree}
+:caption: Python SDK Library
+:hidden:
+:maxdepth: 2
+
 modules/modules
 ```
 

@@ -1,4 +1,5 @@
 # API Reference
 
-## available-maps
-
+```{eval-rst}
+`API Reference <_static/apireference.html>`_
+```
