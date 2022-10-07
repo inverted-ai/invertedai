@@ -57,19 +57,6 @@ import invertedai as iai
 iai.add_apikey("XXXXXXXXXXXXXX")
 ```
 
-## Browse through available maps (location)
-Inverted AI provides an assortment of diverse road configurations and geometries, including real-world locations and maps from simulators (CARLA, Huawei SMARTS, ...).\
-To search the catalog use **iai.available_maps** method by providing keywords
-```python
-iai.available_maps("roundabout", "carla")
-```
-
-To get information about a scene use **iai.get_map**.
-```python
-iai.get_map**("CARLA:Town03:Roundabout")
-```
-The scene information include the map in [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, map in JPEG format, maximum number of allowed (driveable) vehicles, latitude longitude coordinates (for real-world locations), id and list of traffic light and signs (if any exist in the map), etc.
-
 ## INITIALIZE
 To run the simulation, the map must be first populated with agents.
 Inverted AI provides the **INITIALIZE**, a state-of-the-art model trained with real-life driving scenarios which can generate realistic positions for the initial state of the simulation.\
@@ -110,5 +97,13 @@ response = iai.drive(
 ```
 >For convenience and to reduce data overhead, ***drive** also returns _recurrent-states_ which can be feedbacked to the model instead of providing all the past observations.\
 >Furthermore, **drive** drive all the agents for $steps\times \frac{1}{FPS}$ where by default $FPS=10[frames/sec]$, should you require other time resolutions [contact us](mailto:info@inverted.ai).
+
+## GET_MAP
+To get information about a map use **iai.get_map**.
+```python
+iai.get_map("CARLA:Town03:Roundabout")
+```
+The scene information include the map in [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, map in JPEG format, maximum number of allowed (driveable) vehicles, latitude longitude coordinates (for real-world locations), id and list of traffic light and signs (if any exist in the map), etc.
+
 
 <!-- end quickstart -->
