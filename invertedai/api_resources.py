@@ -106,6 +106,9 @@ def initialize(
                 "include_recurrent_states": include_recurrent_states,
             }
             initial_states = iai.session.request(model="initialize", params=params)
+            agents_spawned = len(initial_states["initial_condition"]["agent_states"][0])
+            if agents_spawned != agent_count:
+                iai.logger.warning(f"Unable to spawn a scenario for {agent_count} agents,  {agents_spawned} spawned instead.")
             response = {
                 "states": initial_states["initial_condition"]["agent_states"],
                 "recurrent_states": initial_states["recurrent_states"],
