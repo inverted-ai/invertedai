@@ -59,9 +59,9 @@ iai.add_apikey("XXXXXXXXXXXXXX")
 
 ## Browse through available maps (location)
 Inverted AI provides an assortment of diverse road configurations and geometries, including real-world locations and maps from simulators (CARLA, Huawei SMARTS, ...).\
-To search the catalog use **iai.available_maps** method by providing keywords
+To search the catalog use **iai.available_locations** method by providing keywords
 ```python
-iai.available_maps("roundabout", "carla")
+iai.available_locations("roundabout", "carla")
 ```
 
 To get information about a scene use **iai.get_map**.

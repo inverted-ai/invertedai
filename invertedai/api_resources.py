@@ -5,7 +5,7 @@ Functions
 ---------
 .. autosummary::
    :toctree: generated/
-    available_maps
+    available_locations
     drive
     get_map
     initialize
@@ -20,9 +20,9 @@ import invertedai as iai
 TIMEOUT = 10
 
 
-def available_maps(*args):
+def available_locations(*args: str):
     """
-    Searching the available maps using the provided keywords as *args
+    Searching the available locations using the provided keywords as *args
 
     Parameters
     ----------
@@ -32,7 +32,62 @@ def available_maps(*args):
     Returns
     -------
     out : List[str]
-        A list of "availalbe maps" to your account (api-key)
+        A list of "available locations" to your account (api-key)
+
+    See Also
+    --------
+    invertedai.get_map
+
+    Notes
+    -----
+    Providing more than three keywords is uncessary
+
+    Examples
+    --------
+    >>> iai.available_locations("carla", "roundabout")
+    ["CARLA:Town03:Roundabout"]
+    """
+    start = time.time()
+    timeout = TIMEOUT
+    keywords = "+".join(list(args))
+    while True:
+        try:
+            params = {
+                "keywords": keywords,
+            }
+            response = iai.session.request(model="available_locations", params=params)
+            return response
+        except TryAgain as e:
+            if timeout is not None and time.time() > start + timeout:
+                raise e
+            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
+
+
+def get_map(
+    location: str = "CARLA:Town03:Roundabout", include_map_source: bool = True
+) -> dict:
+    """
+    Providing map information, i.e., rendered image, map in OSM format,
+    dictionary of static agents (traffic lights and traffic signs).
+
+    Parameters
+    ----------
+    location: str
+        Name of the location.
+
+    include_map_source: bool
+        Flag for requesting the map in Lanelet-OSM format.
+
+    Returns
+    -------
+    response : Dict
+        <rendered_map> : List[int]
+            Rendered image of the amp encoded in jpeg format.
+            use cv2.imdecode(response["rendered_map"], cv2.IMREAD_COLOR)
+            to decode the image
+        <lanelet_map_source>
+        <static_actors>
+
 
     See Also
     --------
@@ -47,23 +102,7 @@ def available_maps(*args):
     >>> iai.available_maps("carla", "roundabout")
     ["CARLA:Town03:Roundabout"]
     """
-    start = time.time()
-    timeout = TIMEOUT
-    keywords = "+".join(list(args))
-    while True:
-        try:
-            params = {
-                "keywords": keywords,
-            }
-            response = iai.session.request(model="available_maps", params=params)
-            return response
-        except TryAgain as e:
-            if timeout is not None and time.time() > start + timeout:
-                raise e
-            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
 
-
-def get_map(location="CARLA:Town03:Roundabout", include_map_source=True) -> dict:
     start = time.time()
     timeout = TIMEOUT
 

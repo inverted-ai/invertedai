@@ -23,8 +23,9 @@ args = parser.parse_args()
 
 iai.add_apikey("")
 
-response = iai.available_maps("carla", "roundabout")
+response = iai.available_locations("carla", "roundabout")
 response = iai.get_map(location=args.location)
+breakpoint()
 file_name = args.location.replace(":", "_")
 if response["lanelet_map_source"] is not None:
     file_path = f"{file_name}.osm"

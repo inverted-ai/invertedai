@@ -12,9 +12,9 @@ hide-toc: true
 
 ## Overview
 
-Breaking Down Barriers to Level 4-5 Autonomy
+Breaking Down Barriers to Level 4-5 Autonomy.
 
-```{button-ref} quickstart
+```{button-ref} getstarted/index
 :ref-type: doc
 :color: primary
 :class: sd-rounded-pill
@@ -27,67 +27,36 @@ Get Started
 - **Training and Testing**
 - **Real-World Results From Simulation**
 
-  ![](../images/top_camera.gif)
+![](../images/top_camera.gif)
 
-Inverted-AI provides cutting-edge solutions for closing the SIM2Real gap for autonomous vehicle (AV) industry.
-Industry leading AV simulators such as [Carla](https://carla.org/) and [NVIDIA DRIVE Sim](https://www.nvidia.com/en-us/self-driving-cars/simulation/) have closed the SIM2Real gap and allow for obtaining real-world results from simulation by:
-
-- Accurate Physics Simulation
-- Photo-Realistic Scenes
-- Accurate Sensor Data
-
-However, one crucial piece of the puzzle is missing: **Human-Like NPCs** (non player characters).
-State-of-the-art probabilistic behavioral models of Inverted-AI quantitatively and qualitatively outperform exiting logic-based and data-driven NPCs.
-
-Inverted-AI also provides another product:
-
-- Simulation as a service(SimaaS): AV simulation + Inverted-AI NPCs
-  - Currently [Carla](https://carla.org/) ([Huawei SMARTS](https://github.com/huawei-noah/SMARTS) and [NVIDIA DRIVE Sim](https://www.nvidia.com/en-us/self-driving-cars/simulation/) in production.)
 
 ```{toctree}
-:caption: GET STARTED
-:hidden:
 :maxdepth: 4
 
-self
-quickstart
-```
-
-```{toctree}
-:caption: API REFERENCE
-:hidden:
-:maxdepth: 2
-
-
-sdk
+getstarted/index
+pythonapi/index
 apireference
 ```
 
 ```{toctree}
 :caption: GUIDES
-:hidden:
 :maxdepth: 2
 
 
 carlasim
-smarts
 ```
 
 ```{toctree}
 :caption: Python SDK Library
-:hidden:
 :maxdepth: 2
 
 modules/modules
 ```
 
 
-
 ```{eval-rst}
-
 REFERENCES
 ==================
-
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
