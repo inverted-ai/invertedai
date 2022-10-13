@@ -35,11 +35,12 @@ Get Started
 
 getstarted/index
 pythonapi/index
+examples/index
 apireference
 ```
 
 ```{toctree}
-:caption: GUIDES
+:caption: INTEGRATIONS
 :maxdepth: 2
 
 

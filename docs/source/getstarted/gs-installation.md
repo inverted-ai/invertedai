@@ -10,7 +10,7 @@ For installing the Python package from PyPI [![PyPI][pypi-badge]][pypi-link]:
 pip install invertedai
 ```
 
-The `invertedai` package has minimal dependencies to other python packages. However, it is always recommended to install the package in a virtual environment. 
+The `invertedai` package has minimal dependencies on other python packages. However, it is always recommended to install the package in a virtual environment. 
 
 ```bash
 python3 -m venv .venv

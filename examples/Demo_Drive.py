@@ -25,7 +25,6 @@ iai.add_apikey("")
 
 response = iai.available_locations("carla", "roundabout")
 response = iai.location_info(location=args.location)
-breakpoint()
 file_name = args.location.replace(":", "_")
 if response["lanelet_map_source"] is not None:
     file_path = f"{file_name}.osm"
@@ -55,6 +54,7 @@ for i in tqdm(range(50)):
         traffic_states_id=response["traffic_states_id"],
         get_infractions=True,
     )
+    breakpoint()
     print(
         f"Collision rate: {100*np.array(response['collision'])[-1, 0, :].mean():.2f}% | "
         + f"Off-road rate: {100*np.array(response['offroad'])[-1, 0, :].mean():.2f}% | "

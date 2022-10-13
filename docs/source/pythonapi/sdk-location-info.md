@@ -1,4 +1,4 @@
-# GET-MAP
+# LOCATION_INFO
 
 
 ```{eval-rst}
