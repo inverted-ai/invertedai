@@ -1,4 +1,4 @@
-invertedai package
+Core Package
 ============================
 
 Submodules

@@ -1,4 +1,4 @@
-Inverted AI Drive
+Packages
 ===================
 
 .. toctree::
