@@ -11,7 +11,6 @@ Functions
     initialize
 """
 from invertedai.error import TryAgain
-import math
 from typing import List, Optional
 import time
 import invertedai as iai
@@ -147,9 +146,6 @@ def location_info(
 def initialize(
     location="CARLA:Town03:Roundabout",
     agent_count=1,
-    batch_size=1,
-    min_speed=None,
-    max_speed=None,
 ) -> dict:
     """
     Parameters
@@ -159,9 +155,6 @@ def initialize(
 
     agent_count : int
         Number of cars to spawn on the map
-
-    batch_size : int
-        Batch size
 
     min_speed : Optional[int]
         Not available yet, (for setting the minimum speed of spawned cars)
@@ -173,20 +166,18 @@ def initialize(
     -------
     Response: Dict
         InvertedAI.INITIALIZE payload as a python dictionary
-        <states> : List[List[List[Tuple[(float,) * 4]]]] (BxAxTx4)
+        <states> : List[List[Tuple[(float,) * 4]]] (AxTx4)
             List of positions and speeds of agents.
-            List of B (batch size) lists,
-            each element is a list of size A (number of actors),
+            List of A (number of actors) lists,
             each element is a list of size T (number of time steps),
             each element is a list of 4 floats (x,y,speed, orientation)
 
-        <recurrent_states> : List[List[Tuple[(Tuple[(float,) * 64],) * 2]]]
+        <recurrent_states> : List[Tuple[(Tuple[(float,) * 64],) * 2]]
             Internal state of simulation, which must be fedback to continue simulation
 
-        <attributes> : List[List[Tuple[(float,) * 3]]]  (BxAx3)
+        <attributes> : List[Tuple[(float,) * 3]]  (Ax3)
             List of agent attributes
-            List of B (batch size) lists,
-            each element is a list of size A (number of actors),
+            List of A (number of actors) lists,
             each element is a list of x floats (width, length, lr)
 
         <traffic_light_state>: Dict[str, str]
@@ -222,13 +213,6 @@ def initialize(
             params = {
                 "location": location,
                 "num_agents_to_spawn": agent_count,
-                "num_samples": batch_size,
-                "spawn_min_speed": min_speed
-                and int(math.ceil(min_speed / 3.6))
-                and not include_recurrent_states,
-                "spawn_max_speed": max_speed
-                and int(math.ceil(max_speed / 3.6))
-                and not include_recurrent_states,
                 "include_recurrent_states": include_recurrent_states,
             }
             initial_states = iai.session.request(model="initialize", params=params)
@@ -269,17 +253,15 @@ def drive(
     location : str
         Name of the location.
 
-    states : List[List[List[Tuple[(float,) * 4]]]] (BxAxTx4)
+    states : List[List[List[Tuple[(float,) * 4]]]] (AxTx4)
         List of positions and speeds of agents.
-        List of B (batch size) lists,
-        each element is a list of size A (number of actors),
+        List of A (number of actors) lists,
         each element is of T (number of time steps) list,
         each element is a list of 4 floats (x,y,speed, orientation)
 
-    agent_attributes : List[List[Tuple[(float,) * 3]]]  (BxAx3)
+    agent_attributes : List[List[Tuple[(float,) * 3]]]  (Ax3)
         List of agent attributes
-        List of B (batch size) lists,
-        each element is a list of size A (number of actors),
+        List of A (number of actors) lists,
         each element is a list of x floats (width, length, lr)
 
     recurrent_states : List[List[Tuple[(Tuple[(float,) * 64],) * 2]]]
@@ -315,10 +297,9 @@ def drive(
     -------
     Response: Dict
         InvertedAI.DRIVE payload as a python dictionary
-        <states> : List[List[List[Tuple[(float,) * 4]]]] (BxAxTx4)
+        <states> : List[List[Tuple[(float,) * 4]]] (AxTx4)
             List of positions and speeds of agents.
-            List of B (batch size) lists,
-            each element is a list of size A (number of actors),
+            List of A (number of actors) lists,
             each element is of T (number of time steps) list,
             each element is a list of 4 floats (x,y,speed, orientation)
 
@@ -326,13 +307,12 @@ def drive(
             A list of booleans of size A (number of agents), which is false when
             an agent has crossed the boundary of the map.
 
-        <recurrent_states> : List[List[Tuple[(Tuple[(float,) * 64],) * 2]]]
+        <recurrent_states> : List[Tuple[(Tuple[(float,) * 64],) * 2]]
             Internal state of simulation, which must be fedback to continue simulation
 
-        <attributes> : List[List[Tuple[(float,) * 3]]]  (BxAx3)
+        <attributes> : List[Tuple[(float,) * 3]]  (Ax3)
             List of agent attributes
-            List of B (batch size) lists,
-            each element is a list of size A (number of actors),
+            List of A (number of actors) lists,
             each element is a list of x floats (width, length, lr)
 
         <traffic_light_state>: Dict[str, str]
@@ -345,27 +325,24 @@ def drive(
             which must be fedback to get the next state of the traffic light
 
         <bird_view> : List[int]
-            Rendered image of the amp with agents encoded in jpeg format,
+            Rendered image of the amp with agents encoded in JPEG format,
             (for decoding use JPEG decoder
             e.g., cv2.imdecode(response["rendered_map"], cv2.IMREAD_COLOR) ).
 
-        <collision> : List[List[Tuple[(float,) * T]]] (BxAxT)
+        <collision> : List[Tuple[(float,) * T]] (AxT)
             List of collision infraction for each of the agents.
-            List of B (batch size) lists,
-            each element is a list of size A (number of actors),
+            List of A (number of actors) lists,
             each element is a list of size T (number of time steps)
             floats (intersection over union).
 
-        <offroad> : List[List[Tuple[(float,) * T]]] (BxAxT)
+        <offroad> : List[Tuple[(float,) * T]] (AxT)
             List of offroad infraction for each of the agents.
-            List of B (batch size) lists,
-            each element is a list of size A (number of actors),
+            List of A (number of actors) lists,
             each element is a list of size T (number of time steps) floats.
 
-        <wrong_way> : List[List[Tuple[(float,) * T]]] (BxAxT)
+        <wrong_way> : List[Tuple[(float,) * T]] (AxT)
             List of wrong_way infraction for each of the agents.
-            List of B (batch size) lists,
-            each element is a list of size A (number of actors),
+            List of A (number of actors) lists,
             each element is a list of size T (number of time steps) floats.
 
     See Also
@@ -397,7 +374,7 @@ def drive(
 
     recurrent_states = (
         _tolist(recurrent_states) if recurrent_states is not None else None
-    )  # Bx(num_predictions)xAxTx2x64
+    )  # AxTx2x64
 
     model_inputs = dict(
         location=location,
@@ -406,7 +383,7 @@ def drive(
             agent_sizes=agent_attributes,
         ),
         recurrent_states=recurrent_states,
-        # Expand from BxA to BxAxT_total for the API interface
+        # Expand from A to AxT_total for the API interface
         steps=steps,
         get_birdviews=get_birdviews,
         get_infractions=get_infractions,
@@ -422,7 +399,6 @@ def drive(
         try:
             return iai.session.request(model="drive", data=model_inputs)
         except Exception as e:
-            # TODO: Add logger
             iai.logger.warning("Retrying")
             if timeout is not None and time.time() > start + timeout:
                 raise e

@@ -24,6 +24,7 @@ args = parser.parse_args()
 iai.add_apikey("")
 
 response = iai.available_locations("carla", "roundabout")
+breakpoint()
 response = iai.location_info(location=args.location)
 file_name = args.location.replace(":", "_")
 if response["lanelet_map_source"] is not None:
@@ -39,7 +40,6 @@ if response["rendered_map"] is not None:
 response = iai.initialize(
     location=args.location,
     agent_count=10,
-    batch_size=1,
 )
 agent_attributes = response["attributes"]
 frames = []
@@ -54,11 +54,10 @@ for i in tqdm(range(50)):
         traffic_states_id=response["traffic_states_id"],
         get_infractions=True,
     )
-    breakpoint()
     print(
-        f"Collision rate: {100*np.array(response['collision'])[-1, 0, :].mean():.2f}% | "
-        + f"Off-road rate: {100*np.array(response['offroad'])[-1, 0, :].mean():.2f}% | "
-        + f"Wrong-way rate: {100*np.array(response['wrong_way'])[-1, 0, :].mean():.2f}%"
+        f"Collision rate: {100*np.array(response['collision'])[-1, :].mean():.2f}% | "
+        + f"Off-road rate: {100*np.array(response['offroad'])[-1, :].mean():.2f}% | "
+        + f"Wrong-way rate: {100*np.array(response['wrong_way'])[-1, :].mean():.2f}%"
     )
 
     birdview = np.array(response["bird_view"], dtype=np.uint8)
