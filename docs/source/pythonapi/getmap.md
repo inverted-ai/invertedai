@@ -2,7 +2,7 @@
 
 
 ```{eval-rst}
-.. autofunction:: invertedai.api_resources.get_map
+.. autofunction:: invertedai.api_resources.location_info
 ```
 
 

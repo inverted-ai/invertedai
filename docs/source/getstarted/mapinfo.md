@@ -9,9 +9,9 @@ iai.available_locations("roundabout", "carla")
 ```
 
 ## GET-MAP
-To get information about a scene use **iai.get_map**.
+To get information about a scene use **iai.location_info**.
 ```python
-iai.get_map**("CARLA:Town03:Roundabout")
+iai.location_info**("CARLA:Town03:Roundabout")
 ```
 The scene information include the map in [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, map in JPEG format, maximum number of allowed (driveable) vehicles, latitude longitude coordinates (for real-world locations), id and list of traffic light and signs (if any exist in the map), etc.
 

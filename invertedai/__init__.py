@@ -1,6 +1,11 @@
 import os
 from dotenv import load_dotenv
-from invertedai.api_resources import drive, initialize, get_map, available_locations
+from invertedai.api_resources import (
+    drive,
+    initialize,
+    location_info,
+    available_locations,
+)
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 load_dotenv()
@@ -19,7 +24,7 @@ add_apikey = session.add_apikey
 model_resources = {
     "initialize": ("get", "/initialize"),
     "drive": ("post", "/drive"),
-    "get_map": ("get", "/map"),
+    "location_info": ("get", "/location_info"),
     "available_locations": ("get", "/available_locations"),
 }
 try:
@@ -35,11 +40,11 @@ except:
 __all__ = [
     "drive",
     "initialize",
-    "get_map",
+    "location_info",
     "Jupyter_Render",
     "logger",
     "session",
     "add_apikey",
-    "get_map",
+    "location_info",
     "available_locations",
 ]

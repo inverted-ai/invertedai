@@ -7,7 +7,7 @@ Functions
    :toctree: generated/
     available_locations
     drive
-    get_map
+    location_info
     initialize
 """
 from invertedai.error import TryAgain
@@ -36,7 +36,7 @@ def available_locations(*args: str):
 
     See Also
     --------
-    invertedai.get_map
+    invertedai.location_info
 
     Notes
     -----
@@ -63,7 +63,7 @@ def available_locations(*args: str):
             iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
 
 
-def get_map(
+def location_info(
     location: str = "CARLA:Town03:Roundabout", include_map_source: bool = True
 ) -> dict:
     """
@@ -115,7 +115,7 @@ def get_map(
 
     Examples
     --------
-    >>> response = iai.get_map(location=args.location)
+    >>> response = iai.location_info(location=args.location)
     >>> if response["lanelet_map_source"] is not None:
     >>>     file_path = "map.osm"
     >>>     with open(file_path, "w") as f:
@@ -133,7 +133,7 @@ def get_map(
     params = {"location": location, "include_map_source": include_map_source}
     while True:
         try:
-            response = iai.session.request(model="get_map", params=params)
+            response = iai.session.request(model="location_info", params=params)
             return response
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
