@@ -14,12 +14,12 @@ from invertedai.error import TryAgain
 from typing import List, Optional
 import time
 import invertedai as iai
-
+from invertedai.models import LocationResponse, InitializeResponse, DriveResponse
 
 TIMEOUT = 10
 
 
-def available_locations(*args: str):
+def available_locations(*args: str) -> List[str]:
     """
     Searching the available locations using the provided keywords as *args
 
@@ -65,7 +65,7 @@ def available_locations(*args: str):
 
 def location_info(
     location: str = "CARLA:Town03:Roundabout", include_map_source: bool = True
-) -> dict:
+) -> LocationResponse:
     """
     Providing map information, i.e., rendered image, map in OSM format,
     dictionary of static agents (traffic lights and traffic signs).
@@ -80,32 +80,8 @@ def location_info(
 
     Returns
     -------
-    response : Dict
-        A dictionary of the json payload from the server
-        <rendered_map> : List[int]
-            Rendered image of the amp encoded in JPEG format
-            (for decoding use JPEG decoder
-            e.g., cv2.imdecode(response["rendered_map"], cv2.IMREAD_COLOR) ).
+    Response : LocationResponse
 
-        <lanelet_map_source> : str
-            Serialized XML file of the OSM map.
-            save the map by write(response["lanelet_map_source"])
-        <static_actors> : List[Dict]
-            A list of static actors of the location, i.e, traffic signs and lights
-                <track_id> : int
-                     A unique ID of the actor, used to track and change state of the actor
-                <agent_type> : str
-                    Type of the agent, either "traffic-light", or "stop-sign"
-                <x> : float
-                    The x coordinate of the agent on the map
-                <y> : float
-                    The y coordinate of the agent on the map
-                <psi_rad> : float
-                    The orientation of the agent
-                <length> : float
-                    The length of the actor
-                <width> : float
-                    The width of the actor
 
     See Also
     --------
@@ -136,7 +112,7 @@ def location_info(
     while True:
         try:
             response = iai.session.request(model="location_info", params=params)
-            return response
+            return LocationResponse(**response)
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
                 raise e
@@ -146,7 +122,7 @@ def location_info(
 def initialize(
     location="CARLA:Town03:Roundabout",
     agent_count=1,
-) -> dict:
+) -> InitializeResponse:
     """
     Parameters
     ----------
@@ -164,30 +140,7 @@ def initialize(
 
     Returns
     -------
-    Response: Dict
-        InvertedAI.INITIALIZE payload as a python dictionary
-        <states> : List[List[Tuple[(float,) * 4]]] (AxTx4)
-            List of positions and speeds of agents.
-            List of A (number of actors) lists,
-            each element is a list of size T (number of time steps),
-            each element is a list of 4 floats (x,y,speed, orientation)
-
-        <recurrent_states> : List[Tuple[(Tuple[(float,) * 64],) * 2]]
-            Internal state of simulation, which must be fedback to continue simulation
-
-        <attributes> : List[Tuple[(float,) * 3]]  (Ax3)
-            List of agent attributes
-            List of A (number of actors) lists,
-            each element is a list of x floats (width, length, lr)
-
-        <traffic_light_state>: Dict[str, str]
-            Dictionary of traffic light states.
-            Keys are the traffic-light ids and
-            values are light state: 'red', 'green', 'yellow' and 'red'
-
-        <traffic_state_id>: str
-            The id of the current stat of the traffic light,
-            which must be fedback to get the next state of the traffic light
+    Response : InitializeResponse
 
     See Also
     --------
@@ -216,18 +169,12 @@ def initialize(
                 "include_recurrent_states": include_recurrent_states,
             }
             initial_states = iai.session.request(model="initialize", params=params)
-            agents_spawned = len(initial_states["initial_condition"]["agent_states"])
+            agents_spawned = len(initial_states["agent_states"])
             if agents_spawned != agent_count:
                 iai.logger.warning(
                     f"Unable to spawn a scenario for {agent_count} agents,  {agents_spawned} spawned instead."
                 )
-            response = {
-                "states": initial_states["initial_condition"]["agent_states"],
-                "recurrent_states": initial_states["recurrent_states"],
-                "attributes": initial_states["initial_condition"]["agent_sizes"],
-                "traffic_light_state": initial_states["traffic_light_state"],
-                "traffic_states_id": initial_states["traffic_states_id"],
-            }
+            response = InitializeResponse(**initial_states)
             return response
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
@@ -237,8 +184,8 @@ def initialize(
 
 def drive(
     location: str = "CARLA:Town03:Roundabout",
-    states: list = [],
-    agent_attributes: list = [],
+    agent_states: list = [],
+    agent_sizes: list = [],
     recurrent_states: Optional[List] = None,
     get_birdviews: bool = False,
     steps: int = 1,
@@ -246,25 +193,25 @@ def drive(
     traffic_states_id: str = "000:0",
     exclude_ego_agent: bool = True,
     present_mask: Optional[List] = None,
-) -> dict:
+) -> DriveResponse:
     """
     Parameters
     ----------
     location : str
         Name of the location.
 
-    states : List[List[List[Tuple[(float,) * 4]]]] (AxTx4)
+    states : List[List[Tuple[(float,) * 4]]] (AxTx4)
         List of positions and speeds of agents.
         List of A (number of actors) lists,
         each element is of T (number of time steps) list,
         each element is a list of 4 floats (x,y,speed, orientation)
 
-    agent_attributes : List[List[Tuple[(float,) * 3]]]  (Ax3)
+    agent_attributes : List[Tuple[(float,) * 3]]  (Ax3)
         List of agent attributes
         List of A (number of actors) lists,
         each element is a list of x floats (width, length, lr)
 
-    recurrent_states : List[List[Tuple[(Tuple[(float,) * 64],) * 2]]]
+    recurrent_states : List[Tuple[(Tuple[(float,) * 64],) * 2]] (Ax2x64)
         Internal state of simulation, which must be fedback to continue simulation
         This should have been obtained either from iai.drive or iai.initialize.
 
@@ -295,55 +242,7 @@ def drive(
 
     Returns
     -------
-    Response: Dict
-        InvertedAI.DRIVE payload as a python dictionary
-        <states> : List[List[Tuple[(float,) * 4]]] (AxTx4)
-            List of positions and speeds of agents.
-            List of A (number of actors) lists,
-            each element is of T (number of time steps) list,
-            each element is a list of 4 floats (x,y,speed, orientation)
-
-        <present_mask> : List[int]
-            A list of booleans of size A (number of agents), which is false when
-            an agent has crossed the boundary of the map.
-
-        <recurrent_states> : List[Tuple[(Tuple[(float,) * 64],) * 2]]
-            Internal state of simulation, which must be fedback to continue simulation
-
-        <attributes> : List[Tuple[(float,) * 3]]  (Ax3)
-            List of agent attributes
-            List of A (number of actors) lists,
-            each element is a list of x floats (width, length, lr)
-
-        <traffic_light_state>: Dict[str, str]
-            Dictionary of traffic light states.
-            Keys are the traffic-light ids and
-            values are light state: 'red', 'green', 'yellow' and 'red'
-
-        <traffic_state_id>: str
-            The id of the current stat of the traffic light,
-            which must be fedback to get the next state of the traffic light
-
-        <bird_view> : List[int]
-            Rendered image of the amp with agents encoded in JPEG format,
-            (for decoding use JPEG decoder
-            e.g., cv2.imdecode(response["rendered_map"], cv2.IMREAD_COLOR) ).
-
-        <collision> : List[Tuple[(float,) * T]] (AxT)
-            List of collision infraction for each of the agents.
-            List of A (number of actors) lists,
-            each element is a list of size T (number of time steps)
-            floats (intersection over union).
-
-        <offroad> : List[Tuple[(float,) * T]] (AxT)
-            List of offroad infraction for each of the agents.
-            List of A (number of actors) lists,
-            each element is a list of size T (number of time steps) floats.
-
-        <wrong_way> : List[Tuple[(float,) * T]] (AxT)
-            List of wrong_way infraction for each of the agents.
-            List of A (number of actors) lists,
-            each element is a list of size T (number of time steps) floats.
+    Response : DriveResponse
 
     See Also
     --------
@@ -378,10 +277,8 @@ def drive(
 
     model_inputs = dict(
         location=location,
-        past_observations=dict(
-            agent_states=states,
-            agent_sizes=agent_attributes,
-        ),
+        agent_states=agent_states,
+        agent_sizes=agent_sizes,
         recurrent_states=recurrent_states,
         # Expand from A to AxT_total for the API interface
         steps=steps,
@@ -397,8 +294,14 @@ def drive(
 
     while True:
         try:
-            return iai.session.request(model="drive", data=model_inputs)
+            response = iai.session.request(model="drive", data=model_inputs)
+            out = DriveResponse(**response)
+            return out
         except Exception as e:
             iai.logger.warning("Retrying")
             if timeout is not None and time.time() > start + timeout:
                 raise e
+
+
+from dataclasses import dataclass
+from typing import Tuple
