@@ -10,10 +10,14 @@ Functions
     location_info
     initialize
 """
+import os
+
 from invertedai.error import TryAgain
 from typing import List, Optional, Dict
 import time
 import invertedai as iai
+from invertedai.mock import get_mock_birdview, get_mock_agent_attributes, get_mock_agent_state, \
+    get_mock_recurrent_state, mock_update_agent_state, get_mock_infractions
 from invertedai.models import (
     LocationResponse,
     InitializeResponse,
@@ -26,6 +30,10 @@ from invertedai.models import (
 )
 
 TIMEOUT = 10
+
+mock_api = bool(os.environ.get("IAI_MOCK_API", False))
+if mock_api:
+    print('Using mock Inverted AI API - predictions will be trivial')  # TODO: replace with a suitable logger
 
 
 def available_locations(*args: str) -> List[str]:
@@ -114,6 +122,10 @@ def location_info(
     >>>     cv2.imwrite(file_path, image)
     """
 
+    if mock_api:
+        response = LocationResponse(rendered_map=get_mock_birdview(), lanelet_map_source=None, static_actors=None)
+        return response
+
     start = time.time()
     timeout = TIMEOUT
 
@@ -171,6 +183,19 @@ def initialize(
     >>> import invertedai as iai
     >>> response = iai.initialize(location="CARLA:Town03:Roundabout", agent_count=10)
     """
+
+    if mock_api:
+        if agent_attributes is None:
+            assert agent_count is not None
+            agent_attributes = [get_mock_agent_attributes() for _ in range(agent_count)]
+            agent_states = [get_mock_agent_state() for _ in range(agent_count)]
+        else:
+            agent_states = states_history[-1]
+        recurrent_states = [get_mock_recurrent_state() for _ in range(agent_count)]
+        response = InitializeResponse(
+            agent_states=agent_states, agent_attributes=agent_attributes, recurrent_states=recurrent_states
+        )
+        return response
 
     start = time.time()
     timeout = TIMEOUT
@@ -269,6 +294,17 @@ def drive(
             get_birdviews=True,
             get_infractions=True,)
     """
+
+    if mock_api:
+        agent_states = [mock_update_agent_state(s) for s in agent_states]
+        present_mask = [True for _ in agent_states]
+        bird_view = get_mock_birdview()
+        infractions = get_mock_infractions(len(agent_states))
+        response = DriveResponse(
+            agent_states=agent_states, present_mask=present_mask, recurrent_states=recurrent_states,
+            bird_view=bird_view, infractions=infractions
+        )
+        return response
 
     def _tolist(input_data: List):
         if not isinstance(input_data, list):
