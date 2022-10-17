@@ -64,32 +64,6 @@ class DriveResponse:
 
 @dataclass
 class InitializeResponse:
-    """
-    agent_states : List[List[Tuple[(float,) * 4]]] (AxTx4)
-        List of positions and speeds of agents.
-        List of A (number of actors) lists,
-        each element is a list of size T (number of time steps),
-        each element is a list of 4 floats (x,y,speed, orientation)
-
-    recurrent_states : List[Tuple[(Tuple[(float,) * 64],) * 2]] (Ax2x64)
-        Internal state of simulation, which must be fedback to continue simulation
-
-    agent_attributes : List[Tuple[(float,) * 3]]  (Ax3)
-        List of agent attributes
-        List of A (number of actors) lists,
-        each element is a list of x floats (width, length, lr)
-
-    traffic_light_state: Dict[str, str]
-        Dictionary of traffic light states.
-        Keys are the traffic-light ids and
-        values are light state: 'red', 'green', 'yellow' and 'red'
-
-    traffic_state_id: str
-        The id of the current stat of the traffic light,
-        which must be fedback to get the next state of the traffic light
-
-    """
-
     agent_states: List[AgentState]
     agent_attributes: List[AgentAttributes]
     recurrent_states: List[RecurrentStates]
@@ -122,7 +96,6 @@ class LocationResponse:
                 The length of the actor
             <width> : float
                 The width of the actor
-
     """
 
     rendered_map: List[int]

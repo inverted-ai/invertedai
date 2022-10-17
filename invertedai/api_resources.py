@@ -131,6 +131,11 @@ def location_info(
 def initialize(
     location="CARLA:Town03:Roundabout",
     agent_count=1,
+    agent_attributes: List[AgentAttributes] = [],
+    states_history: Optional[List[List[AgentState]]] = [],
+    traffic_light_state_history: Optional[
+        List[Dict[TrafficLightId, TrafficLightState]]
+    ] = [],
 ) -> InitializeResponse:
     """
     Parameters
@@ -138,8 +143,17 @@ def initialize(
     location : str
         Name of the location.
 
+    agent_attributes : List[AgentAttributes]
+        List of agent attributes
+
     agent_count : int
         Number of cars to spawn on the map
+
+    states_history: [List[List[AgentState]]]
+       History of agent states
+
+    traffic_light_state_history: Optional[List[Dict[TrafficLightId, TrafficLightState]]]
+       History of traffic light states
 
     Returns
     -------
@@ -200,7 +214,6 @@ def drive(
     agent_attributes: List[AgentAttributes] = [],
     recurrent_states: Optional[List] = None,
     get_birdviews: bool = False,
-    steps: int = 1,
     get_infractions: bool = False,
     exclude_ego_agent: bool = True,
     present_mask: Optional[List] = None,
@@ -211,7 +224,7 @@ def drive(
     location : str
         Name of the location.
 
-    states : List[AgentState]
+    agent_states : List[AgentState]
         List of agent states.
 
     agent_attributes : List[AgentAttributes]
@@ -253,7 +266,6 @@ def drive(
             states=response["states"],
             recurrent_states=response["recurrent_states"],
             traffic_states_id=response["traffic_states_id"],
-            steps=1,
             get_birdviews=True,
             get_infractions=True,)
     """
@@ -273,7 +285,6 @@ def drive(
         agent_attributes=[state.tolist() for state in agent_attributes],
         recurrent_states=recurrent_states,
         # Expand from A to AxT_total for the API interface
-        steps=steps,
         get_birdviews=get_birdviews,
         get_infractions=get_infractions,
         exclude_ego_agent=exclude_ego_agent,

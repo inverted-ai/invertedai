@@ -51,7 +51,6 @@ for i in pbar:
         recurrent_states=response.recurrent_states,
         get_birdviews=True,
         location=args.location,
-        steps=1,
         get_infractions=True,
     )
     pbar.set_description(
