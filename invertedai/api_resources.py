@@ -11,10 +11,19 @@ Functions
     initialize
 """
 from invertedai.error import TryAgain
-from typing import List, Optional
+from typing import List, Optional, Dict
 import time
 import invertedai as iai
-from invertedai.models import LocationResponse, InitializeResponse, DriveResponse
+from invertedai.models import (
+    LocationResponse,
+    InitializeResponse,
+    DriveResponse,
+    AgentState,
+    AgentAttributes,
+    TrafficLightId,
+    TrafficLightState,
+    InfractionIndicators,
+)
 
 TIMEOUT = 10
 
@@ -174,7 +183,22 @@ def initialize(
                 iai.logger.warning(
                     f"Unable to spawn a scenario for {agent_count} agents,  {agents_spawned} spawned instead."
                 )
-            response = InitializeResponse(**initial_states)
+            # response = InitializeResponse(
+            #     agent_states=initial_states["agent_states"],
+            #     agent_attributes=initial_states["agent_attributes"],
+            #     recurrent_states=initial_states["recurrent_states"],
+            # )
+
+            response = InitializeResponse(
+                agent_states=[
+                    AgentState(*state[0]) for state in initial_states["agent_states"]
+                ],  # TODO: Remove [0] after time dimension is removed
+                agent_attributes=[
+                    AgentAttributes(*attr)
+                    for attr in initial_states["agent_attributes"]
+                ],
+                recurrent_states=initial_states["recurrent_states"],
+            )
             return response
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
@@ -184,14 +208,14 @@ def initialize(
 
 def drive(
     location: str = "CARLA:Town03:Roundabout",
-    agent_states: list = [],
-    agent_sizes: list = [],
+    agent_states: List[AgentState] = [],
+    agent_attributes: List[AgentAttributes] = [],
     recurrent_states: Optional[List] = None,
     get_birdviews: bool = False,
     steps: int = 1,
     get_infractions: bool = False,
-    traffic_states_id: str = "000:0",
     exclude_ego_agent: bool = True,
+    traffic_light_state: Optional[Dict[TrafficLightId, TrafficLightState]] = {},
     present_mask: Optional[List] = None,
 ) -> DriveResponse:
     """
@@ -274,17 +298,18 @@ def drive(
     recurrent_states = (
         _tolist(recurrent_states) if recurrent_states is not None else None
     )  # AxTx2x64
-
+    agent_states = [[state.tolist()] for state in agent_states]
+    # TODO: Rmove [] around state.tolist() after time is removed
+    agent_attributes = [state.tolist() for state in agent_attributes]
     model_inputs = dict(
         location=location,
         agent_states=agent_states,
-        agent_sizes=agent_sizes,
+        agent_attributes=agent_attributes,
         recurrent_states=recurrent_states,
         # Expand from A to AxT_total for the API interface
         steps=steps,
         get_birdviews=get_birdviews,
         get_infractions=get_infractions,
-        traffic_states_id=traffic_states_id,
         exclude_ego_agent=exclude_ego_agent,
         present_mask=present_mask,
     )
@@ -295,13 +320,44 @@ def drive(
     while True:
         try:
             response = iai.session.request(model="drive", data=model_inputs)
-            out = DriveResponse(**response)
+
+            agent_states = [AgentState(*state[0]) for state in response["agent_states"]]
+            recurrent_states = response["recurrent_states"]
+            bird_view = response["bird_view"]
+
+            infractions = InfractionIndicators(
+                collisions=response["collision"],
+                offroad=response["offroad"],
+                wrong_way=response["wrong_way"],
+            )
+            present_mask = response["present_mask"]
+            out = DriveResponse(
+                agent_states=agent_states,
+                recurrent_states=recurrent_states,
+                bird_view=bird_view,
+                infractions=infractions,
+                present_mask=present_mask,
+            )
+
+            # out = DriveResponse(
+            #     agent_states=[
+            #         AgentState(*state[0]) for state in response["agent_states"]
+            #     ],  # TODO: Remove [0] after time dimension is removed
+            #     recurrent_states=response["recurrent_states"],
+            #     bird_view=response["bird_view"],
+            #     infractions=InfractionIndicators(
+            #         {
+            #             "collisions": response["collision"],
+            #             "offroad": response["offroad"],
+            #             "wrong_way": response["wrong_way"],
+            #         }
+            #     ),
+            #     present_mask=response["present_mask"],
+            # )
+
+            # out = DriveResponse(**response)
             return out
         except Exception as e:
             iai.logger.warning("Retrying")
             if timeout is not None and time.time() > start + timeout:
                 raise e
-
-
-from dataclasses import dataclass
-from typing import Tuple

@@ -41,24 +41,23 @@ response = iai.initialize(
     location=args.location,
     agent_count=10,
 )
-agent_sizes = response.agent_sizes
+agent_attributes = response.agent_attributes
 frames = []
 pbar = tqdm(range(50))
 for i in pbar:
     response = iai.drive(
-        agent_sizes=agent_sizes,
+        agent_attributes=agent_attributes,
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
         get_birdviews=True,
         location=args.location,
         steps=1,
-        traffic_states_id=response.traffic_states_id,
         get_infractions=True,
     )
     pbar.set_description(
-        f"Collision rate: {100*np.array(response.collision)[-1, :].mean():.2f}% | "
-        + f"Off-road rate: {100*np.array(response.offroad)[-1, :].mean():.2f}% | "
-        + f"Wrong-way rate: {100*np.array(response.wrong_way)[-1, :].mean():.2f}%"
+        f"Collision rate: {100*np.array(response.infractions.collisions)[-1, :].mean():.2f}% | "
+        + f"Off-road rate: {100*np.array(response.infractions.offroad)[-1, :].mean():.2f}% | "
+        + f"Wrong-way rate: {100*np.array(response.infractions.wrong_way)[-1, :].mean():.2f}%"
     )
 
     birdview = np.array(response.bird_view, dtype=np.uint8)
