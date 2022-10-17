@@ -31,27 +31,28 @@ Get Started
 
 
 ```{toctree}
-:maxdepth: 4
+:maxdepth: 2
 
 getstarted/index
 pythonapi/index
+examples/index
 apireference
 ```
 
 ```{toctree}
-:caption: GUIDES
+:caption: INTEGRATIONS
 :maxdepth: 2
 
 
 carlasim
 ```
 
-```{toctree}
-:caption: Python SDK Library
-:maxdepth: 2
+<!-- ```{toctree} -->
+<!-- :caption: Python SDK Library -->
+<!-- :maxdepth: 2 -->
 
-modules/modules
-```
+<!-- modules/modules -->
+<!-- ``` -->
 
 
 ```{eval-rst}
@@ -61,4 +62,3 @@ REFERENCES
 * :ref:`modindex`
 * :ref:`search`
 ```
-

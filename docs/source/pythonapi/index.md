@@ -4,10 +4,11 @@
 ```{toctree}
 :maxdepth: 1
 
-initialize
-drive
-availablemaps
-getmap
+sdk-drive
+sdk-initialize
+sdk-available-locations
+sdk-location-info
+sdk-dataclasses
 ```
 
 
