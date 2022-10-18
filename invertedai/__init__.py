@@ -1,4 +1,6 @@
 import os
+from distutils.util import strtobool
+
 from dotenv import load_dotenv
 from invertedai.api_resources import (
     drive,
@@ -20,6 +22,11 @@ logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log
 
 session = Session(api_key)
 add_apikey = session.add_apikey
+use_mock_api = session.use_mock_api
+
+if strtobool(os.environ.get("IAI_MOCK_API", "false")):
+    use_mock_api()
+
 model_resources = {
     "initialize": ("get", "/initialize"),
     "drive": ("post", "/drive"),

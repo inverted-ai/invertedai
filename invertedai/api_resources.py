@@ -35,9 +35,7 @@ from invertedai.models import (
 
 TIMEOUT = 10
 
-mock_api = strtobool(os.environ.get("IAI_MOCK_API", "false"))
-if mock_api:
-    print('Using mock Inverted AI API - predictions will be trivial')  # TODO: replace with a suitable logger
+mock_api = False
 
 
 def location_info(
