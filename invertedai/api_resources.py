@@ -295,11 +295,10 @@ def drive(
                 agent_states=[AgentState(*state) for state in response["agent_states"]],
                 recurrent_states=response["recurrent_states"],
                 bird_view=response["bird_view"],
-                infractions=InfractionIndicators(
-                    collisions=response["collision"],
-                    offroad=response["offroad"],
-                    wrong_way=response["wrong_way"],
-                ),
+                infractions=[
+                    InfractionIndicators(*infractions)
+                    for infractions in response["infraction_indicators"]
+                ],
                 is_inside_supported_area=response["is_inside_supported_area"],
             )
 
