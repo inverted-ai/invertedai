@@ -19,8 +19,8 @@ class Simulation:
             ego_agent_mask: Optional[List[bool]] = None,
     ):
         self._location = location
-        self._agent_count = agent_count
         response = initialize(location=location, agent_count=agent_count)
+        self._agent_count = len(response.agent_sizes)  # initialize may produce different agent count
         self._agent_attributes = response.agent_sizes
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
