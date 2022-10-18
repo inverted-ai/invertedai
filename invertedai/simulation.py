@@ -14,7 +14,8 @@ class Simulation:
             location: str = "CARLA:Town03:Roundabout",
             agent_count: int = 1,
             # some further configuration options
-            monitor_infractions:bool = False,
+            monitor_infractions: bool = False,
+            render_birdview: bool = False,
             ego_agent_mask: Optional[List[bool]] = None,
     ):
         self._location = location
@@ -26,6 +27,8 @@ class Simulation:
         # etc.
         self._monitor_infractions = monitor_infractions
         self._infractions = None
+        self._render_birdview = render_birdview
+        self._birdview = None
         if ego_agent_mask is None:
             self._ego_agent_mask = [False] * self.agent_count
         else:
@@ -52,6 +55,14 @@ class Simulation:
     def ego_agent_mask(self, value):
         self.ego_agent_mask = value
 
+    @property
+    def infractions(self):
+        return self._infractions
+
+    @property
+    def birdview(self):
+        return self._birdview
+
     def npc_states(self):
         """
         Returns the predicted states of NPCs (non-ego agents) only in order.
@@ -72,12 +83,15 @@ class Simulation:
         response = drive(
             location=self.location, agent_sizes=self._agent_attributes,
             agent_states=self.agent_states, recurrent_states=self._recurrent_states,
-            get_infractions=self._monitor_infractions
+            get_infractions=self._monitor_infractions, get_birdviews=self._render_birdview,
         )
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
         if self._monitor_infractions:
-            self._infractions = response.infraction  # TODO: package infractions in dataclass
+            # TODO: package infractions in dataclass
+            self._infractions = (response.collision, response.offroad, response.wrong_way)
+        if self._render_birdview:
+            self._birdview = response.bird_view
         self._time_step += 1
 
     def _update_ego_states(self, ego_agent_states):
