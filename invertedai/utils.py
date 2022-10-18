@@ -67,7 +67,9 @@ class Session:
             result.raise_for_status()
         except requests.exceptions.RequestException as e:
             if e.response.status_code == 403:
-                raise error.APIConnectionError("Connection forbidden. Please check the provided API key.")
+                raise error.APIConnectionError(
+                    "Connection forbidden. Please check the provided API key."
+                )
             elif e.response.status_code in [400, 422]:
                 raise e
             else:

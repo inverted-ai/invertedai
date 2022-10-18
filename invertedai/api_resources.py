@@ -144,32 +144,23 @@ def initialize(
     >>> response = iai.initialize(location="iai:ubc_roundabout", agent_count=10)
     """
 
+    model_inputs = dict(
+        location=location,
+        num_agents_to_spawn=agent_count,
+        states_history=states_history
+        if states_history is None
+        else [state.tolist() for state in states_history],
+        agent_attributes=agent_attributes
+        if agent_attributes is None
+        else [state.tolist() for state in agent_attributes],
+        traffic_light_state_history=traffic_light_state_history,
+        random_seed=random_seed,
+    )
     start = time.time()
     timeout = TIMEOUT
-
     while True:
         try:
-            include_recurrent_states = (
-                False if location.split(":")[0] == "huawei" else True
-            )
-            params = {
-                "location": location,
-                "num_agents_to_spawn": agent_count,
-                "include_recurrent_states": include_recurrent_states,
-            }
-            model_inputs = dict(
-                states_history=states_history
-                if states_history is None
-                else [state.tolist() for state in states_history],
-                agent_attributes=agent_attributes
-                if agent_attributes is None
-                else [state.tolist() for state in agent_attributes],
-                traffic_light_state_history=traffic_light_state_history,
-                random_seed=random_seed,
-            )
-            initial_states = iai.session.request(
-                model="initialize", params=params, data=model_inputs
-            )
+            initial_states = iai.session.request(model="initialize", data=model_inputs)
             agents_spawned = len(initial_states["agent_states"])
             if agents_spawned != agent_count:
                 iai.logger.warning(
@@ -197,9 +188,7 @@ def drive(
     agent_states: List[AgentState] = [],
     agent_attributes: List[AgentAttributes] = [],
     recurrent_states: List[RecurrentState] = [],
-    traffic_lights_states: Optional[
-        Dict[TrafficLightId, TrafficLightState]
-    ] = None,
+    traffic_lights_states: Optional[Dict[TrafficLightId, TrafficLightState]] = None,
     get_birdviews: bool = False,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
@@ -283,7 +272,6 @@ def drive(
         get_infractions=get_infractions,
         random_seed=random_seed,
     )
-
     start = time.time()
     timeout = TIMEOUT
 
