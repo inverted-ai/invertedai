@@ -41,5 +41,6 @@ __all__ = [
     "logger",
     "session",
     "add_apikey",
+    "use_mock_api",
     "location_info",
 ]

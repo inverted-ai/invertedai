@@ -26,7 +26,7 @@ if api_key:
     iai.add_apikey(api_key)
 else:
     print("Running mock API - specify IAI_API_KEY to obtain real results")
-    iai.session.use_mock_api()
+    iai.use_mock_api()
 
 response = iai.location_info(location=args.location)
 
