@@ -8,7 +8,7 @@ Inverted AI provides the {ref}`INITIALIZE`, a state-of-the-art model trained wit
 generates initial conditions (position and speed) for all the agents including the ego vehicle
 ```python
 response = iai.initialize(
-    location="CARLA:Town03:Roundabout",
+    location="iai:ubc_roundabout",
     agent_count=10,
 )
 ```

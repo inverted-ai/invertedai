@@ -21,19 +21,17 @@ iai.add_apikey("XXXXXXXXXXXXXX")
 Initialize the agents:
 ```python
 response = iai.initialize(
-    location="CARLA:Town03:Roundabout",
+    location="iai:ubc_roundabout",
     agent_count=10,
 )
 ```
 Drive the agents:
 ```python
 response = iai.drive(
-    location="CARLA:Town03:Roundabout",
-    agent_attributes=response["attributes"],
-    states=response["states"],
-    recurrent_states=response["recurrent_states"],
-    traffic_states_id=response["traffic_states_id"],
-    steps=1,
+    location="iai:ubc_roundabout",
+    agent_attributes=agent_attributes,
+    agent_states=response.agent_states,
+    recurrent_states=response.recurrent_states,
     get_birdviews=True,
     get_infractions=True,
 )

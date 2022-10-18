@@ -18,7 +18,7 @@ import invertedai as iai
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default="")
-parser.add_argument("--location", type=str, default="CARLA:Town03:Roundabout")
+parser.add_argument("--location", type=str, default="iai:ubc_roundabout")
 args = parser.parse_args()
 
 api_key = args.api_key or os.environ.get('IAI_API_KEY', None)
@@ -28,20 +28,18 @@ else:
     print("Running mock API - specify IAI_API_KEY to obtain real results")
     iai.session.use_mock_api()
 
-# response = iai.available_locations("carla", "roundabout")
 response = iai.location_info(location=args.location)
 
 file_name = args.location.replace(":", "_")
-if response.lanelet_map_source is not None:
+if response.osm_map is not None:
     file_path = f"{file_name}.osm"
     with open(file_path, "w") as f:
-        f.write(response.lanelet_map_source)
-if response.rendered_map is not None:
+        f.write(response.osm_map[0])
+if response.birdview_image is not None:
     file_path = f"{file_name}.jpg"
-    rendered_map = np.array(response.rendered_map, dtype=np.uint8)
+    rendered_map = np.array(response.birdview_image, dtype=np.uint8)
     image = cv2.imdecode(rendered_map, cv2.IMREAD_COLOR)
     cv2.imwrite(file_path, image)
-
 response = iai.initialize(
     location=args.location,
     agent_count=10,

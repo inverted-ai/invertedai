@@ -4,7 +4,7 @@
 This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **{ref}`INITIALIZE`**) or with multiple past observations.
 ```python
 response = iai.drive(
-    location="CARLA:Town03:Roundabout",
+    location="iai:ubc_roundabout",
     agent_attributes=response["attributes"],
     states=response["states"],
     recurrent_states=response["recurrent_states"],
