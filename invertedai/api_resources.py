@@ -23,61 +23,20 @@ from invertedai.models import (
     TrafficLightId,
     TrafficLightState,
     InfractionIndicators,
+    StaticMapActors,
+    RecurrentStates,
+    TrafficLightStates,
 )
 
 TIMEOUT = 10
 
 
-def available_locations(*args: str) -> List[str]:
-    """
-    Searching the available locations using the provided keywords as *args
-
-    Parameters
-    ----------
-    *args : str
-        Variable length of keywords.
-        Provide up to three strings.
-
-    Returns
-    -------
-    response : List[str]
-        A list of "available locations" to your account (api-key)
-
-    See Also
-    --------
-    invertedai.location_info
-
-    Notes
-    -----
-
-    Examples
-    --------
-    >>> import invertedai as iai
-    >>> iai.available_locations("carla", "roundabout")
-    ["CARLA:Town03:Roundabout"]
-    """
-    start = time.time()
-    timeout = TIMEOUT
-    keywords = "+".join(list(args))
-    while True:
-        try:
-            params = {
-                "keywords": keywords,
-            }
-            response = iai.session.request(model="available_locations", params=params)
-            return response
-        except TryAgain as e:
-            if timeout is not None and time.time() > start + timeout:
-                raise e
-            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
-
-
 def location_info(
-    location: str = "CARLA:Town03:Roundabout", include_map_source: bool = True
+    location: str = "iai:ubc_roundabout", include_map_source: bool = True
 ) -> LocationResponse:
     """
-    Providing map information, i.e., rendered image, map in OSM format,
-    dictionary of static agents (traffic lights and traffic signs).
+    Providing map information, i.e., rendered Bird's-eye view image, map in OSM format,
+    list of static agents (traffic lights and traffic signs).
 
     Parameters
     ----------
@@ -94,7 +53,7 @@ def location_info(
 
     See Also
     --------
-    invertedai.available_locations
+    invertedai.initialize
 
     Notes
     -----
@@ -103,13 +62,13 @@ def location_info(
     --------
     >>> import invertedai as iai
     >>> response = iai.location_info(location="")
-    >>> if response["lanelet_map_source"] is not None:
-    >>>     file_path = "map.osm"
+    >>> if response.osm_map is not None:
+    >>>     file_path = f"{file_name}.osm"
     >>>     with open(file_path, "w") as f:
-    >>>         f.write(response["lanelet_map_source"])
-    >>> if response["rendered_map"] is not None:
-    >>>     file_path = "map.jpg"
-    >>>     rendered_map = np.array(response["rendered_map"], dtype=np.uint8)
+    >>>         f.write(response.osm_map[0])
+    >>> if response.birdview_image is not None:
+    >>>     file_path = f"{file_name}.jpg"
+    >>>     rendered_map = np.array(response.birdview_image, dtype=np.uint8)
     >>>     image = cv2.imdecode(rendered_map, cv2.IMREAD_COLOR)
     >>>     cv2.imwrite(file_path, image)
     """
@@ -121,6 +80,10 @@ def location_info(
     while True:
         try:
             response = iai.session.request(model="location_info", params=params)
+            if response["static_actors"] is not None:
+                response["static_actors"] = [
+                    StaticMapActors(**actor) for actor in response["static_actors"]
+                ]
             return LocationResponse(**response)
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
@@ -129,13 +92,11 @@ def location_info(
 
 
 def initialize(
-    location="CARLA:Town03:Roundabout",
-    agent_count=1,
+    location: str = "iai:ubc_roundabout",
+    agent_count: int = 1,
     agent_attributes: List[AgentAttributes] = [],
     states_history: Optional[List[List[AgentState]]] = [],
-    traffic_light_state_history: Optional[
-        List[Dict[TrafficLightId, TrafficLightState]]
-    ] = [],
+    traffic_light_state_history: Optional[TrafficLightStates] = None,
 ) -> InitializeResponse:
     """
     Parameters
@@ -143,11 +104,11 @@ def initialize(
     location : str
         Name of the location.
 
-    agent_attributes : List[AgentAttributes]
-        List of agent attributes
-
     agent_count : int
         Number of cars to spawn on the map
+
+    agent_attributes : List[AgentAttributes]
+        List of agent attributes
 
     states_history: [List[List[AgentState]]]
        History of agent states
@@ -169,7 +130,7 @@ def initialize(
     Examples
     --------
     >>> import invertedai as iai
-    >>> response = iai.initialize(location="CARLA:Town03:Roundabout", agent_count=10)
+    >>> response = iai.initialize(location="iai:ubc_roundabout", agent_count=10)
     """
 
     start = time.time()
@@ -209,14 +170,13 @@ def initialize(
 
 
 def drive(
-    location: str = "CARLA:Town03:Roundabout",
+    location: str = "iai:ubc_roundabout",
     agent_states: List[AgentState] = [],
     agent_attributes: List[AgentAttributes] = [],
-    recurrent_states: Optional[List] = None,
+    recurrent_states: Optional[RecurrentStates] = None,
     get_birdviews: bool = False,
     get_infractions: bool = False,
-    exclude_ego_agent: bool = True,
-    present_mask: Optional[List] = None,
+    traffic_lights_states: Optional[TrafficLightStates] = None,
 ) -> DriveResponse:
     """
     Parameters
@@ -240,11 +200,8 @@ def drive(
         If True, 'collision', 'offroad', 'wrong_way' infractions of each agent
         is returned.
 
-    present_mask: Optional[List] = None
-        A list of booleans of size A (number of agents), which is false when
-        an agent has crossed the boundary of the map.
-        Set to None, or use "present_mask" returned by previous calls to DRIVE.
-
+    traffic_light_state_history: Optional[List[TrafficLightStates]]
+       Traffic light states
 
     Returns
     -------
@@ -260,14 +217,16 @@ def drive(
     Examples
     --------
     >>> import invertedai as iai
-    >>> response = iai.drive(
-            location="CARLA:Town03:Roundabout",
-            agent_attributes=response["attributes"],
-            states=response["states"],
-            recurrent_states=response["recurrent_states"],
-            traffic_states_id=response["traffic_states_id"],
-            get_birdviews=True,
-            get_infractions=True,)
+    >>> response = iai.initialize(location="iai:ubc_roundabout", agent_count=10)
+    >>> agent_attributes = response.agent_attributes
+    >>> for _ in range(10):
+    >>>     response = iai.drive(
+                location="iai:ubc_roundabout",
+                agent_attributes=agent_attributes,
+                agent_states=response.agent_states,
+                recurrent_states=response.recurrent_states,
+                get_birdviews=True,
+                get_infractions=True,)
     """
 
     def _tolist(input_data: List):
@@ -284,11 +243,9 @@ def drive(
         agent_states=[state.tolist() for state in agent_states],
         agent_attributes=[state.tolist() for state in agent_attributes],
         recurrent_states=recurrent_states,
-        # Expand from A to AxT_total for the API interface
+        traffic_lights_states=traffic_lights_states,
         get_birdviews=get_birdviews,
         get_infractions=get_infractions,
-        exclude_ego_agent=exclude_ego_agent,
-        present_mask=present_mask,
     )
 
     start = time.time()

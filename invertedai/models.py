@@ -1,22 +1,36 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Literal
 from enum import Enum
 
 RecurrentStates = List[float]  # Recurrent Dim
 TrafficLightId = str
+Point = Tuple[float, float]
+Origin = Tuple[
+    float, float
+]  # lat/lon of the origin point use to project the OSM map to UTM
+Map = Tuple[str, Origin]  # serialized OSM file and the associated origin point
+Image = List[int]  # Map birdview  encoded in JPEG format
+# (for decoding use a JPEG decoder
+# such as cv2.imdecode(birdview_image: Image, cv2.IMREAD_COLOR) ).
 
 
 class TrafficLightState(Enum):
-    none = "none"
-    green = "green"
-    yellow = "yellow"
-    red = "red"
+    none = "0"
+    green = "1"
+    yellow = "2"
+    red = "3"
 
 
 @dataclass
 class Location:
     name: str
     version: Optional[str]
+
+    def __str__(self):
+        if self.version is not None:
+            return f"{self.name}:{self.version}"
+        else:
+            return f"{self.name}"
 
 
 @dataclass
@@ -56,9 +70,9 @@ class InfractionIndicators:
 @dataclass
 class DriveResponse:
     agent_states: List[AgentState]
-    present_mask: List[float]  # A
+    present_mask: List[bool]  # A
     recurrent_states: List[RecurrentStates]  # Ax2x64
-    bird_view: List[int]
+    bird_view: Optional[Image]
     infractions: Optional[InfractionIndicators]
 
 
@@ -70,34 +84,24 @@ class InitializeResponse:
 
 
 @dataclass
+class StaticMapActors:
+    track_id: int
+    agent_type: Literal["traffic-light", "stop-sign"]
+    x: float
+    y: float
+    psi_rad: float
+    length: float
+    width: float
+
+
+@dataclass
 class LocationResponse:
-    """
-    rendered_map : List[int]
-        Rendered image of the amp encoded in JPEG format
-        (for decoding use JPEG decoder
-        e.g., cv2.imdecode(response["rendered_map"], cv2.IMREAD_COLOR) ).
-
-    lanelet_map_source : str
-        Serialized XML file of the OSM map.
-        save the map by write(response["lanelet_map_source"])
-    static_actors : List[Dict]
-        A list of static actors of the location, i.e, traffic signs and lights
-            <track_id> : int
-                    A unique ID of the actor, used to track and change state of the actor
-            <agent_type> : str
-                Type of the agent, either "traffic-light", or "stop-sign"
-            <x> : float
-                The x coordinate of the agent on the map
-            <y> : float
-                The y coordinate of the agent on the map
-            <psi_rad> : float
-                The orientation of the agent
-            <length> : float
-                The length of the actor
-            <width> : float
-                The width of the actor
-    """
-
-    rendered_map: List[int]
-    lanelet_map_source: Optional[str]
-    static_actors: Optional[List[Dict]]
+    version: str
+    max_agent_number: int
+    birdview_image: Image
+    bounding_polygon: Optional[
+        List[Point]
+    ]  # “inner” polygon – the map may extend beyond this
+    # birdview_image:
+    osm_map: Optional[Map]
+    static_actors: Optional[List[StaticMapActors]]

@@ -4,7 +4,6 @@ from invertedai.api_resources import (
     drive,
     initialize,
     location_info,
-    available_locations,
 )
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
@@ -27,16 +26,6 @@ model_resources = {
     "location_info": ("get", "/location_info"),
     "available_locations": ("get", "/available_locations"),
 }
-try:
-    from invertedai.simulators import CarlaEnv, CarlaSimulationConfig
-except:
-    logger.warning(
-        "Cannot import CarlaEnv\n"
-        + "Carla Python API is not installed\n"
-        + "Ignore these warnings if you are not running Carla"
-    )
-
-
 __all__ = [
     "drive",
     "initialize",
@@ -46,5 +35,4 @@ __all__ = [
     "session",
     "add_apikey",
     "location_info",
-    "available_locations",
 ]
