@@ -300,7 +300,7 @@ def drive(
                     offroad=response["offroad"],
                     wrong_way=response["wrong_way"],
                 ),
-                present_mask=response["present_mask"],
+                is_inside_supported_area=response["is_inside_supported_area"],
             )
 
             return response

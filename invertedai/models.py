@@ -73,7 +73,7 @@ class DriveResponse:
     recurrent_states: List[RecurrentStates]  # Ax2x64
     bird_view: Optional[Image]
     infractions: Optional[List[InfractionIndicators]]
-    present_mask: List[bool]  # A
+    is_inside_supported_area: List[bool]  # A
 
 
 @dataclass
