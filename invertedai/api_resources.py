@@ -173,7 +173,7 @@ def drive(
     location: str = "iai:ubc_roundabout",
     agent_states: List[AgentState] = [],
     agent_attributes: List[AgentAttributes] = [],
-    recurrent_states: Optional[RecurrentStates] = None,
+    recurrent_states: RecurrentStates = [],
     get_birdviews: bool = False,
     get_infractions: bool = False,
     traffic_lights_states: Optional[TrafficLightStates] = None,
