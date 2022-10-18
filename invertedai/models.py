@@ -22,18 +22,6 @@ class TrafficLightState(Enum):
 
 
 @dataclass
-class Location:
-    name: str
-    version: Optional[str]
-
-    def __str__(self):
-        if self.version is not None:
-            return f"{self.name}:{self.version}"
-        else:
-            return f"{self.name}"
-
-
-@dataclass
 class AgentAttributes:
     length: float
     width: float
@@ -52,12 +40,6 @@ class AgentState:
 
     def tolist(self):
         return [self.x, self.y, self.orientation, self.speed]
-
-
-@dataclass
-class TrafficLightStates:
-    id: str
-    states: List[TrafficLightState]
 
 
 @dataclass
