@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Literal
 from enum import Enum
 
-RecurrentStates = List[float]  # Recurrent Dim
+RecurrentState = List[float]  # Recurrent Dim
 TrafficLightId = int
 Point = Tuple[float, float]
 Origin = Tuple[
@@ -19,18 +19,6 @@ class TrafficLightState(Enum):
     green = "1"
     yellow = "2"
     red = "3"
-
-
-@dataclass
-class Location:
-    name: str
-    version: Optional[str]
-
-    def __str__(self):
-        if self.version is not None:
-            return f"{self.name}:{self.version}"
-        else:
-            return f"{self.name}"
 
 
 @dataclass
@@ -55,12 +43,6 @@ class AgentState:
 
 
 @dataclass
-class TrafficLightStates:
-    id: str
-    states: List[TrafficLightState]
-
-
-@dataclass
 class InfractionIndicators:
     collisions: bool
     offroad: bool
@@ -70,7 +52,7 @@ class InfractionIndicators:
 @dataclass
 class DriveResponse:
     agent_states: List[AgentState]
-    recurrent_states: List[RecurrentStates]  # Ax2x64
+    recurrent_states: List[RecurrentState]  # Ax2x64
     bird_view: Optional[Image]
     infractions: Optional[List[InfractionIndicators]]
     is_inside_supported_area: List[bool]  # A
@@ -78,7 +60,7 @@ class DriveResponse:
 
 @dataclass
 class InitializeResponse:
-    recurrent_states: List[RecurrentStates]
+    recurrent_states: List[RecurrentState]
     agent_states: List[AgentState]
     agent_attributes: List[AgentAttributes]
 
