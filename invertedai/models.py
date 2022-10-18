@@ -89,7 +89,7 @@ class StaticMapActor:
     agent_type: Literal["traffic-light"]  # Kept for possible changes in the future
     x: float
     y: float
-    psi_rad: float
+    orientation: float
     length: float
     width: float
 
