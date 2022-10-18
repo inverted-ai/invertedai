@@ -3,15 +3,15 @@ from typing import List, Optional, Tuple, Dict, Literal
 from enum import Enum
 
 RecurrentStates = List[float]  # Recurrent Dim
-TrafficLightId = str
+TrafficLightId = int
 Point = Tuple[float, float]
 Origin = Tuple[
     float, float
 ]  # lat/lon of the origin point use to project the OSM map to UTM
-Map = Tuple[str, Origin]  # serialized OSM file and the associated origin point
-Image = List[int]  # Map birdview  encoded in JPEG format
-# (for decoding use a JPEG decoder
-# such as cv2.imdecode(birdview_image: Image, cv2.IMREAD_COLOR) ).
+Map = Tuple[str, Origin]  # Serialized OSM file and the associated origin point
+Image = List[int]  # Images  encoded in JPEG format
+# for decoding use a JPEG decoder
+# such as cv2.imdecode(birdview_image: Image, cv2.IMREAD_COLOR).
 
 
 class TrafficLightState(Enum):
@@ -62,31 +62,31 @@ class TrafficLightStates:
 
 @dataclass
 class InfractionIndicators:
-    collisions: List[bool]
-    offroad: List[bool]
-    wrong_way: List[bool]
+    collisions: bool
+    offroad: bool
+    wrong_way: bool
 
 
 @dataclass
 class DriveResponse:
     agent_states: List[AgentState]
-    present_mask: List[bool]  # A
     recurrent_states: List[RecurrentStates]  # Ax2x64
     bird_view: Optional[Image]
-    infractions: Optional[InfractionIndicators]
+    infractions: Optional[List[InfractionIndicators]]
+    present_mask: List[bool]  # A
 
 
 @dataclass
 class InitializeResponse:
+    recurrent_states: List[RecurrentStates]
     agent_states: List[AgentState]
     agent_attributes: List[AgentAttributes]
-    recurrent_states: List[RecurrentStates]
 
 
 @dataclass
-class StaticMapActors:
+class StaticMapActor:
     track_id: int
-    agent_type: Literal["traffic-light", "stop-sign"]
+    agent_type: Literal["traffic-light"]  # Kept for possible changes in the future
     x: float
     y: float
     psi_rad: float
@@ -98,10 +98,9 @@ class StaticMapActors:
 class LocationResponse:
     version: str
     max_agent_number: int
-    birdview_image: Image
     bounding_polygon: Optional[
         List[Point]
     ]  # “inner” polygon – the map may extend beyond this
-    # birdview_image:
+    birdview_image: Image
     osm_map: Optional[Map]
-    static_actors: Optional[List[StaticMapActors]]
+    static_actors: List[StaticMapActor]

@@ -52,9 +52,9 @@ for i in pbar:
         get_infractions=True,
     )
     pbar.set_description(
-        f"Collision rate: {100*np.array(response.infractions.collisions)[-1, :].mean():.2f}% | "
-        + f"Off-road rate: {100*np.array(response.infractions.offroad)[-1, :].mean():.2f}% | "
-        + f"Wrong-way rate: {100*np.array(response.infractions.wrong_way)[-1, :].mean():.2f}%"
+        f"Collision rate: {100*np.array(response.infractions.collisions).mean():.2f}% | "
+        + f"Off-road rate: {100*np.array(response.infractions.offroad).mean():.2f}% | "
+        + f"Wrong-way rate: {100*np.array(response.infractions.wrong_way).mean():.2f}%"
     )
 
     birdview = np.array(response.bird_view, dtype=np.uint8)
