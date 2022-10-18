@@ -25,12 +25,11 @@ from invertedai.models import (
     DriveResponse,
     AgentState,
     AgentAttributes,
+    InfractionIndicators,
+    StaticMapActor,
+    RecurrentState,
     TrafficLightId,
     TrafficLightState,
-    InfractionIndicators,
-    StaticMapActors,
-    RecurrentStates,
-    TrafficLightStates,
 )
 
 TIMEOUT = 10
@@ -39,11 +38,11 @@ mock_api = False
 
 
 def location_info(
-    location: str = "iai:ubc_roundabout", include_map_source: bool = True
+    location: str = "iai:ubc_roundabout", include_map_source: bool = False
 ) -> LocationResponse:
     """
-    Providing map information, i.e., rendered Bird's-eye view image, map in OSM format,
-    list of static agents (traffic lights and traffic signs).
+    Providing map information, i.e., rendered bird's-eye view image, map in OSM format,
+    list of static agents (traffic lights).
 
     Parameters
     ----------
@@ -93,7 +92,7 @@ def location_info(
             response = iai.session.request(model="location_info", params=params)
             if response["static_actors"] is not None:
                 response["static_actors"] = [
-                    StaticMapActors(**actor) for actor in response["static_actors"]
+                    StaticMapActor(**actor) for actor in response["static_actors"]
                 ]
             return LocationResponse(**response)
         except TryAgain as e:
@@ -104,10 +103,13 @@ def location_info(
 
 def initialize(
     location: str = "iai:ubc_roundabout",
-    agent_count: Optional[int] = None,
     agent_attributes: Optional[List[AgentAttributes]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
-    traffic_light_state_history: Optional[TrafficLightStates] = None,
+    traffic_light_state_history: Optional[
+        List[Dict[TrafficLightId, TrafficLightState]]
+    ] = None,
+    agent_count: Optional[int] = None,
+    random_seed: Optional[int] = None,
 ) -> InitializeResponse:
     """
     Parameters
@@ -115,17 +117,26 @@ def initialize(
     location : str
         Name of the location.
 
-    agent_count : int
-        Number of cars to spawn on the map
+    agent_attributes : Optional[List[AgentAttributes]]
+        List of agent attributes. Each agent requires, length: [float]
+        width: [float] and rear_axis_offset: [float] all in meters.
 
-    agent_attributes : List[AgentAttributes]
-        List of agent attributes
-
-    states_history: [List[List[AgentState]]]
-       History of agent states
+    states_history: Optional[[List[List[AgentState]]]]
+       History of list of agent states. Each agent state must include x: [float],
+       y: [float] corrdinate in meters orientation: [float] in radians with 0
+       pointing along x and pi/2 pointing along y and speed: [float] in m/s.
 
     traffic_light_state_history: Optional[List[Dict[TrafficLightId, TrafficLightState]]]
-       History of traffic light states
+       History of traffic light states.
+
+    agent_count : Optional[int]
+        Number of cars to spawn on the map.
+
+    random_seed: Optional[int]
+        This parameter controls the stochastic behavior of INITIALIZE. With the
+        same seed and the same inputs, the outputs will be approximately the same
+        with high accuracy.
+
 
     Returns
     -------
@@ -170,7 +181,19 @@ def initialize(
                 "num_agents_to_spawn": agent_count,
                 "include_recurrent_states": include_recurrent_states,
             }
-            initial_states = iai.session.request(model="initialize", params=params)
+            model_inputs = dict(
+                states_history=states_history
+                if states_history is None
+                else [state.tolist() for state in states_history],
+                agent_attributes=agent_attributes
+                if agent_attributes is None
+                else [state.tolist() for state in agent_attributes],
+                traffic_light_state_history=traffic_light_state_history,
+                random_seed=random_seed,
+            )
+            initial_states = iai.session.request(
+                model="initialize", params=params, data=model_inputs
+            )
             agents_spawned = len(initial_states["agent_states"])
             if agents_spawned != agent_count:
                 iai.logger.warning(
@@ -197,10 +220,13 @@ def drive(
     location: str = "iai:ubc_roundabout",
     agent_states: List[AgentState] = [],
     agent_attributes: List[AgentAttributes] = [],
-    recurrent_states: RecurrentStates = [],
+    recurrent_states: List[RecurrentState] = [],
+    traffic_lights_states: Optional[
+        Dict[TrafficLightId, TrafficLightState]
+    ] = None,
     get_birdviews: bool = False,
     get_infractions: bool = False,
-    traffic_lights_states: Optional[TrafficLightStates] = None,
+    random_seed: Optional[int] = None,
 ) -> DriveResponse:
     """
     Parameters
@@ -209,23 +235,32 @@ def drive(
         Name of the location.
 
     agent_states : List[AgentState]
-        List of agent states.
+        List of agent states. The state must include x: [float], y: [float] corrdinate in meters
+        orientation: [float] in radians with 0 pointing along x and pi/2 pointing along y and
+        speed: [float] in m/s.
 
     agent_attributes : List[AgentAttributes]
-        List of agent attributes
+        List of agent attributes. Each agent requires, length: [float]
+        width: [float] and rear_axis_offset: [float] all in meters.
 
-    recurrent_states : List[RecurrentStates]
-        Internal simulation state
+    recurrent_states : List[RecurrentState]
+        Internal simulation state obtained from previous calls to DRIVE or INITIZLIZE.
 
     get_birdviews: bool = False
-        If True, a rendered bird's-eye view of the map with agents is returned
+        If True, a rendered bird's-eye view of the map with agents is returned.
 
     get_infractions: bool = False
         If True, 'collision', 'offroad', 'wrong_way' infractions of each agent
-        is returned.
+        are returned.
 
-    traffic_light_state_history: Optional[List[TrafficLightStates]]
-       Traffic light states
+    traffic_light_state_history: Optional[Dict[TrafficLightId, List[TrafficLightState]]]
+       Traffic light states.
+
+    random_seed: Optional[int]
+        This parameter controls the stochastic behavior of DRIVE. With the
+        same seed and the same inputs, the outputs will be approximately the same
+        with high accuracy.
+
 
     Returns
     -------
@@ -281,6 +316,7 @@ def drive(
         traffic_lights_states=traffic_lights_states,
         get_birdviews=get_birdviews,
         get_infractions=get_infractions,
+        random_seed=random_seed,
     )
 
     start = time.time()
@@ -290,19 +326,18 @@ def drive(
         try:
             response = iai.session.request(model="drive", data=model_inputs)
 
-            out = DriveResponse(
+            response = DriveResponse(
                 agent_states=[AgentState(*state) for state in response["agent_states"]],
                 recurrent_states=response["recurrent_states"],
                 bird_view=response["bird_view"],
-                infractions=InfractionIndicators(
-                    collisions=response["collision"],
-                    offroad=response["offroad"],
-                    wrong_way=response["wrong_way"],
-                ),
-                present_mask=response["present_mask"],
+                infractions=[
+                    InfractionIndicators(*infractions)
+                    for infractions in response["infraction_indicators"]
+                ],
+                is_inside_supported_area=response["is_inside_supported_area"],
             )
 
-            return out
+            return response
         except Exception as e:
             iai.logger.warning("Retrying")
             if timeout is not None and time.time() > start + timeout:
