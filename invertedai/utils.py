@@ -4,7 +4,7 @@ import re
 from typing import Dict, Optional
 from requests.auth import AuthBase
 import invertedai as iai
-from invertedai import error
+from invertedai import error, api_resources
 import logging
 
 TIMEOUT_SECS = 600
@@ -32,6 +32,9 @@ class Session:
         if not iai.dev and not api_token:
             raise error.InvalidAPIKeyError("Empty API key received.")
         self.session.auth = APITokenAuth(api_token)
+
+    def use_mock_api(self, use_mock: bool = True) -> None:
+        api_resources.mock_api = use_mock
 
     def request(
         self, model: str, params: Optional[dict] = None, data: Optional[dict] = None

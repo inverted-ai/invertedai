@@ -21,9 +21,14 @@ parser.add_argument("--api_key", type=str, default="")
 parser.add_argument("--location", type=str, default="CARLA:Town03:Roundabout")
 args = parser.parse_args()
 
-iai.add_apikey("")
+api_key = args.api_key or os.environ.get('IAI_API_KEY', None)
+if api_key:
+    iai.add_apikey(api_key)
+else:
+    print("Running mock API - specify IAI_API_KEY to obtain real results")
+    iai.session.use_mock_api()
 
-response = iai.available_locations("carla", "roundabout")
+# response = iai.available_locations("carla", "roundabout")
 response = iai.location_info(location=args.location)
 
 file_name = args.location.replace(":", "_")
@@ -40,6 +45,7 @@ if response.rendered_map is not None:
 response = iai.initialize(
     location=args.location,
     agent_count=10,
+    agent_attributes=None,
 )
 agent_attributes = response.agent_attributes
 frames = []
@@ -54,9 +60,9 @@ for i in pbar:
         get_infractions=True,
     )
     pbar.set_description(
-        f"Collision rate: {100*np.array(response.infractions.collisions)[-1, :].mean():.2f}% | "
-        + f"Off-road rate: {100*np.array(response.infractions.offroad)[-1, :].mean():.2f}% | "
-        + f"Wrong-way rate: {100*np.array(response.infractions.wrong_way)[-1, :].mean():.2f}%"
+        f"Collision rate: {100*np.array(response.infractions.collisions).mean():.2f}% | "
+        + f"Off-road rate: {100*np.array(response.infractions.offroad).mean():.2f}% | "
+        + f"Wrong-way rate: {100*np.array(response.infractions.wrong_way).mean():.2f}%"
     )
 
     birdview = np.array(response.bird_view, dtype=np.uint8)
