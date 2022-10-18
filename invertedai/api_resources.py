@@ -11,6 +11,7 @@ Functions
     initialize
 """
 import os
+from distutils.util import strtobool
 
 from invertedai.error import TryAgain
 from typing import List, Optional, Dict
@@ -34,7 +35,7 @@ from invertedai.models import (
 
 TIMEOUT = 10
 
-mock_api = bool(os.environ.get("IAI_MOCK_API", False))
+mock_api = strtobool(os.environ.get("IAI_MOCK_API", "false"))
 if mock_api:
     print('Using mock Inverted AI API - predictions will be trivial')  # TODO: replace with a suitable logger
 
