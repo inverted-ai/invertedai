@@ -93,9 +93,9 @@ def location_info(
 
 def initialize(
     location: str = "iai:ubc_roundabout",
-    agent_count: int = 1,
-    agent_attributes: List[AgentAttributes] = [],
-    states_history: Optional[List[List[AgentState]]] = [],
+    agent_count: Optional[int] = None,
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[TrafficLightStates] = None,
 ) -> InitializeResponse:
     """
