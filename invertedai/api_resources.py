@@ -83,6 +83,9 @@ def location_info(
                 response["static_actors"] = [
                     StaticMapActor(**actor) for actor in response["static_actors"]
                 ]
+            if response["osm_map"] is not None:
+                response["osm_map"] = (response["osm_map"], response["map_origin"])
+            del response["map_origin"]
             return LocationResponse(**response)
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
