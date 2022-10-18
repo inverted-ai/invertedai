@@ -24,7 +24,6 @@ class Simulation:
         self._agent_attributes = response.agent_sizes
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
-        # etc.
         self._monitor_infractions = monitor_infractions
         self._infractions = None
         self._render_birdview = render_birdview
@@ -67,11 +66,11 @@ class Simulation:
         """
         Returns the predicted states of NPCs (non-ego agents) only in order.
         """
-        ego_states = []
+        npc_states = []
         for (i, s) in self._agent_states:
             if not self._ego_agent_mask[i]:
-                ego_states.append(s)
-        return ego_states
+                npc_states.append(s)
+        return npc_states
 
     def step(self, current_ego_agent_states):
         """
