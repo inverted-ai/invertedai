@@ -36,7 +36,9 @@ class Session:
     def use_mock_api(self, use_mock: bool = True) -> None:
         api_resources.mock_api = use_mock
         if use_mock:
-            print('Using mock Inverted AI API - predictions will be trivial')  # TODO: replace with a suitable logger
+            iai.logger.warning(
+                'Using mock Inverted AI API - predictions will be trivial'
+            )
 
     def request(
         self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
