@@ -198,7 +198,7 @@ def drive(
     agent_attributes: List[AgentAttributes] = [],
     recurrent_states: List[RecurrentState] = [],
     traffic_lights_states: Optional[
-        Dict[TrafficLightId, List[TrafficLightState]]
+        Dict[TrafficLightId, TrafficLightState]
     ] = None,
     get_birdviews: bool = False,
     get_infractions: bool = False,
