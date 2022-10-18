@@ -6,6 +6,7 @@ from invertedai.api_resources import (
     location_info,
     available_locations,
 )
+from invertedai.simulation import Simulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 load_dotenv()
@@ -38,6 +39,7 @@ except:
 
 
 __all__ = [
+    "Simulation",
     "drive",
     "initialize",
     "location_info",
