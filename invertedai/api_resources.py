@@ -22,7 +22,7 @@ from invertedai.models import (
     AgentAttributes,
     InfractionIndicators,
     StaticMapActor,
-    RecurrentStates,
+    RecurrentState,
     TrafficLightId,
     TrafficLightState,
 )
@@ -196,7 +196,7 @@ def drive(
     location: str = "iai:ubc_roundabout",
     agent_states: List[AgentState] = [],
     agent_attributes: List[AgentAttributes] = [],
-    recurrent_states: RecurrentStates = [],
+    recurrent_states: List[RecurrentState] = [],
     traffic_lights_states: Optional[
         Dict[TrafficLightId, List[TrafficLightState]]
     ] = None,
@@ -219,7 +219,7 @@ def drive(
         List of agent attributes. Each agent requires, length: [float]
         width: [float] and rear_axis_offset: [float] all in meters.
 
-    recurrent_states : List[RecurrentStates]
+    recurrent_states : List[RecurrentState]
         Internal simulation state obtained from previous calls to DRIVE or INITIZLIZE.
 
     get_birdviews: bool = False
