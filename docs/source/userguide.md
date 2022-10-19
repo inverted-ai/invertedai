@@ -1,4 +1,4 @@
-## User guide
+# User guide
 
 Inverted AI API provides a service that controls non-playable characters (NPCs) in driving simulations. The two main
 functions are INITIALIZE, called at the beginning of the simulation, and DRIVE, called at each time step. Typically, the
@@ -12,14 +12,14 @@ fashion. In most circumstances, the latency is less than ???, but the API should
 simulation. The underlying technology is based on [ITRA]() and was optimized to handle simulations of up to 30 seconds (
 300 time steps) with up to 100 agents, contained within an area of roughly 300 meters in diameter.
 
-### Programming language support
+## Programming language support
 The core interface is a {ref}`REST API`, that can be called from any programming language. This is a low-level, bare-bones
 access mode that offers maximum flexibility to deploy in any environment.
 For convenience, we also provide a {ref}`Python SDK`, freely available on PyPI with minimal dependencies, which
 provides an abstraction layer on top of the REST API. In the future we intend to release a similar library in C++ and
 potentially other languages.
 
-### Maps and geofencing
+## Maps and geofencing
 The API operates on a pre-defined collection of maps and currently there is no programmatic way to add additional
 locations. For each location there is a map, represented internally in the [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, which specifies
 lanelets, traffic lights, and a selection of static traffic signs (along with their relationship to specific lanelets).
@@ -37,7 +37,7 @@ Note that different API keys may allow access to different locations. For a loca
 access, LOCATION_INFO provides all the relevant information. Please contact us with requests to include additional
 locations.
 
-### Agent types and representations
+## Agent types and representations
 At the moment the API only supports vehicles, but future releases will also support pedestrians, bicycles, etc.. We
 assume that each vehicle is a rigid rectangle with a fixed length and width. The motion of each vehicle is constrained
 by the kinematic bicycle model, which further requires specifying the rear axis offset, that is the distance between the
@@ -52,7 +52,7 @@ corresponding motion could be realized through some action given a particular dy
 recommend teleporting the NPCs to their new positions, since any discrepancies between predicted and realized states for
 NPCs may negatively affect the quality of subsequent predictions.
 
-### Traffic lights and other control signals
+## Traffic lights and other control signals
 Static traffic signals form a part of the map description and influence NPC predictions, but they are not exposed in the
 interface. Traffic light placement, in particular regarding which traffic light applies to which lanelet, forms a part
 of the map as well. Traffic light state changes dynamically and is controlled exclusively by the client when calling the
@@ -61,7 +61,7 @@ from the map, but for convenience we also provide traffic light IDs and the corr
 For maps with traffic lights, the client is responsible for specifying their state on each call to INITIALIZE and DRIVE.
 If no state is provided for any particular light, it will be considered absent.
 
-### Handling agents and NPCs
+## Handling agents and NPCs
 In the API, there is no distinction between agents, controlled by you, and NPCs, controlled by us, so we refer to them
 collectively as agents. In any simulation there can be zero or more characters of either kind. When calling DRIVE, the
 client needs to list all agents in simulation and we predict the next states for all of them. It is up to the client to
@@ -71,7 +71,7 @@ Due to the recurrent nature of ITRA, we generally recommend that the customer is
 the simulation - predictions for agents whose state is updated differently from ITRA predictions may not be as good as
 when ITRA fully controls them.
 
-### Consistent simulation with a stateless API
+## Consistent simulation with a stateless API
 The API is stateless, so each call to DRIVE requires specifying both the static attributes and the dynamic state of each
 agent. However, ITRA is a recurrent model that uses the simulation’s history to make predictions, which we facilitate
 through the stateless API by passing around a recurrent state, which is a vector with unspecified semantics from the
@@ -84,7 +84,7 @@ be provided.
 To simplify the process of passing the recurrent states around, we provide a stateful [Simulator]() wrapper in the
 Python library that handles this internally.
 
-### Entering and exiting simulation
+## Entering and exiting simulation
 In the simple case there is a fixed number of agents present throughout the entire simulation. However, it is also
 possible to dynamically introduce and remove agents, which is typically done when they enter and exit the supported
 area. Removing agents is easy, all it takes is removing the information for a given agent from the lists of agent
@@ -98,13 +98,13 @@ initializes the recurrent state and DRIVE can be called from that point on norma
 should initially be controlled by the client for at least 10 time steps before being handed off to ITRA as an NPC by
 calling INITIALIZE.
 
-### Reproducibility and control over predictions
+## Reproducibility and control over predictions
 INITIALIZE and DRIVE optionally accept a random seed, which controls their stochastic behavior. With the same seed and
 the same inputs, the outputs will be approximately the same with high accuracy.
 Other than for the random seed, there is currently no mechanism to influence the behavior of predicted agents, such as
 by directing them to certain exits or setting their speed, but such mechanisms will be included in future releases.
 
-### Validation and debugging
+## Validation and debugging
 To facilitate development of integration without incurring the costs of API calls, we provide a mock API version that
 returns locally computed simple responses in the correct format. This mock API also performs validation of message
 formats, including checking lengths of lists and bounds for numeric values, and those checks can also be optionally

@@ -1,3 +1,2 @@
-# CARLA Integration
+# CARLA Example
 
-## Carla Env

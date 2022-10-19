@@ -7,9 +7,11 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 import argparse
-from dotenv import load_dotenv
 
-load_dotenv()
+os.environ["IAI_MOCK_API"] = "0"
+os.environ["DEV"] = "1"
+# os.environ["DEV_URL"] = "http://localhost:8888"
+
 if os.environ.get("DEV", False):
     sys.path.append("../")
 import invertedai as iai

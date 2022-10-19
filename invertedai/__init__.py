@@ -1,7 +1,6 @@
 import os
 from distutils.util import strtobool
 
-from dotenv import load_dotenv
 from invertedai.api_resources import (
     drive,
     initialize,
@@ -10,7 +9,6 @@ from invertedai.api_resources import (
 from invertedai.simulation import Simulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
-load_dotenv()
 dev = os.environ.get("DEV", False)
 if dev:
     dev_url = os.environ.get("DEV_URL", "http://localhost:8000")
