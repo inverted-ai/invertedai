@@ -7,10 +7,10 @@ accessed directly. Below are the key functions of the library, along with some c
 ```{toctree}
 :maxdepth: 1
 
-sdk-simulation
 sdk-drive
 sdk-initialize
 sdk-location-info
+sdk-simulation
 sdk-common
 ```
 

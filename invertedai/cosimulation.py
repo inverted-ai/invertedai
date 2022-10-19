@@ -3,7 +3,7 @@ from typing import Optional, List
 from invertedai.api_resources import initialize, drive
 
 
-class Simulation:
+class BasicCosimulation:
     """
     Stateful wrapper around Inverted AI API to simplify co-simulation.
     Typically, it's sufficient to call `ego_agent_states` and `step`.
