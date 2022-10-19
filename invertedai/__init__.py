@@ -9,13 +9,13 @@ from invertedai.api_resources import (
 from invertedai.simulation import Simulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
-dev = os.environ.get("DEV", False)
+dev = os.environ.get("IAI_DEV", False)
 if dev:
-    dev_url = os.environ.get("DEV_URL", "http://localhost:8000")
-log_level = os.environ.get("LOG_LEVEL", "WARNING")
-log_console = os.environ.get("LOG_CONSOLE", 1)
-log_file = os.environ.get("LOG_FILE", 0)
-api_key = os.environ.get("API_KEY", "")
+    dev_url = os.environ.get("IAI_DEV_URL", "http://localhost:8000")
+log_level = os.environ.get("IAI_LOG_LEVEL", "WARNING")
+log_console = os.environ.get("IAI_LOG_CONSOLE", 1)
+log_file = os.environ.get("IAI_LOG_FILE", 0)
+api_key = os.environ.get("IAI_API_KEY", "")
 
 logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log_file))
 

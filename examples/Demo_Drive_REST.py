@@ -9,10 +9,10 @@ from tqdm import tqdm
 import argparse
 
 os.environ["IAI_MOCK_API"] = "0"
-os.environ["DEV"] = "1"
-# os.environ["DEV_URL"] = "http://localhost:8888"
+os.environ["IAI_DEV"] = "1"
+# os.environ["IAI_DEV_URL"] = "http://localhost:8888"
 
-if os.environ.get("DEV", False):
+if os.environ.get("IAI_DEV", False):
     sys.path.append("../")
 import invertedai as iai
 

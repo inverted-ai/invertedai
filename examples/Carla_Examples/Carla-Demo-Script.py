@@ -4,7 +4,7 @@ import sys
 from dotenv import load_dotenv
 
 load_dotenv()
-if os.environ.get("DEV", False):
+if os.environ.get("IAI_DEV", False):
     sys.path.append("../../")
 import invertedai as iai
 from invertedai import CarlaEnv, CarlaSimulationConfig
