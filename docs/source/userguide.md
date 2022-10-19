@@ -4,7 +4,7 @@ Inverted AI API provides a service that controls non-playable characters (NPCs) 
 functions are INITIALIZE, called at the beginning of the simulation, and DRIVE, called at each time step. Typically, the
 user runs their simulator locally, controlling the actions of the ego vehicle, and querying the API to obtain the
 behavior of NPCs. This page describes the high level concepts governing the interaction with the API. Please refer to
-specific pages for [detailed API reference](), [quick start](), and [examples]().
+specific pages for {ref}`Python SDK`, {ref}`REST API`, {ref}`Getting started`, and {ref}`Examples`.
 
 We follow the continuous space, discrete time approach used in most driving simulators. In the current version, the API
 only supports the time step of 100 ms, corresponding to 10 frames per second, and expects to run in a synchronous
@@ -13,20 +13,20 @@ simulation. The underlying technology is based on [ITRA]() and was optimized to 
 300 time steps) with up to 100 agents, contained within an area of roughly 300 meters in diameter.
 
 ### Programming language support
-The core interface is a [REST API](), that can be called from any programming language. This is a low-level, bare-bones
+The core interface is a {ref}`REST API`, that can be called from any programming language. This is a low-level, bare-bones
 access mode that offers maximum flexibility to deploy in any environment.
-For convenience, we also provide a [Python library](), freely available on PyPI with minimal dependencies, which
+For convenience, we also provide a {ref}`Python SDK`, freely available on PyPI with minimal dependencies, which
 provides an abstraction layer on top of the REST API. In the future we intend to release a similar library in C++ and
 potentially other languages.
 
 ### Maps and geofencing
 The API operates on a pre-defined collection of maps and currently there is no programmatic way to add additional
-locations. For each location there is a map, represented internally in the [Lanelet2]() format, which specifies
+locations. For each location there is a map, represented internally in the [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, which specifies
 lanelets, traffic lights, and a selection of static traffic signs (along with their relationship to specific lanelets).
 Each map comes with a canonical Euclidean coordinate frame in meters, which for OSM files is obtained by applying a
 specific UTM projector defined by lat/lon, and everything sent across the API is always specified in terms of this
 coordinate frame. To be able to perform co-simulation, you need to have the same map available in your simulator. For
-convenience, the map used on our end can be downloaded through [LOCATION_INFO]().
+convenience, the map used on our end can be downloaded through {ref}`LOCATION_INFO`.
 The maps must be flat (we assume the world is 2D) and generally cover relatively small regions (a few hundred meters).
 For each map there is a designated supported area, defined as the interior of a convex polygon represented as a closed
 linestring, outside of which the realism of NPCs may significantly deteriorate. It’s valid to query the API outside of
@@ -45,7 +45,7 @@ center of the vehicle and its rear axis. Front axis offset is not relevant, beca
 data, so we omit it. The three static agent attributes are: length, width, and rear offset.
 We represent the instantaneous state of each vehicle as four numbers: x and y position, orientation angle, and speed. We
 do not consider lateral velocity, vehicle lights, or any other information about vehicle state.
-[DRIVE]() predicts the next state for each vehicle, rather than an action that can be executed in the local simulator
+{ref}`DRIVE` predicts the next state for each vehicle, rather than an action that can be executed in the local simulator
 and run through its dynamics model. The predicted motion is consistent with the kinematic bicycle model and
 accelerations are constrained to a reasonable range observed in real world traffic, but there is no guarantee that the
 corresponding motion could be realized through some action given a particular dynamics model in the local simulator. We
