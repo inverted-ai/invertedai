@@ -5,6 +5,7 @@ from invertedai.api_resources import (
     initialize,
     location_info,
 )
+from invertedai.simulation import Simulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 load_dotenv()
@@ -21,12 +22,12 @@ logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log
 session = Session(api_key)
 add_apikey = session.add_apikey
 model_resources = {
-    "initialize": ("get", "/initialize"),
+    "initialize": ("post", "/initialize"),
     "drive": ("post", "/drive"),
     "location_info": ("get", "/location_info"),
-    "available_locations": ("get", "/available_locations"),
 }
 __all__ = [
+    "Simulation",
     "drive",
     "initialize",
     "location_info",
