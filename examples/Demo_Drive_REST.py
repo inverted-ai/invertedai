@@ -23,9 +23,8 @@ parser.add_argument("--api_key", type=str, default="")
 parser.add_argument("--location", type=str, default="iai:ubc_roundabout")
 args = parser.parse_args()
 
-iai.add_apikey(args.api_key)
+iai.add_apikey("")
 
-# response = iai.available_locations("carla", "roundabout")
 response = iai.location_info(location=args.location)
 
 file_name = args.location.replace(":", "_")
@@ -38,24 +37,29 @@ if response.birdview_image is not None:
     rendered_map = np.array(response.birdview_image, dtype=np.uint8)
     image = cv2.imdecode(rendered_map, cv2.IMREAD_COLOR)
     cv2.imwrite(file_path, image)
-simulation = iai.Simulation(
+response = iai.initialize(
     location=args.location,
     agent_count=10,
-    monitor_infractions=True,
-    render_birdview=True,
 )
+agent_attributes = response.agent_attributes
 frames = []
 pbar = tqdm(range(50))
 for i in pbar:
-    simulation.step(current_ego_agent_states=[])
-    collision, offroad, wrong_way = simulation.infractions
+    response = iai.drive(
+        agent_attributes=agent_attributes,
+        agent_states=response.agent_states,
+        recurrent_states=response.recurrent_states,
+        get_birdviews=True,
+        location=args.location,
+        get_infractions=True,
+    )
     pbar.set_description(
-        f"Collision rate: {100*np.array(collision).mean():.2f}% | "
-        + f"Off-road rate: {100*np.array(offroad).mean():.2f}% | "
-        + f"Wrong-way rate: {100*np.array(wrong_way).mean():.2f}%"
+        f"Collision rate: {100*np.array([inf.collisions for inf in response.infractions]).mean():.2f}% | "
+        + f"Off-road rate: {100*np.array([inf.offroad for inf in response.infractions]).mean():.2f}% | "
+        + f"Wrong-way rate: {100*np.array([inf.wrong_way for inf in response.infractions]).mean():.2f}%"
     )
 
-    birdview = np.array(simulation.birdview, dtype=np.uint8)
+    birdview = np.array(response.bird_view, dtype=np.uint8)
     image = cv2.imdecode(birdview, cv2.IMREAD_COLOR)
     frames.append(image)
     im = PImage.fromarray(image)

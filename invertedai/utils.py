@@ -4,7 +4,7 @@ import re
 from typing import Dict, Optional
 from requests.auth import AuthBase
 import invertedai as iai
-from invertedai import error
+from invertedai import error, api_resources
 import logging
 
 TIMEOUT_SECS = 600
@@ -32,6 +32,13 @@ class Session:
         if not iai.dev and not api_token:
             raise error.InvalidAPIKeyError("Empty API key received.")
         self.session.auth = APITokenAuth(api_token)
+
+    def use_mock_api(self, use_mock: bool = True) -> None:
+        api_resources.mock_api = use_mock
+        if use_mock:
+            iai.logger.warning(
+                'Using mock Inverted AI API - predictions will be trivial'
+            )
 
     def request(
         self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
@@ -67,7 +74,9 @@ class Session:
             result.raise_for_status()
         except requests.exceptions.RequestException as e:
             if e.response.status_code == 403:
-                raise error.APIConnectionError("Connection forbidden. Please check the provided API key.")
+                raise error.APIConnectionError(
+                    "Connection forbidden. Please check the provided API key."
+                )
             elif e.response.status_code in [400, 422]:
                 raise e
             else:

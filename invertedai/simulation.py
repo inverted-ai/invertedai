@@ -8,20 +8,23 @@ class Simulation:
     Stateful wrapper around Inverted AI API to simplify co-simulation.
     Typically, it's sufficient to call `ego_agent_states` and `step`.
     """
+
     def __init__(
-            self,
-            # all arguments to initialize are also given to this constructor
-            location: str = "CARLA:Town03:Roundabout",
-            agent_count: int = 1,
-            # some further configuration options
-            monitor_infractions: bool = False,
-            render_birdview: bool = False,
-            ego_agent_mask: Optional[List[bool]] = None,
+        self,
+        # all arguments to initialize are also given to this constructor
+        location: str = "CARLA:Town03:Roundabout",
+        agent_count: int = 1,
+        # some further configuration options
+        monitor_infractions: bool = False,
+        render_birdview: bool = False,
+        ego_agent_mask: Optional[List[bool]] = None,
     ):
         self._location = location
         response = initialize(location=location, agent_count=agent_count)
-        self._agent_count = len(response.agent_sizes)  # initialize may produce different agent count
-        self._agent_attributes = response.agent_sizes
+        self._agent_count = len(
+            response.agent_attributes
+        )  # initialize may produce different agent count
+        self._agent_attributes = response.agent_attributes
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
         self._monitor_infractions = monitor_infractions
@@ -80,15 +83,22 @@ class Simulation:
         """
         self._update_ego_states(current_ego_agent_states)
         response = drive(
-            location=self.location, agent_sizes=self._agent_attributes,
-            agent_states=self.agent_states, recurrent_states=self._recurrent_states,
-            get_infractions=self._monitor_infractions, get_birdviews=self._render_birdview,
+            location=self.location,
+            agent_attributes=self._agent_attributes,
+            agent_states=self.agent_states,
+            recurrent_states=self._recurrent_states,
+            get_infractions=self._monitor_infractions,
+            get_birdviews=self._render_birdview,
         )
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
-        if self._monitor_infractions:
+        if self._monitor_infractions and (response.infractions is not None):
             # TODO: package infractions in dataclass
-            self._infractions = (response.collision, response.offroad, response.wrong_way)
+            self._infractions = (
+                [inf.collisions for inf in response.infractions],
+                [inf.offroad for inf in response.infractions],
+                [inf.wrong_way for inf in response.infractions],
+            )
         if self._render_birdview:
             self._birdview = response.bird_view
         self._time_step += 1

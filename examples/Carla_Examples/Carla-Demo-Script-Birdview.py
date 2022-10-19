@@ -8,7 +8,7 @@ import imageio
 from dotenv import load_dotenv
 
 load_dotenv()
-if os.environ.get("DEV", False):
+if os.environ.get("IAI_DEV", False):
     sys.path.append("../..")
 from invertedai import CarlaEnv, CarlaSimulationConfig
 import invertedai as iai
