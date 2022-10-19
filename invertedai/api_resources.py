@@ -342,7 +342,7 @@ def drive(
                 infractions=[
                     InfractionIndicators(*infractions)
                     for infractions in response["infraction_indicators"]
-                ],
+                ] if response["infraction_indicators"] else [],
                 is_inside_supported_area=response["is_inside_supported_area"],
             )
 
