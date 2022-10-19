@@ -17,8 +17,14 @@ from invertedai.error import TryAgain
 from typing import List, Optional, Dict
 import time
 import invertedai as iai
-from invertedai.mock import get_mock_birdview, get_mock_agent_attributes, get_mock_agent_state, \
-    get_mock_recurrent_state, mock_update_agent_state, get_mock_infractions
+from invertedai.mock import (
+    get_mock_birdview,
+    get_mock_agent_attributes,
+    get_mock_agent_state,
+    get_mock_recurrent_state,
+    mock_update_agent_state,
+    get_mock_infractions,
+)
 from invertedai.models import (
     LocationResponse,
     InitializeResponse,
@@ -80,7 +86,14 @@ def location_info(
     """
 
     if mock_api:
-        response = LocationResponse(rendered_map=get_mock_birdview(), lanelet_map_source=None, static_actors=None)
+        response = LocationResponse(
+            version="v0.0.0",
+            birdview_image=get_mock_birdview(),
+            osm_map=None,
+            static_actors=[],
+            bounding_polygon=[],
+            max_agent_number=10,
+        )
         return response
 
     start = time.time()
@@ -94,6 +107,9 @@ def location_info(
                 response["static_actors"] = [
                     StaticMapActor(**actor) for actor in response["static_actors"]
                 ]
+            if response["osm_map"] is not None:
+                response["osm_map"] = (response["osm_map"], response["map_origin"])
+            del response["map_origin"]
             return LocationResponse(**response)
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
@@ -164,36 +180,29 @@ def initialize(
             agent_states = states_history[-1]
         recurrent_states = [get_mock_recurrent_state() for _ in range(agent_count)]
         response = InitializeResponse(
-            agent_states=agent_states, agent_attributes=agent_attributes, recurrent_states=recurrent_states
+            agent_states=agent_states,
+            agent_attributes=agent_attributes,
+            recurrent_states=recurrent_states,
         )
         return response
 
+    model_inputs = dict(
+        location=location,
+        num_agents_to_spawn=agent_count,
+        states_history=states_history
+        if states_history is None
+        else [state.tolist() for state in states_history],
+        agent_attributes=agent_attributes
+        if agent_attributes is None
+        else [state.tolist() for state in agent_attributes],
+        traffic_light_state_history=traffic_light_state_history,
+        random_seed=random_seed,
+    )
     start = time.time()
     timeout = TIMEOUT
-
     while True:
         try:
-            include_recurrent_states = (
-                False if location.split(":")[0] == "huawei" else True
-            )
-            params = {
-                "location": location,
-                "num_agents_to_spawn": agent_count,
-                "include_recurrent_states": include_recurrent_states,
-            }
-            model_inputs = dict(
-                states_history=states_history
-                if states_history is None
-                else [state.tolist() for state in states_history],
-                agent_attributes=agent_attributes
-                if agent_attributes is None
-                else [state.tolist() for state in agent_attributes],
-                traffic_light_state_history=traffic_light_state_history,
-                random_seed=random_seed,
-            )
-            initial_states = iai.session.request(
-                model="initialize", params=params, data=model_inputs
-            )
+            initial_states = iai.session.request(model="initialize", data=model_inputs)
             agents_spawned = len(initial_states["agent_states"])
             if agents_spawned != agent_count:
                 iai.logger.warning(
@@ -221,9 +230,7 @@ def drive(
     agent_states: List[AgentState] = [],
     agent_attributes: List[AgentAttributes] = [],
     recurrent_states: List[RecurrentState] = [],
-    traffic_lights_states: Optional[
-        Dict[TrafficLightId, TrafficLightState]
-    ] = None,
+    traffic_lights_states: Optional[Dict[TrafficLightId, TrafficLightState]] = None,
     get_birdviews: bool = False,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
@@ -294,8 +301,11 @@ def drive(
         bird_view = get_mock_birdview()
         infractions = get_mock_infractions(len(agent_states))
         response = DriveResponse(
-            agent_states=agent_states, present_mask=present_mask, recurrent_states=recurrent_states,
-            bird_view=bird_view, infractions=infractions
+            agent_states=agent_states,
+            is_inside_supported_area=present_mask,
+            recurrent_states=recurrent_states,
+            bird_view=bird_view,
+            infractions=infractions,
         )
         return response
 
@@ -318,7 +328,6 @@ def drive(
         get_infractions=get_infractions,
         random_seed=random_seed,
     )
-
     start = time.time()
     timeout = TIMEOUT
 

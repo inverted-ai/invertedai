@@ -7,6 +7,7 @@ from invertedai.api_resources import (
     initialize,
     location_info,
 )
+from invertedai.simulation import Simulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 load_dotenv()
@@ -28,12 +29,12 @@ if strtobool(os.environ.get("IAI_MOCK_API", "false")):
     use_mock_api()
 
 model_resources = {
-    "initialize": ("get", "/initialize"),
+    "initialize": ("post", "/initialize"),
     "drive": ("post", "/drive"),
     "location_info": ("get", "/location_info"),
-    "available_locations": ("get", "/available_locations"),
 }
 __all__ = [
+    "Simulation",
     "drive",
     "initialize",
     "location_info",
