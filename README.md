@@ -1,114 +1,72 @@
 [pypi-badge]: https://badge.fury.io/py/invertedai.svg
 [pypi-link]: https://pypi.org/project/invertedai/
+[colab-badge]: https://colab.research.google.com/assets/colab-badge.svg
+[colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb
 
 
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
 [![PyPI][pypi-badge]][pypi-link]
+[![Open In Colab][colab-badge]][colab-link]
 
 # InvertedAI
+
 ## Overview
 <!-- start elevator-pitch -->
-Inverted AI has trained cutting-edge realistic behavioral driving models that are human-like and close the SIM2Real. Our API provides access to these behavioral models and can be useful for several tasks in autonomous vehicle (AV) research and development.
+Inverted AI provides an API for controlling non-playable characters (NPCs) in autonomous driving simulations,
+available as either a REST API or a Python library built on top of it. Using the API requires an access key -
+[contact us](mailto:sales@inverted.ai) to get yours. This page describes how to get started quickly. For more in-depth understanding,
+see the [API usage guide](userguide.md), and detailed documentation for the [REST API](apireference.md) and the
+[Python library](pythonapi/index.md).
+To understand the underlying technology and why it's necessary for autonomous driving simulations, visit the
+[Inverted AI website](https://www.inverted.ai/).
+<!-- end elevator-pitch -->
 
 ![](docs/images/top_camera.gif)
-<!-- end elevator-pitch -->
 
 # Get Started
 <!-- start quickstart -->
-In this quickstart tutorial, you’ll run a simple sample AV simulation with Inverted AI Python API. Along the way, you’ll learn key concepts and techniques that are fundamental to using the API for other tasks. In particular, you will be familiar with two main Inverted AI models:
-
-- DRIVE
-- INITIALIZE
-
-## Quick Start
-- **Goolge Colab***: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb)
-
-- **Locally**: Download the 
-<a href="https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/inverted-ai/invertedai/tree/master/examples" target="_blank">examples directory</a>, navigate to the unzipped directory in terminal and run 
-
-```
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-.venv/bin/jupyter notebook Drive-Demo.ipynb
-```
-
 ## Installation
-
-[pypi-badge]: https://badge.fury.io/py/invertedai.svg
-[pypi-link]: https://pypi.org/project/invertedai/
-
-To install use [![PyPI][pypi-badge]][pypi-link]:
+For installing the Python package from [PyPI][pypi-link]:
 
 ```bash
 pip install invertedai
 ```
 
-## Setting up
+The Python client library is [open source](https://github.com/inverted-ai/invertedai),
+so you can also download it and build locally.
 
-Import the _invertedai_ package and set the API key with **add_apikey** method.
 
-Refer to the [product page](https://www.inverted.ai) to get your API key (or recharge for more tokens).
+## Minimal example
+
+Conceptually, the API is used to establish synchronous co-simulation between your own simulator running locally on
+your machine and the NPC engine running on Inverted AI servers. The basic integration in Python looks like this.
 
 ```python
-
 import invertedai as iai
-iai.add_apikey("XXXXXXXXXXXXXX")
-```
 
-## Browse through available maps (location)
-Inverted AI provides an assortment of diverse road configurations and geometries, including real-world locations and maps from simulators (CARLA, Huawei SMARTS, ...).\
-To search the catalog use **iai.available_locations** method by providing keywords
-```python
-iai.available_locations("roundabout", "carla")
-```
+iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
 
-To get information about a scene use **iai.location_info**.
-```python
-iai.location_info**("CARLA:Town03:Roundabout")
-```
-The scene information include the map in [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, map in JPEG format, maximum number of allowed (driveable) vehicles, latitude longitude coordinates (for real-world locations), id and list of traffic light and signs (if any exist in the map), etc.
-
-## INITIALIZE
-To run the simulation, the map must be first populated with agents.
-Inverted AI provides the **INITIALIZE**, a state-of-the-art model trained with real-life driving scenarios which can generate realistic positions for the initial state of the simulation.\
-Having realistic, complicated and diverse initial conditions are particularly crucial to observer interesting and informative interaction between the agents, i.e., the ego vehicle and NPCs (non-player characters).
-
-You can use **INITIALIZE** in two modes:
-- _Initialize all agents_: generates initial conditions (position and speed) for all the agents including the ego vehicle
-```python
-response = iai.initialize(
-    location="CARLA:Town03:Roundabout",
-    agent_count=10,
+iai_simulation = iai.Simulation(  # instantiate a stateful wrapper for Inverted AI API
+    location='canada:vancouver:ubc_roundabout',  # select one of available locations
+    agent_count=5,  #  how many vehicles in total to use in the simulation
+    ego_agent_mask=[True, False, False, False, False]  # first vehicle is ego, rest are NPCs
 )
+for _ in range(100):  # how many simulation steps to execute (10 steps is 1 second)
+    # collect predictions for the next time step
+    predicted_npc_behavior = iai_simulation.npc_states()
+    # execute predictions in your simulator, using your actions for the ego vehicle
+    updated_ego_agent_state = step_local_simulator(predicted_npc_behavior)
+    # query the API for subsequent NPC predictions, informing it how the ego vehicle acted
+    iai_simulation.step(updated_ego_agent_state)
 ```
-- _Initialize NPCs_: generates initial conditions (position and speed) only for the NPCs according to the provided state of the ego vehicle.
-```python
-response = iai.initialize(
-    location="CARLA:Town03:Roundabout",
-    agent_count=10,
-)
-```
-> _response_ is a dictionary of _states_, and _agent-attribute_  (_recurrent-states_ is also returned for compatibility with **drive**)\
-> _response["states"]_ is a list of agent states, by default the first on the list is always the ego vehicle.
 
-## DRIVE
-**DRIVE** is Inverted AI's cutting-edge realistic driving model trained on millions of miles of traffic data.
-This model can drive all the agents with only the current state of the environment, i.e., one step observations (which could be obtained from **INITIALIZE**) or with multiple past observations.
-```python
-response = iai.drive(
-    location="CARLA:Town03:Roundabout",
-    agent_attributes=response["attributes"],
-    states=response["states"],
-    recurrent_states=response["recurrent_states"],
-    traffic_states_id=response["traffic_states_id"],
-    steps=1,
-    get_birdviews=True,
-    get_infractions=True,
-)
-```
->For convenience and to reduce data overhead, ***drive** also returns _recurrent-states_ which can be feedbacked to the model instead of providing all the past observations.\
->Furthermore, **drive** drive all the agents for $steps\times \frac{1}{FPS}$ where by default $FPS=10[frames/sec]$, should you require other time resolutions [contact us](mailto:info@inverted.ai).
+In order to execute this code, you need to connect a simulator locally. To quickly check out how Inverted AI NPCs
+behave, try our
+[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb),
+where all agents are NPCs, or go to our
+[github repository](https://github.com/inverted-ai/invertedai/examples) to execute it locally.
+When you're ready to try our NPCs with a real simulator, see the example [CARLA integration](examples/carlasim.md).
+The examples are currently only provided in Python, but if you want to use the API from another language,
+you can use the [REST API](apireference.md) directly.
 
 <!-- end quickstart -->
