@@ -13,7 +13,7 @@ packages = [
 python = ">=3.7,<3.11"
 requests = "^2.28.1"
 
-[tool.poetry.group.dev.dependencies]
+#[tool.poetry.group.dev.dependencies]
 numpy = "^1.17.0"
 matplotlib = "^3.5"
 ipython = "^7.34"
@@ -22,7 +22,7 @@ carla = "^0.9.13"
 jupyterlab = "^3.3"
 twine = "^4.0.1"
 
-[tool.poetry.group.docs.dependencies]
+#[tool.poetry.group.docs.dependencies]
 Sphinx = "^5.2.3"
 myst-parser = "^0.18.1"
 furo = "^2022.9.29"

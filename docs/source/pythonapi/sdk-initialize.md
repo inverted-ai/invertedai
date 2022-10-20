@@ -2,7 +2,9 @@
 
 
 ```{eval-rst}
-.. autofunction:: invertedai.api_resources.initialize 
+.. automodule:: invertedai.api.initialize
+   :members:
+   :undoc-members:
 ```
 
 

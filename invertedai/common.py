@@ -113,7 +113,7 @@ class AgentAttributes:
     """
     length: float  #: Longitudinal extent of the agent, in meters.
     width: float  #: Lateral extent of the agent, in meters.
-    rear_axis_offset: float  #: Distance from the agent's center to its rear axis. Determines motion constraints.
+    rear_axis_offset: float  #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
 
     def tolist(self):
         return [self.length, self.width, self.rear_axis_offset]

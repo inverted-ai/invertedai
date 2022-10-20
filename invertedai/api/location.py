@@ -41,20 +41,6 @@ def location_info(
     include_map_source:
         Whether to return full map specification in Lanelet2 OSM format.
         This significantly increases the response size, consuming more network resources.
-
-    Examples
-    --------
-    >>> import invertedai as iai
-    >>> response = iai.location_info(location="")
-    >>> if response.osm_map is not None:
-    >>>     file_path = f"{file_name}.osm"
-    >>>     with open(file_path, "w") as f:
-    >>>         f.write(response.osm_map[0])
-    >>> if response.birdview_image is not None:
-    >>>     file_path = f"{file_name}.jpg"
-    >>>     rendered_map = np.array(response.birdview_image, dtype=np.uint8)
-    >>>     image = cv2.imdecode(rendered_map, cv2.IMREAD_COLOR)
-    >>>     cv2.imwrite(file_path, image)
     """
 
     if should_use_mock_api():
