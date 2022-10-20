@@ -38,7 +38,7 @@ if response.birdview_image is not None:
     rendered_map = np.array(response.birdview_image, dtype=np.uint8)
     image = cv2.imdecode(rendered_map, cv2.IMREAD_COLOR)
     cv2.imwrite(file_path, image)
-simulation = iai.Simulation(
+simulation = iai.BasicCosimulation(
     location=args.location,
     agent_count=10,
     monitor_infractions=True,

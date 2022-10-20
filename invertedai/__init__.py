@@ -6,7 +6,7 @@ from invertedai.api_resources import (
     initialize,
     location_info,
 )
-from invertedai.simulation import Simulation
+from invertedai.cosimulation import BasicCosimulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 dev = os.environ.get("IAI_DEV", False)
@@ -32,7 +32,7 @@ model_resources = {
     "location_info": ("get", "/location_info"),
 }
 __all__ = [
-    "Simulation",
+    "BasicCosimulation",
     "drive",
     "initialize",
     "location_info",
