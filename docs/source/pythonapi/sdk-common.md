@@ -5,7 +5,7 @@
 .. automodule:: invertedai.models
    :members:
    :undoc-members:
-   :show-inheritance:
+   :show-inheritance: 
 ```
 
 <!-- .. autoclass:: invertedai.api_resources.TestReturn -->

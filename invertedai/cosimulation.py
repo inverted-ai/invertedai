@@ -129,7 +129,7 @@ class BasicCosimulation:
             agent_states=self.agent_states,
             recurrent_states=self._recurrent_states,
             get_infractions=self._monitor_infractions,
-            get_birdviews=self._render_birdview,
+            get_birdview=self._render_birdview,
         )
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states

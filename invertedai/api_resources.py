@@ -44,31 +44,20 @@ mock_api = False
 
 
 def location_info(
-    location: str = "iai:ubc_roundabout", include_map_source: bool = False
+    location: str,
+    include_map_source: bool = False,
 ) -> LocationResponse:
     """
-    Providing map information, i.e., rendered bird's-eye view image, map in OSM format,
-    list of static agents (traffic lights).
+    Provides static information about a given location.
 
     Parameters
     ----------
-    location : str
-        Name of the location.
+    location:
+        Location string in IAI format.
 
-    include_map_source: bool
-        Flag for requesting the map in Lanelet-OSM format.
-
-    Returns
-    -------
-    Response : LocationResponse
-
-
-    See Also
-    --------
-    invertedai.initialize
-
-    Notes
-    -----
+    include_map_source:
+        Whether to return full map specification in Lanelet2 OSM format.
+        This significantly increases the response size, consuming more network resources.
 
     Examples
     --------
@@ -118,7 +107,7 @@ def location_info(
 
 
 def initialize(
-    location: str = "iai:ubc_roundabout",
+    location: str,
     agent_attributes: Optional[List[AgentAttributes]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[
@@ -128,47 +117,41 @@ def initialize(
     random_seed: Optional[int] = None,
 ) -> InitializeResponse:
     """
+    Initializes a simulation in a given location.
+    Either `agent_count` or both `agent_attributes` and `states_history` need to be provided.
+    In the latter case, the simulation is initialized with the specific history,
+    and if traffic lights are present then `traffic_light_state_history` should also be provided.
+    If only `agent_count` is specified, a new initial state is generated with the requested
+    total number of agents. Every simulation needs to start with a call to this function
+    in order to obtain correct recurrent states for :func:`drive`.
+
     Parameters
     ----------
-    location : str
-        Name of the location.
+    location:
+        Location name in IAI format.
 
-    agent_attributes : Optional[List[AgentAttributes]]
-        List of agent attributes. Each agent requires, length: [float]
-        width: [float] and rear_axis_offset: [float] all in meters.
+    agent_attributes:
+        Static attributes for all agents.
 
-    states_history: Optional[[List[List[AgentState]]]]
-       History of list of agent states. Each agent state must include x: [float],
-       y: [float] corrdinate in meters orientation: [float] in radians with 0
-       pointing along x and pi/2 pointing along y and speed: [float] in m/s.
+    states_history:
+        History of agent states - the outer list is over agents and the inner over time,
+        in chronological order.
+        For best results, provide at least 10 historical states for each agent.
 
-    traffic_light_state_history: Optional[List[Dict[TrafficLightId, TrafficLightState]]]
-       History of traffic light states.
+    traffic_light_state_history:
+       History of traffic light states - the list is over time, in chronological order.
+       Traffic light states should be provided for all time steps where agent states are specified.
 
-    agent_count : Optional[int]
-        Number of cars to spawn on the map.
+    agent_count:
+        If `states_history` is not specified, this needs to be provided and dictates how many
+        agents will be spawned.
 
-    random_seed: Optional[int]
-        This parameter controls the stochastic behavior of INITIALIZE. With the
-        same seed and the same inputs, the outputs will be approximately the same
-        with high accuracy.
-
-
-    Returns
-    -------
-    Response : InitializeResponse
+    random_seed:
+        Controls the stochastic aspects of initialization for reproducibility.
 
     See Also
     --------
     invertedai.drive
-
-    Notes
-    -----
-
-    Examples
-    --------
-    >>> import invertedai as iai
-    >>> response = iai.initialize(location="iai:ubc_roundabout", agent_count=10)
     """
 
     if mock_api:
@@ -226,73 +209,51 @@ def initialize(
 
 
 def drive(
-    location: str = "iai:ubc_roundabout",
-    agent_states: List[AgentState] = [],
-    agent_attributes: List[AgentAttributes] = [],
-    recurrent_states: List[RecurrentState] = [],
+    location: str,
+    agent_states: List[AgentState],
+    agent_attributes: List[AgentAttributes],
+    recurrent_states: List[RecurrentState],
     traffic_lights_states: Optional[Dict[TrafficLightId, TrafficLightState]] = None,
-    get_birdviews: bool = False,
+    get_birdview: bool = False,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
 ) -> DriveResponse:
     """
     Parameters
     ----------
-    location : str
-        Name of the location.
+    location:
+        Location name in IAI format.
 
-    agent_states : List[AgentState]
-        List of agent states. The state must include x: [float], y: [float] corrdinate in meters
+    agent_states:
+        Current states of all agents.
+        The state must include x: [float], y: [float] corrdinate in meters
         orientation: [float] in radians with 0 pointing along x and pi/2 pointing along y and
         speed: [float] in m/s.
 
-    agent_attributes : List[AgentAttributes]
+    agent_attributes:
+        Static attributes of all agents.
         List of agent attributes. Each agent requires, length: [float]
         width: [float] and rear_axis_offset: [float] all in meters.
 
-    recurrent_states : List[RecurrentState]
-        Internal simulation state obtained from previous calls to DRIVE or INITIZLIZE.
+    recurrent_states:
+        Recurrent states for all agents, obtained from the previous call to
+        :func:`drive` or :func:`initialize.
 
-    get_birdviews: bool = False
-        If True, a rendered bird's-eye view of the map with agents is returned.
+    get_birdview:
+        Whether to return an image visualizing the simulation state.
+        This is very slow and should only be used for debugging.
 
-    get_infractions: bool = False
-        If True, 'collision', 'offroad', 'wrong_way' infractions of each agent
-        are returned.
+    get_infractions:
+        Whether to check predicted agent states for infractions.
+        This introduces some overhead, but it should be relatively small.
 
-    traffic_light_state_history: Optional[Dict[TrafficLightId, List[TrafficLightState]]]
-       Traffic light states.
+    traffic_lights_states:
+       If the location contains traffic lights within the supported area,
+       their current state should be provided here. Any traffic light for which no
+       state is provided will be ignored by the agents.
 
-    random_seed: Optional[int]
-        This parameter controls the stochastic behavior of DRIVE. With the
-        same seed and the same inputs, the outputs will be approximately the same
-        with high accuracy.
-
-
-    Returns
-    -------
-    Response : DriveResponse
-
-    See Also
-    --------
-    invertedai.initialize
-
-    Notes
-    -----
-
-    Examples
-    --------
-    >>> import invertedai as iai
-    >>> response = iai.initialize(location="iai:ubc_roundabout", agent_count=10)
-    >>> agent_attributes = response.agent_attributes
-    >>> for _ in range(10):
-    >>>     response = iai.drive(
-                location="iai:ubc_roundabout",
-                agent_attributes=agent_attributes,
-                agent_states=response.agent_states,
-                recurrent_states=response.recurrent_states,
-                get_birdviews=True,
-                get_infractions=True,)
+    random_seed:
+        Controls the stochastic aspects of agent behavior for reproducibility.
     """
 
     if mock_api:
@@ -324,7 +285,7 @@ def drive(
         agent_attributes=[state.tolist() for state in agent_attributes],
         recurrent_states=recurrent_states,
         traffic_lights_states=traffic_lights_states,
-        get_birdviews=get_birdviews,
+        get_birdviews=get_birdview,
         get_infractions=get_infractions,
         random_seed=random_seed,
     )

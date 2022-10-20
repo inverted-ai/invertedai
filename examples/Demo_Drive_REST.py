@@ -49,7 +49,7 @@ for i in pbar:
         agent_attributes=agent_attributes,
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
-        get_birdviews=True,
+        get_birdview=True,
         location=args.location,
         get_infractions=True,
     )

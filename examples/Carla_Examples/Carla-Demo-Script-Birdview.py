@@ -52,7 +52,7 @@ for i in range(carla_cfg.episode_length * carla_cfg.fps):
         agent_attributes=[dimensions],
         states=[states],
         recurrent_states=[recurrent_states],
-        get_birdviews=True,
+        get_birdview=True,
         location=args.scene_name,
         steps=1,
         traffic_states_id=response["traffic_states_id"],
