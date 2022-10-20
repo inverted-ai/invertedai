@@ -35,36 +35,36 @@ python Carla-Demo-Script.py
 ## TODO:
 
 - [x] Change the naming convention of the maps, carla:town03:roundabout
-- [x] Handoff the NPCs inside and outside roi to iai-drive and caral traffic-manager
-  - [ ] Issue: vehicles stop when handed to carla:
-    - [ ] Possible solution: Turn on physics before handing to carla
 - [x] Complete and move static data to a JSON file
   - [x] roi_center of each scene
   - [x] Suggested (or demo) Ego spawn location of for each scene
-- [ ] Suggested (or demo) entry points for each scene (automatically get from map or hand picking)
 - [x] Setup Sphinx and autodoc
   - [x] IAI-Drive
   - [x] Carla Simulator config
-- [ ] Finish documentation
-  - [ ] Guide
-  - [ ] API
-  - [ ] SDK
-  - [ ] Examples
-- [ ] Readthedocs
-- [ ] Ego manual driving
+- [x] Finish documentation
+  - [x] Guide
+  - [x] API
+  - [x] SDK
+  - [x] Examples
+- [x] Readthedocs
 - [x] Scenarios
 - [x] Calculate infractions or get from server
+- [x] Handoff the NPCs inside and outside roi to iai-drive and caral traffic-manager
+  - [ ] Issue: vehicles stop when handed to carla:
+    - [ ] Possible solution: Turn on physics before handing to carla
+- [ ] Suggested (or demo) entry points for each scene (automatically get from map or hand picking)
 - [ ] Traffic light and signs
   - [ ] Communicate data with Server (simple drive demo)
   - [ ] Get data from and pass to carla (carla drive demo)
+- [ ] Ego manual driving
 
 ## development
 
-- Add the following environment variables to _.evn_ file
+- Add the following environment variables to shell
 
 ```
-DEV=1
-DEV_URL=http://localhost:8888
+IAI_DEV=1
+IAI_DEV_URL=http://localhost:8888
 ```
 
 - Change the port mapping in iai-drive-server

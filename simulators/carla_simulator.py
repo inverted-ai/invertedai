@@ -8,7 +8,7 @@ import socket
 import random
 import time
 from typing import Tuple, List
-from invertedai.simulators.data.static_carla import (
+from simulators.data.static_carla import (
     MAP_CENTERS,
     DEMO_LOCATIONS,
     NPC_BPS,
@@ -17,6 +17,27 @@ from invertedai.simulators.data.static_carla import (
     RS,
     cord,
 )
+
+
+@dataclass
+class AgentAttributes:
+    length: float
+    width: float
+    rear_axis_offset: float
+
+    def tolist(self):
+        return [self.length, self.width, self.rear_axis_offset]
+
+
+@dataclass
+class AgentState:
+    x: float
+    y: float
+    orientation: float  # in radians with 0 pointing along x and pi/2 pointing along y
+    speed: float  # in m/s
+
+    def tolist(self):
+        return [self.x, self.y, self.orientation, self.speed]
 
 
 @dataclass
@@ -79,15 +100,15 @@ class Car:
         self.recurrent_state = recurrent_state
         if state is not None:
             # NOTE: state is of size 4 : [x, y, angle, speed]
-            loc = carla.Location(state[0], state[1], self.transform.location.z)
+            loc = carla.Location(state.x, state.y, self.transform.location.z)
             rot = carla.Rotation(
-                yaw=np.degrees(state[2]),
+                yaw=np.degrees(state.orientation),
                 pitch=self.transform.rotation.pitch,
                 roll=self.transform.rotation.roll,
             )
             next_transform = carla.Transform(loc, rot)
             self.actor.set_transform(next_transform)
-            self.speed = state[3]
+            self.speed = state.speed
 
     def _get_actor_dimensions(self):
         bb = self.actor.bounding_box.extent
@@ -264,9 +285,9 @@ class CarlaEnv:
         self._initialize()
         return self.get_obs(include_ego=include_ego)
 
-    def step(self, ego="autopilot", npcs=None, time_step=0, include_ego=True):
+    def step(self, ego="autopilot", npcs=None, include_ego=True):
         self.step_counter += 1
-        self._set_state_and_filter_npcs(ego, npcs, time_step, include_ego)
+        self._set_state_and_filter_npcs(ego, npcs, include_ego)
         if self.cfg.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.cfg.flag_npcs:
@@ -316,7 +337,9 @@ class CarlaEnv:
             states.append(obs["states"][-obs_len:])
             rec_state.append(obs["recurrent_state"])
             dims.append(self.ego.dims)
-        return states, rec_state, dims
+        agent_states = [AgentState(*state[0]) for state in states]
+        agent_attributes = [AgentAttributes(*attr) for attr in dims]
+        return agent_states, rec_state, agent_attributes
 
     def get_infractions(self):
         pass
@@ -400,21 +423,19 @@ class CarlaEnv:
                 life_time=2 / self.cfg.fps,
             )
 
-    def _set_state_and_filter_npcs(
-        self, ego="autopilot", npcs=None, time_step=0, include_ego=True
-    ):
+    def _set_state_and_filter_npcs(self, ego="autopilot", npcs=None, include_ego=True):
         if npcs is not None:
-            states = npcs["states"]
-            recurrent_states = npcs["recurrent_states"]
+            states = npcs.agent_states
+            recurrent_states = npcs.recurrent_states
             id = -1  # In case all NPCs vanish!
             for id, npc in enumerate(self.npcs):
                 # NOTE: states is of size (batch_size x actor x time x state)
                 # where state is a list: [x, y, angle, speed]
-                rs = None if recurrent_states is None else recurrent_states[0][id]
-                npc.set_state(states[0][id][time_step], rs)
+                rs = None if recurrent_states is None else recurrent_states[id]
+                npc.set_state(states[id], rs)
 
             if include_ego:
-                rs = None if recurrent_states is None else recurrent_states[0][id + 1]
+                rs = None if recurrent_states is None else recurrent_states[id + 1]
                 self.ego.set_state(recurrent_state=rs)
         exit_npcs = []
         remaining_npcs = []
@@ -461,10 +482,10 @@ class CarlaEnv:
         t = []
         speed = []
         for pos in poses:
-            loc = carla.Location(x=pos[0][0], y=pos[0][1], z=1)
-            rot = carla.Rotation(yaw=np.degrees(pos[0][2]))
+            loc = carla.Location(x=pos.x, y=pos.y, z=1)
+            rot = carla.Rotation(yaw=np.degrees(pos.orientation))
             t.append(carla.Transform(loc, rot))
-            speed.append(pos[0][3])
+            speed.append(pos.speed)
         return (t, speed)
 
     def get_entrance(self, spawn_points):

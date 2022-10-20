@@ -1,13 +1,14 @@
 import pygame
 import os
 import sys
-from dotenv import load_dotenv
 
-load_dotenv()
+os.environ["IAI_MOCK_API"] = "0"
+os.environ["IAI_DEV"] = "1"
+os.environ["IAI_DEV_URL"] = "http://localhost:8888"
 if os.environ.get("IAI_DEV", False):
-    sys.path.append("../../")
+    sys.path.append("../")
 import invertedai as iai
-from invertedai import CarlaEnv, CarlaSimulationConfig
+from simulators import CarlaEnv, CarlaSimulationConfig
 import argparse
 
 
@@ -44,27 +45,28 @@ response = iai.initialize(
     location=args.scene_name,
     agent_count=args.agent_count,
 )
-initial_states = response["states"][0]
+initial_states = response.agent_states
 sim = CarlaEnv(
     cfg=carla_cfg,
     initial_states=initial_states,
     ego_spawn_point=args.ego_spawn_point,
     spectator_transform=args.spectator_transform,
 )
-states, recurrent_states, dimensions = sim.reset()
+
+agent_states, recurrent_states, agent_attributes = sim.reset()
 clock = pygame.time.Clock()
 
-
 for i in range(carla_cfg.episode_length * carla_cfg.fps):
+
     response = iai.drive(
-        agent_attributes=[dimensions],
-        states=[states],
-        recurrent_states=[recurrent_states],
+        agent_attributes=agent_attributes,
+        agent_states=agent_states,
+        recurrent_states=recurrent_states,
         location=args.scene_name,
-        steps=1,
-        traffic_states_id=response["traffic_states_id"],
     )
-    states, recurrent_states, dimensions = sim.step(npcs=response, ego="autopilot")
+    agent_states, recurrent_states, agent_attributes = sim.step(
+        npcs=response, ego="autopilot"
+    )
 
     clock.tick_busy_loop(carla_cfg.fps)
 
