@@ -1,26 +1,44 @@
-from typing import Optional, List
+from typing import List
 
 from invertedai.api_resources import initialize, drive
+from invertedai.models import AgentState, InfractionIndicators, Image
 
 
 class BasicCosimulation:
     """
-    Stateful wrapper around Inverted AI API to simplify co-simulation.
-    Typically, it's sufficient to call `ego_agent_states` and `step`.
+    Stateful wrapper around the Inverted AI API to simplify co-simulation.
+    All arguments to :func:`initialize` can be passed to the constructor here
+    and a sufficient combination of them must be passed as required by :func:`initialize`.
+    This wrapper caches static agent attributes and propagates the recurrent state,
+    so that only states of ego agents and NPCs need to be exchanged with it to
+    perform co-simulation. Typically, each time step requires a single call to
+    :func:`self.npc_states` and a single call to :func:`self.step`.
+
+    This wrapper only supports a minimal co-simulation functionality.
+    For more advanced use cases, call :func:`initialize` and :func:`drive` directly.
+
+    :param location: Location name as expected by :func:`initialize`.
+    :param ego_agent_mask: List indicating which agent is ego, meaning that it is
+        controlled by you externally. The order in this list should be the same as that
+        used in arguments to :func:`initialize`.
+    :param monitor_infraction: Whether to monitor driving infractions, at a small increase
+        in latency and payload size.
+    :param render_birdview: Whether to render the bird's eye view of the simulation state
+        at each time step. It drastically increases the payload received from Inverted AI
+        servers and therefore slows down the simulation - use only for debugging.
     """
 
     def __init__(
         self,
-        # all arguments to initialize are also given to this constructor
-        location: str = "CARLA:Town03:Roundabout",
-        agent_count: int = 1,
-        # some further configuration options
+        location: str,
+        ego_agent_mask: List[bool],
         monitor_infractions: bool = False,
         render_birdview: bool = False,
-        ego_agent_mask: Optional[List[bool]] = None,
+        # sufficient arguments to initialize must also be included
+        **kwargs,
     ):
         self._location = location
-        response = initialize(location=location, agent_count=agent_count)
+        response = initialize(location=location, **kwargs)
         self._agent_count = len(
             response.agent_attributes
         )  # initialize may produce different agent count
@@ -31,26 +49,37 @@ class BasicCosimulation:
         self._infractions = None
         self._render_birdview = render_birdview
         self._birdview = None
-        if ego_agent_mask is None:
-            self._ego_agent_mask = [False] * self.agent_count
-        else:
-            self._ego_agent_mask = ego_agent_mask
+        self._ego_agent_mask = ego_agent_mask
         self._time_step = 0
 
     @property
-    def location(self):
+    def location(self) -> str:
+        """
+        Location name as recognized by Inverted AI API.
+        """
         return self._location
 
     @property
-    def agent_count(self):
+    def agent_count(self) -> int:
+        """
+        The total number of agents, both ego and NPCs.
+        """
         return self._agent_count
 
     @property
-    def agent_states(self):
+    def agent_states(self) -> List[AgentState]:
+        """
+        The predicted states for all agents, including ego.
+        """
         return self._agent_states
 
     @property
-    def ego_agent_mask(self):
+    def ego_agent_mask(self) -> List[bool]:
+        """
+        Lists which agents are ego, which means that you control them externally.
+        It can be updated during the simulation, but see caveats in user guide
+        regarding the quality of resulting predictions.
+        """
         return self._ego_agent_mask
 
     @ego_agent_mask.setter
@@ -58,16 +87,25 @@ class BasicCosimulation:
         self.ego_agent_mask = value
 
     @property
-    def infractions(self):
+    def infractions(self) -> List[InfractionIndicators]:
+        """
+        If `monitor_infractions` was set in the constructor,
+        lists infractions currently committed by each agent, including ego agents.
+        """
         return self._infractions
 
     @property
-    def birdview(self):
+    def birdview(self) -> Image:
+        """
+        If `render_birdview` was set in the constructor,
+        this is the image showing the current state of the simulation.
+        """
         return self._birdview
 
-    def npc_states(self):
+    def npc_states(self) -> List[AgentState]:
         """
-        Returns the predicted states of NPCs (non-ego agents) only in order.
+        Returns the predicted states of NPCs (non-ego agents) in order.
+        The predictions for ego agents are excluded.
         """
         npc_states = []
         for (i, s) in self._agent_states:
@@ -75,11 +113,14 @@ class BasicCosimulation:
                 npc_states.append(s)
         return npc_states
 
-    def step(self, current_ego_agent_states):
+    def step(self, current_ego_agent_states: List[AgentState]) -> None:
         """
-        Call the API to advance the simulation by one time step.
+        Calls :func:`drive` to advance the simulation by one time step.
+        Current states of ego agents need to be provided to synchronize with
+        your local simulator.
+
         :param current_ego_agent_states:  States of ego agents before the step.
-        :return: None - call `npc_states` to retrieve predictions.
+        :return: None - call :func:`self.npc_states` to retrieve predictions.
         """
         self._update_ego_states(current_ego_agent_states)
         response = drive(
