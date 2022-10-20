@@ -35,7 +35,7 @@ from invertedai.models import (
     StaticMapActor,
     RecurrentState,
     TrafficLightId,
-    TrafficLightState,
+    TrafficLightState, Point,
 )
 
 TIMEOUT = 10
@@ -92,9 +92,11 @@ def location_info(
     while True:
         try:
             response = iai.session.request(model="location_info", params=params)
+            if response['bounding_polygon'] is not None:
+                response['bounding_polygon'] = [Point(x=x, y=y) for (x, y) in response['bounding_polygon']]
             if response["static_actors"] is not None:
                 response["static_actors"] = [
-                    StaticMapActor(**actor) for actor in response["static_actors"]
+                    StaticMapActor.fromdict(actor) for actor in response["static_actors"]
                 ]
             if response["osm_map"] is not None:
                 response["osm_map"] = (response["osm_map"], response["map_origin"])
@@ -193,7 +195,7 @@ def initialize(
                 )
             response = InitializeResponse(
                 agent_states=[
-                    AgentState(*state) for state in initial_states["agent_states"]
+                    AgentState.fromlist(state) for state in initial_states["agent_states"]
                 ],
                 agent_attributes=[
                     AgentAttributes(*attr)
@@ -297,7 +299,7 @@ def drive(
             response = iai.session.request(model="drive", data=model_inputs)
 
             response = DriveResponse(
-                agent_states=[AgentState(*state) for state in response["agent_states"]],
+                agent_states=[AgentState.fromlist(state) for state in response["agent_states"]],
                 recurrent_states=[RecurrentState(r) for r in response["recurrent_states"]],
                 bird_view=response["bird_view"],
                 infractions=[

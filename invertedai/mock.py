@@ -4,7 +4,7 @@ from invertedai.models import (
     AgentAttributes,
     AgentState,
     RecurrentState,
-    InfractionIndicators,
+    InfractionIndicators, Point,
 )
 
 
@@ -18,7 +18,7 @@ def get_mock_agent_attributes() -> AgentAttributes:
 
 
 def get_mock_agent_state() -> AgentState:
-    state = AgentState(x=0, y=0, orientation=0, speed=0)
+    state = AgentState(center=Point(x=0, y=0), orientation=0, speed=0)
     return state
 
 

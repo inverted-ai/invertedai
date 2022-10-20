@@ -10,8 +10,17 @@ class RecurrentState:
     """
     packed: List[float]  #: Internal representation of the recurrent state.
 
+@dataclass
+class Point:
+    """
+    2D coordinates of a point in a given location.
+    Each location comes with a canonical, right-handed coordinate system, where
+    the distance units are meters.
+    """
+    x: float
+    y: float
+
 TrafficLightId = int
-Point = Tuple[float, float]
 Origin = Tuple[
     float, float
 ]  # lat/lon of the origin point use to project the OSM map to UTM
@@ -62,13 +71,17 @@ class AgentState:
     --------
     AgentAttributes
     """
-    x: float  #: Agent's center in the locations designated coordinate frame, in meters.
-    y: float  #: Agent's center in the locations designated coordinate frame, in meters.
+    center: Point  #: The center point of the agent's bounding box.
     orientation: float  #: The direction the agent is facing, in radians with 0 pointing along x and pi/2 pointing along y.
     speed: float  #: In meters per second, negative if the agent is reversing.
 
     def tolist(self):
-        return [self.x, self.y, self.orientation, self.speed]
+        return [self.center.x, self.center.y, self.orientation, self.speed]
+
+    @classmethod
+    def fromlist(cls, l):
+        x, y, psi, v = l
+        return cls(center=Point(x=x, y=y), orientation=psi, speed=v)
 
 
 @dataclass
@@ -114,13 +127,19 @@ class StaticMapActor:
     --------
     TrafficLightState
     """
-    track_id: int  #: ID as used in :func:`iai.initialize` and :func:`iai.drive`.
+    track_id: TrafficLightId  #: ID as used in :func:`iai.initialize` and :func:`iai.drive`.
     agent_type: Literal["traffic-light"]  #: Not currently used, there may be more traffic signals in the future.
-    x: float  #: Stop line's center in the location's coordinate frame.
-    y: float  #: Stop line's center in the location's coordinate frame.
+    center: Point  #: The center of the stop line.
     orientation: float  #: Natural direction of traffic going through the stop line, in radians like in :class:`AgentState`.
     length: float  #: Size of the stop line, in meters, along its `orientation`.
     width: float  #: Size of the stop line, in meters, across its `orientation`.
+
+    @classmethod
+    def fromdict(cls, d):
+        d = d.copy()
+        d['center'] = Point(d['x'], d['y'])
+        del d['center']
+        return cls(**d)
 
 
 @dataclass
