@@ -8,20 +8,25 @@ specific pages for {ref}`Python SDK`, {ref}`REST API`, {ref}`Getting started`, a
 
 We follow the continuous space, discrete time approach used in most driving simulators. In the current version, the API
 only supports the time step of 100 ms, corresponding to 10 frames per second, and expects to run in a synchronous
-fashion. In most circumstances, the latency is less than ???, but the API should not be relied upon to perform real-time
-simulation. The underlying technology is based on [ITRA]() and was optimized to handle simulations of up to 30 seconds (
-300 time steps) with up to 100 agents, contained within an area of roughly 300 meters in diameter.
+fashion. The latency of API calls varies with physical location of the client server and its network configuration,
+but generally the API should not be relied upon to provide real-time simulation. For optimal resource utilization,
+we recommend that you run multiple simulations in parallel, so that one can execute when another is waiting for the
+API reply. The technology underlying the API is based on [ITRA](https://arxiv.org/abs/2104.11212) and was optimized to
+handle simulations of up to
+20 seconds (200 time steps) contained within an area of roughly 300 meters in diameter. The API backend has been
+provisioned to accommodate a large number of agents, where the maximum allowed varies per location.
 
 ## Programming language support
-The core interface is a {ref}`REST API`, that can be called from any programming language. This is a low-level, bare-bones
-access mode that offers maximum flexibility to deploy in any environment.
+The core interface is a {ref}`REST API`, that can be called from any programming language. This is a low-level,
+bare-bones access mode that offers maximum flexibility to deploy in any environment.
 For convenience, we also provide a {ref}`Python SDK`, freely available on PyPI with minimal dependencies, which
 provides an abstraction layer on top of the REST API. In the future we intend to release a similar library in C++ and
 potentially other languages.
 
 ## Maps and geofencing
 The API operates on a pre-defined collection of maps and currently there is no programmatic way to add additional
-locations. For each location there is a map, represented internally in the [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, which specifies
+locations. For each location there is a map, represented internally in the
+[Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, which specifies
 lanelets, traffic lights, and a selection of static traffic signs (along with their relationship to specific lanelets).
 Each map comes with a canonical Euclidean coordinate frame in meters, which for OSM files is obtained by applying a
 specific UTM projector defined by lat/lon, and everything sent across the API is always specified in terms of this

@@ -20,6 +20,16 @@ from simulators.data.static_carla import (
 
 
 @dataclass
+class RecurrentState:
+    """
+    Recurrent state used in :func:`iai.drive`.
+    It should not be modified, but rather passed along as received.
+    """
+
+    packed: List[float]  #: Internal representation of the recurrent state.
+
+
+@dataclass
 class AgentAttributes:
     length: float
     width: float
@@ -30,14 +40,26 @@ class AgentAttributes:
 
 
 @dataclass
-class AgentState:
+class Point:
+    """
+    2D coordinates of a point in a given location.
+    Each location comes with a canonical coordinate system, where
+    the distance units are meters.
+    """
+
     x: float
     y: float
+
+
+@dataclass
+class AgentState:
+    center: Point  #: The center point of the agent's bounding box.
     orientation: float  # in radians with 0 pointing along x and pi/2 pointing along y
     speed: float  # in m/s
 
     def tolist(self):
-        return [self.x, self.y, self.orientation, self.speed]
+        return [self.center.x, self.center.y, self.orientation, self.speed]
+        # return [self.x, self.y, self.orientation, self.speed]
 
 
 @dataclass
@@ -100,7 +122,9 @@ class Car:
         self.recurrent_state = recurrent_state
         if state is not None:
             # NOTE: state is of size 4 : [x, y, angle, speed]
-            loc = carla.Location(state.x, state.y, self.transform.location.z)
+            loc = carla.Location(
+                state.center.x, state.center.y, self.transform.location.z
+            )
             rot = carla.Rotation(
                 yaw=np.degrees(state.orientation),
                 pitch=self.transform.rotation.pitch,
@@ -337,9 +361,15 @@ class CarlaEnv:
             states.append(obs["states"][-obs_len:])
             rec_state.append(obs["recurrent_state"])
             dims.append(self.ego.dims)
-        agent_states = [AgentState(*state[0]) for state in states]
+        agent_states = [
+            AgentState(
+                center=Point(*state[0][:2]), orientation=state[0][2], speed=state[0][3]
+            )
+            for state in states
+        ]
         agent_attributes = [AgentAttributes(*attr) for attr in dims]
-        return agent_states, rec_state, agent_attributes
+        recurrent_state = [RecurrentState(rs) for rs in rec_state]
+        return agent_states, recurrent_state, agent_attributes
 
     def get_infractions(self):
         pass
@@ -482,7 +512,7 @@ class CarlaEnv:
         t = []
         speed = []
         for pos in poses:
-            loc = carla.Location(x=pos.x, y=pos.y, z=1)
+            loc = carla.Location(x=pos.center.x, y=pos.center.y, z=1)
             rot = carla.Rotation(yaw=np.degrees(pos.orientation))
             t.append(carla.Transform(loc, rot))
             speed.append(pos.speed)

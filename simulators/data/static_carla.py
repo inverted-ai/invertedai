@@ -5,33 +5,33 @@ import carla
 import numpy as np
 
 MAP_CENTERS = {
-    "CARLA:Town01:3way": [93.70275115966797, 200.7403106689453],
-    "CARLA:Town01:Straight": [254.2249755859375, 300.88372802734375],
-    "CARLA:Town02:3way": [41.620059967041016, 191.54580688476562],
-    "CARLA:Town02:Straight": [110.15972900390625, 258.85760498046875],
-    "CARLA:Town03:3way_Protected": [187.63462829589844, -2.8370285034179688],
-    "CARLA:Town03:3way_Unprotected": [3.7141036987304688, -154.9966278076172],
-    "CARLA:Town03:4way": [-65.73756408691406, -122.9695053100586],
-    "CARLA:Town03:5way": [-64.09320068359375, 2.4671669006347656],
-    "CARLA:Town03:Gas_Station": [-20.871902465820312, 141.3246307373047],
-    "CARLA:Town03:Roundabout": [0.0, 0.0],
-    "CARLA:Town04:3way_Large": [-378.30316162109375, -12.988147735595703],
-    "CARLA:Town04:3way_Small": [127.83306884765625, -167.14236450195312],
-    "CARLA:Town04:4way_Stop": [197.35690307617188, -192.64134216308594],
-    "CARLA:Town04:Merging": [92.00399780273438, 5.6601104736328125],
-    "CARLA:Town04:Parking": [288.290771484375, -212.30825805664062],
-    "CARLA:Town06:4way_Large": [2.7990493774414062, -17.995826721191406],
-    "CARLA:Town06:merge_Double": [-142.56692504882812, 58.08183670043945],
-    "CARLA:Town06:merge_Single": [515.815185546875, 29.682167053222656],
-    "CARLA:Town07:3way": [-95.72276306152344, 25.259380340576172],
-    "CARLA:Town07:4way": [-101.99176025390625, 40.31178283691406],
-    "CARLA:Town10HD:3way_Protected": [-32.242706298828125, 87.99059295654297],
-    "CARLA:Town10HD:3way_Stop": [28.333023071289062, 62.63806915283203],
-    "CARLA:Town10HD:4way": [-33.782386779785156, 26.179428100585938],
+    "carla:Town01:3way": [93.70275115966797, 200.7403106689453],
+    "carla:Town01:Straight": [254.2249755859375, 300.88372802734375],
+    "carla:Town02:3way": [41.620059967041016, 191.54580688476562],
+    "carla:Town02:Straight": [110.15972900390625, 258.85760498046875],
+    "carla:Town03:3way_Protected": [187.63462829589844, -2.8370285034179688],
+    "carla:Town03:3way_Unprotected": [3.7141036987304688, -154.9966278076172],
+    "carla:Town03:4way": [-65.73756408691406, -122.9695053100586],
+    "carla:Town03:5way": [-64.09320068359375, 2.4671669006347656],
+    "carla:Town03:Gas_Station": [-20.871902465820312, 141.3246307373047],
+    "carla:Town03:Roundabout": [0.0, 0.0],
+    "carla:Town04:3way_Large": [-378.30316162109375, -12.988147735595703],
+    "carla:Town04:3way_Small": [127.83306884765625, -167.14236450195312],
+    "carla:Town04:4way_Stop": [197.35690307617188, -192.64134216308594],
+    "carla:Town04:Merging": [92.00399780273438, 5.6601104736328125],
+    "carla:Town04:Parking": [288.290771484375, -212.30825805664062],
+    "carla:Town06:4way_Large": [2.7990493774414062, -17.995826721191406],
+    "carla:Town06:merge_Double": [-142.56692504882812, 58.08183670043945],
+    "carla:Town06:merge_Single": [515.815185546875, 29.682167053222656],
+    "carla:Town07:3way": [-95.72276306152344, 25.259380340576172],
+    "carla:Town07:4way": [-101.99176025390625, 40.31178283691406],
+    "carla:Town10HD:3way_Protected": [-32.242706298828125, 87.99059295654297],
+    "carla:Town10HD:3way_Stop": [28.333023071289062, 62.63806915283203],
+    "carla:Town10HD:4way": [-33.782386779785156, 26.179428100585938],
 }
 
 DEMO_LOCATIONS = {
-    "CARLA:Town01:3way": dict(
+    "carla:Town01:3way": dict(
         proximity_threshold=40,
         spawning_locations=[
             Transform(
@@ -40,7 +40,7 @@ DEMO_LOCATIONS = {
             )
         ],
     ),
-    "CARLA:Town02:3way": dict(
+    "carla:Town02:3way": dict(
         proximity_threshold=25,
         spawning_locations=[
             Transform(
@@ -48,7 +48,7 @@ DEMO_LOCATIONS = {
             )
         ],
     ),
-    "CARLA:Town03:Roundabout": dict(
+    "carla:Town03:Roundabout": dict(
         proximity_threshold=60,
         spawning_locations=[
             Transform(
@@ -68,7 +68,7 @@ DEMO_LOCATIONS = {
             ),
         ],
     ),
-    "CARLA:Town03:4way": dict(
+    "carla:Town03:4way": dict(
         proximity_threshold=45,
         spawning_locations=[
             Transform(
@@ -89,7 +89,7 @@ DEMO_LOCATIONS = {
             ),
         ],
     ),
-    "CARLA:Town03:GasStation": dict(
+    "carla:Town03:GasStation": dict(
         proximity_threshold=40,
         spawning_locations=[
             Transform(
@@ -98,7 +98,7 @@ DEMO_LOCATIONS = {
             )
         ],
     ),
-    "CARLA:Town04:Merging": dict(
+    "carla:Town04:Merging": dict(
         proximity_threshold=80,
         spawning_locations=[
             Transform(
@@ -111,7 +111,7 @@ DEMO_LOCATIONS = {
             ),
         ],
     ),
-    "CARLA:Town04:4way_Stop": dict(
+    "carla:Town04:4way_Stop": dict(
         proximity_threshold=80,
         spawning_locations=[
             Transform(
@@ -124,7 +124,7 @@ DEMO_LOCATIONS = {
             ),
         ],
     ),
-    "CARLA:Town10HD:4way": dict(
+    "carla:Town10HD:4way": dict(
         proximity_threshold=70,
         spawning_locations=[
             Transform(

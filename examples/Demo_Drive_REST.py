@@ -1,19 +1,9 @@
 #!/usr/bin/env ipython
-import os
-import sys
 from PIL import Image as PImage
 import imageio
 import numpy as np
-import cv2
 from tqdm import tqdm
 import argparse
-
-os.environ["IAI_MOCK_API"] = "0"
-os.environ["IAI_DEV"] = "1"
-os.environ["IAI_DEV_URL"] = "http://localhost:8888"
-
-if os.environ.get("IAI_DEV", False):
-    sys.path.append("../")
 import invertedai as iai
 
 # logger.setLevel(10)
@@ -31,12 +21,10 @@ file_name = args.location.replace(":", "_")
 if response.osm_map is not None:
     file_path = f"{file_name}.osm"
     with open(file_path, "w") as f:
-        f.write(response.osm_map[0])
+        response.osm_map.save_osm_file(file_path)
 if response.birdview_image is not None:
     file_path = f"{file_name}.jpg"
-    rendered_map = np.array(response.birdview_image, dtype=np.uint8)
-    image = cv2.imdecode(rendered_map, cv2.IMREAD_COLOR)
-    cv2.imwrite(file_path, image)
+    response.birdview_image.decode_and_save(file_path)
 response = iai.initialize(
     location=args.location,
     agent_count=10,
@@ -49,7 +37,7 @@ for i in pbar:
         agent_attributes=agent_attributes,
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
-        get_birdviews=True,
+        get_birdview=True,
         location=args.location,
         get_infractions=True,
     )
@@ -59,8 +47,7 @@ for i in pbar:
         + f"Wrong-way rate: {100*np.array([inf.wrong_way for inf in response.infractions]).mean():.2f}%"
     )
 
-    birdview = np.array(response.bird_view, dtype=np.uint8)
-    image = cv2.imdecode(birdview, cv2.IMREAD_COLOR)
+    image = response.bird_view.decode()
     frames.append(image)
     im = PImage.fromarray(image)
 imageio.mimsave("iai-drive.gif", np.array(frames), format="GIF-PIL")

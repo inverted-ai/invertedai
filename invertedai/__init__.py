@@ -1,11 +1,9 @@
 import os
 from distutils.util import strtobool
 
-from invertedai.api_resources import (
-    drive,
-    initialize,
-    location_info,
-)
+from invertedai.api.location import location_info
+from invertedai.api.initialize import initialize
+from invertedai.api.drive import drive
 from invertedai.cosimulation import BasicCosimulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
@@ -33,13 +31,9 @@ model_resources = {
 }
 __all__ = [
     "BasicCosimulation",
-    "drive",
-    "initialize",
-    "location_info",
     "Jupyter_Render",
     "logger",
     "session",
     "add_apikey",
     "use_mock_api",
-    "location_info",
 ]
