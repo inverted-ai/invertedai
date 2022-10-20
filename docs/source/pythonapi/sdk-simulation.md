@@ -1,6 +1,8 @@
-# SIMULATION
+# Co-simulation
 
 
 ```{eval-rst}
-.. autoclass:: invertedai.simulation.Simulation
+.. autoclass:: invertedai.cosimulation.BasicCosimulation
+    :members: 
 ```
+ 
