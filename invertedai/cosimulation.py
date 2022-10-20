@@ -1,7 +1,7 @@
 from typing import List
 
-from invertedai.api_resources import initialize, drive
-from invertedai.models import AgentState, InfractionIndicators, Image
+from invertedai import drive, initialize
+from invertedai.common import AgentState, InfractionIndicators, Image
 
 
 class BasicCosimulation:

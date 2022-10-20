@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Dict, Literal
+from typing import List, Tuple, Literal
 from enum import Enum
 
 import invertedai as iai
@@ -65,11 +65,7 @@ class Image:
     def __init__(self, encoded_image: List[int]):
         self._encoded_image = encoded_image
 
-    def decode_and_save(self, path):
-        """
-        Decode the image and save it to the specified path.
-        Requires numpy and cv2 to be available, otherwise raises `ImportError`.
-        """
+    def decode(self):
         try:
             import numpy as np
             import cv2
@@ -78,6 +74,15 @@ class Image:
             raise e
         array = np.array(self._encoded_image, dtype=np.uint8)
         image = cv2.imdecode(array, cv2.IMREAD_COLOR)
+        return image
+
+    def decode_and_save(self, path):
+        """
+        Decode the image and save it to the specified path.
+        Requires numpy and cv2 to be available, otherwise raises `ImportError`.
+        """
+        image = self.decode()
+        import cv2
         cv2.imwrite(path, image)
 
 
@@ -147,28 +152,6 @@ class InfractionIndicators:
 
 
 @dataclass
-class DriveResponse:
-    """
-    Response returned from an API call to :func:`iai.drive`.
-    """
-    agent_states: List[AgentState]  #: Predicted states for all agents at the next time step.
-    recurrent_states: List[RecurrentState]  #: To pass to :func:`iai.drive` at the subsequent time step.
-    bird_view: Optional[Image]  #: If `get_birdview` was set, this contains the resulting image.
-    infractions: Optional[List[InfractionIndicators]]  #: If `get_infractions` was set, they are returned here.
-    is_inside_supported_area: List[bool]  #: For each agent, indicates whether the predicted state is inside supported area.
-
-
-@dataclass
-class InitializeResponse:
-    """
-    Response returned from an API call to :func:`iai.initialize`.
-    """
-    recurrent_states: List[RecurrentState]  #: To pass to :func:`iai.drive` at the first time step.
-    agent_states: List[AgentState]  #: Initial states of all initialized agents.
-    agent_attributes: List[AgentAttributes]  #: Static attributes of all initialized agents.
-
-
-@dataclass
 class StaticMapActor:
     """
     Specifies a traffic light placement. We represent traffic lights as rectangular bounding boxes
@@ -192,18 +175,3 @@ class StaticMapActor:
         d['center'] = Point(d['x'], d['y'])
         del d['center']
         return cls(**d)
-
-
-@dataclass
-class LocationResponse:
-    """
-    Response returned from an API call to :func:`iai.location_info`.
-    """
-    version: str  #: Map version. Matches the version in the input location string, if one was specified.
-    max_agent_number: int  #: Maximum number of agents recommended in the location. Use more at your own risk.
-    bounding_polygon: Optional[
-        List[Point]
-    ]  #: Convex polygon denoting the boundary of the supported area within the location.
-    birdview_image: Image  #: Visualization of the location.
-    osm_map: Optional[LocationMap]  #: Underlying map annotation, returned if `include_map_source` was set.
-    static_actors: List[StaticMapActor]  #: Lists traffic lights with their IDs and locations.

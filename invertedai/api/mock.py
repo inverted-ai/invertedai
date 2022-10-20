@@ -1,6 +1,6 @@
 from typing import List
 
-from invertedai.models import (
+from invertedai.common import (
     AgentAttributes,
     AgentState,
     RecurrentState,

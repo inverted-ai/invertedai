@@ -7,9 +7,10 @@ from dotenv import load_dotenv
 load_dotenv()
 if os.environ.get("IAI_DEV", False):
     sys.path.append("../../")
-import invertedai as iai
 from invertedai.simulators import CarlaEnv, CarlaSimulationConfig
 import argparse
+
+import invertedai as iai
 
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
