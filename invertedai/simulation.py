@@ -58,6 +58,13 @@ class Simulation:
         self.ego_agent_mask = value
 
     @property
+    def agent_attributes(self):
+        return self._agent_attributes
+
+    @agent_attributes.setter
+    def agent_attributes(self, value):
+        self._agent_attributes = value
+
     def infractions(self):
         return self._infractions
 
@@ -81,7 +88,10 @@ class Simulation:
         :param current_ego_agent_states:  States of ego agents before the step.
         :return: None - call `npc_states` to retrieve predictions.
         """
+
+        breakpoint()
         self._update_ego_states(current_ego_agent_states)
+        breakpoint()
         response = drive(
             location=self.location,
             agent_attributes=self._agent_attributes,
@@ -113,3 +123,4 @@ class Simulation:
             else:
                 new_states.append(self.agent_states[i])
         self._agent_states = new_states
+        breakpoint()

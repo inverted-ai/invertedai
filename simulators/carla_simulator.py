@@ -279,7 +279,7 @@ class CarlaEnv:
 
     def reset(self, include_ego=True):
         try:
-            self.destroy()
+            self.destroy(npcs=True, ego=True, world=False)
         except:
             pass
         self._initialize()
