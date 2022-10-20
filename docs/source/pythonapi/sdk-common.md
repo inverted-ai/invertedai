@@ -2,13 +2,7 @@
 
 
 ```{eval-rst}
-.. automodule:: invertedai.models
+.. automodule:: invertedai.common
    :members:
-   :undoc-members:
-   :show-inheritance:
 ```
-
-<!-- .. autoclass:: invertedai.api_resources.TestReturn -->
-
-
 
