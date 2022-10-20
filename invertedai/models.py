@@ -2,6 +2,12 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Literal
 from enum import Enum
 
+
+TrafficLightId = int
+Origin = Tuple[
+    float, float
+]  # lat/lon of the origin point use to project the OSM map to UTM
+
 @dataclass
 class RecurrentState:
     """
@@ -20,11 +26,34 @@ class Point:
     x: float
     y: float
 
-TrafficLightId = int
-Origin = Tuple[
-    float, float
-]  # lat/lon of the origin point use to project the OSM map to UTM
-Map = Tuple[str, Origin]  # Serialized OSM file and the associated origin point
+
+class LocationMap:
+    """
+    Serializable representation of a Lanelet2 map and the corresponding origin.
+    To reconstruct the map locally, save the OSM file to disk and load it
+    with the UTM projector using the origin provided here.
+    This projection defines the canonical coordinate frame of the map.
+    """
+    def __init__(self, encoded_map: str, origin: Origin):
+        self._encoded_map = encoded_map
+        self._origin = origin
+
+    @property
+    def origin(self) -> Origin:
+        """
+        Origin of the map, specified as a pair of latitude and longitude coordinates.
+        Allows for geolocation of the map and can be used with a UTM projector to
+        construct the Lanelet2 map object in the canonical coordinate frame.
+        """
+        return self._origin
+
+    def save_osm_file(self, path: str):
+        """
+        Save the OSM file to disk.
+        """
+        with open(path, "w") as f:
+            f.write(self._encoded_map)
+
 Image = List[int]  # Images  encoded in JPEG format
 # for decoding use a JPEG decoder
 # such as cv2.imdecode(birdview_image: Image, cv2.IMREAD_COLOR).
@@ -153,5 +182,5 @@ class LocationResponse:
         List[Point]
     ]  #: Convex polygon denoting the boundary of the supported area within the location.
     birdview_image: Image  #: Visualization of the location.
-    osm_map: Optional[Map]  #: Underlying map annotation, returned if `include_map_source` was set.
+    osm_map: Optional[LocationMap]  #: Underlying map annotation, returned if `include_map_source` was set.
     static_actors: List[StaticMapActor]  #: Lists traffic lights with their IDs and locations.

@@ -35,7 +35,7 @@ from invertedai.models import (
     StaticMapActor,
     RecurrentState,
     TrafficLightId,
-    TrafficLightState, Point,
+    TrafficLightState, Point, LocationMap,
 )
 
 TIMEOUT = 10
@@ -99,7 +99,7 @@ def location_info(
                     StaticMapActor.fromdict(actor) for actor in response["static_actors"]
                 ]
             if response["osm_map"] is not None:
-                response["osm_map"] = (response["osm_map"], response["map_origin"])
+                response["osm_map"] = LocationMap(encoded_map=response["osm_map"], origin=response["map_origin"])
             del response["map_origin"]
             return LocationResponse(**response)
         except TryAgain as e:
