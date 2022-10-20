@@ -52,7 +52,7 @@ class InfractionIndicators:
 @dataclass
 class DriveResponse:
     agent_states: List[AgentState]
-    recurrent_states: List[RecurrentState]  # Ax2x64
+    recurrent_states: List[RecurrentState]  # Ax132
     bird_view: Optional[Image]
     infractions: Optional[List[InfractionIndicators]]
     is_inside_supported_area: List[bool]  # A
