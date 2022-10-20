@@ -199,7 +199,7 @@ def initialize(
                     AgentAttributes(*attr)
                     for attr in initial_states["agent_attributes"]
                 ],
-                recurrent_states=initial_states["recurrent_states"],
+                recurrent_states=[RecurrentState(r) for r in initial_states["recurrent_states"]],
             )
             return response
         except TryAgain as e:
@@ -283,7 +283,7 @@ def drive(
         location=location,
         agent_states=[state.tolist() for state in agent_states],
         agent_attributes=[state.tolist() for state in agent_attributes],
-        recurrent_states=recurrent_states,
+        recurrent_states=[r.packed for r in recurrent_states],
         traffic_lights_states=traffic_lights_states,
         get_birdviews=get_birdview,
         get_infractions=get_infractions,
@@ -298,7 +298,7 @@ def drive(
 
             response = DriveResponse(
                 agent_states=[AgentState(*state) for state in response["agent_states"]],
-                recurrent_states=response["recurrent_states"],
+                recurrent_states=[RecurrentState(r) for r in response["recurrent_states"]],
                 bird_view=response["bird_view"],
                 infractions=[
                     InfractionIndicators(*infractions)

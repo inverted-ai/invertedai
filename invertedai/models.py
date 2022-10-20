@@ -2,7 +2,14 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Literal
 from enum import Enum
 
-RecurrentState = List[float]  # Recurrent Dim
+@dataclass
+class RecurrentState:
+    """
+    Recurrent state used in :func:`iai.drive`.
+    It should not be modified, but rather passed along as received.
+    """
+    packed: List[float]  #: Internal representation of the recurrent state.
+
 TrafficLightId = int
 Point = Tuple[float, float]
 Origin = Tuple[

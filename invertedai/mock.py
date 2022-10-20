@@ -23,7 +23,7 @@ def get_mock_agent_state() -> AgentState:
 
 
 def get_mock_recurrent_state() -> RecurrentState:
-    return [0.0]  # TODO
+    return RecurrentState([0.0])  # TODO
 
 
 def mock_update_agent_state(state: AgentState) -> AgentState:
