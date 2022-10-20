@@ -10,7 +10,7 @@ import argparse
 
 os.environ["IAI_MOCK_API"] = "0"
 os.environ["IAI_DEV"] = "1"
-# os.environ["IAI_DEV_URL"] = "http://localhost:8888"
+os.environ["IAI_DEV_URL"] = "http://localhost:8888"
 
 if os.environ.get("IAI_DEV", False):
     sys.path.append("../")
@@ -20,11 +20,12 @@ import invertedai as iai
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default="")
-parser.add_argument("--location", type=str, default="iai:ubc_roundabout")
+parser.add_argument("--location", type=str, default="canada:vancouver:ubc_roundabout")
 args = parser.parse_args()
 
 iai.add_apikey(args.api_key)
 
+breakpoint()
 # response = iai.available_locations("carla", "roundabout")
 response = iai.location_info(location=args.location)
 
@@ -41,13 +42,14 @@ if response.birdview_image is not None:
 simulation = iai.BasicCosimulation(
     location=args.location,
     agent_count=10,
+    ego_agent_mask=[True, *[False] * 10],
     monitor_infractions=True,
     render_birdview=True,
 )
 frames = []
 pbar = tqdm(range(50))
 for i in pbar:
-    simulation.step(current_ego_agent_states=[])
+    simulation.step(current_ego_agent_states=simulation.ego_states)
     collision, offroad, wrong_way = simulation.infractions
     pbar.set_description(
         f"Collision rate: {100*np.array(collision).mean():.2f}% | "

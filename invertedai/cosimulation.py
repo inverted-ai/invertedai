@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from invertedai.api_resources import initialize, drive
 from invertedai.models import AgentState, InfractionIndicators, Image
@@ -31,7 +31,7 @@ class BasicCosimulation:
     def __init__(
         self,
         location: str,
-        ego_agent_mask: List[bool],
+        ego_agent_mask: Optional[List[bool]] = None,
         monitor_infractions: bool = False,
         render_birdview: bool = False,
         # sufficient arguments to initialize must also be included
@@ -49,7 +49,10 @@ class BasicCosimulation:
         self._infractions = None
         self._render_birdview = render_birdview
         self._birdview = None
-        self._ego_agent_mask = ego_agent_mask
+        if ego_agent_mask is None:
+            self._ego_agent_mask = [False] * self._agent_count
+        else:
+            self._ego_agent_mask = ego_agent_mask[: self._agent_count]
         self._time_step = 0
 
     @property
@@ -85,6 +88,10 @@ class BasicCosimulation:
     @ego_agent_mask.setter
     def ego_agent_mask(self, value):
         self.ego_agent_mask = value
+
+    @property
+    def ego_states(self):
+        return [d for d, s in zip(self._agent_states, self._ego_agent_mask) if s]
 
     @property
     def infractions(self) -> List[InfractionIndicators]:

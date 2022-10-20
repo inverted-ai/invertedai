@@ -10,7 +10,7 @@ import argparse
 
 os.environ["IAI_MOCK_API"] = "0"
 os.environ["IAI_DEV"] = "1"
-# os.environ["IAI_DEV_URL"] = "http://localhost:8888"
+os.environ["IAI_DEV_URL"] = "http://localhost:8888"
 
 if os.environ.get("IAI_DEV", False):
     sys.path.append("../")
@@ -20,7 +20,7 @@ import invertedai as iai
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default="")
-parser.add_argument("--location", type=str, default="iai:ubc_roundabout")
+parser.add_argument("--location", type=str, default="canada:vancouver:ubc_roundabout")
 args = parser.parse_args()
 
 iai.add_apikey("")

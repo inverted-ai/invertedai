@@ -13,7 +13,7 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
-parser.add_argument("-n", "--scene_name", type=str, default="CARLA:Town03:Roundabout")
+parser.add_argument("-n", "--scene_name", type=str, default="carla:Town03:Roundabout")
 parser.add_argument("-c", "--agent_count", type=int, default=8)
 parser.add_argument("-l", "--episode_length", type=int, default=30)
 parser.add_argument("-e", "--ego_spawn_point", default="demo")
