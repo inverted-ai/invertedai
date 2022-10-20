@@ -4,12 +4,12 @@ from invertedai.models import (
     AgentAttributes,
     AgentState,
     RecurrentState,
-    InfractionIndicators, Point,
+    InfractionIndicators, Point, Image,
 )
 
 
-def get_mock_birdview() -> List[int]:
-    return MOCK_BIRDVIEW
+def get_mock_birdview() -> Image:
+    return Image(MOCK_BIRDVIEW)
 
 
 def get_mock_agent_attributes() -> AgentAttributes:

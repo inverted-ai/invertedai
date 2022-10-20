@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Literal
 from enum import Enum
 
+import invertedai as iai
+
 
 TrafficLightId = int
 Origin = Tuple[
@@ -20,7 +22,7 @@ class RecurrentState:
 class Point:
     """
     2D coordinates of a point in a given location.
-    Each location comes with a canonical, right-handed coordinate system, where
+    Each location comes with a canonical coordinate system, where
     the distance units are meters.
     """
     x: float
@@ -54,9 +56,30 @@ class LocationMap:
         with open(path, "w") as f:
             f.write(self._encoded_map)
 
-Image = List[int]  # Images  encoded in JPEG format
-# for decoding use a JPEG decoder
-# such as cv2.imdecode(birdview_image: Image, cv2.IMREAD_COLOR).
+
+class Image:
+    """
+    Images sent through the API in their encoded format.
+    Decoding the images requires additional dependencies on top of what invertedai uses.
+    """
+    def __init__(self, encoded_image: List[int]):
+        self._encoded_image = encoded_image
+
+    def decode_and_save(self, path):
+        """
+        Decode the image and save it to the specified path.
+        Requires numpy and cv2 to be available, otherwise raises `ImportError`.
+        """
+        try:
+            import numpy as np
+            import cv2
+        except ImportError as e:
+            iai.logger.error("Decoding images requires numpy and cv2, which were not found.")
+            raise e
+        array = np.array(self._encoded_image, dtype=np.uint8)
+        image = cv2.imdecode(array, cv2.IMREAD_COLOR)
+        cv2.imwrite(path, image)
+
 
 
 class TrafficLightState(Enum):

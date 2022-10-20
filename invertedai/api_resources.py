@@ -12,6 +12,7 @@ Functions
 """
 import os
 from distutils.util import strtobool
+from tkinter import Image
 
 from invertedai.error import TryAgain
 from typing import List, Optional, Dict
@@ -101,6 +102,7 @@ def location_info(
             if response["osm_map"] is not None:
                 response["osm_map"] = LocationMap(encoded_map=response["osm_map"], origin=response["map_origin"])
             del response["map_origin"]
+            response['birdview_image'] = Image(response['birdview_image'])
             return LocationResponse(**response)
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
@@ -301,7 +303,7 @@ def drive(
             response = DriveResponse(
                 agent_states=[AgentState.fromlist(state) for state in response["agent_states"]],
                 recurrent_states=[RecurrentState(r) for r in response["recurrent_states"]],
-                bird_view=response["bird_view"],
+                bird_view=Image(response["bird_view"]) if response['bird_view'] is not None else None,
                 infractions=[
                     InfractionIndicators(*infractions)
                     for infractions in response["infraction_indicators"]
