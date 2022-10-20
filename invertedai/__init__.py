@@ -1,50 +1,39 @@
 import os
-from dotenv import load_dotenv
-from invertedai.api_resources import (
-    drive,
-    initialize,
-    location_info,
-    available_locations,
-)
+from distutils.util import strtobool
+
+from invertedai.api.location import location_info
+from invertedai.api.initialize import initialize
+from invertedai.api.drive import drive
+from invertedai.cosimulation import BasicCosimulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
-load_dotenv()
-dev = os.environ.get("DEV", False)
+dev = os.environ.get("IAI_DEV", False)
 if dev:
-    dev_url = os.environ.get("DEV_URL", "http://localhost:8000")
-log_level = os.environ.get("LOG_LEVEL", "WARNING")
-log_console = os.environ.get("LOG_CONSOLE", 1)
-log_file = os.environ.get("LOG_FILE", 0)
-api_key = os.environ.get("API_KEY", "")
+    dev_url = os.environ.get("IAI_DEV_URL", "http://localhost:8000")
+log_level = os.environ.get("IAI_LOG_LEVEL", "WARNING")
+log_console = os.environ.get("IAI_LOG_CONSOLE", 1)
+log_file = os.environ.get("IAI_LOG_FILE", 0)
+api_key = os.environ.get("IAI_API_KEY", "")
 
 logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log_file))
 
 session = Session(api_key)
 add_apikey = session.add_apikey
+use_mock_api = session.use_mock_api
+
+if strtobool(os.environ.get("IAI_MOCK_API", "false")):
+    use_mock_api()
+
 model_resources = {
-    "initialize": ("get", "/initialize"),
+    "initialize": ("post", "/initialize"),
     "drive": ("post", "/drive"),
     "location_info": ("get", "/location_info"),
-    "available_locations": ("get", "/available_locations"),
 }
-try:
-    from invertedai.simulators import CarlaEnv, CarlaSimulationConfig
-except:
-    logger.warning(
-        "Cannot import CarlaEnv\n"
-        + "Carla Python API is not installed\n"
-        + "Ignore these warnings if you are not running Carla"
-    )
-
-
 __all__ = [
-    "drive",
-    "initialize",
-    "location_info",
+    "BasicCosimulation",
     "Jupyter_Render",
     "logger",
     "session",
     "add_apikey",
-    "location_info",
-    "available_locations",
+    "use_mock_api",
 ]

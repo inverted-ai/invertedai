@@ -2,57 +2,43 @@
 hide-toc: true
 ---
 
-```{eval-rst}
-.. image:: ../images/banner.svg
-  :width: 600
-  :alt: Alternative text
-```
-
-# Introduction
-
-## Overview
-
-Breaking Down Barriers to Level 4-5 Autonomy.
-
-```{button-ref} getstarted/index
-:ref-type: doc
-:color: primary
-:class: sd-rounded-pill
-
-Get Started
-```
-
-- **Safety Validation**
-- **Synthetic Data Generation**
-- **Training and Testing**
-- **Real-World Results From Simulation**
-
 ![](../images/top_camera.gif)
 
+[pypi-badge]: https://badge.fury.io/py/invertedai.svg
+[pypi-link]: https://pypi.org/project/invertedai/
+[colab-badge]: https://colab.research.google.com/assets/colab-badge.svg
+[colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb
+[github-badge]: https://badgen.net/badge/icon/github?icon=github&label
+[github-link]: https://github.com/inverted-ai/invertedai/
+
+[![GitHub][github-badge]][github-link]
+[![PyPI][pypi-badge]][pypi-link]
+[![Open In Colab][colab-badge]][colab-link]
+
+```{include} ../../README.md
+:start-after: <!-- start elevator-pitch -->
+:end-before: <!-- end elevator-pitch -->
+```
+
+# Getting started
+```{include} ../../README.md
+:start-after: <!-- start quickstart -->
+:end-before: <!-- end quickstart -->
+```
+
+## Further resources
+
+The following pages will help you integrate the Inverted AI API with your own simulator.
 
 ```{toctree}
-:maxdepth: 4
+:maxdepth: 2
 
-getstarted/index
+self
+userguide
 pythonapi/index
 apireference
+examples/index
 ```
-
-```{toctree}
-:caption: GUIDES
-:maxdepth: 2
-
-
-carlasim
-```
-
-```{toctree}
-:caption: Python SDK Library
-:maxdepth: 2
-
-modules/modules
-```
-
 
 ```{eval-rst}
 REFERENCES
@@ -61,4 +47,3 @@ REFERENCES
 * :ref:`modindex`
 * :ref:`search`
 ```
-
