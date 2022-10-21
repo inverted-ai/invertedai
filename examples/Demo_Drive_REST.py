@@ -47,7 +47,7 @@ for i in pbar:
         + f"Wrong-way rate: {100*np.array([inf.wrong_way for inf in response.infractions]).mean():.2f}%"
     )
 
-    image = response.bird_view.decode()
+    image = response.birdview.decode()
     frames.append(image)
     im = PImage.fromarray(image)
 imageio.mimsave("iai-drive.gif", np.array(frames), format="GIF-PIL")
