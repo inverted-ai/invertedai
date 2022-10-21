@@ -50,7 +50,7 @@ class Session:
             method=method,
             relative_path=relative_path,
             params=params,
-            json=data,
+            json_body=data,
         )
 
         return response
@@ -61,7 +61,7 @@ class Session:
         relative_path: str = "",
         params=None,
         headers=None,
-        json=None,
+        json_body=None,
         data=None,
     ) -> Dict:
         try:
@@ -71,18 +71,27 @@ class Session:
                 url=self.base_url + relative_path,
                 headers=headers,
                 data=data,
-                json=json,
+                json=json_body,
             )
             result.raise_for_status()
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            raise error.APIConnectionError("Error communicating with IAI")
         except requests.exceptions.RequestException as e:
             if e.response.status_code == 403:
-                raise error.APIConnectionError(
-                    "Connection forbidden. Please check the provided API key."
+                raise error.AuthenticationError(
+                    "Access denied. Please check the provided API key."
                 )
             elif e.response.status_code in [400, 422]:
-                raise e
+                raise error.InvalidRequestError(e.response.text, param="")
+            elif e.response.status_code == 429:
+                raise error.RateLimitError("Throttled")
+            elif e.response.status_code == 503:
+                raise error.ServiceUnavailableError("Service Unavailable")
+            elif 400 <= e.response.status_code < 500:
+                raise error.APIError("Invalid request. Please check the sent data again.")
             else:
-                raise error.APIConnectionError("Error communicating with IAI") from e
+                raise error.APIError("The server is aware that it has erred or is incapable of performing the requested"
+                                     " method.")
         iai.logger.info(
             iai.logger.logfmt(
                 "IAI API response",
@@ -90,7 +99,13 @@ class Session:
                 response_code=result.status_code,
             )
         )
-        data = self._interpret_response_line(result)
+        try:
+            data = json.loads(result.content)
+        except json.decoder.JSONDecodeError:
+            raise error.APIError(
+                f"HTTP code {result.status_code} from API ({result.content})", result.content, result.status_code,
+                headers=result.headers
+            )
         return data
 
     def _get_base_url(self) -> str:
