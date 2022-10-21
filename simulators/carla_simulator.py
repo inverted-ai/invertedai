@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import carla
 from carla import Location, Rotation, Transform
 import math
@@ -14,7 +14,6 @@ from simulators.data.static_carla import (
     NPC_BPS,
     EGO_FLAG_COLOR,
     NPC_FLAG_COLOR,
-    RS,
     cord,
 )
 
@@ -26,7 +25,9 @@ class RecurrentState:
     It should not be modified, but rather passed along as received.
     """
 
-    packed: List[float]  #: Internal representation of the recurrent state.
+    # packed: List[float]
+    packed: List[float] = field(default_factory=lambda: [0.0] * 132)
+    #: Internal representation of the recurrent state.
 
 
 @dataclass
@@ -90,9 +91,14 @@ class CarlaSimulationConfig:
 
 
 class Car:
-    def __init__(self, actor: carla.Actor, speed: float = 0.0) -> None:
+    def __init__(
+        self,
+        actor: carla.Actor,
+        speed: float = 0.0,
+        recurrent_state: RecurrentState = RecurrentState(),
+    ) -> None:
         self.actor = actor
-        self.recurrent_state = RS
+        self.recurrent_state = recurrent_state
         self._dimension = None
         self._states = deque(maxlen=10)
         self.speed = speed
@@ -169,6 +175,7 @@ class CarlaEnv:
         cfg: CarlaSimulationConfig,
         ego_spawn_point=None,
         initial_states=None,
+        initial_recurrent_states=None,
         npc_entrance_spawn_points=None,
         spectator_transform=None,
     ) -> None:
@@ -197,20 +204,36 @@ class CarlaEnv:
         )
         if initial_states is None:
             spawn_points = world.get_map().get_spawn_points()
-            npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
+            (
+                npc_roi_spawn_points,
+                initial_speed,
+                initial_recurrent_states,
+            ) = self.get_roi_spawn_points(
                 spawn_points, speed=np.zeros_like(spawn_points)
             )
         else:
             spawn_points, speed = self._to_transform(initial_states)
-            npc_roi_spawn_points, initial_speed = self.get_roi_spawn_points(
-                spawn_points, speed
+            if initial_recurrent_states is not None:
+                assert len(initial_recurrent_states) == len(initial_states)
+            (
+                npc_roi_spawn_points,
+                initial_speed,
+                initial_recurrent_states,
+            ) = self.get_roi_spawn_points(
+                spawn_points, speed, initial_recurrent_states=initial_recurrent_states
             )
         if (ego_spawn_point is None) or (cfg.scene_name not in DEMO_LOCATIONS.keys()):
-            ego_spawn_point, _ = (npc_roi_spawn_points.pop(), initial_speed.pop())
+            ego_spawn_point, ego_rs, _ = (
+                npc_roi_spawn_points.pop(),
+                initial_recurrent_states.pop(),
+                initial_speed.pop(),
+            )
         elif ego_spawn_point == "demo":
             locs = DEMO_LOCATIONS[cfg.scene_name]
             ego_spawn_point = self.rng.choice(locs["spawning_locations"])
+            ego_rs = RecurrentState()
         else:
+            ego_rs = RecurrentState()
             assert isinstance(
                 ego_spawn_point, carla.Transform
             ), "ego_spawn_point must be a Carla.Transform"
@@ -222,11 +245,13 @@ class CarlaEnv:
                 npc_entrance_spawn_points = self.get_entrance(spawn_points)
             else:
                 spawn_points = self._to_transform(npc_roi_spawn_points)
-                npc_entrance_spawn_points = self.get_roi_spawn_points(spawn_points)
+                npc_entrance_spawn_points, _, _ = self.get_roi_spawn_points(
+                    spawn_points
+                )
         elif cfg.non_roi_npc_mode == "carla_handoff":
             self.nroi_npc_mode = 1
             spawn_points = world.get_map().get_spawn_points()
-            self.non_roi_spawn_points, _ = self.get_roi_spawn_points(
+            self.non_roi_spawn_points, _, _ = self.get_roi_spawn_points(
                 spawn_points, roi=False
             )
         else:
@@ -257,6 +282,8 @@ class CarlaEnv:
         self.initial_speed = initial_speed
         self.entrance_spawn_points = npc_entrance_spawn_points
         self.ego_spawn_point = ego_spawn_point
+        self.npc_rs = initial_recurrent_states
+        self.ego_rs = ego_rs
         self.populate_step = self.cfg.fps * self.cfg.npc_population_interval
         self.npcs = []
         self.non_roi_npcs = []
@@ -265,9 +292,7 @@ class CarlaEnv:
         # Keep the order of first spawining ego then NPCs
         # to avoid spawning npc in ego location
         self.ego = self._spawn_npcs(
-            [self.ego_spawn_point],
-            [0],
-            [self.cfg.ego_bp],
+            [self.ego_spawn_point], [0], [self.cfg.ego_bp], [self.ego_rs]
         ).pop()
         if len(self.roi_spawn_points) < self.cfg.traffic_count:
             print("Number of roi_spawn_points is less than traffic_count")
@@ -278,6 +303,7 @@ class CarlaEnv:
                 self.roi_spawn_points[:num_npcs],
                 self.initial_speed,
                 self.cfg.npc_bps,
+                self.npc_rs,
             )
         )
         if self.cfg.non_roi_npc_mode == "carla_handoff":
@@ -368,7 +394,8 @@ class CarlaEnv:
             for state in states
         ]
         agent_attributes = [AgentAttributes(*attr) for attr in dims]
-        recurrent_state = [RecurrentState(rs) for rs in rec_state]
+        # recurrent_state = [RecurrentState(rs) for rs in rec_state]
+        recurrent_state = rec_state
         return agent_states, recurrent_state, agent_attributes
 
     def get_infractions(self):
@@ -429,16 +456,18 @@ class CarlaEnv:
                 # TODO: add logger
             npc.actor.destroy()
 
-    def _spawn_npcs(self, spawn_points, speeds, bps):
+    def _spawn_npcs(self, spawn_points, speeds, bps, recurrent_states=None):
         npcs = []
-        for spawn_point, speed in zip(spawn_points, speeds):
+        if recurrent_states is None:
+            recurrent_states = [RecurrentState()] * len(spawn_points)
+        for spawn_point, speed, rs in zip(spawn_points, speeds, recurrent_states):
             blueprint = self.world.get_blueprint_library().find(self.rng.choice(bps))
             # ego_spawn_point = self.roi_spawn_points[i]
             actor = self.world.try_spawn_actor(blueprint, spawn_point)
             if actor is None:
                 print(f"Cannot spawn NPC at:{str(spawn_point)}")
             else:
-                npc = Car(actor, speed)
+                npc = Car(actor, speed, rs)
                 npcs.append(npc)
         return npcs
 
@@ -533,9 +562,12 @@ class CarlaEnv:
                 entrance.append(sp)
         return entrance
 
-    def get_roi_spawn_points(self, spawn_points, speed=None, roi=True):
+    def get_roi_spawn_points(
+        self, spawn_points, speed=None, roi=True, initial_recurrent_states=None
+    ):
         roi_spawn_points = []
         initial_speed = []
+        keep_initial_recurrent_states = []
         for ind, sp in enumerate(spawn_points):
             distance = math.sqrt(
                 ((sp.location.x - self.cfg.roi_center.x) ** 2)
@@ -545,9 +577,13 @@ class CarlaEnv:
                 roi_spawn_points.append(sp)
                 if speed is not None:
                     initial_speed.append(speed[ind])
+                if initial_recurrent_states is not None:
+                    keep_initial_recurrent_states.append(initial_recurrent_states[ind])
             elif (not roi) & (distance > self.proximity_threshold):
                 roi_spawn_points.append(sp)
-        return roi_spawn_points, initial_speed
+        if len(keep_initial_recurrent_states) == 0:
+            keep_initial_recurrent_states = [RecurrentState()] * len(roi_spawn_points)
+        return roi_spawn_points, initial_speed, keep_initial_recurrent_states
 
 
 def get_available_port(subsequent_ports: int = 2) -> int:
