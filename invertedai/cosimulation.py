@@ -148,7 +148,7 @@ class BasicCosimulation:
                 [inf.wrong_way for inf in response.infractions],
             )
         if self._render_birdview:
-            self._birdview = response.bird_view
+            self._birdview = response.birdview
         self._time_step += 1
 
     def _update_ego_states(self, ego_agent_states):
