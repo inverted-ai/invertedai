@@ -115,7 +115,7 @@ class BasicCosimulation:
         The predictions for ego agents are excluded.
         """
         npc_states = []
-        for (i, s) in self._agent_states:
+        for (i, s) in enumerate(self._agent_states):
             if not self._ego_agent_mask[i]:
                 npc_states.append(s)
         return npc_states
