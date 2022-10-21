@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Literal
+from typing import List, Tuple
 from enum import Enum
 
 import invertedai as iai
@@ -10,13 +10,16 @@ Origin = Tuple[
     float, float
 ]  # lat/lon of the origin point use to project the OSM map to UTM
 
+
 @dataclass
 class RecurrentState:
     """
     Recurrent state used in :func:`iai.drive`.
     It should not be modified, but rather passed along as received.
     """
+
     packed: List[float]  #: Internal representation of the recurrent state.
+
 
 @dataclass
 class Point:
@@ -25,6 +28,7 @@ class Point:
     Each location comes with a canonical coordinate system, where
     the distance units are meters.
     """
+
     x: float
     y: float
 
@@ -36,6 +40,7 @@ class LocationMap:
     with the UTM projector using the origin provided here.
     This projection defines the canonical coordinate frame of the map.
     """
+
     def __init__(self, encoded_map: str, origin: Origin):
         self._encoded_map = encoded_map
         self._origin = origin
@@ -62,6 +67,7 @@ class Image:
     Images sent through the API in their encoded format.
     Decoding the images requires additional dependencies on top of what invertedai uses.
     """
+
     def __init__(self, encoded_image: List[int]):
         self._encoded_image = encoded_image
 
@@ -70,7 +76,9 @@ class Image:
             import numpy as np
             import cv2
         except ImportError as e:
-            iai.logger.error("Decoding images requires numpy and cv2, which were not found.")
+            iai.logger.error(
+                "Decoding images requires numpy and cv2, which were not found."
+            )
             raise e
         array = np.array(self._encoded_image, dtype=np.uint8)
         image = cv2.imdecode(array, cv2.IMREAD_COLOR)
@@ -83,8 +91,8 @@ class Image:
         """
         image = self.decode()
         import cv2
-        cv2.imwrite(path, image)
 
+        cv2.imwrite(path, image)
 
 
 class TrafficLightState(Enum):
@@ -95,6 +103,7 @@ class TrafficLightState(Enum):
     --------
     StaticMapActor
     """
+
     none = "0"  #: The light is off and will be ignored.
     green = "1"
     yellow = "2"
@@ -111,6 +120,7 @@ class AgentAttributes:
     --------
     AgentState
     """
+
     length: float  #: Longitudinal extent of the agent, in meters.
     width: float  #: Lateral extent of the agent, in meters.
     rear_axis_offset: float  #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
@@ -128,6 +138,7 @@ class AgentState:
     --------
     AgentAttributes
     """
+
     center: Point  #: The center point of the agent's bounding box.
     orientation: float  #: The direction the agent is facing, in radians with 0 pointing along x and pi/2 pointing along y.
     speed: float  #: In meters per second, negative if the agent is reversing.
@@ -146,6 +157,7 @@ class InfractionIndicators:
     """
     Infractions committed by a given agent, as returned from :func:`iai.drive`.
     """
+
     collisions: bool  #: True if the agent's bounding box overlaps with another agent's bounding box.
     offroad: bool  #: True if the agent is outside the designated driveable area specified by the map.
     wrong_way: bool  #: True if the cross product of the agent's and its lanelet's directions is negative.
@@ -162,8 +174,9 @@ class StaticMapActor:
     --------
     TrafficLightState
     """
+
     track_id: TrafficLightId  #: ID as used in :func:`iai.initialize` and :func:`iai.drive`.
-    agent_type: Literal["traffic-light"]  #: Not currently used, there may be more traffic signals in the future.
+    agent_type: str  #: Not currently used, there may be more traffic signals in the future.
     center: Point  #: The center of the stop line.
     orientation: float  #: Natural direction of traffic going through the stop line, in radians like in :class:`AgentState`.
     length: float  #: Size of the stop line, in meters, along its `orientation`.
@@ -172,6 +185,6 @@ class StaticMapActor:
     @classmethod
     def fromdict(cls, d):
         d = d.copy()
-        d['center'] = Point(d['x'], d['y'])
-        del d['center']
+        d["center"] = Point(d["x"], d["y"])
+        del d["center"]
         return cls(**d)
