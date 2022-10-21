@@ -6,6 +6,7 @@ from typing import List, Optional, Dict
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.api.mock import mock_update_agent_state, get_mock_birdview, get_mock_infractions
+from invertedai.error import APIConnectionError
 
 from invertedai.common import AgentState, RecurrentState, Image, InfractionIndicators, AgentAttributes, TrafficLightId, \
     TrafficLightState
@@ -123,7 +124,7 @@ def drive(
             )
 
             return response
-        except Exception as e:
+        except APIConnectionError as e:
             iai.logger.warning("Retrying")
-            if timeout is not None and time.time() > start + timeout:
+            if (timeout is not None and time.time() > start + timeout) or not e.should_retry:
                 raise e

@@ -74,7 +74,9 @@ class Session:
                 json=json_body,
             )
             result.raise_for_status()
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        except requests.exceptions.ConnectionError as e:
+            raise error.APIConnectionError("Error communicating with IAI", should_retry=True)
+        except requests.exceptions.Timeout as e:
             raise error.APIConnectionError("Error communicating with IAI")
         except requests.exceptions.RequestException as e:
             if e.response.status_code == 403:
