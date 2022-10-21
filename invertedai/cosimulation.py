@@ -115,7 +115,7 @@ class BasicCosimulation:
         The predictions for ego agents are excluded.
         """
         npc_states = []
-        for (i, s) in self._agent_states:
+        for (i, s) in enumerate(self._agent_states):
             if not self._ego_agent_mask[i]:
                 npc_states.append(s)
         return npc_states
@@ -148,7 +148,7 @@ class BasicCosimulation:
                 [inf.wrong_way for inf in response.infractions],
             )
         if self._render_birdview:
-            self._birdview = response.bird_view
+            self._birdview = response.birdview
         self._time_step += 1
 
     def _update_ego_states(self, ego_agent_states):
