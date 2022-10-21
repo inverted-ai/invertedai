@@ -1,8 +1,8 @@
 ---
 openapi: 3.0.2
 info:
-  title: Invertee AI
-  description: Inverted AI's REST API for controlling non-playable characters (NPCs) in autonomous driving simulations, available as either a REST API or a Python library built on top of it.
+  title: Inverted AI
+  description: Inverted AI's REST API for controlling non-playable characters (NPCs) in autonomous driving simulations.
   termsOfService: https://www.inverted.ai/terms-conditions
   contact:
     name: API Support
