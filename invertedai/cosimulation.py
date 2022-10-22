@@ -53,6 +53,12 @@ class BasicCosimulation:
             self._ego_agent_mask = [False] * self._agent_count
         else:
             self._ego_agent_mask = ego_agent_mask[: self._agent_count]
+        # initialize might not return the exact number of agents requested,
+        # in which case we need to adjust the ego agent mask
+        if len(self._ego_agent_mask) > self._agent_count:
+            self._ego_agent_mask = self._ego_agent_mask[:self._agent_count]
+        if len(self._ego_agent_mask) < self._agent_count:
+            self._ego_agent_mask += [False] * self._agent_count
         self._time_step = 0
 
     @property
