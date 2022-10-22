@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple
 from enum import Enum
 
@@ -18,7 +18,8 @@ class RecurrentState:
     It should not be modified, but rather passed along as received.
     """
 
-    packed: List[float]  #: Internal representation of the recurrent state.
+    packed: List[float] = field(default_factory=lambda: [0.0] * 132)
+    #: Internal representation of the recurrent state.
 
 
 @dataclass
@@ -175,7 +176,7 @@ class StaticMapActor:
     TrafficLightState
     """
 
-    track_id: TrafficLightId  #: ID as used in :func:`iai.initialize` and :func:`iai.drive`.
+    actor_id: TrafficLightId  #: ID as used in :func:`iai.initialize` and :func:`iai.drive`.
     agent_type: str  #: Not currently used, there may be more traffic signals in the future.
     center: Point  #: The center of the stop line.
     orientation: float  #: Natural direction of traffic going through the stop line, in radians like in :class:`AgentState`.
