@@ -1,6 +1,7 @@
 import os
 from distutils.util import strtobool
 
+from invertedai.common import Point, AgentState, AgentAttributes
 from invertedai.api.location import location_info
 from invertedai.api.initialize import initialize
 from invertedai.api.drive import drive

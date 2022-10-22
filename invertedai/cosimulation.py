@@ -109,6 +109,7 @@ class BasicCosimulation:
         """
         return self._birdview
 
+    @property
     def npc_states(self) -> List[AgentState]:
         """
         Returns the predicted states of NPCs (non-ego agents) in order.
