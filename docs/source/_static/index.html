@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Inverted-AI</title>
+  <title>Inverted AI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta charset="UTF-8" />
@@ -689,6 +689,12 @@
   <script>
     // Script section to load models into a JS Var
     var defs = {}
+            defs["AllOfTrafficLightStatesStates"] = {
+  "allOf" : [ {
+    "$ref" : "#/components/schemas/ControlStateType"
+  } ],
+  "default" : "green"
+};
             defs["AnyOfValidationErrorLocItems"] = {};
             defs["ControlStateType"] = {
   "title" : "ControlStateType",
@@ -696,116 +702,34 @@
   "description" : "An enumeration.",
   "enum" : [ "none", "green", "yellow", "red" ]
 };
+            defs["ControlType"] = {
+  "title" : "ControlType",
+  "type" : "string",
+  "description" : "An enumeration.",
+  "enum" : [ "traffic-light", "yield", "stop-sign" ]
+};
             defs["DrivePayload"] = {
   "title" : "DrivePayload",
-  "required" : [ "past_observations" ],
+  "required" : [ "agent_attributes", "agent_states" ],
   "type" : "object",
   "properties" : {
     "location" : {
       "title" : "Location",
       "type" : "string",
-      "default" : "CARLA:Town03:Roundabout"
+      "default" : ""
     },
-    "past_observations" : {
-      "$ref" : "#/components/schemas/PastObservation"
-    },
-    "steps" : {
-      "title" : "Steps",
-      "exclusiveMinimum" : true,
-      "type" : "integer",
-      "description" : "Time steps of predictions needs to be bigger than 0, and it does not includes the time steps from the past_observations (observation length)",
-      "default" : 1
-    },
-    "recurrent_states" : {
-      "title" : "Recurrent States",
-      "type" : "array",
-      "description" : "One single time step from one sampleof the recurrent states returned bythe previous inference",
-      "items" : {
-        "type" : "array",
-        "items" : {
-          "maxItems" : 2,
-          "minItems" : 2,
-          "type" : "array",
-          "items" : {
-            "maxItems" : 64,
-            "minItems" : 64,
-            "type" : "array",
-            "items" : {
-              "type" : "number"
-            }
-          }
-        }
-      },
-      "default" : [ [ [ [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ] ] ] ]
-    },
-    "get_birdviews" : {
-      "title" : "Get Birdviews",
-      "type" : "boolean",
-      "default" : false
-    },
-    "get_infractions" : {
-      "title" : "Get Infractions",
-      "type" : "boolean",
-      "default" : false
-    },
-    "include_traffic_controls" : {
-      "title" : "Include Traffic Controls",
-      "type" : "boolean",
-      "default" : false
-    },
-    "traffic_lights_states" : {
-      "title" : "Traffic Lights States",
-      "type" : "array",
-      "items" : {
-        "$ref" : "#/components/schemas/TrafficLightStates"
-      }
-    },
-    "exclude_ego_agent" : {
-      "title" : "Exclude Ego Agent",
-      "type" : "boolean",
-      "default" : false
-    },
-    "traffic_states_id" : {
-      "title" : "Traffic States Id",
-      "type" : "string"
-    },
-    "present_mask" : {
-      "title" : "Present Mask",
+    "agent_states" : {
+      "title" : "Agent States",
       "type" : "array",
       "items" : {
         "type" : "array",
         "items" : {
-          "type" : "boolean"
-        }
-      }
-    }
-  }
-};
-            defs["DriveResponse"] = {
-  "title" : "DriveResponse",
-  "required" : [ "bird_view", "present_mask", "recurrent_states", "states" ],
-  "type" : "object",
-  "properties" : {
-    "states" : {
-      "title" : "States",
-      "type" : "array",
-      "items" : {
-        "type" : "array",
-        "items" : {
-          "type" : "array",
-          "items" : {
-            "maxItems" : 4,
-            "minItems" : 4,
-            "type" : "array",
-            "items" : {
-              "type" : "number"
-            }
-          }
+          "type" : "number"
         }
       }
     },
-    "present_mask" : {
-      "title" : "Present Mask",
+    "agent_attributes" : {
+      "title" : "Agent Attributes",
       "type" : "array",
       "items" : {
         "type" : "array",
@@ -817,78 +741,85 @@
     "recurrent_states" : {
       "title" : "Recurrent States",
       "type" : "array",
+      "description" : "One single time step from one sampleof the recurrent states returned bythe previous inference",
       "items" : {
         "type" : "array",
         "items" : {
-          "maxItems" : 2,
-          "minItems" : 2,
-          "type" : "array",
-          "items" : {
-            "maxItems" : 64,
-            "minItems" : 64,
-            "type" : "array",
-            "items" : {
-              "type" : "number"
-            }
-          }
+          "type" : "number"
         }
       }
     },
-    "bird_view" : {
-      "title" : "Bird View",
+    "get_birdview" : {
+      "title" : "Get Birdview",
+      "type" : "boolean",
+      "default" : false
+    },
+    "get_infractions" : {
+      "title" : "Get Infractions",
+      "type" : "boolean",
+      "default" : false
+    },
+    "traffic_lights_states" : {
+      "title" : "Traffic Lights States",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/components/schemas/TrafficLightStates"
+      }
+    },
+    "random_seed" : {
+      "title" : "Random Seed",
+      "type" : "integer"
+    }
+  }
+};
+            defs["DriveResponse"] = {
+  "title" : "DriveResponse",
+  "required" : [ "agent_states", "birdview", "is_inside_supported_area", "recurrent_states" ],
+  "type" : "object",
+  "properties" : {
+    "agent_states" : {
+      "title" : "Agent States",
+      "type" : "array",
+      "items" : {
+        "type" : "array",
+        "items" : {
+          "type" : "number"
+        }
+      }
+    },
+    "is_inside_supported_area" : {
+      "title" : "Is Inside Supported Area",
+      "type" : "array",
+      "items" : {
+        "type" : "number"
+      }
+    },
+    "recurrent_states" : {
+      "title" : "Recurrent States",
+      "type" : "array",
+      "items" : {
+        "type" : "array",
+        "items" : {
+          "type" : "number"
+        }
+      }
+    },
+    "birdview" : {
+      "title" : "Birdview",
       "type" : "array",
       "items" : {
         "type" : "integer"
       }
     },
-    "collision" : {
-      "title" : "Collision",
+    "infraction_indicators" : {
+      "title" : "Infraction Indicators",
       "type" : "array",
       "items" : {
         "type" : "array",
         "items" : {
-          "type" : "array",
-          "items" : {
-            "type" : "number"
-          }
+          "type" : "boolean"
         }
       }
-    },
-    "offroad" : {
-      "title" : "Offroad",
-      "type" : "array",
-      "items" : {
-        "type" : "array",
-        "items" : {
-          "type" : "array",
-          "items" : {
-            "type" : "number"
-          }
-        }
-      }
-    },
-    "wrong_way" : {
-      "title" : "Wrong Way",
-      "type" : "array",
-      "items" : {
-        "type" : "array",
-        "items" : {
-          "type" : "array",
-          "items" : {
-            "type" : "number"
-          }
-        }
-      }
-    },
-    "traffic_light_state" : {
-      "type" : "object",
-      "additionalProperties" : {
-        "$ref" : "#/components/schemas/ControlStateType"
-      }
-    },
-    "traffic_states_id" : {
-      "title" : "Traffic States Id",
-      "type" : "string"
     }
   }
 };
@@ -905,73 +836,58 @@
     }
   }
 };
-            defs["InitializeResponse"] = {
-  "title" : "InitializeResponse",
-  "required" : [ "initial_condition" ],
+            defs["InitializePayload"] = {
+  "title" : "InitializePayload",
   "type" : "object",
   "properties" : {
-    "initial_condition" : {
-      "$ref" : "#/components/schemas/PastObservation"
+    "location" : {
+      "title" : "Location",
+      "type" : "string",
+      "default" : ""
     },
-    "recurrent_states" : {
-      "title" : "Recurrent States",
+    "num_agents_to_spawn" : {
+      "title" : "Num Agents To Spawn",
+      "type" : "integer",
+      "default" : 10
+    },
+    "states_history" : {
+      "title" : "States History",
       "type" : "array",
       "items" : {
         "type" : "array",
         "items" : {
-          "maxItems" : 2,
-          "minItems" : 2,
           "type" : "array",
           "items" : {
-            "maxItems" : 64,
-            "minItems" : 64,
-            "type" : "array",
-            "items" : {
-              "type" : "number"
-            }
+            "type" : "number"
           }
         }
       }
     },
-    "traffic_light_state" : {
-      "type" : "object",
-      "additionalProperties" : {
-        "$ref" : "#/components/schemas/ControlStateType"
+    "agent_attributes" : {
+      "title" : "Agent Attributes",
+      "type" : "array",
+      "items" : {
+        "type" : "array",
+        "items" : {
+          "type" : "number"
+        }
       }
     },
-    "traffic_states_id" : {
-      "title" : "Traffic States Id",
-      "type" : "string"
+    "traffic_light_state_history" : {
+      "title" : "Traffic Light State History",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/components/schemas/TrafficLightStates"
+      }
+    },
+    "random_seed" : {
+      "title" : "Random Seed",
+      "type" : "integer"
     }
   }
 };
-            defs["MapResponse"] = {
-  "title" : "MapResponse",
-  "required" : [ "rendered_map" ],
-  "type" : "object",
-  "properties" : {
-    "rendered_map" : {
-      "title" : "Rendered Map",
-      "type" : "array",
-      "items" : {
-        "type" : "integer"
-      }
-    },
-    "lanelet_map_source" : {
-      "title" : "Lanelet Map Source",
-      "type" : "string"
-    },
-    "static_actors" : {
-      "title" : "Static Actors",
-      "type" : "array",
-      "items" : {
-        "type" : "object"
-      }
-    }
-  }
-};
-            defs["PastObservation"] = {
-  "title" : "PastObservation",
+            defs["InitializeResponse"] = {
+  "title" : "InitializeResponse",
   "type" : "object",
   "properties" : {
     "agent_states" : {
@@ -980,34 +896,115 @@
       "items" : {
         "type" : "array",
         "items" : {
-          "type" : "array",
-          "items" : {
-            "maxItems" : 4,
-            "minItems" : 4,
-            "type" : "array",
-            "items" : {
-              "type" : "number"
-            }
-          }
+          "type" : "number"
         }
       },
-      "default" : [ [ [ [ 1, 1, 1, 1 ] ] ] ]
+      "default" : [ [ [ 1, 1, 1, 1 ] ] ]
     },
-    "agent_sizes" : {
-      "title" : "Agent Sizes",
+    "agent_attributes" : {
+      "title" : "Agent Attributes",
       "type" : "array",
       "items" : {
         "type" : "array",
         "items" : {
-          "maxItems" : 3,
-          "minItems" : 3,
-          "type" : "array",
-          "items" : {
-            "type" : "number"
-          }
+          "type" : "number"
         }
       },
-      "default" : [ [ [ 1, 1, 1 ] ] ]
+      "default" : [ [ 1, 1, 1 ] ]
+    },
+    "recurrent_states" : {
+      "title" : "Recurrent States",
+      "type" : "array",
+      "items" : {
+        "type" : "array",
+        "items" : {
+          "type" : "number"
+        }
+      }
+    }
+  }
+};
+            defs["LocationResponse"] = {
+  "title" : "LocationResponse",
+  "required" : [ "birdview_image", "bounding_polygon", "max_agent_number", "static_actors", "version" ],
+  "type" : "object",
+  "properties" : {
+    "version" : {
+      "title" : "Version",
+      "type" : "string"
+    },
+    "max_agent_number" : {
+      "title" : "Max Agent Number",
+      "type" : "integer"
+    },
+    "bounding_polygon" : {
+      "title" : "Bounding Polygon",
+      "type" : "array",
+      "items" : {
+        "type" : "array",
+        "items" : {
+          "type" : "number"
+        }
+      }
+    },
+    "birdview_image" : {
+      "title" : "Birdview Image",
+      "type" : "array",
+      "items" : {
+        "type" : "integer"
+      }
+    },
+    "osm_map" : {
+      "title" : "Osm Map",
+      "type" : "string"
+    },
+    "map_origin" : {
+      "title" : "Map Origin",
+      "type" : "array",
+      "items" : {
+        "type" : "number"
+      }
+    },
+    "static_actors" : {
+      "title" : "Static Actors",
+      "type" : "array",
+      "items" : {
+        "$ref" : "#/components/schemas/StaticMapActors"
+      }
+    }
+  }
+};
+            defs["StaticMapActors"] = {
+  "title" : "StaticMapActors",
+  "required" : [ "agent_type", "length", "orientation", "track_id", "width", "x", "y" ],
+  "type" : "object",
+  "properties" : {
+    "track_id" : {
+      "title" : "Track Id",
+      "type" : "integer"
+    },
+    "agent_type" : {
+      "$ref" : "#/components/schemas/ControlType"
+    },
+    "x" : {
+      "title" : "X",
+      "type" : "number"
+    },
+    "y" : {
+      "title" : "Y",
+      "type" : "number"
+    },
+    "orientation" : {
+      "title" : "Orientation",
+      "type" : "number"
+    },
+    "length" : {
+      "title" : "Length",
+      "type" : "number"
+    },
+    "width" : {
+      "title" : "Width",
+      "type" : "number"
     }
   }
 };
@@ -1017,15 +1014,14 @@
   "properties" : {
     "id" : {
       "title" : "Id",
-      "type" : "string",
-      "default" : "14106"
+      "type" : "integer",
+      "default" : 14106
     },
     "states" : {
-      "type" : "array",
-      "items" : {
+      "allOf" : [ {
         "$ref" : "#/components/schemas/ControlStateType"
-      },
-      "default" : [ "green", "green" ]
+      } ],
+      "default" : "green"
     }
   }
 };
@@ -1075,17 +1071,11 @@
                     <li data-group="Default" data-name="driveDrivePost" class="">
                       <a href="#api-Default-driveDrivePost">driveDrivePost</a>
                     </li>
-                    <li data-group="Default" data-name="getAvailableMapsAvailableMapsGet" class="">
-                      <a href="#api-Default-getAvailableMapsAvailableMapsGet">getAvailableMapsAvailableMapsGet</a>
+                    <li data-group="Default" data-name="getLocationInfoLocationInfoGet" class="">
+                      <a href="#api-Default-getLocationInfoLocationInfoGet">getLocationInfoLocationInfoGet</a>
                     </li>
-                    <li data-group="Default" data-name="getRenderedMapMapGet" class="">
-                      <a href="#api-Default-getRenderedMapMapGet">getRenderedMapMapGet</a>
-                    </li>
-                    <li data-group="Default" data-name="healthCheckHealthcheckGet" class="">
-                      <a href="#api-Default-healthCheckHealthcheckGet">healthCheckHealthcheckGet</a>
-                    </li>
-                    <li data-group="Default" data-name="initializeInitializeGet" class="">
-                      <a href="#api-Default-initializeInitializeGet">initializeInitializeGet</a>
+                    <li data-group="Default" data-name="initializeInitializePost" class="">
+                      <a href="#api-Default-initializeInitializePost">initializeInitializePost</a>
                     </li>
           </ul>
         </nav>
@@ -1093,7 +1083,7 @@
       <div id="content">
         <div id="project">
           <div class="pull-left">
-            <h1>Inverted-AI</h1>
+            <h1>Inverted AI</h1>
           </div>
           <div class="clearfix"></div>
         </div>
@@ -1102,7 +1092,7 @@
             <h2 id="welcome-to-apidoc">API and SDK Documentation</h2>
               <div class="app-desc">Version: 0.0.1</div>
             <hr>
-            <div>No description provided (generated by Swagger Codegen https://github.com/swagger-api/swagger-codegen)</div>
+            <div>Inverted AI's REST API for controlling non-playable characters (NPCs) in autonomous driving simulations.</div>
           </div>
         </div>
         <div id="sections">
@@ -1482,11 +1472,11 @@ except ApiException as e:
                         </article>
                       </div>
                       <hr>
-                    <div id="api-Default-getAvailableMapsAvailableMapsGet">
-                      <article id="api-Default-getAvailableMapsAvailableMapsGet-0" data-group="User" data-name="getAvailableMapsAvailableMapsGet" data-version="0">
+                    <div id="api-Default-getLocationInfoLocationInfoGet">
+                      <article id="api-Default-getLocationInfoLocationInfoGet-0" data-group="User" data-name="getLocationInfoLocationInfoGet" data-version="0">
                         <div class="pull-left">
-                          <h1>getAvailableMapsAvailableMapsGet</h1>
-                          <p>Get Available Maps</p>
+                          <h1>getLocationInfoLocationInfoGet</h1>
+                          <p>Get Location Info</p>
                         </div>
                         <div class="pull-right"></div>
                         <div class="clearfix"></div>
@@ -1494,31 +1484,31 @@ except ApiException as e:
                         <p class="marked"></p>
                         <p></p>
                         <br />
-                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/available_locations</span></code></pre>
+                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/location_info</span></code></pre>
                         <p>
                           <h3>Usage and SDK Samples</h3>
                         </p>
                         <ul class="nav nav-tabs nav-tabs-examples">
-                          <li class="active"><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-curl">Curl</a></li>
-                          <li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-java">Java</a></li>
-                          <li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-android">Android</a></li>
-                          <!--<li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-groovy">Groovy</a></li>-->
-                          <li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-objc">Obj-C</a></li>
-                          <li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-javascript">JavaScript</a></li>
-                          <!--<li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-angular">Angular</a></li>-->
-                          <li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-csharp">C#</a></li>
-                          <li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-php">PHP</a></li>
-                          <li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-perl">Perl</a></li>
-                          <li class=""><a href="#examples-Default-getAvailableMapsAvailableMapsGet-0-python">Python</a></li>
+                          <li class="active"><a href="#examples-Default-getLocationInfoLocationInfoGet-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-java">Java</a></li>
+                          <li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-Default-getLocationInfoLocationInfoGet-0-python">Python</a></li>
                         </ul>
 
                         <div class="tab-content">
-                          <div class="tab-pane active" id="examples-Default-getAvailableMapsAvailableMapsGet-0-curl">
+                          <div class="tab-pane active" id="examples-Default-getLocationInfoLocationInfoGet-0-curl">
                            <pre class="prettyprint"><code class="language-bsh">curl -X GET\
 -H "Accept: application/json"\
-"https://api.inverted.ai/v0/aws/m1/available_locations?keywords="</code></pre>
+"https://api.inverted.ai/v0/aws/m1/location_info?location=&include_map_source="</code></pre>
                           </div>
-                          <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-java">
+                          <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-java">
                             <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
 import io.swagger.client.auth.*;
 import io.swagger.client.model.*;
@@ -1532,52 +1522,56 @@ public class DefaultApiExample {
     public static void main(String[] args) {
         
         DefaultApi apiInstance = new DefaultApi();
-        String keywords = keywords_example; // String | 
+        String location = location_example; // String | 
+        Boolean includeMapSource = true; // Boolean | 
         String apiKey = apiKey_example; // String | 
         try {
-            array['String'] result = apiInstance.getAvailableMapsAvailableMapsGet(keywords, apiKey);
+            LocationResponse result = apiInstance.getLocationInfoLocationInfoGet(location, includeMapSource, apiKey);
             System.out.println(result);
         } catch (ApiException e) {
-            System.err.println("Exception when calling DefaultApi#getAvailableMapsAvailableMapsGet");
+            System.err.println("Exception when calling DefaultApi#getLocationInfoLocationInfoGet");
             e.printStackTrace();
         }
     }
 }</code></pre>
                           </div>
 
-                          <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-android">
+                          <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-android">
                             <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.DefaultApi;
 
 public class DefaultApiExample {
 
     public static void main(String[] args) {
         DefaultApi apiInstance = new DefaultApi();
-        String keywords = keywords_example; // String | 
+        String location = location_example; // String | 
+        Boolean includeMapSource = true; // Boolean | 
         String apiKey = apiKey_example; // String | 
         try {
-            array['String'] result = apiInstance.getAvailableMapsAvailableMapsGet(keywords, apiKey);
+            LocationResponse result = apiInstance.getLocationInfoLocationInfoGet(location, includeMapSource, apiKey);
             System.out.println(result);
         } catch (ApiException e) {
-            System.err.println("Exception when calling DefaultApi#getAvailableMapsAvailableMapsGet");
+            System.err.println("Exception when calling DefaultApi#getLocationInfoLocationInfoGet");
             e.printStackTrace();
         }
     }
 }</code></pre>
                           </div>
   <!--
-  <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-groovy">
+  <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-groovy">
   <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
   </div> -->
-                            <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-objc">
-                              <pre class="prettyprint"><code class="language-cpp">String *keywords = keywords_example; // 
+                            <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">String *location = location_example; // 
+Boolean *includeMapSource = true; //  (optional) (default to true)
 String *apiKey = apiKey_example; //  (optional)
 
 DefaultApi *apiInstance = [[DefaultApi alloc] init];
 
-// Get Available Maps
-[apiInstance getAvailableMapsAvailableMapsGetWith:keywords
+// Get Location Info
+[apiInstance getLocationInfoLocationInfoGetWith:location
+    includeMapSource:includeMapSource
     apiKey:apiKey
-              completionHandler: ^(array['String'] output, NSError* error) {
+              completionHandler: ^(LocationResponse output, NSError* error) {
                             if (output) {
                                 NSLog(@"%@", output);
                             }
@@ -1588,12 +1582,13 @@ DefaultApi *apiInstance = [[DefaultApi alloc] init];
 </code></pre>
                             </div>
 
-                            <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-javascript">
+                            <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-javascript">
                               <pre class="prettyprint"><code class="language-js">var InvertedAi = require('inverted_ai');
 
 var api = new InvertedAi.DefaultApi()
-var keywords = keywords_example; // {{String}} 
+var location = location_example; // {{String}} 
 var opts = { 
+  'includeMapSource': true, // {{Boolean}} 
   'apiKey': apiKey_example // {{String}} 
 };
 var callback = function(error, data, response) {
@@ -1603,14 +1598,14 @@ var callback = function(error, data, response) {
     console.log('API called successfully. Returned data: ' + data);
   }
 };
-api.getAvailableMapsAvailableMapsGet(keywords, opts, callback);
+api.getLocationInfoLocationInfoGet(location, opts, callback);
 </code></pre>
                             </div>
 
-                            <!--<div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-angular">
+                            <!--<div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-angular">
               <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
             </div>-->
-                            <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-csharp">
+                            <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-csharp">
                               <pre class="prettyprint"><code class="language-cs">using System;
 using System.Diagnostics;
 using IO.Swagger.Api;
@@ -1619,24 +1614,25 @@ using IO.Swagger.Model;
 
 namespace Example
 {
-    public class getAvailableMapsAvailableMapsGetExample
+    public class getLocationInfoLocationInfoGetExample
     {
         public void main()
         {
 
             var apiInstance = new DefaultApi();
-            var keywords = keywords_example;  // String | 
+            var location = location_example;  // String | 
+            var includeMapSource = true;  // Boolean |  (optional)  (default to true)
             var apiKey = apiKey_example;  // String |  (optional) 
 
             try
             {
-                // Get Available Maps
-                array['String'] result = apiInstance.getAvailableMapsAvailableMapsGet(keywords, apiKey);
+                // Get Location Info
+                LocationResponse result = apiInstance.getLocationInfoLocationInfoGet(location, includeMapSource, apiKey);
                 Debug.WriteLine(result);
             }
             catch (Exception e)
             {
-                Debug.Print("Exception when calling DefaultApi.getAvailableMapsAvailableMapsGet: " + e.Message );
+                Debug.Print("Exception when calling DefaultApi.getLocationInfoLocationInfoGet: " + e.Message );
             }
         }
     }
@@ -1644,42 +1640,44 @@ namespace Example
 </code></pre>
                             </div>
 
-                            <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-php">
+                            <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-php">
                               <pre class="prettyprint"><code class="language-php"><&#63;php
 require_once(__DIR__ . '/vendor/autoload.php');
 
 $api_instance = new Swagger\Client\ApiDefaultApi();
-$keywords = keywords_example; // String | 
+$location = location_example; // String | 
+$includeMapSource = true; // Boolean | 
 $apiKey = apiKey_example; // String | 
 
 try {
-    $result = $api_instance->getAvailableMapsAvailableMapsGet($keywords, $apiKey);
+    $result = $api_instance->getLocationInfoLocationInfoGet($location, $includeMapSource, $apiKey);
     print_r($result);
 } catch (Exception $e) {
-    echo 'Exception when calling DefaultApi->getAvailableMapsAvailableMapsGet: ', $e->getMessage(), PHP_EOL;
+    echo 'Exception when calling DefaultApi->getLocationInfoLocationInfoGet: ', $e->getMessage(), PHP_EOL;
 }
 ?></code></pre>
                             </div>
 
-                            <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-perl">
+                            <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-perl">
                               <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
 use WWW::SwaggerClient::Configuration;
 use WWW::SwaggerClient::DefaultApi;
 
 my $api_instance = WWW::SwaggerClient::DefaultApi->new();
-my $keywords = keywords_example; # String | 
+my $location = location_example; # String | 
+my $includeMapSource = true; # Boolean | 
 my $apiKey = apiKey_example; # String | 
 
 eval { 
-    my $result = $api_instance->getAvailableMapsAvailableMapsGet(keywords => $keywords, apiKey => $apiKey);
+    my $result = $api_instance->getLocationInfoLocationInfoGet(location => $location, includeMapSource => $includeMapSource, apiKey => $apiKey);
     print Dumper($result);
 };
 if ($@) {
-    warn "Exception when calling DefaultApi->getAvailableMapsAvailableMapsGet: $@\n";
+    warn "Exception when calling DefaultApi->getLocationInfoLocationInfoGet: $@\n";
 }</code></pre>
                             </div>
 
-                            <div class="tab-pane" id="examples-Default-getAvailableMapsAvailableMapsGet-0-python">
+                            <div class="tab-pane" id="examples-Default-getLocationInfoLocationInfoGet-0-python">
                               <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
 import time
 import swagger_client
@@ -1688,15 +1686,16 @@ from pprint import pprint
 
 # create an instance of the API class
 api_instance = swagger_client.DefaultApi()
-keywords = keywords_example # String | 
+location = location_example # String | 
+includeMapSource = true # Boolean |  (optional) (default to true)
 apiKey = apiKey_example # String |  (optional)
 
 try: 
-    # Get Available Maps
-    api_response = api_instance.get_available_maps_available_maps_get(keywords, apiKey=apiKey)
+    # Get Location Info
+    api_response = api_instance.get_location_info_location_info_get(location, includeMapSource=includeMapSource, apiKey=apiKey)
     pprint(api_response)
 except ApiException as e:
-    print("Exception when calling DefaultApi->getAvailableMapsAvailableMapsGet: %s\n" % e)</code></pre>
+    print("Exception when calling DefaultApi->getLocationInfoLocationInfoGet: %s\n" % e)</code></pre>
                             </div>
                           </div>
 
@@ -1713,7 +1712,7 @@ except ApiException as e:
                                   <td>
                                   
                                   
-                                      <div id="d2e199_getAvailableMapsAvailableMapsGet_apiKey">
+                                      <div id="d2e199_getLocationInfoLocationInfoGet_apiKey">
                                           <div class="json-schema-view">
                                               <div class="primitive">
                                                   <span class="type">
@@ -1735,11 +1734,11 @@ except ApiException as e:
                                 <th width="150px">Name</th>
                                 <th>Description</th>
                               </tr>
-                                <tr><td style="width:150px;">keywords*</td>
+                                <tr><td style="width:150px;">location*</td>
                                 <td>
                                 
                                 
-                                    <div id="d2e199_getAvailableMapsAvailableMapsGet_keywords">
+                                    <div id="d2e199_getLocationInfoLocationInfoGet_location">
                                         <div class="json-schema-view">
                                             <div class="primitive">
                                                 <span class="type">
@@ -1754,373 +1753,11 @@ except ApiException as e:
                                     </div>
                                 </td>
                                 </tr>
-                            </table>
-
-                          <h2>Responses</h2>
-                            <h3> Status: 200 - Successful Response </h3>
-
-                            <ul class="nav nav-tabs nav-tabs-examples" >
-                                <li class="active">
-                                  <a data-toggle="tab" href="#responses-getAvailableMapsAvailableMapsGet-200-schema">Schema</a>
-                                </li>
-
-                            </ul>
-
-                            <div class="tab-content" style='margin-bottom: 10px;'>
-                                <div class="tab-pane active" id="responses-getAvailableMapsAvailableMapsGet-200-schema">
-                                  <div id='responses-getAvailableMapsAvailableMapsGet-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
-                                    <script>
-                                      $(document).ready(function() {
-                                        var schemaWrapper = ;
-                                        var schema = schemaWrapper.content["application/json"].schema;
-                                        if (schema.$ref != null) {
-                                          schema = defsParser.$refs.get(schema.$ref);
-                                        } else {
-                                          schemaWrapper.components = {};
-                                          schemaWrapper.components.schemas = Object.assign({}, defs);
-                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
-                                            console.log(err);
-                                          });
-                                        }
-
-                                        //console.log(JSON.stringify(schema));
-                                        var view = new JSONSchemaView(schema, 3);
-                                        $('#responses-getAvailableMapsAvailableMapsGet-200-schema-data').val(stringify(schema));
-                                        var result = $('#responses-getAvailableMapsAvailableMapsGet-200-schema-200');
-                                        result.empty();
-                                        result.append(view.render());
-                                      });
-                                    </script>
-                                  </div>
-                                  <input id='responses-getAvailableMapsAvailableMapsGet-200-schema-data' type='hidden' value=''></input>
-                                </div>
-                            </div>
-
-                            <h3> Status: 422 - Validation Error </h3>
-
-                            <ul class="nav nav-tabs nav-tabs-examples" >
-                                <li class="active">
-                                  <a data-toggle="tab" href="#responses-getAvailableMapsAvailableMapsGet-422-schema">Schema</a>
-                                </li>
-
-                            </ul>
-
-                            <div class="tab-content" style='margin-bottom: 10px;'>
-                                <div class="tab-pane active" id="responses-getAvailableMapsAvailableMapsGet-422-schema">
-                                  <div id='responses-getAvailableMapsAvailableMapsGet-422-schema-422' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
-                                    <script>
-                                      $(document).ready(function() {
-                                        var schemaWrapper = ;
-                                        var schema = schemaWrapper.content["application/json"].schema;
-                                        if (schema.$ref != null) {
-                                          schema = defsParser.$refs.get(schema.$ref);
-                                        } else {
-                                          schemaWrapper.components = {};
-                                          schemaWrapper.components.schemas = Object.assign({}, defs);
-                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
-                                            console.log(err);
-                                          });
-                                        }
-
-                                        //console.log(JSON.stringify(schema));
-                                        var view = new JSONSchemaView(schema, 3);
-                                        $('#responses-getAvailableMapsAvailableMapsGet-422-schema-data').val(stringify(schema));
-                                        var result = $('#responses-getAvailableMapsAvailableMapsGet-422-schema-422');
-                                        result.empty();
-                                        result.append(view.render());
-                                      });
-                                    </script>
-                                  </div>
-                                  <input id='responses-getAvailableMapsAvailableMapsGet-422-schema-data' type='hidden' value=''></input>
-                                </div>
-                            </div>
-
-                        </article>
-                      </div>
-                      <hr>
-                    <div id="api-Default-getRenderedMapMapGet">
-                      <article id="api-Default-getRenderedMapMapGet-0" data-group="User" data-name="getRenderedMapMapGet" data-version="0">
-                        <div class="pull-left">
-                          <h1>getRenderedMapMapGet</h1>
-                          <p>Get Rendered Map</p>
-                        </div>
-                        <div class="pull-right"></div>
-                        <div class="clearfix"></div>
-                        <p></p>
-                        <p class="marked"></p>
-                        <p></p>
-                        <br />
-                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/map</span></code></pre>
-                        <p>
-                          <h3>Usage and SDK Samples</h3>
-                        </p>
-                        <ul class="nav nav-tabs nav-tabs-examples">
-                          <li class="active"><a href="#examples-Default-getRenderedMapMapGet-0-curl">Curl</a></li>
-                          <li class=""><a href="#examples-Default-getRenderedMapMapGet-0-java">Java</a></li>
-                          <li class=""><a href="#examples-Default-getRenderedMapMapGet-0-android">Android</a></li>
-                          <!--<li class=""><a href="#examples-Default-getRenderedMapMapGet-0-groovy">Groovy</a></li>-->
-                          <li class=""><a href="#examples-Default-getRenderedMapMapGet-0-objc">Obj-C</a></li>
-                          <li class=""><a href="#examples-Default-getRenderedMapMapGet-0-javascript">JavaScript</a></li>
-                          <!--<li class=""><a href="#examples-Default-getRenderedMapMapGet-0-angular">Angular</a></li>-->
-                          <li class=""><a href="#examples-Default-getRenderedMapMapGet-0-csharp">C#</a></li>
-                          <li class=""><a href="#examples-Default-getRenderedMapMapGet-0-php">PHP</a></li>
-                          <li class=""><a href="#examples-Default-getRenderedMapMapGet-0-perl">Perl</a></li>
-                          <li class=""><a href="#examples-Default-getRenderedMapMapGet-0-python">Python</a></li>
-                        </ul>
-
-                        <div class="tab-content">
-                          <div class="tab-pane active" id="examples-Default-getRenderedMapMapGet-0-curl">
-                           <pre class="prettyprint"><code class="language-bsh">curl -X GET\
--H "Accept: application/json"\
-"https://api.inverted.ai/v0/aws/m1/map?location=&include_map_source="</code></pre>
-                          </div>
-                          <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-java">
-                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
-import io.swagger.client.auth.*;
-import io.swagger.client.model.*;
-import io.swagger.client.api.DefaultApi;
-
-import java.io.File;
-import java.util.*;
-
-public class DefaultApiExample {
-
-    public static void main(String[] args) {
-        
-        DefaultApi apiInstance = new DefaultApi();
-        String location = location_example; // String | 
-        Boolean includeMapSource = true; // Boolean | 
-        String apiKey = apiKey_example; // String | 
-        try {
-            MapResponse result = apiInstance.getRenderedMapMapGet(location, includeMapSource, apiKey);
-            System.out.println(result);
-        } catch (ApiException e) {
-            System.err.println("Exception when calling DefaultApi#getRenderedMapMapGet");
-            e.printStackTrace();
-        }
-    }
-}</code></pre>
-                          </div>
-
-                          <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-android">
-                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.DefaultApi;
-
-public class DefaultApiExample {
-
-    public static void main(String[] args) {
-        DefaultApi apiInstance = new DefaultApi();
-        String location = location_example; // String | 
-        Boolean includeMapSource = true; // Boolean | 
-        String apiKey = apiKey_example; // String | 
-        try {
-            MapResponse result = apiInstance.getRenderedMapMapGet(location, includeMapSource, apiKey);
-            System.out.println(result);
-        } catch (ApiException e) {
-            System.err.println("Exception when calling DefaultApi#getRenderedMapMapGet");
-            e.printStackTrace();
-        }
-    }
-}</code></pre>
-                          </div>
-  <!--
-  <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-groovy">
-  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
-  </div> -->
-                            <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-objc">
-                              <pre class="prettyprint"><code class="language-cpp">String *location = location_example; //  (optional) (default to CARLA:Town03:Roundabout)
-Boolean *includeMapSource = true; //  (optional) (default to true)
-String *apiKey = apiKey_example; //  (optional)
-
-DefaultApi *apiInstance = [[DefaultApi alloc] init];
-
-// Get Rendered Map
-[apiInstance getRenderedMapMapGetWith:location
-    includeMapSource:includeMapSource
-    apiKey:apiKey
-              completionHandler: ^(MapResponse output, NSError* error) {
-                            if (output) {
-                                NSLog(@"%@", output);
-                            }
-                            if (error) {
-                                NSLog(@"Error: %@", error);
-                            }
-                        }];
-</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-javascript">
-                              <pre class="prettyprint"><code class="language-js">var InvertedAi = require('inverted_ai');
-
-var api = new InvertedAi.DefaultApi()
-var opts = { 
-  'location': location_example, // {{String}} 
-  'includeMapSource': true, // {{Boolean}} 
-  'apiKey': apiKey_example // {{String}} 
-};
-var callback = function(error, data, response) {
-  if (error) {
-    console.error(error);
-  } else {
-    console.log('API called successfully. Returned data: ' + data);
-  }
-};
-api.getRenderedMapMapGet(opts, callback);
-</code></pre>
-                            </div>
-
-                            <!--<div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-angular">
-              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
-            </div>-->
-                            <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-csharp">
-                              <pre class="prettyprint"><code class="language-cs">using System;
-using System.Diagnostics;
-using IO.Swagger.Api;
-using IO.Swagger.Client;
-using IO.Swagger.Model;
-
-namespace Example
-{
-    public class getRenderedMapMapGetExample
-    {
-        public void main()
-        {
-
-            var apiInstance = new DefaultApi();
-            var location = location_example;  // String |  (optional)  (default to CARLA:Town03:Roundabout)
-            var includeMapSource = true;  // Boolean |  (optional)  (default to true)
-            var apiKey = apiKey_example;  // String |  (optional) 
-
-            try
-            {
-                // Get Rendered Map
-                MapResponse result = apiInstance.getRenderedMapMapGet(location, includeMapSource, apiKey);
-                Debug.WriteLine(result);
-            }
-            catch (Exception e)
-            {
-                Debug.Print("Exception when calling DefaultApi.getRenderedMapMapGet: " + e.Message );
-            }
-        }
-    }
-}
-</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-php">
-                              <pre class="prettyprint"><code class="language-php"><&#63;php
-require_once(__DIR__ . '/vendor/autoload.php');
-
-$api_instance = new Swagger\Client\ApiDefaultApi();
-$location = location_example; // String | 
-$includeMapSource = true; // Boolean | 
-$apiKey = apiKey_example; // String | 
-
-try {
-    $result = $api_instance->getRenderedMapMapGet($location, $includeMapSource, $apiKey);
-    print_r($result);
-} catch (Exception $e) {
-    echo 'Exception when calling DefaultApi->getRenderedMapMapGet: ', $e->getMessage(), PHP_EOL;
-}
-?></code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-perl">
-                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
-use WWW::SwaggerClient::Configuration;
-use WWW::SwaggerClient::DefaultApi;
-
-my $api_instance = WWW::SwaggerClient::DefaultApi->new();
-my $location = location_example; # String | 
-my $includeMapSource = true; # Boolean | 
-my $apiKey = apiKey_example; # String | 
-
-eval { 
-    my $result = $api_instance->getRenderedMapMapGet(location => $location, includeMapSource => $includeMapSource, apiKey => $apiKey);
-    print Dumper($result);
-};
-if ($@) {
-    warn "Exception when calling DefaultApi->getRenderedMapMapGet: $@\n";
-}</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="examples-Default-getRenderedMapMapGet-0-python">
-                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
-import time
-import swagger_client
-from swagger_client.rest import ApiException
-from pprint import pprint
-
-# create an instance of the API class
-api_instance = swagger_client.DefaultApi()
-location = location_example # String |  (optional) (default to CARLA:Town03:Roundabout)
-includeMapSource = true # Boolean |  (optional) (default to true)
-apiKey = apiKey_example # String |  (optional)
-
-try: 
-    # Get Rendered Map
-    api_response = api_instance.get_rendered_map_map_get(location=location, includeMapSource=includeMapSource, apiKey=apiKey)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling DefaultApi->getRenderedMapMapGet: %s\n" % e)</code></pre>
-                            </div>
-                          </div>
-
-                          <h2>Parameters</h2>
-
-
-                            <div class="methodsubtabletitle">Header parameters</div>
-                            <table id="methodsubtable">
-                              <tr>
-                                <th width="150px">Name</th>
-                                <th>Description</th>
-                              </tr>
-                                  <tr><td style="width:150px;">api-key</td>
-                                  <td>
-                                  
-                                  
-                                      <div id="d2e199_getRenderedMapMapGet_apiKey">
-                                          <div class="json-schema-view">
-                                              <div class="primitive">
-                                                  <span class="type">
-                                                      String
-                                                  </span>
-                                  
-                                              </div>
-                                          </div>
-                                      </div>
-                                  </td>
-                                  </tr>
-                            </table>
-
-
-
-                            <div class="methodsubtabletitle">Query parameters</div>
-                            <table id="methodsubtable">
-                              <tr>
-                                <th width="150px">Name</th>
-                                <th>Description</th>
-                              </tr>
-                                <tr><td style="width:150px;">location</td>
-                                <td>
-                                
-                                
-                                    <div id="d2e199_getRenderedMapMapGet_location">
-                                        <div class="json-schema-view">
-                                            <div class="primitive">
-                                                <span class="type">
-                                                    String
-                                                </span>
-                                
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                                </tr>
                                 <tr><td style="width:150px;">include_map_source</td>
                                 <td>
                                 
                                 
-                                    <div id="d2e199_getRenderedMapMapGet_includeMapSource">
+                                    <div id="d2e199_getLocationInfoLocationInfoGet_includeMapSource">
                                         <div class="json-schema-view">
                                             <div class="primitive">
                                                 <span class="type">
@@ -2139,14 +1776,14 @@ except ApiException as e:
 
                             <ul class="nav nav-tabs nav-tabs-examples" >
                                 <li class="active">
-                                  <a data-toggle="tab" href="#responses-getRenderedMapMapGet-200-schema">Schema</a>
+                                  <a data-toggle="tab" href="#responses-getLocationInfoLocationInfoGet-200-schema">Schema</a>
                                 </li>
 
                             </ul>
 
                             <div class="tab-content" style='margin-bottom: 10px;'>
-                                <div class="tab-pane active" id="responses-getRenderedMapMapGet-200-schema">
-                                  <div id='responses-getRenderedMapMapGet-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                <div class="tab-pane active" id="responses-getLocationInfoLocationInfoGet-200-schema">
+                                  <div id='responses-getLocationInfoLocationInfoGet-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
                                     <script>
                                       $(document).ready(function() {
                                         var schemaWrapper = ;
@@ -2163,14 +1800,14 @@ except ApiException as e:
 
                                         //console.log(JSON.stringify(schema));
                                         var view = new JSONSchemaView(schema, 3);
-                                        $('#responses-getRenderedMapMapGet-200-schema-data').val(stringify(schema));
-                                        var result = $('#responses-getRenderedMapMapGet-200-schema-200');
+                                        $('#responses-getLocationInfoLocationInfoGet-200-schema-data').val(stringify(schema));
+                                        var result = $('#responses-getLocationInfoLocationInfoGet-200-schema-200');
                                         result.empty();
                                         result.append(view.render());
                                       });
                                     </script>
                                   </div>
-                                  <input id='responses-getRenderedMapMapGet-200-schema-data' type='hidden' value=''></input>
+                                  <input id='responses-getLocationInfoLocationInfoGet-200-schema-data' type='hidden' value=''></input>
                                 </div>
                             </div>
 
@@ -2178,14 +1815,14 @@ except ApiException as e:
 
                             <ul class="nav nav-tabs nav-tabs-examples" >
                                 <li class="active">
-                                  <a data-toggle="tab" href="#responses-getRenderedMapMapGet-422-schema">Schema</a>
+                                  <a data-toggle="tab" href="#responses-getLocationInfoLocationInfoGet-422-schema">Schema</a>
                                 </li>
 
                             </ul>
 
                             <div class="tab-content" style='margin-bottom: 10px;'>
-                                <div class="tab-pane active" id="responses-getRenderedMapMapGet-422-schema">
-                                  <div id='responses-getRenderedMapMapGet-422-schema-422' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                <div class="tab-pane active" id="responses-getLocationInfoLocationInfoGet-422-schema">
+                                  <div id='responses-getLocationInfoLocationInfoGet-422-schema-422' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
                                     <script>
                                       $(document).ready(function() {
                                         var schemaWrapper = ;
@@ -2202,336 +1839,24 @@ except ApiException as e:
 
                                         //console.log(JSON.stringify(schema));
                                         var view = new JSONSchemaView(schema, 3);
-                                        $('#responses-getRenderedMapMapGet-422-schema-data').val(stringify(schema));
-                                        var result = $('#responses-getRenderedMapMapGet-422-schema-422');
+                                        $('#responses-getLocationInfoLocationInfoGet-422-schema-data').val(stringify(schema));
+                                        var result = $('#responses-getLocationInfoLocationInfoGet-422-schema-422');
                                         result.empty();
                                         result.append(view.render());
                                       });
                                     </script>
                                   </div>
-                                  <input id='responses-getRenderedMapMapGet-422-schema-data' type='hidden' value=''></input>
+                                  <input id='responses-getLocationInfoLocationInfoGet-422-schema-data' type='hidden' value=''></input>
                                 </div>
                             </div>
 
                         </article>
                       </div>
                       <hr>
-                    <div id="api-Default-healthCheckHealthcheckGet">
-                      <article id="api-Default-healthCheckHealthcheckGet-0" data-group="User" data-name="healthCheckHealthcheckGet" data-version="0">
+                    <div id="api-Default-initializeInitializePost">
+                      <article id="api-Default-initializeInitializePost-0" data-group="User" data-name="initializeInitializePost" data-version="0">
                         <div class="pull-left">
-                          <h1>healthCheckHealthcheckGet</h1>
-                          <p>Health Check</p>
-                        </div>
-                        <div class="pull-right"></div>
-                        <div class="clearfix"></div>
-                        <p></p>
-                        <p class="marked"></p>
-                        <p></p>
-                        <br />
-                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/healthcheck</span></code></pre>
-                        <p>
-                          <h3>Usage and SDK Samples</h3>
-                        </p>
-                        <ul class="nav nav-tabs nav-tabs-examples">
-                          <li class="active"><a href="#examples-Default-healthCheckHealthcheckGet-0-curl">Curl</a></li>
-                          <li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-java">Java</a></li>
-                          <li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-android">Android</a></li>
-                          <!--<li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-groovy">Groovy</a></li>-->
-                          <li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-objc">Obj-C</a></li>
-                          <li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-javascript">JavaScript</a></li>
-                          <!--<li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-angular">Angular</a></li>-->
-                          <li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-csharp">C#</a></li>
-                          <li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-php">PHP</a></li>
-                          <li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-perl">Perl</a></li>
-                          <li class=""><a href="#examples-Default-healthCheckHealthcheckGet-0-python">Python</a></li>
-                        </ul>
-
-                        <div class="tab-content">
-                          <div class="tab-pane active" id="examples-Default-healthCheckHealthcheckGet-0-curl">
-                           <pre class="prettyprint"><code class="language-bsh">curl -X GET\
--H "Accept: application/json"\
-"https://api.inverted.ai/v0/aws/m1/healthcheck"</code></pre>
-                          </div>
-                          <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-java">
-                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
-import io.swagger.client.auth.*;
-import io.swagger.client.model.*;
-import io.swagger.client.api.DefaultApi;
-
-import java.io.File;
-import java.util.*;
-
-public class DefaultApiExample {
-
-    public static void main(String[] args) {
-        
-        DefaultApi apiInstance = new DefaultApi();
-        String apiKey = apiKey_example; // String | 
-        try {
-            apiInstance.healthCheckHealthcheckGet(apiKey);
-        } catch (ApiException e) {
-            System.err.println("Exception when calling DefaultApi#healthCheckHealthcheckGet");
-            e.printStackTrace();
-        }
-    }
-}</code></pre>
-                          </div>
-
-                          <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-android">
-                            <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.DefaultApi;
-
-public class DefaultApiExample {
-
-    public static void main(String[] args) {
-        DefaultApi apiInstance = new DefaultApi();
-        String apiKey = apiKey_example; // String | 
-        try {
-            apiInstance.healthCheckHealthcheckGet(apiKey);
-        } catch (ApiException e) {
-            System.err.println("Exception when calling DefaultApi#healthCheckHealthcheckGet");
-            e.printStackTrace();
-        }
-    }
-}</code></pre>
-                          </div>
-  <!--
-  <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-groovy">
-  <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
-  </div> -->
-                            <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-objc">
-                              <pre class="prettyprint"><code class="language-cpp">String *apiKey = apiKey_example; //  (optional)
-
-DefaultApi *apiInstance = [[DefaultApi alloc] init];
-
-// Health Check
-[apiInstance healthCheckHealthcheckGetWith:apiKey
-              completionHandler: ^(NSError* error) {
-                            if (error) {
-                                NSLog(@"Error: %@", error);
-                            }
-                        }];
-</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-javascript">
-                              <pre class="prettyprint"><code class="language-js">var InvertedAi = require('inverted_ai');
-
-var api = new InvertedAi.DefaultApi()
-var opts = { 
-  'apiKey': apiKey_example // {{String}} 
-};
-var callback = function(error, data, response) {
-  if (error) {
-    console.error(error);
-  } else {
-    console.log('API called successfully.');
-  }
-};
-api.healthCheckHealthcheckGet(opts, callback);
-</code></pre>
-                            </div>
-
-                            <!--<div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-angular">
-              <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
-            </div>-->
-                            <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-csharp">
-                              <pre class="prettyprint"><code class="language-cs">using System;
-using System.Diagnostics;
-using IO.Swagger.Api;
-using IO.Swagger.Client;
-using IO.Swagger.Model;
-
-namespace Example
-{
-    public class healthCheckHealthcheckGetExample
-    {
-        public void main()
-        {
-
-            var apiInstance = new DefaultApi();
-            var apiKey = apiKey_example;  // String |  (optional) 
-
-            try
-            {
-                // Health Check
-                apiInstance.healthCheckHealthcheckGet(apiKey);
-            }
-            catch (Exception e)
-            {
-                Debug.Print("Exception when calling DefaultApi.healthCheckHealthcheckGet: " + e.Message );
-            }
-        }
-    }
-}
-</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-php">
-                              <pre class="prettyprint"><code class="language-php"><&#63;php
-require_once(__DIR__ . '/vendor/autoload.php');
-
-$api_instance = new Swagger\Client\ApiDefaultApi();
-$apiKey = apiKey_example; // String | 
-
-try {
-    $api_instance->healthCheckHealthcheckGet($apiKey);
-} catch (Exception $e) {
-    echo 'Exception when calling DefaultApi->healthCheckHealthcheckGet: ', $e->getMessage(), PHP_EOL;
-}
-?></code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-perl">
-                              <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
-use WWW::SwaggerClient::Configuration;
-use WWW::SwaggerClient::DefaultApi;
-
-my $api_instance = WWW::SwaggerClient::DefaultApi->new();
-my $apiKey = apiKey_example; # String | 
-
-eval { 
-    $api_instance->healthCheckHealthcheckGet(apiKey => $apiKey);
-};
-if ($@) {
-    warn "Exception when calling DefaultApi->healthCheckHealthcheckGet: $@\n";
-}</code></pre>
-                            </div>
-
-                            <div class="tab-pane" id="examples-Default-healthCheckHealthcheckGet-0-python">
-                              <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
-import time
-import swagger_client
-from swagger_client.rest import ApiException
-from pprint import pprint
-
-# create an instance of the API class
-api_instance = swagger_client.DefaultApi()
-apiKey = apiKey_example # String |  (optional)
-
-try: 
-    # Health Check
-    api_instance.health_check_healthcheck_get(apiKey=apiKey)
-except ApiException as e:
-    print("Exception when calling DefaultApi->healthCheckHealthcheckGet: %s\n" % e)</code></pre>
-                            </div>
-                          </div>
-
-                          <h2>Parameters</h2>
-
-
-                            <div class="methodsubtabletitle">Header parameters</div>
-                            <table id="methodsubtable">
-                              <tr>
-                                <th width="150px">Name</th>
-                                <th>Description</th>
-                              </tr>
-                                  <tr><td style="width:150px;">api-key</td>
-                                  <td>
-                                  
-                                  
-                                      <div id="d2e199_healthCheckHealthcheckGet_apiKey">
-                                          <div class="json-schema-view">
-                                              <div class="primitive">
-                                                  <span class="type">
-                                                      String
-                                                  </span>
-                                  
-                                              </div>
-                                          </div>
-                                      </div>
-                                  </td>
-                                  </tr>
-                            </table>
-
-
-
-
-                          <h2>Responses</h2>
-                            <h3> Status: 200 - Successful Response </h3>
-
-                            <ul class="nav nav-tabs nav-tabs-examples" >
-                                <li class="active">
-                                  <a data-toggle="tab" href="#responses-healthCheckHealthcheckGet-200-schema">Schema</a>
-                                </li>
-
-                            </ul>
-
-                            <div class="tab-content" style='margin-bottom: 10px;'>
-                                <div class="tab-pane active" id="responses-healthCheckHealthcheckGet-200-schema">
-                                  <div id='responses-healthCheckHealthcheckGet-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
-                                    <script>
-                                      $(document).ready(function() {
-                                        var schemaWrapper = ;
-                                        var schema = schemaWrapper.content["application/json"].schema;
-                                        if (schema.$ref != null) {
-                                          schema = defsParser.$refs.get(schema.$ref);
-                                        } else {
-                                          schemaWrapper.components = {};
-                                          schemaWrapper.components.schemas = Object.assign({}, defs);
-                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
-                                            console.log(err);
-                                          });
-                                        }
-
-                                        //console.log(JSON.stringify(schema));
-                                        var view = new JSONSchemaView(schema, 3);
-                                        $('#responses-healthCheckHealthcheckGet-200-schema-data').val(stringify(schema));
-                                        var result = $('#responses-healthCheckHealthcheckGet-200-schema-200');
-                                        result.empty();
-                                        result.append(view.render());
-                                      });
-                                    </script>
-                                  </div>
-                                  <input id='responses-healthCheckHealthcheckGet-200-schema-data' type='hidden' value=''></input>
-                                </div>
-                            </div>
-
-                            <h3> Status: 422 - Validation Error </h3>
-
-                            <ul class="nav nav-tabs nav-tabs-examples" >
-                                <li class="active">
-                                  <a data-toggle="tab" href="#responses-healthCheckHealthcheckGet-422-schema">Schema</a>
-                                </li>
-
-                            </ul>
-
-                            <div class="tab-content" style='margin-bottom: 10px;'>
-                                <div class="tab-pane active" id="responses-healthCheckHealthcheckGet-422-schema">
-                                  <div id='responses-healthCheckHealthcheckGet-422-schema-422' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
-                                    <script>
-                                      $(document).ready(function() {
-                                        var schemaWrapper = ;
-                                        var schema = schemaWrapper.content["application/json"].schema;
-                                        if (schema.$ref != null) {
-                                          schema = defsParser.$refs.get(schema.$ref);
-                                        } else {
-                                          schemaWrapper.components = {};
-                                          schemaWrapper.components.schemas = Object.assign({}, defs);
-                                          $RefParser.dereference(schemaWrapper).catch(function(err) {
-                                            console.log(err);
-                                          });
-                                        }
-
-                                        //console.log(JSON.stringify(schema));
-                                        var view = new JSONSchemaView(schema, 3);
-                                        $('#responses-healthCheckHealthcheckGet-422-schema-data').val(stringify(schema));
-                                        var result = $('#responses-healthCheckHealthcheckGet-422-schema-422');
-                                        result.empty();
-                                        result.append(view.render());
-                                      });
-                                    </script>
-                                  </div>
-                                  <input id='responses-healthCheckHealthcheckGet-422-schema-data' type='hidden' value=''></input>
-                                </div>
-                            </div>
-
-                        </article>
-                      </div>
-                      <hr>
-                    <div id="api-Default-initializeInitializeGet">
-                      <article id="api-Default-initializeInitializeGet-0" data-group="User" data-name="initializeInitializeGet" data-version="0">
-                        <div class="pull-left">
-                          <h1>initializeInitializeGet</h1>
+                          <h1>initializeInitializePost</h1>
                           <p>Initialize</p>
                         </div>
                         <div class="pull-right"></div>
@@ -2540,31 +1865,32 @@ except ApiException as e:
                         <p class="marked"></p>
                         <p></p>
                         <br />
-                        <pre class="prettyprint language-html prettyprinted" data-type="get"><code><span class="pln">/initialize</span></code></pre>
+                        <pre class="prettyprint language-html prettyprinted" data-type="post"><code><span class="pln">/initialize</span></code></pre>
                         <p>
                           <h3>Usage and SDK Samples</h3>
                         </p>
                         <ul class="nav nav-tabs nav-tabs-examples">
-                          <li class="active"><a href="#examples-Default-initializeInitializeGet-0-curl">Curl</a></li>
-                          <li class=""><a href="#examples-Default-initializeInitializeGet-0-java">Java</a></li>
-                          <li class=""><a href="#examples-Default-initializeInitializeGet-0-android">Android</a></li>
-                          <!--<li class=""><a href="#examples-Default-initializeInitializeGet-0-groovy">Groovy</a></li>-->
-                          <li class=""><a href="#examples-Default-initializeInitializeGet-0-objc">Obj-C</a></li>
-                          <li class=""><a href="#examples-Default-initializeInitializeGet-0-javascript">JavaScript</a></li>
-                          <!--<li class=""><a href="#examples-Default-initializeInitializeGet-0-angular">Angular</a></li>-->
-                          <li class=""><a href="#examples-Default-initializeInitializeGet-0-csharp">C#</a></li>
-                          <li class=""><a href="#examples-Default-initializeInitializeGet-0-php">PHP</a></li>
-                          <li class=""><a href="#examples-Default-initializeInitializeGet-0-perl">Perl</a></li>
-                          <li class=""><a href="#examples-Default-initializeInitializeGet-0-python">Python</a></li>
+                          <li class="active"><a href="#examples-Default-initializeInitializePost-0-curl">Curl</a></li>
+                          <li class=""><a href="#examples-Default-initializeInitializePost-0-java">Java</a></li>
+                          <li class=""><a href="#examples-Default-initializeInitializePost-0-android">Android</a></li>
+                          <!--<li class=""><a href="#examples-Default-initializeInitializePost-0-groovy">Groovy</a></li>-->
+                          <li class=""><a href="#examples-Default-initializeInitializePost-0-objc">Obj-C</a></li>
+                          <li class=""><a href="#examples-Default-initializeInitializePost-0-javascript">JavaScript</a></li>
+                          <!--<li class=""><a href="#examples-Default-initializeInitializePost-0-angular">Angular</a></li>-->
+                          <li class=""><a href="#examples-Default-initializeInitializePost-0-csharp">C#</a></li>
+                          <li class=""><a href="#examples-Default-initializeInitializePost-0-php">PHP</a></li>
+                          <li class=""><a href="#examples-Default-initializeInitializePost-0-perl">Perl</a></li>
+                          <li class=""><a href="#examples-Default-initializeInitializePost-0-python">Python</a></li>
                         </ul>
 
                         <div class="tab-content">
-                          <div class="tab-pane active" id="examples-Default-initializeInitializeGet-0-curl">
-                           <pre class="prettyprint"><code class="language-bsh">curl -X GET\
+                          <div class="tab-pane active" id="examples-Default-initializeInitializePost-0-curl">
+                           <pre class="prettyprint"><code class="language-bsh">curl -X POST\
 -H "Accept: application/json"\
-"https://api.inverted.ai/v0/aws/m1/initialize?location=&num_agents_to_spawn=&spawn_min_speed=&spawn_max_speed=&include_recurrent_states="</code></pre>
+-H "Content-Type: application/json"\
+"https://api.inverted.ai/v0/aws/m1/initialize?num_agents_to_spawn="</code></pre>
                           </div>
-                          <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-java">
+                          <div class="tab-pane" id="examples-Default-initializeInitializePost-0-java">
                             <pre class="prettyprint"><code class="language-java">import io.swagger.client.*;
 import io.swagger.client.auth.*;
 import io.swagger.client.model.*;
@@ -2578,67 +1904,55 @@ public class DefaultApiExample {
     public static void main(String[] args) {
         
         DefaultApi apiInstance = new DefaultApi();
-        String location = location_example; // String | 
-        Integer numAgentsToSpawn = 56; // Integer | 
-        Integer spawnMinSpeed = 56; // Integer | 
-        Integer spawnMaxSpeed = 56; // Integer | 
-        Boolean includeRecurrentStates = true; // Boolean | 
+        InitializePayload body = ; // InitializePayload | 
         String apiKey = apiKey_example; // String | 
+        Integer numAgentsToSpawn = 56; // Integer | 
         try {
-            InitializeResponse result = apiInstance.initializeInitializeGet(location, numAgentsToSpawn, spawnMinSpeed, spawnMaxSpeed, includeRecurrentStates, apiKey);
+            InitializeResponse result = apiInstance.initializeInitializePost(body, apiKey, numAgentsToSpawn);
             System.out.println(result);
         } catch (ApiException e) {
-            System.err.println("Exception when calling DefaultApi#initializeInitializeGet");
+            System.err.println("Exception when calling DefaultApi#initializeInitializePost");
             e.printStackTrace();
         }
     }
 }</code></pre>
                           </div>
 
-                          <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-android">
+                          <div class="tab-pane" id="examples-Default-initializeInitializePost-0-android">
                             <pre class="prettyprint"><code class="language-java">import io.swagger.client.api.DefaultApi;
 
 public class DefaultApiExample {
 
     public static void main(String[] args) {
         DefaultApi apiInstance = new DefaultApi();
-        String location = location_example; // String | 
-        Integer numAgentsToSpawn = 56; // Integer | 
-        Integer spawnMinSpeed = 56; // Integer | 
-        Integer spawnMaxSpeed = 56; // Integer | 
-        Boolean includeRecurrentStates = true; // Boolean | 
+        InitializePayload body = ; // InitializePayload | 
         String apiKey = apiKey_example; // String | 
+        Integer numAgentsToSpawn = 56; // Integer | 
         try {
-            InitializeResponse result = apiInstance.initializeInitializeGet(location, numAgentsToSpawn, spawnMinSpeed, spawnMaxSpeed, includeRecurrentStates, apiKey);
+            InitializeResponse result = apiInstance.initializeInitializePost(body, apiKey, numAgentsToSpawn);
             System.out.println(result);
         } catch (ApiException e) {
-            System.err.println("Exception when calling DefaultApi#initializeInitializeGet");
+            System.err.println("Exception when calling DefaultApi#initializeInitializePost");
             e.printStackTrace();
         }
     }
 }</code></pre>
                           </div>
   <!--
-  <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-groovy">
+  <div class="tab-pane" id="examples-Default-initializeInitializePost-0-groovy">
   <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
   </div> -->
-                            <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-objc">
-                              <pre class="prettyprint"><code class="language-cpp">String *location = location_example; //  (optional) (default to CARLA:Town03:Roundabout)
-Integer *numAgentsToSpawn = 56; //  (optional) (default to 10)
-Integer *spawnMinSpeed = 56; //  (optional)
-Integer *spawnMaxSpeed = 56; //  (optional)
-Boolean *includeRecurrentStates = true; //  (optional) (default to true)
+                            <div class="tab-pane" id="examples-Default-initializeInitializePost-0-objc">
+                              <pre class="prettyprint"><code class="language-cpp">InitializePayload *body = ; // 
 String *apiKey = apiKey_example; //  (optional)
+Integer *numAgentsToSpawn = 56; //  (optional) (default to 10)
 
 DefaultApi *apiInstance = [[DefaultApi alloc] init];
 
 // Initialize
-[apiInstance initializeInitializeGetWith:location
-    numAgentsToSpawn:numAgentsToSpawn
-    spawnMinSpeed:spawnMinSpeed
-    spawnMaxSpeed:spawnMaxSpeed
-    includeRecurrentStates:includeRecurrentStates
+[apiInstance initializeInitializePostWith:body
     apiKey:apiKey
+    numAgentsToSpawn:numAgentsToSpawn
               completionHandler: ^(InitializeResponse output, NSError* error) {
                             if (output) {
                                 NSLog(@"%@", output);
@@ -2650,17 +1964,14 @@ DefaultApi *apiInstance = [[DefaultApi alloc] init];
 </code></pre>
                             </div>
 
-                            <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-javascript">
+                            <div class="tab-pane" id="examples-Default-initializeInitializePost-0-javascript">
                               <pre class="prettyprint"><code class="language-js">var InvertedAi = require('inverted_ai');
 
 var api = new InvertedAi.DefaultApi()
+var body = ; // {{InitializePayload}} 
 var opts = { 
-  'location': location_example, // {{String}} 
-  'numAgentsToSpawn': 56, // {{Integer}} 
-  'spawnMinSpeed': 56, // {{Integer}} 
-  'spawnMaxSpeed': 56, // {{Integer}} 
-  'includeRecurrentStates': true, // {{Boolean}} 
   'apiKey': apiKey_example // {{String}} 
+  'numAgentsToSpawn': 56 // {{Integer}} 
 };
 var callback = function(error, data, response) {
   if (error) {
@@ -2669,14 +1980,14 @@ var callback = function(error, data, response) {
     console.log('API called successfully. Returned data: ' + data);
   }
 };
-api.initializeInitializeGet(opts, callback);
+api.initializeInitializePost(body, opts, callback);
 </code></pre>
                             </div>
 
-                            <!--<div class="tab-pane" id="examples-Default-initializeInitializeGet-0-angular">
+                            <!--<div class="tab-pane" id="examples-Default-initializeInitializePost-0-angular">
               <pre class="prettyprint language-json prettyprinted" data-type="json"><code>Coming Soon!</code></pre>
             </div>-->
-                            <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-csharp">
+                            <div class="tab-pane" id="examples-Default-initializeInitializePost-0-csharp">
                               <pre class="prettyprint"><code class="language-cs">using System;
 using System.Diagnostics;
 using IO.Swagger.Api;
@@ -2685,28 +1996,25 @@ using IO.Swagger.Model;
 
 namespace Example
 {
-    public class initializeInitializeGetExample
+    public class initializeInitializePostExample
     {
         public void main()
         {
 
             var apiInstance = new DefaultApi();
-            var location = location_example;  // String |  (optional)  (default to CARLA:Town03:Roundabout)
-            var numAgentsToSpawn = 56;  // Integer |  (optional)  (default to 10)
-            var spawnMinSpeed = 56;  // Integer |  (optional) 
-            var spawnMaxSpeed = 56;  // Integer |  (optional) 
-            var includeRecurrentStates = true;  // Boolean |  (optional)  (default to true)
+            var body = new InitializePayload(); // InitializePayload | 
             var apiKey = apiKey_example;  // String |  (optional) 
+            var numAgentsToSpawn = 56;  // Integer |  (optional)  (default to 10)
 
             try
             {
                 // Initialize
-                InitializeResponse result = apiInstance.initializeInitializeGet(location, numAgentsToSpawn, spawnMinSpeed, spawnMaxSpeed, includeRecurrentStates, apiKey);
+                InitializeResponse result = apiInstance.initializeInitializePost(body, apiKey, numAgentsToSpawn);
                 Debug.WriteLine(result);
             }
             catch (Exception e)
             {
-                Debug.Print("Exception when calling DefaultApi.initializeInitializeGet: " + e.Message );
+                Debug.Print("Exception when calling DefaultApi.initializeInitializePost: " + e.Message );
             }
         }
     }
@@ -2714,50 +2022,44 @@ namespace Example
 </code></pre>
                             </div>
 
-                            <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-php">
+                            <div class="tab-pane" id="examples-Default-initializeInitializePost-0-php">
                               <pre class="prettyprint"><code class="language-php"><&#63;php
 require_once(__DIR__ . '/vendor/autoload.php');
 
 $api_instance = new Swagger\Client\ApiDefaultApi();
-$location = location_example; // String | 
-$numAgentsToSpawn = 56; // Integer | 
-$spawnMinSpeed = 56; // Integer | 
-$spawnMaxSpeed = 56; // Integer | 
-$includeRecurrentStates = true; // Boolean | 
+$body = ; // InitializePayload | 
 $apiKey = apiKey_example; // String | 
+$numAgentsToSpawn = 56; // Integer | 
 
 try {
-    $result = $api_instance->initializeInitializeGet($location, $numAgentsToSpawn, $spawnMinSpeed, $spawnMaxSpeed, $includeRecurrentStates, $apiKey);
+    $result = $api_instance->initializeInitializePost($body, $apiKey, $numAgentsToSpawn);
     print_r($result);
 } catch (Exception $e) {
-    echo 'Exception when calling DefaultApi->initializeInitializeGet: ', $e->getMessage(), PHP_EOL;
+    echo 'Exception when calling DefaultApi->initializeInitializePost: ', $e->getMessage(), PHP_EOL;
 }
 ?></code></pre>
                             </div>
 
-                            <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-perl">
+                            <div class="tab-pane" id="examples-Default-initializeInitializePost-0-perl">
                               <pre class="prettyprint"><code class="language-perl">use Data::Dumper;
 use WWW::SwaggerClient::Configuration;
 use WWW::SwaggerClient::DefaultApi;
 
 my $api_instance = WWW::SwaggerClient::DefaultApi->new();
-my $location = location_example; # String | 
-my $numAgentsToSpawn = 56; # Integer | 
-my $spawnMinSpeed = 56; # Integer | 
-my $spawnMaxSpeed = 56; # Integer | 
-my $includeRecurrentStates = true; # Boolean | 
+my $body = WWW::SwaggerClient::Object::InitializePayload->new(); # InitializePayload | 
 my $apiKey = apiKey_example; # String | 
+my $numAgentsToSpawn = 56; # Integer | 
 
 eval { 
-    my $result = $api_instance->initializeInitializeGet(location => $location, numAgentsToSpawn => $numAgentsToSpawn, spawnMinSpeed => $spawnMinSpeed, spawnMaxSpeed => $spawnMaxSpeed, includeRecurrentStates => $includeRecurrentStates, apiKey => $apiKey);
+    my $result = $api_instance->initializeInitializePost(body => $body, apiKey => $apiKey, numAgentsToSpawn => $numAgentsToSpawn);
     print Dumper($result);
 };
 if ($@) {
-    warn "Exception when calling DefaultApi->initializeInitializeGet: $@\n";
+    warn "Exception when calling DefaultApi->initializeInitializePost: $@\n";
 }</code></pre>
                             </div>
 
-                            <div class="tab-pane" id="examples-Default-initializeInitializeGet-0-python">
+                            <div class="tab-pane" id="examples-Default-initializeInitializePost-0-python">
                               <pre class="prettyprint"><code class="language-python">from __future__ import print_statement
 import time
 import swagger_client
@@ -2766,19 +2068,16 @@ from pprint import pprint
 
 # create an instance of the API class
 api_instance = swagger_client.DefaultApi()
-location = location_example # String |  (optional) (default to CARLA:Town03:Roundabout)
-numAgentsToSpawn = 56 # Integer |  (optional) (default to 10)
-spawnMinSpeed = 56 # Integer |  (optional)
-spawnMaxSpeed = 56 # Integer |  (optional)
-includeRecurrentStates = true # Boolean |  (optional) (default to true)
+body =  # InitializePayload | 
 apiKey = apiKey_example # String |  (optional)
+numAgentsToSpawn = 56 # Integer |  (optional) (default to 10)
 
 try: 
     # Initialize
-    api_response = api_instance.initialize_initialize_get(location=location, numAgentsToSpawn=numAgentsToSpawn, spawnMinSpeed=spawnMinSpeed, spawnMaxSpeed=spawnMaxSpeed, includeRecurrentStates=includeRecurrentStates, apiKey=apiKey)
+    api_response = api_instance.initialize_initialize_post(body, apiKey=apiKey, numAgentsToSpawn=numAgentsToSpawn)
     pprint(api_response)
 except ApiException as e:
-    print("Exception when calling DefaultApi->initializeInitializeGet: %s\n" % e)</code></pre>
+    print("Exception when calling DefaultApi->initializeInitializePost: %s\n" % e)</code></pre>
                             </div>
                           </div>
 
@@ -2795,7 +2094,7 @@ except ApiException as e:
                                   <td>
                                   
                                   
-                                      <div id="d2e199_initializeInitializeGet_apiKey">
+                                      <div id="d2e199_initializeInitializePost_apiKey">
                                           <div class="json-schema-view">
                                               <div class="primitive">
                                                   <span class="type">
@@ -2809,6 +2108,49 @@ except ApiException as e:
                                   </tr>
                             </table>
 
+                            <div class="methodsubtabletitle">Body parameters</div>
+                            <table id="methodsubtable">
+                              <tr>
+                                <th width="150px">Name</th>
+                                <th>Description</th>
+                              </tr>
+                                <tr><td style="width:150px;">body <span style="color:red;">*</span></td>
+                                <td>
+                                
+                                
+                                <script>
+                                $(document).ready(function() {
+                                  var schemaWrapper = {
+  "content" : {
+    "application/json" : {
+      "schema" : {
+        "$ref" : "#/components/schemas/InitializePayload"
+      }
+    }
+  },
+  "required" : true
+};
+                                  var schema = schemaWrapper.content["application/json"].schema;
+                                  if (schema.$ref != null) {
+                                    schema = defsParser.$refs.get(schema.$ref);
+                                  } else {
+                                    schemaWrapper.components = {};
+                                    schemaWrapper.components.schemas = Object.assign({}, defs);
+                                    $RefParser.dereference(schemaWrapper).catch(function(err) {
+                                      console.log(err);
+                                    });
+                                  }
+                                
+                                  var view = new JSONSchemaView(schema,2,{isBodyParam: true});
+                                  var result = $('#d2e199_initializeInitializePost_body');
+                                  result.empty();
+                                  result.append(view.render());
+                                });
+                                </script>
+                                <div id="d2e199_initializeInitializePost_body"></div>
+                                </td>
+                                </tr>
+                            </table>
 
 
                             <div class="methodsubtabletitle">Query parameters</div>
@@ -2817,79 +2159,15 @@ except ApiException as e:
                                 <th width="150px">Name</th>
                                 <th>Description</th>
                               </tr>
-                                <tr><td style="width:150px;">location</td>
-                                <td>
-                                
-                                
-                                    <div id="d2e199_initializeInitializeGet_location">
-                                        <div class="json-schema-view">
-                                            <div class="primitive">
-                                                <span class="type">
-                                                    String
-                                                </span>
-                                
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                                </tr>
                                 <tr><td style="width:150px;">num_agents_to_spawn</td>
                                 <td>
                                 
                                 
-                                    <div id="d2e199_initializeInitializeGet_numAgentsToSpawn">
+                                    <div id="d2e199_initializeInitializePost_numAgentsToSpawn">
                                         <div class="json-schema-view">
                                             <div class="primitive">
                                                 <span class="type">
                                                     Integer
-                                                </span>
-                                
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                                </tr>
-                                <tr><td style="width:150px;">spawn_min_speed</td>
-                                <td>
-                                
-                                
-                                    <div id="d2e199_initializeInitializeGet_spawnMinSpeed">
-                                        <div class="json-schema-view">
-                                            <div class="primitive">
-                                                <span class="type">
-                                                    Integer
-                                                </span>
-                                
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                                </tr>
-                                <tr><td style="width:150px;">spawn_max_speed</td>
-                                <td>
-                                
-                                
-                                    <div id="d2e199_initializeInitializeGet_spawnMaxSpeed">
-                                        <div class="json-schema-view">
-                                            <div class="primitive">
-                                                <span class="type">
-                                                    Integer
-                                                </span>
-                                
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                                </tr>
-                                <tr><td style="width:150px;">include_recurrent_states</td>
-                                <td>
-                                
-                                
-                                    <div id="d2e199_initializeInitializeGet_includeRecurrentStates">
-                                        <div class="json-schema-view">
-                                            <div class="primitive">
-                                                <span class="type">
-                                                    Boolean
                                                 </span>
                                 
                                             </div>
@@ -2904,14 +2182,14 @@ except ApiException as e:
 
                             <ul class="nav nav-tabs nav-tabs-examples" >
                                 <li class="active">
-                                  <a data-toggle="tab" href="#responses-initializeInitializeGet-200-schema">Schema</a>
+                                  <a data-toggle="tab" href="#responses-initializeInitializePost-200-schema">Schema</a>
                                 </li>
 
                             </ul>
 
                             <div class="tab-content" style='margin-bottom: 10px;'>
-                                <div class="tab-pane active" id="responses-initializeInitializeGet-200-schema">
-                                  <div id='responses-initializeInitializeGet-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                <div class="tab-pane active" id="responses-initializeInitializePost-200-schema">
+                                  <div id='responses-initializeInitializePost-200-schema-200' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
                                     <script>
                                       $(document).ready(function() {
                                         var schemaWrapper = ;
@@ -2928,14 +2206,14 @@ except ApiException as e:
 
                                         //console.log(JSON.stringify(schema));
                                         var view = new JSONSchemaView(schema, 3);
-                                        $('#responses-initializeInitializeGet-200-schema-data').val(stringify(schema));
-                                        var result = $('#responses-initializeInitializeGet-200-schema-200');
+                                        $('#responses-initializeInitializePost-200-schema-data').val(stringify(schema));
+                                        var result = $('#responses-initializeInitializePost-200-schema-200');
                                         result.empty();
                                         result.append(view.render());
                                       });
                                     </script>
                                   </div>
-                                  <input id='responses-initializeInitializeGet-200-schema-data' type='hidden' value=''></input>
+                                  <input id='responses-initializeInitializePost-200-schema-data' type='hidden' value=''></input>
                                 </div>
                             </div>
 
@@ -2943,14 +2221,14 @@ except ApiException as e:
 
                             <ul class="nav nav-tabs nav-tabs-examples" >
                                 <li class="active">
-                                  <a data-toggle="tab" href="#responses-initializeInitializeGet-422-schema">Schema</a>
+                                  <a data-toggle="tab" href="#responses-initializeInitializePost-422-schema">Schema</a>
                                 </li>
 
                             </ul>
 
                             <div class="tab-content" style='margin-bottom: 10px;'>
-                                <div class="tab-pane active" id="responses-initializeInitializeGet-422-schema">
-                                  <div id='responses-initializeInitializeGet-422-schema-422' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
+                                <div class="tab-pane active" id="responses-initializeInitializePost-422-schema">
+                                  <div id='responses-initializeInitializePost-422-schema-422' style="padding: 30px; border-left: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;">
                                     <script>
                                       $(document).ready(function() {
                                         var schemaWrapper = ;
@@ -2967,14 +2245,14 @@ except ApiException as e:
 
                                         //console.log(JSON.stringify(schema));
                                         var view = new JSONSchemaView(schema, 3);
-                                        $('#responses-initializeInitializeGet-422-schema-data').val(stringify(schema));
-                                        var result = $('#responses-initializeInitializeGet-422-schema-422');
+                                        $('#responses-initializeInitializePost-422-schema-data').val(stringify(schema));
+                                        var result = $('#responses-initializeInitializePost-422-schema-422');
                                         result.empty();
                                         result.append(view.render());
                                       });
                                     </script>
                                   </div>
-                                  <input id='responses-initializeInitializeGet-422-schema-data' type='hidden' value=''></input>
+                                  <input id='responses-initializeInitializePost-422-schema-data' type='hidden' value=''></input>
                                 </div>
                             </div>
 
@@ -2986,11 +2264,11 @@ except ApiException as e:
           <div id="footer">
             <div id="api-_footer">
               <p>Suggestions, contact, support and error reporting;
-                  <div class="app-desc">Information URL: <a href="https://helloreverb.com">https://helloreverb.com</a></div>
-                  <div class="app-desc">Contact Info: <a href="hello@helloreverb.com">hello@helloreverb.com</a></div>
+                  <div class="app-desc">Information URL: <a href="https://www.inverted.ai/api">https://www.inverted.ai/api</a></div>
+                  <div class="app-desc">Contact Info: <a href="info@inverted.ai">info@inverted.ai</a></div>
               </p>
-                <div class="license-info">All rights reserved</div>
-                <div class="license-url">http://apache.org/licenses/LICENSE-2.0.html</div>
+                <div class="license-info">Apache 2.0</div>
+                <div class="license-url">http://www.apache.org/licenses/LICENSE-2.0.html</div>
             </div>
           </div>
       </div>
