@@ -12,6 +12,7 @@ sdk-initialize
 sdk-location-info
 sdk-simulation
 sdk-common
+sdk-env-var
 ```
 
 

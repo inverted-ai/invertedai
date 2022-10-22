@@ -7,10 +7,9 @@ hide-toc: true
 [pypi-badge]: https://badge.fury.io/py/invertedai.svg
 [pypi-link]: https://pypi.org/project/invertedai/
 [colab-badge]: https://colab.research.google.com/assets/colab-badge.svg
-[colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb
 [github-badge]: https://badgen.net/badge/icon/github?icon=github&label
 [github-link]: https://github.com/inverted-ai/invertedai/
-
+[colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb
 [![GitHub][github-badge]][github-link]
 [![PyPI][pypi-badge]][pypi-link]
 [![Open In Colab][colab-badge]][colab-link]

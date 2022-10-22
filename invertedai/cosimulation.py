@@ -53,6 +53,12 @@ class BasicCosimulation:
             self._ego_agent_mask = [False] * self._agent_count
         else:
             self._ego_agent_mask = ego_agent_mask[: self._agent_count]
+        # initialize might not return the exact number of agents requested,
+        # in which case we need to adjust the ego agent mask
+        if len(self._ego_agent_mask) > self._agent_count:
+            self._ego_agent_mask = self._ego_agent_mask[:self._agent_count]
+        if len(self._ego_agent_mask) < self._agent_count:
+            self._ego_agent_mask += [False] * self._agent_count
         self._time_step = 0
 
     @property
@@ -109,13 +115,14 @@ class BasicCosimulation:
         """
         return self._birdview
 
+    @property
     def npc_states(self) -> List[AgentState]:
         """
         Returns the predicted states of NPCs (non-ego agents) in order.
         The predictions for ego agents are excluded.
         """
         npc_states = []
-        for (i, s) in self._agent_states:
+        for (i, s) in enumerate(self._agent_states):
             if not self._ego_agent_mask[i]:
                 npc_states.append(s)
         return npc_states
@@ -148,7 +155,7 @@ class BasicCosimulation:
                 [inf.wrong_way for inf in response.infractions],
             )
         if self._render_birdview:
-            self._birdview = response.bird_view
+            self._birdview = response.birdview
         self._time_step += 1
 
     def _update_ego_states(self, ego_agent_states):
