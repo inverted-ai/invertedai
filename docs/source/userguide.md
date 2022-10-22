@@ -115,7 +115,7 @@ returns locally computed simple responses in the correct format. This mock API a
 formats, including checking lengths of lists and bounds for numeric values, and those checks can also be optionally
 performed on the client side before paid API calls. All those features are only available in the Python library and not
 in the REST API.  
-To enable the mock API, just set the environment variable `IAI_MOCK_API` to true according to {ref}`ENV_VAR`
+To enable the mock API, just set the environment variable `IAI_MOCK_API` to true according to {ref}`ENV_VAR`.
 For further debugging and visualization, both INITIALIZE and DRIVE optionally return a rendered birdview image showing
 the simulation state after the call to them. This significantly increases the payload size and latency, so it should not
 be done in real integrations.
