@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple
 from enum import Enum
 
@@ -18,7 +18,8 @@ class RecurrentState:
     It should not be modified, but rather passed along as received.
     """
 
-    packed: List[float]  #: Internal representation of the recurrent state.
+    packed: List[float] = field(default_factory=lambda: [0.0] * 132)
+    #: Internal representation of the recurrent state.
 
 
 @dataclass
