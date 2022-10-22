@@ -1,7 +1,7 @@
 [pypi-badge]: https://badge.fury.io/py/invertedai.svg
 [pypi-link]: https://pypi.org/project/invertedai/
 [colab-badge]: https://colab.research.google.com/assets/colab-badge.svg
-[colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb
+[colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb
 
 
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
@@ -94,7 +94,7 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
 
 In order to execute this code, you need to connect a simulator locally. To quickly check out how Inverted AI NPCs
 behave, try our
-[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/Colab-Demo.ipynb),
+[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb),
 where all agents are NPCs, or go to our
 [github repository](https://github.com/inverted-ai/invertedai/examples) to execute it locally.
 When you're ready to try our NPCs with a real simulator, see the example [CARLA integration](examples/carlasim.md).
