@@ -92,7 +92,7 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
     updated_ego_agent_state = local_simulation.step(predicted_npc_behavior)
 ```
 
-In order to execute this code, you need to connect a simulator locally. To quickly check out how Inverted AI NPCs
+To quickly check out how Inverted AI NPCs
 behave, try our
 [Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb),
 where all agents are NPCs, or go to our
