@@ -1,4 +1,5 @@
 from typing import List, Optional
+import random
 
 from invertedai import drive, initialize
 from invertedai.common import AgentState, InfractionIndicators, Image
@@ -23,9 +24,10 @@ class BasicCosimulation:
         used in arguments to :func:`initialize`.
     :param monitor_infraction: Whether to monitor driving infractions, at a small increase
         in latency and payload size.
-    :param render_birdview: Whether to render the bird's eye view of the simulation state
+    :param get_birdview: Whether to render the bird's eye view of the simulation state
         at each time step. It drastically increases the payload received from Inverted AI
         servers and therefore slows down the simulation - use only for debugging.
+    :param random_seed: Controls the stochastic aspects of simulation for reproducibility.
     """
 
     def __init__(
@@ -34,14 +36,17 @@ class BasicCosimulation:
         ego_agent_mask: Optional[List[bool]] = None,
         monitor_infractions: bool = False,
         get_birdview: bool = False,
+        random_seed: Optional[int] = None,
         # sufficient arguments to initialize must also be included
         **kwargs,
     ):
         self._location = location
+        self.rng = random.Random(random_seed)
         response = initialize(
             location=location,
             get_birdview=get_birdview,
             get_infractions=monitor_infractions,
+            random_seed=self.rng.randint(0, int(9e6)),
             **kwargs,
         )
         if monitor_infractions and (response.infractions is not None):
@@ -60,9 +65,9 @@ class BasicCosimulation:
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
         self._monitor_infractions = monitor_infractions
-        self._render_birdview = get_birdview
+        self._get_birdview = get_birdview
         self._birdview = None
-        if self._render_birdview:
+        if self._get_birdview:
             self._birdview = response.birdview
         if ego_agent_mask is None:
             self._ego_agent_mask = [False] * self._agent_count
@@ -125,7 +130,7 @@ class BasicCosimulation:
     @property
     def birdview(self) -> Image:
         """
-        If `render_birdview` was set in the constructor,
+        If `get_birdview` was set in the constructor,
         this is the image showing the current state of the simulation.
         """
         return self._birdview
@@ -158,7 +163,8 @@ class BasicCosimulation:
             agent_states=self.agent_states,
             recurrent_states=self._recurrent_states,
             get_infractions=self._monitor_infractions,
-            get_birdview=self._render_birdview,
+            get_birdview=self._get_birdview,
+            random_seed=self.rng.randint(0, int(9e6)),
         )
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
@@ -169,7 +175,7 @@ class BasicCosimulation:
                 [inf.offroad for inf in response.infractions],
                 [inf.wrong_way for inf in response.infractions],
             )
-        if self._render_birdview:
+        if self._get_birdview:
             self._birdview = response.birdview
         self._time_step += 1
 
