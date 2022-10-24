@@ -26,8 +26,8 @@ simulation = iai.BasicCosimulation(
     location=args.location,
     agent_count=10,
     monitor_infractions=True,
-    render_birdview=True,
     ego_agent_mask=[False] * 10,
+    get_birdview=True,
 )
 frames = []
 pbar = tqdm(range(50))

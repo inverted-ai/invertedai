@@ -33,12 +33,26 @@ class BasicCosimulation:
         location: str,
         ego_agent_mask: Optional[List[bool]] = None,
         monitor_infractions: bool = False,
-        render_birdview: bool = False,
+        get_birdview: bool = False,
         # sufficient arguments to initialize must also be included
         **kwargs,
     ):
         self._location = location
-        response = initialize(location=location, render_birdview=render_birdview, **kwargs)
+        response = initialize(
+            location=location,
+            get_birdview=get_birdview,
+            get_infractions=monitor_infractions,
+            **kwargs,
+        )
+        if monitor_infractions and (response.infractions is not None):
+            # TODO: package infractions in dataclass
+            self._infractions = (
+                [inf.collisions for inf in response.infractions],
+                [inf.offroad for inf in response.infractions],
+                [inf.wrong_way for inf in response.infractions],
+            )
+        else:
+            self._infractions = None
         self._agent_count = len(
             response.agent_attributes
         )  # initialize may produce different agent count
@@ -46,8 +60,7 @@ class BasicCosimulation:
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
         self._monitor_infractions = monitor_infractions
-        self._infractions = None
-        self._render_birdview = render_birdview
+        self._render_birdview = get_birdview
         self._birdview = None
         if self._render_birdview:
             self._birdview = response.birdview
@@ -58,7 +71,7 @@ class BasicCosimulation:
         # initialize might not return the exact number of agents requested,
         # in which case we need to adjust the ego agent mask
         if len(self._ego_agent_mask) > self._agent_count:
-            self._ego_agent_mask = self._ego_agent_mask[:self._agent_count]
+            self._ego_agent_mask = self._ego_agent_mask[: self._agent_count]
         if len(self._ego_agent_mask) < self._agent_count:
             self._ego_agent_mask += [False] * self._agent_count
         self._time_step = 0
