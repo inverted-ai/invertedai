@@ -1,3 +1,6 @@
+"""
+This module provides definitions of classes encapsulating a CARLA simulation.
+"""
 from invertedai.common import AgentAttributes, Point, AgentState, RecurrentState
 from dataclasses import dataclass, field
 import carla
@@ -21,29 +24,27 @@ from data.static_carla import (
 
 @dataclass
 class CarlaSimulationConfig:
-    npc_bps: Tuple[str] = NPC_BPS
-    roi_center: cord = cord(x=0, y=0)  # region of interest center
-    map_name: str = "Town03"
-    scene_name: str = "CARLA:Town03:Roundabout"
-    fps: int = 10  # Should not be compatible with invertedAI fps
-    traffic_count: int = 20
-    episode_length: int = 20  # In Seconds
-    entrance_interval: int = 2  # In Seconds
-    follow_ego: bool = False
-    slack: int = 3
-    ego_bp: str = "vehicle.tesla.model3"
-    seed: float = time.time()
-    flag_npcs: bool = True
-    flag_ego: bool = True
-    ego_autopilot: bool = True
-    npcs_autopilot: bool = False
-    populate_npcs: bool = True
-    npc_population_interval: int = 1  # In Seconds
+    """
+    A collection of static configuration options for the CARLA simulation.
+    """
+    ego_bp: str = "vehicle.tesla.model3"  #: blueprint name for the ego vehicle
+    npc_bps: Tuple[str] = NPC_BPS  #: blueprint names for NPC vehicles
+    location: str = "CARLA:Town03:Roundabout"  #: in format recognized by Inverted AI API
+    fps: int = 10  #: 10 is the only value currently compatible with Inverted AI API
+    traffic_count: int = 20  #: total number of vehicles to place in simulation
+    episode_length: int = 20  #: in seconds
+    follow_ego: bool = False  #: whether the spectator camera follows the ego vehicle
+    slack: int = 3  #: in meters, how far outside supported area to track NPCs
+    seed: float = time.time()  #: random number generator seed to control stochastic behavior
+    flag_npcs: bool = True  #: whether to display a blue dot on Inverted AI NPCs
+    flag_ego: bool = True  #: whether to display a red dot on the ego vehicle
+    ego_autopilot: bool = True  #: wheter to use traffic manager to control ego vehicle
+    npcs_autopilot: bool = False  #: ???
+    npc_population_interval: int = 1  #: in seconds, ???
     non_roi_npc_mode: str = (
-        "carla_handoff"  # ["no_non_roi_npc", "spawn_at_entrance", "carla_handoff"]
-    )
-    max_cars_in_map: int = 100
-    proximity_threshold = None
+        "carla_handoff"
+    )  #: ???, select from ["no_non_roi_npc", "spawn_at_entrance", "carla_handoff"]
+    max_cars_in_map: int = 100  #: upper bound on how many vehicles total are allowed in simulation
 
 
 class Car:
@@ -126,6 +127,11 @@ class Car:
 
 
 class CarlaEnv:
+    """
+    A class encapsulating a CARLA simulation, handling all the logic
+    of spawning and controlling vehicles, as well as connecting to
+    the server and setting simulation parameters.
+    """
     def __init__(
         self,
         cfg: CarlaSimulationConfig,
@@ -135,30 +141,37 @@ class CarlaEnv:
         npc_entrance_spawn_points=None,
         spectator_transform=None,
     ) -> None:
-        self.rng = random.Random(cfg.seed)
+
         self.cfg = cfg
-        centers = MAP_CENTERS[cfg.scene_name]
-        self.cfg.roi_center = cord(x=centers[0], y=centers[1])
-        self.cfg.map_name = cfg.scene_name.split(":")[1]
-        world_settings = carla.WorldSettings(
-            synchronous_mode=True,
-            fixed_delta_seconds=1 / float(cfg.fps),
+        self.rng = random.Random(cfg.seed)
+
+        # assemble information about area where Inverted AI NPCs will be deployed
+        centers = MAP_CENTERS[cfg.location]
+        self.roi_center = cord(x=centers[0], y=centers[1])
+        self.proximity_threshold = (
+            50
+            if cfg.location not in DEMO_LOCATIONS.keys()
+            else DEMO_LOCATIONS[cfg.location]["proximity_threshold"]
         )
+
+        # connect to CARLA server and set simulation parameters
         client = carla.Client("localhost", 2000)
         traffic_manager = client.get_trafficmanager(
             get_available_port(subsequent_ports=0)
         )
-        world = client.load_world(cfg.map_name)
+        world_settings = carla.WorldSettings(
+            synchronous_mode=True,
+            fixed_delta_seconds=1 / float(cfg.fps),
+        )
+        world = client.load_world(cfg.location.split(":")[1])
         self.original_settings = client.get_world().get_settings()
         world.apply_settings(world_settings)
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_hybrid_physics_mode(True)
-        self.proximity_threshold = cfg.proximity_threshold or (
-            50
-            if cfg.scene_name not in DEMO_LOCATIONS.keys()
-            else DEMO_LOCATIONS[cfg.scene_name]["proximity_threshold"]
-        )
+
+        # pick spawn points for NPCs
         if initial_states is None:
+            # initial state not provided - create one
             spawn_points = world.get_map().get_spawn_points()
             (
                 npc_roi_spawn_points,
@@ -168,6 +181,7 @@ class CarlaEnv:
                 spawn_points, speed=np.zeros_like(spawn_points)
             )
         else:
+            # initial state provided - use it
             spawn_points, speed = self._to_transform(initial_states)
             if initial_recurrent_states is not None:
                 assert len(initial_recurrent_states) == len(initial_states)
@@ -178,21 +192,27 @@ class CarlaEnv:
             ) = self.get_roi_spawn_points(
                 spawn_points, speed, initial_recurrent_states=initial_recurrent_states
             )
-        if (ego_spawn_point is None) or (cfg.scene_name not in DEMO_LOCATIONS.keys()):
+        # pick a spawn point for the ego vehicle
+        if (ego_spawn_point is None) or (cfg.location not in DEMO_LOCATIONS.keys()):
+            # pick random spawn point for the ego vehicle
             ego_spawn_point, ego_rs, _ = (
                 npc_roi_spawn_points.pop(),
                 initial_recurrent_states.pop(),
                 initial_speed.pop(),
             )
         elif ego_spawn_point == "demo":
-            locs = DEMO_LOCATIONS[cfg.scene_name]
+            # pick one of designated spawn points for the location for the ego vehicle
+            locs = DEMO_LOCATIONS[cfg.location]
             ego_spawn_point = self.rng.choice(locs["spawning_locations"])
             ego_rs = RecurrentState()
         else:
+            # use the spawn point provided
             ego_rs = RecurrentState()
             assert isinstance(
                 ego_spawn_point, carla.Transform
             ), "ego_spawn_point must be a Carla.Transform"
+
+        # spawn vehicles
         if cfg.non_roi_npc_mode == "spawn_at_entrance":
             self.nroi_npc_mode = 0
             # TODO: use enum to combine self.nroi_npc_mode and cfg.non_roi_npc_mode
@@ -212,8 +232,10 @@ class CarlaEnv:
             )
         else:
             self.nroi_npc_mode = 2
+
+        # set the spectator camera
         if spectator_transform is None:
-            camera_loc = carla.Location(cfg.roi_center.x, cfg.roi_center.y, z=100)
+            camera_loc = carla.Location(self.roi_center.x, self.roi_center.y, z=100)
             camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
             spectator_transform = carla.Transform(camera_loc, camera_rot)
             self.spectator_mode = "birdview"
@@ -228,9 +250,10 @@ class CarlaEnv:
                 spectator_transform, carla.Transform
             ), "spectator_transform must be a Carla.Transform"
             self.spectator_mode = "user_defined"
-
         self.spectator = world.get_spectator()
         self.spectator.set_transform(spectator_transform)
+
+        # store some variables
         self.world = world
         self.client = client
         self.traffic_manager = traffic_manager
@@ -240,20 +263,29 @@ class CarlaEnv:
         self.ego_spawn_point = ego_spawn_point
         self.npc_rs = initial_recurrent_states
         self.ego_rs = ego_rs
+
+        # compute how many steps to warm up NPCs for
         self.populate_step = self.cfg.fps * self.cfg.npc_population_interval
         self.npcs = []
         self.non_roi_npcs = []
 
     def _initialize(self):
-        # Keep the order of first spawining ego then NPCs
-        # to avoid spawning npc in ego location
+        """
+        Initialize the simulation state by spawning all vehicles and setting
+        their controllers.
+        """
+        # First spawn ego to ensure no NPC is spawned there
         self.ego = self._spawn_npcs(
             [self.ego_spawn_point], [0], [self.cfg.ego_bp], [self.ego_rs]
         ).pop()
+
+        # Check that it's possible to spawn the requested number of NPCs.
         if len(self.roi_spawn_points) < self.cfg.traffic_count:
             print("Number of roi_spawn_points is less than traffic_count")
             # TODO: Add logger
         num_npcs = min(len(self.roi_spawn_points), self.cfg.traffic_count)
+
+        # Spawn NPCs
         self.npcs.extend(
             self._spawn_npcs(
                 self.roi_spawn_points[:num_npcs],
@@ -262,6 +294,8 @@ class CarlaEnv:
                 self.npc_rs,
             )
         )
+
+        # Spawn more NPCs outside the supported area
         if self.cfg.non_roi_npc_mode == "carla_handoff":
             num_npcs = min(len(self.non_roi_spawn_points), self.cfg.max_cars_in_map)
             self.non_roi_npcs.extend(
@@ -271,9 +305,15 @@ class CarlaEnv:
                     self.cfg.npc_bps,
                 )
             )
+
+        # Set traffic manager to control all NPCs initially
         self.set_npc_autopilot(self.npcs, True)
-        for _ in range(10):  # Ticking the world to place cars on the ground
+
+        # Allow the vehicles to drop to the ground
+        for _ in range(10):
             self.world.tick()
+
+        # Set controllers for all vehicles
         for npc in self.npcs:
             npc.update_dimension()
         self.ego.update_dimension()
@@ -284,6 +324,9 @@ class CarlaEnv:
         self.step_counter = 0
 
     def reset(self, include_ego=True):
+        """
+        Re-initialize simulation with the same parameters.
+        """
         try:
             self.destroy(npcs=True, ego=True, world=False)
         except:
@@ -292,6 +335,9 @@ class CarlaEnv:
         return self.get_obs(include_ego=include_ego)
 
     def step(self, ego="autopilot", npcs=None, include_ego=True):
+        """
+        Advance the simulation using supplied NPC predictions.
+        """
         self.step_counter += 1
         self._set_state_and_filter_npcs(ego, npcs, include_ego)
         if self.cfg.flag_ego:
@@ -310,6 +356,10 @@ class CarlaEnv:
         return self.get_obs()
 
     def destroy(self, npcs=True, ego=True, world=True):
+        """
+        Finish the simulation, destroying agents and optionally
+        releasing the server.
+        """
         if npcs:
             self._destory_npcs(self.npcs)
             self._destory_npcs(self.non_roi_npcs)
@@ -323,6 +373,9 @@ class CarlaEnv:
             self.traffic_manager.set_synchronous_mode(False)
 
     def get_obs(self, obs_len=1, include_ego=True, warmup=False):
+        """
+        Obtain agent information as required by Inverted AI `drive`.
+        """
         if self.cfg.non_roi_npc_mode == "spawn_at_entrance":
             if len(self.non_roi_npcs) > 0:
                 for npc in self.non_roi_npcs:
@@ -353,21 +406,6 @@ class CarlaEnv:
         # recurrent_state = [RecurrentState(rs) for rs in rec_state]
         recurrent_state = rec_state
         return agent_states, recurrent_state, agent_attributes
-
-    def get_infractions(self):
-        pass
-
-    def get_reward(self):
-        pass
-
-    def is_done(self):
-        pass
-
-    def seed(self, seed=None):
-        pass
-
-    def render(self, mode="human"):
-        pass
 
     @staticmethod
     def set_npc_autopilot(npcs, on=True):
@@ -457,8 +495,8 @@ class CarlaEnv:
         for npc in self.npcs:
             actor_geo_center = npc.get_state()["transform"].location
             distance = math.sqrt(
-                ((actor_geo_center.x - self.cfg.roi_center.x) ** 2)
-                + ((actor_geo_center.y - self.cfg.roi_center.y) ** 2)
+                ((actor_geo_center.x - self.roi_center.x) ** 2)
+                + ((actor_geo_center.y - self.roi_center.y) ** 2)
             )
             if distance < self.proximity_threshold + self.cfg.slack:
                 remaining_npcs.append(npc)
@@ -468,8 +506,8 @@ class CarlaEnv:
             for npc in self.non_roi_npcs:
                 actor_geo_center = npc.get_state()["transform"].location
                 distance = math.sqrt(
-                    ((actor_geo_center.x - self.cfg.roi_center.x) ** 2)
-                    + ((actor_geo_center.y - self.cfg.roi_center.y) ** 2)
+                    ((actor_geo_center.x - self.roi_center.x) ** 2)
+                    + ((actor_geo_center.y - self.roi_center.y) ** 2)
                 )
                 if distance < self.proximity_threshold + self.cfg.slack:
                     npc.update_dimension()
@@ -507,8 +545,8 @@ class CarlaEnv:
         entrance = []
         for sp in spawn_points:
             distance = math.sqrt(
-                ((sp.location.x - self.cfg.roi_center.x) ** 2)
-                + ((sp.location.y - self.cfg.roi_center.y) ** 2)
+                ((sp.location.x - self.roi_center.x) ** 2)
+                + ((sp.location.y - self.roi_center.y) ** 2)
             )
             if (
                 self.proximity_threshold - self.cfg.slack
@@ -526,8 +564,8 @@ class CarlaEnv:
         keep_initial_recurrent_states = []
         for ind, sp in enumerate(spawn_points):
             distance = math.sqrt(
-                ((sp.location.x - self.cfg.roi_center.x) ** 2)
-                + ((sp.location.y - self.cfg.roi_center.y) ** 2)
+                ((sp.location.x - self.roi_center.x) ** 2)
+                + ((sp.location.y - self.roi_center.y) ** 2)
             )
             if roi & (distance < self.proximity_threshold):
                 roi_spawn_points.append(sp)
