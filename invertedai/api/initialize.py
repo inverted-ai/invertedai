@@ -41,9 +41,6 @@ class InitializeResponse:
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
-    is_inside_supported_area: List[
-        bool
-    ]  #: For each agent, indicates whether the predicted state is inside supported area.
 
 
 def initialize(
@@ -154,7 +151,6 @@ def initialize(
                 ]
                 if response["infraction_indicators"]
                 else [],
-                is_inside_supported_area=response["is_inside_supported_area"],
             )
             return response
         except TryAgain as e:

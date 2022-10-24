@@ -28,6 +28,12 @@ response = iai.initialize(
     get_birdview=True,
     get_infractions=True,
 )
+print(
+    f"Initialize:\n"
+    + f"Collision rate: {100*np.array([inf.collisions for inf in response.infractions]).mean():.2f}% | "
+    + f"Off-road rate: {100*np.array([inf.offroad for inf in response.infractions]).mean():.2f}% | "
+    + f"Wrong-way rate: {100*np.array([inf.wrong_way for inf in response.infractions]).mean():.2f}%"
+)
 agent_attributes = response.agent_attributes
 frames = []
 pbar = tqdm(range(50))
