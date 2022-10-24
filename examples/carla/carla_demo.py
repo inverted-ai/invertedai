@@ -21,7 +21,7 @@ from tqdm import tqdm
 # Configuration options to set from command line.
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("-n", "--location", type=str, default="carla:Town03:Roundabout",
-                    docs='See data/static_carla.py for a list of available locations.')
+                    help='See data/static_carla.py for a list of available locations.')
 parser.add_argument("-c", "--agent_count", type=int, default=8)
 parser.add_argument("-l", "--episode_length", type=int, default=30)
 parser.add_argument("-e", "--ego_spawn_point", default="demo")
@@ -50,7 +50,6 @@ response = iai.initialize(
     agent_count=args.agent_count,
 )
 
-
 # Initialize CARLA with the same state
 carla_cfg = CarlaSimulationConfig(
     location=args.location,
@@ -67,31 +66,32 @@ sim = CarlaEnv(
     spectator_transform=args.spectator_transform,
 )
 
+try:
+    # Run simulation for a given number of episodes
+    for _ in tqdm(range(args.episodes), position=0):
+        agent_states, recurrent_states, agent_attributes = sim.reset()
+        clock = pygame.time.Clock()
+        for i in tqdm(
+            range(carla_cfg.episode_length * carla_cfg.fps), position=0, leave=False
+        ):
+            # Call the API to obtain the NPC behavior
+            response = iai.drive(
+                agent_attributes=agent_attributes,
+                agent_states=agent_states,
+                recurrent_states=recurrent_states,
+                location=args.location,
+            )
 
-# Run simulation for a given number of episodes
-for _ in tqdm(range(args.episodes), position=0):
-    agent_states, recurrent_states, agent_attributes = sim.reset()
-    clock = pygame.time.Clock()
-    for i in tqdm(
-        range(carla_cfg.episode_length * carla_cfg.fps), position=0, leave=False
-    ):
-        # Call the API to obtain the NPC behavior
-        response = iai.drive(
-            agent_attributes=agent_attributes,
-            agent_states=agent_states,
-            recurrent_states=recurrent_states,
-            location=args.location,
-        )
+            # Advance the simulation.
+            # Return values are needed to allow the NPCs to enter and
+            # exit the simulation dynamically.
+            agent_states, recurrent_states, agent_attributes = sim.step(
+                npcs=response, ego="autopilot"
+            )
 
-        # Advance the simulation.
-        # Return values are needed to allow the NPCs to enter and
-        # exit the simulation dynamically.
-        agent_states, recurrent_states, agent_attributes = sim.step(
-            npcs=response, ego="autopilot"
-        )
+            # To prevent the simulation from running faster than real time
+            clock.tick_busy_loop(carla_cfg.fps)
 
-        # To prevent the simulation from running faster than real time
-        clock.tick_busy_loop(carla_cfg.fps)
-
-# Release the CARLA server
-sim.destroy()
+finally:
+    # Release the CARLA server
+    sim.destroy()
