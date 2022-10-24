@@ -1,4 +1,8 @@
-# InverteAI CARLA simulator integration
+# Inverted AI CARLA simulator integration
+
+This folder provides a basic example for using Inverted AI NPCs in CARLA.
+The entry script is `carla_demo.py`, while `carla_simulator.py` encapsulates
+the basic simulation logic for controlling CARLA.
 
 ## Quick start
 
@@ -17,47 +21,11 @@ docker compose up
 ```sh
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 ```
 
-- To run the simulation in the notebook
+- Run the simulation script
 
 ```sh
-.venv/bin/jupyter notebook Carla-Demo.ipynb
+python carla_demo.py
 ```
-
-- To run the simulation script
-
-```sh
-python Carla-Demo-Script.py
-```
-
-## development
-
-- Add the following environment variables to shell
-
-```
-IAI_DEV=1
-IAI_DEV_URL=http://localhost:8888
-```
-
-- Change the port mapping in iai-drive-server
-
-```yaml
-ports:
-  - "8888:8000"
-```
-
-- Docs:
-
-  - For building the html files
-
-  ```sh
-  sphinx-build docs/source docs/build/html
-  ```
-
-  - For testing and dev
-
-  ```sh
-  sphinx-autobuild docs/source docs/build/html --port 8001
-  ```
