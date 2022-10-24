@@ -88,7 +88,7 @@ def initialize(
         num_agents_to_spawn=agent_count,
         states_history=states_history
         if states_history is None
-        else [state.tolist() for state in states_history],
+        else [[st.tolist() for st in states] for states in states_history],
         agent_attributes=agent_attributes
         if agent_attributes is None
         else [state.tolist() for state in agent_attributes],

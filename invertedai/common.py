@@ -105,10 +105,10 @@ class TrafficLightState(str, Enum):
     StaticMapActor
     """
 
-    none = auto()
-    green = auto()
-    yellow = auto()
-    red = auto()
+    none = "none"
+    green = "green"
+    yellow = "yellow"
+    red = "red"
 
 
 @dataclass
