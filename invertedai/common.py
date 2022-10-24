@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple
-from enum import Enum, auto
+from enum import Enum
 
 import invertedai as iai
 
