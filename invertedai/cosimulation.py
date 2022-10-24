@@ -38,7 +38,7 @@ class BasicCosimulation:
         **kwargs,
     ):
         self._location = location
-        response = initialize(location=location, **kwargs)
+        response = initialize(location=location, render_birdview=render_birdview, **kwargs)
         self._agent_count = len(
             response.agent_attributes
         )  # initialize may produce different agent count
@@ -49,6 +49,8 @@ class BasicCosimulation:
         self._infractions = None
         self._render_birdview = render_birdview
         self._birdview = None
+        if self._render_birdview:
+            self._birdview = response.birdview
         if ego_agent_mask is None:
             self._ego_agent_mask = [False] * self._agent_count
         else:
