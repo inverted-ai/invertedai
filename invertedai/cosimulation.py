@@ -41,12 +41,12 @@ class BasicCosimulation:
         **kwargs,
     ):
         self._location = location
-        self.rng = random.Random(random_seed)
+        self.rng = None if random_seed is None else random.Random(random_seed)
         response = initialize(
             location=location,
             get_birdview=get_birdview,
             get_infractions=monitor_infractions,
-            random_seed=self.rng.randint(0, int(9e6)),
+            random_seed=None if self.rng is None else self.rng.randint(0, int(9e6)),
             **kwargs,
         )
         if monitor_infractions and (response.infractions is not None):
@@ -60,10 +60,8 @@ class BasicCosimulation:
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
         self._monitor_infractions = monitor_infractions
+        self._birdview = response.birdview if get_birdview else None
         self._get_birdview = get_birdview
-        self._birdview = None
-        if self._get_birdview:
-            self._birdview = response.birdview
         if ego_agent_mask is None:
             self._ego_agent_mask = [False] * self._agent_count
         else:
@@ -73,7 +71,7 @@ class BasicCosimulation:
         if len(self._ego_agent_mask) > self._agent_count:
             self._ego_agent_mask = self._ego_agent_mask[:self._agent_count]
         if len(self._ego_agent_mask) < self._agent_count:
-            self._ego_agent_mask += [False] * self._agent_count
+            self._ego_agent_mask += [False] * (self._agent_count - len(self._ego_agent_mask))
         self._time_step = 0
 
     @property
@@ -122,17 +120,15 @@ class BasicCosimulation:
         """
         return self._infractions
 
-    @property
-    def infraction_rates(self) -> Optional[Tuple[float, float, float]]:
+    def get_infraction(self) -> Optional[Tuple[float, float, float]]:
         """
         If `monitor_infractions` was set in the constructor,
         returns "collisions", "offroad", and "wrong_way" infraction rates of the current time step.
         """
         if self._infractions is not None:
-            agent_nums = len(self._infractions)
-            collisions = sum([inf.collisions for inf in self._infractions]) / agent_nums
-            offroad = sum([inf.offroad for inf in self._infractions]) / agent_nums
-            wrong_way = sum([inf.wrong_way for inf in self._infractions]) / agent_nums
+            collisions = sum([inf.collisions for inf in self._infractions])
+            offroad = sum([inf.offroad for inf in self._infractions])
+            wrong_way = sum([inf.wrong_way for inf in self._infractions])
             return collisions, offroad, wrong_way
         else:
             return None
@@ -174,7 +170,7 @@ class BasicCosimulation:
             recurrent_states=self._recurrent_states,
             get_infractions=self._monitor_infractions,
             get_birdview=self._get_birdview,
-            random_seed=self.rng.randint(0, int(9e6)),
+            random_seed=None if self.rng is None else self.rng.randint(0, int(9e6)),
         )
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states

@@ -22,22 +22,24 @@ if response.osm_map is not None:
 if response.birdview_image is not None:
     file_path = f"{file_name}.jpg"
     response.birdview_image.decode_and_save(file_path)
+
 simulation = iai.BasicCosimulation(
     location=args.location,
     agent_count=10,
     monitor_infractions=True,
     ego_agent_mask=[False] * 10,
     get_birdview=True,
+    random_seed=1,
 )
 frames = []
 pbar = tqdm(range(50))
 for i in pbar:
     simulation.step(current_ego_agent_states=[])
-    collision, offroad, wrong_way = simulation.infraction_rates
+    collision, offroad, wrong_way = simulation.get_infraction()
     pbar.set_description(
-        f"Collision rate: {100*collision:.2f}% | "
-        + f"Off-road rate: {100*offroad:.2f}% | "
-        + f"Wrong-way rate: {100*wrong_way:.2f}%"
+        f"Collision: {collision}/{simulation.agent_count} | "
+        + f"Off-road: {offroad}/{simulation.agent_count} | "
+        + f"Wrong-waye: {wrong_way}/{simulation.agent_count}"
     )
 
     image = simulation.birdview.decode()
