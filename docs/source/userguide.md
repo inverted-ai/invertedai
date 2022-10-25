@@ -7,7 +7,7 @@ behavior of NPCs. This page describes the high level concepts governing the inte
 specific pages for {ref}`Python SDK`, {ref}`REST API`, {ref}`Getting started`, and {ref}`Examples`.
 
 We follow the continuous space, discrete time approach used in most driving simulators. In the current version, the API
-only supports the time step of 100 ms, corresponding to 10 frames per second, and expects to run in a synchronous
+only supports a time step of 100 ms, corresponding to 10 frames per second, and expects to run in a synchronous
 fashion. The latency of API calls varies with physical location of the client server and its network configuration,
 but generally the API should not be relied upon to provide real-time simulation. For optimal resource utilization,
 we recommend that you run multiple simulations in parallel, so that one can execute when another is waiting for the
