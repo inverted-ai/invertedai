@@ -105,7 +105,7 @@ class TrafficLightState(str, Enum):
     StaticMapActor
     """
 
-    none = "none"
+    none = "none"  #: The light is off and will be ignored.
     green = "green"
     yellow = "yellow"
     red = "red"
