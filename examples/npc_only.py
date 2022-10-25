@@ -1,9 +1,9 @@
-from PIL import Image as PImage
-import imageio
-import numpy as np
-from tqdm import tqdm
-import argparse
 import invertedai as iai
+import argparse
+from tqdm import tqdm
+import numpy as np
+import imageio
+from PIL import Image as PImage
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default=None)
@@ -33,11 +33,11 @@ frames = []
 pbar = tqdm(range(50))
 for i in pbar:
     simulation.step(current_ego_agent_states=[])
-    collision, offroad, wrong_way = simulation.infractions
+    collision, offroad, wrong_way = simulation.infraction_rates
     pbar.set_description(
-        f"Collision rate: {100*np.array(collision).mean():.2f}% | "
-        + f"Off-road rate: {100*np.array(offroad).mean():.2f}% | "
-        + f"Wrong-way rate: {100*np.array(wrong_way).mean():.2f}%"
+        f"Collision rate: {100*collision:.2f}% | "
+        + f"Off-road rate: {100*offroad:.2f}% | "
+        + f"Wrong-way rate: {100*wrong_way:.2f}%"
     )
 
     image = simulation.birdview.decode()

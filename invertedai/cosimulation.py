@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import random
 
 from invertedai import drive, initialize
@@ -50,12 +50,7 @@ class BasicCosimulation:
             **kwargs,
         )
         if monitor_infractions and (response.infractions is not None):
-            # TODO: package infractions in dataclass
-            self._infractions = (
-                [inf.collisions for inf in response.infractions],
-                [inf.offroad for inf in response.infractions],
-                [inf.wrong_way for inf in response.infractions],
-            )
+            self._infractions = response.infractions
         else:
             self._infractions = None
         self._agent_count = len(
@@ -72,11 +67,11 @@ class BasicCosimulation:
         if ego_agent_mask is None:
             self._ego_agent_mask = [False] * self._agent_count
         else:
-            self._ego_agent_mask = ego_agent_mask[: self._agent_count]
+            self._ego_agent_mask = ego_agent_mask[:self._agent_count]
         # initialize might not return the exact number of agents requested,
         # in which case we need to adjust the ego agent mask
         if len(self._ego_agent_mask) > self._agent_count:
-            self._ego_agent_mask = self._ego_agent_mask[: self._agent_count]
+            self._ego_agent_mask = self._ego_agent_mask[:self._agent_count]
         if len(self._ego_agent_mask) < self._agent_count:
             self._ego_agent_mask += [False] * self._agent_count
         self._time_step = 0
@@ -120,12 +115,27 @@ class BasicCosimulation:
         return [d for d, s in zip(self._agent_states, self._ego_agent_mask) if s]
 
     @property
-    def infractions(self) -> List[InfractionIndicators]:
+    def infractions(self) -> Optional[List[InfractionIndicators]]:
         """
         If `monitor_infractions` was set in the constructor,
         lists infractions currently committed by each agent, including ego agents.
         """
         return self._infractions
+
+    @property
+    def infraction_rates(self) -> Optional[Tuple[float, float, float]]:
+        """
+        If `monitor_infractions` was set in the constructor,
+        returns "collisions", "offroad", and "wrong_way" infraction rates of the current time step.
+        """
+        if self._infractions is not None:
+            agent_nums = len(self._infractions)
+            collisions = sum([inf.collisions for inf in self._infractions]) / agent_nums
+            offroad = sum([inf.offroad for inf in self._infractions]) / agent_nums
+            wrong_way = sum([inf.wrong_way for inf in self._infractions]) / agent_nums
+            return collisions, offroad, wrong_way
+        else:
+            return None
 
     @property
     def birdview(self) -> Image:
@@ -169,12 +179,7 @@ class BasicCosimulation:
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
         if self._monitor_infractions and (response.infractions is not None):
-            # TODO: package infractions in dataclass
-            self._infractions = (
-                [inf.collisions for inf in response.infractions],
-                [inf.offroad for inf in response.infractions],
-                [inf.wrong_way for inf in response.infractions],
-            )
+            self._infractions = response.infractions
         if self._get_birdview:
             self._birdview = response.birdview
         self._time_step += 1

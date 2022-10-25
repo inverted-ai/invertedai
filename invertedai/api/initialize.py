@@ -9,6 +9,8 @@ from invertedai.api.mock import (
     get_mock_agent_attributes,
     get_mock_agent_state,
     get_mock_recurrent_state,
+    get_mock_birdview,
+    get_mock_infractions,
 )
 
 from invertedai.common import (
@@ -101,10 +103,14 @@ def initialize(
         else:
             agent_states = states_history[-1]
         recurrent_states = [get_mock_recurrent_state() for _ in range(agent_count)]
+        birdview = get_mock_birdview()
+        infractions = get_mock_infractions(len(agent_states))
         response = InitializeResponse(
             agent_states=agent_states,
             agent_attributes=agent_attributes,
             recurrent_states=recurrent_states,
+            birdview=birdview,
+            infractions=infractions,
         )
         return response
 
