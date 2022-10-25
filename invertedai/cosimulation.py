@@ -49,16 +49,14 @@ class BasicCosimulation:
         self._infractions = None
         self._render_birdview = render_birdview
         self._birdview = None
+        # initialize might not return the exact number of agents requested,
+        # in which case we need to adjust the ego agent mask
         if ego_agent_mask is None:
             self._ego_agent_mask = [False] * self._agent_count
         else:
             self._ego_agent_mask = ego_agent_mask[: self._agent_count]
-        # initialize might not return the exact number of agents requested,
-        # in which case we need to adjust the ego agent mask
-        if len(self._ego_agent_mask) > self._agent_count:
-            self._ego_agent_mask = self._ego_agent_mask[:self._agent_count]
         if len(self._ego_agent_mask) < self._agent_count:
-            self._ego_agent_mask += [False] * self._agent_count
+            self._ego_agent_mask += [False] * (self._agent_count - len(self._ego_agent_mask))
         self._time_step = 0
 
     @property
