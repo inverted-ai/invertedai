@@ -1,9 +1,9 @@
-from PIL import Image as PImage
-import imageio
-import numpy as np
-from tqdm import tqdm
-import argparse
 import invertedai as iai
+import argparse
+from tqdm import tqdm
+import numpy as np
+import imageio
+from PIL import Image as PImage
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default=None)
@@ -22,22 +22,23 @@ if response.osm_map is not None:
 if response.birdview_image is not None:
     file_path = f"{file_name}.jpg"
     response.birdview_image.decode_and_save(file_path)
+
 simulation = iai.BasicCosimulation(
     location=args.location,
     agent_count=10,
     monitor_infractions=True,
-    render_birdview=True,
     ego_agent_mask=[False] * 10,
+    get_birdview=True,
 )
 frames = []
 pbar = tqdm(range(50))
 for i in pbar:
     simulation.step(current_ego_agent_states=[])
-    collision, offroad, wrong_way = simulation.infractions
+    infractions = simulation.infractions
     pbar.set_description(
-        f"Collision rate: {100*np.array(collision).mean():.2f}% | "
-        + f"Off-road rate: {100*np.array(offroad).mean():.2f}% | "
-        + f"Wrong-way rate: {100*np.array(wrong_way).mean():.2f}%"
+        f"Collision: {sum([inf.collisions for inf in infractions])}/{simulation.agent_count} | "
+        + f"Off-road: {sum([inf.offroad for inf in infractions])}/{simulation.agent_count} | "
+        + f"Wrong-waye: {sum([inf.wrong_way for inf in infractions])}/{simulation.agent_count}"
     )
 
     image = simulation.birdview.decode()

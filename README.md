@@ -46,7 +46,7 @@ your machine and the NPC engine running on Inverted AI servers. The basic integr
    :language: python
 ```
 
-In order to execute this code, you need to connect a simulator locally. To quickly check out how Inverted AI NPCs
+To quickly check out how Inverted AI NPCs
 behave, try our
 [Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb),
 where all agents are NPCs, or go to our

@@ -5,11 +5,22 @@ from typing import List, Optional, Dict
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
-from invertedai.api.mock import mock_update_agent_state, get_mock_birdview, get_mock_infractions
+from invertedai.api.mock import (
+    mock_update_agent_state,
+    get_mock_birdview,
+    get_mock_infractions,
+)
 from invertedai.error import APIConnectionError
 
-from invertedai.common import AgentState, RecurrentState, Image, InfractionIndicators, AgentAttributes, TrafficLightId, \
-    TrafficLightState
+from invertedai.common import (
+    AgentState,
+    RecurrentState,
+    Image,
+    InfractionIndicators,
+    AgentAttributes,
+    TrafficLightId,
+    TrafficLightState,
+)
 
 
 @dataclass
@@ -17,11 +28,22 @@ class DriveResponse:
     """
     Response returned from an API call to :func:`iai.drive`.
     """
-    agent_states: List[AgentState]  #: Predicted states for all agents at the next time step.
-    recurrent_states: List[RecurrentState]  #: To pass to :func:`iai.drive` at the subsequent time step.
-    birdview: Optional[Image]  #: If `get_birdview` was set, this contains the resulting image.
-    infractions: Optional[List[InfractionIndicators]]  #: If `get_infractions` was set, they are returned here.
-    is_inside_supported_area: List[bool]  #: For each agent, indicates whether the predicted state is inside supported area.
+
+    agent_states: List[
+        AgentState
+    ]  #: Predicted states for all agents at the next time step.
+    recurrent_states: List[
+        RecurrentState
+    ]  #: To pass to :func:`iai.drive` at the subsequent time step.
+    birdview: Optional[
+        Image
+    ]  #: If `get_birdview` was set, this contains the resulting image.
+    infractions: Optional[
+        List[InfractionIndicators]
+    ]  #: If `get_infractions` was set, they are returned here.
+    is_inside_supported_area: List[
+        bool
+    ]  #: For each agent, indicates whether the predicted state is inside supported area.
 
 
 def drive(
@@ -113,18 +135,28 @@ def drive(
             response = iai.session.request(model="drive", data=model_inputs)
 
             response = DriveResponse(
-                agent_states=[AgentState.fromlist(state) for state in response["agent_states"]],
-                recurrent_states=[RecurrentState(r) for r in response["recurrent_states"]],
-                birdview=Image(response["birdview"]) if response['birdview'] is not None else None,
+                agent_states=[
+                    AgentState.fromlist(state) for state in response["agent_states"]
+                ],
+                recurrent_states=[
+                    RecurrentState(r) for r in response["recurrent_states"]
+                ],
+                birdview=Image(response["birdview"])
+                if response["birdview"] is not None
+                else None,
                 infractions=[
                     InfractionIndicators(*infractions)
                     for infractions in response["infraction_indicators"]
-                ] if response["infraction_indicators"] else [],
+                ]
+                if response["infraction_indicators"]
+                else [],
                 is_inside_supported_area=response["is_inside_supported_area"],
             )
 
             return response
         except APIConnectionError as e:
             iai.logger.warning("Retrying")
-            if (timeout is not None and time.time() > start + timeout) or not e.should_retry:
+            if (
+                timeout is not None and time.time() > start + timeout
+            ) or not e.should_retry:
                 raise e
