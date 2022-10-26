@@ -120,19 +120,6 @@ class BasicCosimulation:
         """
         return self._infractions
 
-    def get_infraction(self) -> Optional[Tuple[float, float, float]]:
-        """
-        If `monitor_infractions` was set in the constructor,
-        returns "collisions", "offroad", and "wrong_way" infraction rates of the current time step.
-        """
-        if self._infractions is not None:
-            collisions = sum([inf.collisions for inf in self._infractions])
-            offroad = sum([inf.offroad for inf in self._infractions])
-            wrong_way = sum([inf.wrong_way for inf in self._infractions])
-            return collisions, offroad, wrong_way
-        else:
-            return None
-
     @property
     def birdview(self) -> Image:
         """

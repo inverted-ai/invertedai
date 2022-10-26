@@ -29,17 +29,16 @@ simulation = iai.BasicCosimulation(
     monitor_infractions=True,
     ego_agent_mask=[False] * 10,
     get_birdview=True,
-    random_seed=1,
 )
 frames = []
 pbar = tqdm(range(50))
 for i in pbar:
     simulation.step(current_ego_agent_states=[])
-    collision, offroad, wrong_way = simulation.get_infraction()
+    infractions = simulation.infractions
     pbar.set_description(
-        f"Collision: {collision}/{simulation.agent_count} | "
-        + f"Off-road: {offroad}/{simulation.agent_count} | "
-        + f"Wrong-waye: {wrong_way}/{simulation.agent_count}"
+        f"Collision: {sum([inf.collisions for inf in infractions])}/{simulation.agent_count} | "
+        + f"Off-road: {sum([inf.offroad for inf in infractions])}/{simulation.agent_count} | "
+        + f"Wrong-waye: {sum([inf.wrong_way for inf in infractions])}/{simulation.agent_count}"
     )
 
     image = simulation.birdview.decode()
