@@ -1,18 +1,12 @@
 # Examples
 
-{ref}`CARLA Example`
-
----
-```{toctree}
-:maxdepth: 2
-
-carlasim
+```{eval-rst}
+`Examples <https://github.com/inverted-ai/invertedai/tree/master/examples>`_
 ```
 
 
 <!-- ```{toctree} -->
 <!-- :maxdepth: 2 -->
 
-<!-- examples/carlasim -->
 <!-- ``` -->
 
