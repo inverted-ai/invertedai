@@ -5,9 +5,23 @@ from typing import List, Optional, Dict
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import TryAgain
-from invertedai.api.mock import get_mock_agent_attributes, get_mock_agent_state, get_mock_recurrent_state
+from invertedai.api.mock import (
+    get_mock_agent_attributes,
+    get_mock_agent_state,
+    get_mock_recurrent_state,
+    get_mock_birdview,
+    get_mock_infractions,
+)
 
-from invertedai.common import RecurrentState, AgentState, AgentAttributes, TrafficLightId, TrafficLightState
+from invertedai.common import (
+    RecurrentState,
+    AgentState,
+    AgentAttributes,
+    TrafficLightId,
+    TrafficLightState,
+    Image,
+    InfractionIndicators,
+)
 
 
 @dataclass
@@ -15,9 +29,20 @@ class InitializeResponse:
     """
     Response returned from an API call to :func:`iai.initialize`.
     """
-    recurrent_states: List[RecurrentState]  #: To pass to :func:`iai.drive` at the first time step.
+
+    recurrent_states: List[
+        RecurrentState
+    ]  #: To pass to :func:`iai.drive` at the first time step.
     agent_states: List[AgentState]  #: Initial states of all initialized agents.
-    agent_attributes: List[AgentAttributes]  #: Static attributes of all initialized agents.
+    agent_attributes: List[
+        AgentAttributes
+    ]  #: Static attributes of all initialized agents.
+    birdview: Optional[
+        Image
+    ]  #: If `get_birdview` was set, this contains the resulting image.
+    infractions: Optional[
+        List[InfractionIndicators]
+    ]  #: If `get_infractions` was set, they are returned here.
 
 
 def initialize(
@@ -27,6 +52,8 @@ def initialize(
     traffic_light_state_history: Optional[
         List[Dict[TrafficLightId, TrafficLightState]]
     ] = None,
+    get_birdview: bool = False,
+    get_infractions: bool = False,
     agent_count: Optional[int] = None,
     random_seed: Optional[int] = None,
 ) -> InitializeResponse:
@@ -76,10 +103,14 @@ def initialize(
         else:
             agent_states = states_history[-1]
         recurrent_states = [get_mock_recurrent_state() for _ in range(agent_count)]
+        birdview = get_mock_birdview()
+        infractions = get_mock_infractions(len(agent_states))
         response = InitializeResponse(
             agent_states=agent_states,
             agent_attributes=agent_attributes,
             recurrent_states=recurrent_states,
+            birdview=birdview,
+            infractions=infractions,
         )
         return response
 
@@ -93,27 +124,39 @@ def initialize(
         if agent_attributes is None
         else [state.tolist() for state in agent_attributes],
         traffic_light_state_history=traffic_light_state_history,
+        get_birdview=get_birdview,
+        get_infractions=get_infractions,
         random_seed=random_seed,
     )
     start = time.time()
     timeout = TIMEOUT
     while True:
         try:
-            initial_states = iai.session.request(model="initialize", data=model_inputs)
-            agents_spawned = len(initial_states["agent_states"])
+            response = iai.session.request(model="initialize", data=model_inputs)
+            agents_spawned = len(response["agent_states"])
             if agents_spawned != agent_count:
                 iai.logger.warning(
                     f"Unable to spawn a scenario for {agent_count} agents,  {agents_spawned} spawned instead."
                 )
             response = InitializeResponse(
                 agent_states=[
-                    AgentState.fromlist(state) for state in initial_states["agent_states"]
+                    AgentState.fromlist(state) for state in response["agent_states"]
                 ],
                 agent_attributes=[
-                    AgentAttributes(*attr)
-                    for attr in initial_states["agent_attributes"]
+                    AgentAttributes(*attr) for attr in response["agent_attributes"]
                 ],
-                recurrent_states=[RecurrentState(r) for r in initial_states["recurrent_states"]],
+                recurrent_states=[
+                    RecurrentState(r) for r in response["recurrent_states"]
+                ],
+                birdview=Image(response["birdview"])
+                if response["birdview"] is not None
+                else None,
+                infractions=[
+                    InfractionIndicators(*infractions)
+                    for infractions in response["infraction_indicators"]
+                ]
+                if response["infraction_indicators"]
+                else [],
             )
             return response
         except TryAgain as e:

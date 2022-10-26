@@ -14,7 +14,6 @@ if args.api_key is not None:
     iai.add_apikey(args.api_key)
 
 response = iai.location_info(location=args.location)
-
 file_name = args.location.replace(":", "_")
 if response.osm_map is not None:
     file_path = f"{file_name}.osm"
@@ -26,6 +25,14 @@ if response.birdview_image is not None:
 response = iai.initialize(
     location=args.location,
     agent_count=10,
+    get_birdview=True,
+    get_infractions=True,
+)
+print(
+    f"Initialize:\n"
+    + f"Collision: {sum([inf.collisions for inf in response.infractions])}/{len(response.infractions)} | "
+    + f"Off-road: {sum([inf.offroad for inf in response.infractions])}/{len(response.infractions)} |"
+    + f"Wrong-way: {sum([inf.wrong_way for inf in response.infractions])}/{len(response.infractions)}"
 )
 agent_attributes = response.agent_attributes
 frames = []
