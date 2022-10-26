@@ -40,7 +40,7 @@ if args.non_roi_npc_mode == 0:
 elif args.non_roi_npc_mode == 1:
     non_roi_npc_mode = "carla_handoff"
 else:
-    non_roi_npc_mode = "None"
+    non_roi_npc_mode = "no_non_roi_npcs"
 if args.api_key is not None:
     iai.add_apikey(args.api_key)
 
@@ -86,7 +86,7 @@ try:
             # Return values are needed to allow the NPCs to enter and
             # exit the simulation dynamically.
             agent_states, recurrent_states, agent_attributes = sim.step(
-                npcs=response, ego="autopilot"
+                npcs=response
             )
 
             # To prevent the simulation from running faster than real time

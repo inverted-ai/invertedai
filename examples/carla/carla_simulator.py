@@ -26,6 +26,10 @@ from data.static_carla import (
 class CarlaSimulationConfig:
     """
     A collection of static configuration options for the CARLA simulation.
+    Three different settings for handling NPCs outside the supported area available:
+    - "no_non_roi_npcs" - destroy NPCs leaving the supported area
+    - "spawn_at_entrace" - as above, but periodically spawn replacements within the supported area
+    - "calra_handoff" - hand off NPCs to CARLA's traffic manager when they leave supported area
     """
     ego_bp: str = "vehicle.tesla.model3"  #: blueprint name for the ego vehicle
     npc_bps: Tuple[str] = NPC_BPS  #: blueprint names for NPC vehicles
@@ -40,14 +44,18 @@ class CarlaSimulationConfig:
     flag_ego: bool = True  #: whether to display a red dot on the ego vehicle
     ego_autopilot: bool = True  #: wheter to use traffic manager to control ego vehicle
     npcs_autopilot: bool = False  #: ???
-    npc_population_interval: int = 1  #: in seconds, ???
+    npc_population_interval: int = 1  #: in seconds, how often to respawn NPCs when "spawn_at_entrace" is used
     non_roi_npc_mode: str = (
         "carla_handoff"
-    )  #: ???, select from ["no_non_roi_npc", "spawn_at_entrance", "carla_handoff"]
+    )  #: select from ["no_non_roi_npcs", "spawn_at_entrance", "carla_handoff"]
     max_cars_in_map: int = 100  #: upper bound on how many vehicles total are allowed in simulation
 
 
 class Car:
+    """
+    A wrapper encapsulating information about a specific vehicle
+    for both sides of the simulation (CARLA and Inverted AI).
+    """
     def __init__(
         self,
         actor: carla.Actor,
@@ -334,12 +342,12 @@ class CarlaEnv:
         self._initialize()
         return self.get_obs(include_ego=include_ego)
 
-    def step(self, ego="autopilot", npcs=None, include_ego=True):
+    def step(self, npcs=None, include_ego=True):
         """
         Advance the simulation using supplied NPC predictions.
         """
         self.step_counter += 1
-        self._set_state_and_filter_npcs(ego, npcs, include_ego)
+        self._set_state_and_filter_npcs(npcs, include_ego)
         if self.cfg.flag_ego:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.cfg.flag_npcs:
@@ -361,12 +369,12 @@ class CarlaEnv:
         releasing the server.
         """
         if npcs:
-            self._destory_npcs(self.npcs)
-            self._destory_npcs(self.non_roi_npcs)
+            self._destroy_npcs(self.npcs)
+            self._destroy_npcs(self.non_roi_npcs)
             self.npcs = []
             self.non_roi_npcs = []
         if ego:
-            self._destory_npcs([self.ego])
+            self._destroy_npcs([self.ego])
             self.ego = None
         if world:
             self.client.get_world().apply_settings(self.original_settings)
@@ -409,6 +417,10 @@ class CarlaEnv:
 
     @staticmethod
     def set_npc_autopilot(npcs, on=True):
+        """
+        Hands off control over selected NPCs to CARLA's traffic manager,
+        or back to Inverted AI if `on=False`.
+        """
         for npc in npcs:
             try:
                 npc.actor.set_autopilot(on)
@@ -418,6 +430,9 @@ class CarlaEnv:
                 # TODO: add logger
 
     def set_ego_autopilot(self, on=True):
+        """
+        Sets the ego vehicle to be controlled by CARLA's traffic manager.
+        """
         try:
             self.ego.actor.set_autopilot(on)
         except:
@@ -432,6 +447,9 @@ class CarlaEnv:
         npc_entrance_spawn_points=None,
         spectator_transform=None,
     ):
+        """
+        Constructs a CARLA simulation.
+        """
         cfg = CarlaSimulationConfig()
         return cls(
             cfg,
@@ -441,7 +459,10 @@ class CarlaEnv:
             spectator_transform,
         )
 
-    def _destory_npcs(self, npcs: List):
+    def _destroy_npcs(self, npcs: List):
+        """
+        Removes selected NPCs from CARLA simulation.
+        """
         for npc in npcs:
             try:
                 npc.actor.set_autopilot(False)
@@ -451,8 +472,13 @@ class CarlaEnv:
             npc.actor.destroy()
 
     def _spawn_npcs(self, spawn_points, speeds, bps, recurrent_states=None):
+        """
+        Introduces NPCs into the simulation.
+        """
         npcs = []
         if recurrent_states is None:
+            # set empty recurrent state - this is fast but predictions may not initially be good
+            # for more accurate results, call `iai.initialize` to obtain the recurrent state
             recurrent_states = [RecurrentState()] * len(spawn_points)
         for spawn_point, speed, rs in zip(spawn_points, speeds, recurrent_states):
             blueprint = self.world.get_blueprint_library().find(self.rng.choice(bps))
@@ -466,6 +492,9 @@ class CarlaEnv:
         return npcs
 
     def _flag_npc(self, actors, color):
+        """
+        Marks NPCs with colored dots.
+        """
         for actor in actors:
             loc = actor.actor.get_location()
             loc.z += 3
@@ -476,20 +505,24 @@ class CarlaEnv:
                 life_time=2 / self.cfg.fps,
             )
 
-    def _set_state_and_filter_npcs(self, ego="autopilot", npcs=None, include_ego=True):
+    def _set_state_and_filter_npcs(self, npcs=None, include_ego=True):
+        """
+        Enacts NPC predictions in CARLA and adjusts the behavior of NPCs
+        entering and exiting the supported area according to the specified settings.
+        """
+        # set the predicted states
         if npcs is not None:
             states = npcs.agent_states
             recurrent_states = npcs.recurrent_states
             id = -1  # In case all NPCs vanish!
             for id, npc in enumerate(self.npcs):
-                # NOTE: states is of size (batch_size x actor x time x state)
-                # where state is a list: [x, y, angle, speed]
                 rs = None if recurrent_states is None else recurrent_states[id]
                 npc.set_state(states[id], rs)
 
             if include_ego:
                 rs = None if recurrent_states is None else recurrent_states[id + 1]
                 self.ego.set_state(recurrent_state=rs)
+        # find which NPCs are exiting the supported area
         exit_npcs = []
         remaining_npcs = []
         for npc in self.npcs:
@@ -502,7 +535,9 @@ class CarlaEnv:
                 remaining_npcs.append(npc)
             else:
                 exit_npcs.append(npc)
+        # handle entrances and exits
         if self.cfg.non_roi_npc_mode == "carla_handoff":
+            # hand off NPCs to CARLA's traffic manager outside supported area
             for npc in self.non_roi_npcs:
                 actor_geo_center = npc.get_state()["transform"].location
                 distance = math.sqrt(
@@ -520,6 +555,7 @@ class CarlaEnv:
             self.set_npc_autopilot(self.non_roi_npcs, True)
             exit_npcs = []
         elif self.cfg.non_roi_npc_mode == "spawn_at_entrance":
+            # destroy exiting NPCs and spawn replacements at entrances
             if not (self.step_counter % self.populate_step):
                 self.non_roi_npcs = self._spawn_npcs(
                     self.entrance_spawn_points,
@@ -527,11 +563,14 @@ class CarlaEnv:
                     self.cfg.npc_bps,
                 )
 
-        self._destory_npcs(exit_npcs)
+        self._destroy_npcs(exit_npcs)
         self.npcs = remaining_npcs
 
     @staticmethod
-    def _to_transform(poses: list) -> Tuple[list, list]:
+    def _to_transform(poses: List[AgentState]) -> Tuple[List[carla.Transform], List[float]]:
+        """
+        Converts agent states to CARLA's format.
+        """
         t = []
         speed = []
         for pos in poses:
@@ -542,6 +581,10 @@ class CarlaEnv:
         return (t, speed)
 
     def get_entrance(self, spawn_points):
+        """
+        Filters spawn points to leave those that are entrances
+        into the supported area.
+        """
         entrance = []
         for sp in spawn_points:
             distance = math.sqrt(
@@ -559,6 +602,9 @@ class CarlaEnv:
     def get_roi_spawn_points(
         self, spawn_points, speed=None, roi=True, initial_recurrent_states=None
     ):
+        """
+        Obtain specific points to spawn the agents.
+        """
         roi_spawn_points = []
         initial_speed = []
         keep_initial_recurrent_states = []
