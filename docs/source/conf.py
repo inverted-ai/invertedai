@@ -41,6 +41,7 @@ extensions = [
     "sphinx_design",
     "nbsphinx",
     "myst_parser",
+    "sphinx_gallery.load_style",
 ]
 
 html_theme_options = {

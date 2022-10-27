@@ -36,7 +36,7 @@ self
 userguide
 pythonapi/index
 apireference
-examples/index
+Examples <https://github.com/inverted-ai/invertedai/tree/master/examples>
 ```
 
 ```{eval-rst}

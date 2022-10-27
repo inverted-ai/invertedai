@@ -7,7 +7,7 @@ behavior of NPCs. This page describes the high level concepts governing the inte
 specific pages for {ref}`Python SDK`, {ref}`REST API`, {ref}`Getting started`, and {ref}`Examples`.
 
 We follow the continuous space, discrete time approach used in most driving simulators. In the current version, the API
-only supports the time step of 100 ms, corresponding to 10 frames per second, and expects to run in a synchronous
+only supports a time step of 100 ms, corresponding to 10 frames per second, and expects to run in a synchronous
 fashion. The latency of API calls varies with physical location of the client server and its network configuration,
 but generally the API should not be relied upon to provide real-time simulation. For optimal resource utilization,
 we recommend that you run multiple simulations in parallel, so that one can execute when another is waiting for the
@@ -115,7 +115,7 @@ returns locally computed simple responses in the correct format. This mock API a
 formats, including checking lengths of lists and bounds for numeric values, and those checks can also be optionally
 performed on the client side before paid API calls. All those features are only available in the Python library and not
 in the REST API.  
-To enable the mock API, just set the environment variable `IAI_MOCK_API` to true according to {ref}`ENV_VAR`.
+To enable the mock API, just set the environment variable `IAI_MOCK_API` to true according to {ref}`Environment Variables`.
 For further debugging and visualization, both INITIALIZE and DRIVE optionally return a rendered birdview image showing
 the simulation state after the call to them. This significantly increases the payload size and latency, so it should not
 be done in real integrations.
