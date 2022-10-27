@@ -96,7 +96,7 @@ class Image:
         cv2.imwrite(path, image)
 
 
-class TrafficLightState(Enum):
+class TrafficLightState(str, Enum):
     """
     Dynamic state of a traffic light.
 
@@ -105,10 +105,10 @@ class TrafficLightState(Enum):
     StaticMapActor
     """
 
-    none = "0"  #: The light is off and will be ignored.
-    green = "1"
-    yellow = "2"
-    red = "3"
+    none = "none"  #: The light is off and will be ignored.
+    green = "green"
+    yellow = "yellow"
+    red = "red"
 
 
 @dataclass
@@ -186,6 +186,5 @@ class StaticMapActor:
     @classmethod
     def fromdict(cls, d):
         d = d.copy()
-        d["center"] = Point(d["x"], d["y"])
-        del d["center"]
+        d["center"] = Point(d.pop("x"), d.pop("y"))
         return cls(**d)
