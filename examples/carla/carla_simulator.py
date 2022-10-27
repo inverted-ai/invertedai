@@ -42,8 +42,7 @@ class CarlaSimulationConfig:
     seed: float = time.time()  #: random number generator seed to control stochastic behavior
     flag_npcs: bool = True  #: whether to display a blue dot on Inverted AI NPCs
     flag_ego: bool = True  #: whether to display a red dot on the ego vehicle
-    ego_autopilot: bool = True  #: wheter to use traffic manager to control ego vehicle
-    npcs_autopilot: bool = False  #: ???
+    ego_autopilot: bool = True  #: whether to use traffic manager to control ego vehicle
     npc_population_interval: int = 1  #: in seconds, how often to respawn NPCs when "spawn_at_entrace" is used
     non_roi_npc_mode: str = (
         "carla_handoff"
@@ -56,6 +55,7 @@ class Car:
     A wrapper encapsulating information about a specific vehicle
     for both sides of the simulation (CARLA and Inverted AI).
     """
+
     def __init__(
         self,
         actor: carla.Actor,
@@ -140,6 +140,7 @@ class CarlaEnv:
     of spawning and controlling vehicles, as well as connecting to
     the server and setting simulation parameters.
     """
+
     def __init__(
         self,
         cfg: CarlaSimulationConfig,
@@ -325,7 +326,7 @@ class CarlaEnv:
         for npc in self.npcs:
             npc.update_dimension()
         self.ego.update_dimension()
-        self.set_npc_autopilot(self.npcs, self.cfg.npcs_autopilot)
+        self.set_npc_autopilot(self.npcs, False)
         self.set_ego_autopilot(self.cfg.ego_autopilot)
         if self.cfg.non_roi_npc_mode == "carla_handoff":
             self.set_npc_autopilot(self.non_roi_npcs, True)
@@ -337,7 +338,7 @@ class CarlaEnv:
         """
         try:
             self.destroy(npcs=True, ego=True, world=False)
-        except:
+        except BaseException:
             pass
         self._initialize()
         return self.get_obs(include_ego=include_ego)
@@ -390,7 +391,7 @@ class CarlaEnv:
                     npc.update_dimension()
                 self.npcs.extend(self.non_roi_npcs)
                 self.non_roi_npcs = []
-                self.set_npc_autopilot(self.npcs, self.cfg.npcs_autopilot)
+                self.set_npc_autopilot(self.npcs, False)
         states = []
         rec_state = []
         dims = []
@@ -425,7 +426,7 @@ class CarlaEnv:
             try:
                 npc.actor.set_autopilot(on)
                 npc.actor.set_simulate_physics(on)
-            except:
+            except BaseException:
                 print("Unable to set autopilot")
                 # TODO: add logger
 
@@ -435,7 +436,7 @@ class CarlaEnv:
         """
         try:
             self.ego.actor.set_autopilot(on)
-        except:
+        except BaseException:
             print("Unable to set autopilot")
             # TODO: add logger
 
@@ -466,7 +467,7 @@ class CarlaEnv:
         for npc in npcs:
             try:
                 npc.actor.set_autopilot(False)
-            except:
+            except BaseException:
                 print("Unable to set autopilot")
                 # TODO: add logger
             npc.actor.destroy()
@@ -546,7 +547,7 @@ class CarlaEnv:
                 )
                 if distance < self.proximity_threshold + self.cfg.slack:
                     npc.update_dimension()
-                    self.set_npc_autopilot([npc], on=self.cfg.npcs_autopilot)
+                    self.set_npc_autopilot([npc], on=False)
                     remaining_npcs.append(npc)
                     npc.update_speed()
                 else:
