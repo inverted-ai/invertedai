@@ -1,10 +1,15 @@
-# InverteAI CARLA simulator integration
+# Inverted AI CARLA simulator integration
+
+This folder provides a basic example for using Inverted AI NPCs in CARLA.
+The entry script is `carla_demo.py`, while `carla_simulator.py` encapsulates
+the basic simulation logic for controlling CARLA.
 
 ## Quick start
 
-- Make sure Docker is installed and running
-  - This can be done by running `docker info` in the terminal
-- Run the following command to start the Carla server
+Make sure Docker is installed and running.
+This can be done by running `docker info` in the terminal.
+
+Run the following command to start the Carla server.
 
 ```sh
 docker compose up
@@ -12,52 +17,64 @@ docker compose up
 
     - NOTE: You may need to run the above command with `sudo`
 
-- Create a python virtual environment and install dependencies
+Create a python virtual environment and install dependencies.
+Requires Python version between `3.6` and `3.8`, inclusive,
+otherwise you'll need to install
+[CARLA](https://carla.readthedocs.io/en/0.9.13/start_quickstart/) from source.
 
 ```sh
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 ```
 
-- To run the simulation in the notebook
+Run the simulation script.
 
 ```sh
-.venv/bin/jupyter notebook Carla-Demo.ipynb
+python carla_demo.py
 ```
 
-- To run the simulation script
+You'll see an overhead view, in the CARLA server window,
+where Inverted AI NPCs are marked with blue dots.
+The red dot indicates an ego vehicle and vehicles without dots are NPCs outside
+the supported area, controlled by CARLA's traffic manager.
 
-```sh
-python Carla-Demo-Script.py
-```
+## Key considerations for integrating Inverted AI NPCs
 
-## development
+If you're using this example as a starting point to build your own
+integration, either with CARLA or with another simulator, here are
+the key considerations to keep in mind.
 
-- Add the following environment variables to shell
+### Executing NPC predictions
 
-```
-IAI_DEV=1
-IAI_DEV_URL=http://localhost:8888
-```
+`iai.drive` predicts the subsequent state of NPCs, but not all physics
+engines allow arbitrarily setting the vehicle state. This is in particular
+not possible in CARLA, so instead we resort to teleporting the NPCs.
+This is mostly satisfactory, but certain details like wheel and suspension
+movement are not faithful, and collision dynamics are generally not realistic.
+In principle a custom controller could be used to steer the NPC vehicles
+to follow given predictions, but the deviations it introduces would likely
+negatively impact subsequent predictions.
 
-- Change the port mapping in iai-drive-server
+### Handling NPCs outside the supported area
 
-```yaml
-ports:
-  - "8888:8000"
-```
+`iai.drive` is designed to provide predictions only in a small area, while
+the full simulation world can be much larger. As such, there is a question
+of how to handle the NPCs as they enter and exit the supported area.
+There are two natural solutions, both of which are implemented in this example:
+1. Destroy NPCs exiting the supported area, potentially spawning their replacements
+at designated entry points.
+2. Hand off the control over NPCs to another controller, such as CARLA's
+traffic manager, when they exit the supported area, and take it back when they enter.
+Note that when teleportation is used within the supported area, this approach typically
+results in some discontinuity agent speed when exiting.
 
-- Docs:
+### Handling areas with varying elevation
 
-  - For building the html files
-
-  ```sh
-  sphinx-build docs/source docs/build/html
-  ```
-
-  - For testing and dev
-
-  ```sh
-  sphinx-autobuild docs/source docs/build/html --port 8001
-  ```
+Inverted AI API currently assumes the world is flat and therefore will only perform
+well out of the box in (approximately) flat areas. Where significant slopes are present,
+custom client-side adjustments would be required. This is particularly important
+when using teleportation, where vehicle's elevation and orientation would have to be
+adjusted to align it with the road, rather than having it float in the air or
+submerge into the road. If you see either of those behaviors, it's likely that you're
+using `iai.drive` outside of the supported area.

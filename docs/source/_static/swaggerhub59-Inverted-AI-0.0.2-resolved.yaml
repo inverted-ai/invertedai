@@ -11,7 +11,7 @@ info:
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
-  version: 0.0.1
+  version: 0.0.2
 servers:
 - url: https://api.inverted.ai/v0/aws/m1
 paths:
@@ -192,10 +192,9 @@ components:
           type: boolean
           default: false
         traffic_lights_states:
-          title: Traffic Lights States
-          type: array
-          items:
-            $ref: '#/components/schemas/TrafficLightStates'
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ControlStateType'
         random_seed:
           title: Random Seed
           type: integer
@@ -280,12 +279,24 @@ components:
           title: Traffic Light State History
           type: array
           items:
-            $ref: '#/components/schemas/TrafficLightStates'
+            type: object
+            additionalProperties:
+              $ref: '#/components/schemas/ControlStateType'
+        get_birdview:
+          title: Get Birdview
+          type: boolean
+          default: false
+        get_infractions:
+          title: Get Infractions
+          type: boolean
+          default: false
         random_seed:
           title: Random Seed
           type: integer
     InitializeResponse:
       title: InitializeResponse
+      required:
+      - birdview
       type: object
       properties:
         agent_states:
@@ -318,6 +329,18 @@ components:
             type: array
             items:
               type: number
+        birdview:
+          title: Birdview
+          type: array
+          items:
+            type: integer
+        infraction_indicators:
+          title: Infraction Indicators
+          type: array
+          items:
+            type: array
+            items:
+              type: boolean
     LocationResponse:
       title: LocationResponse
       required:
@@ -362,17 +385,17 @@ components:
     StaticMapActors:
       title: StaticMapActors
       required:
+      - actor_id
       - agent_type
       - length
       - orientation
-      - track_id
       - width
       - x
       - "y"
       type: object
       properties:
-        track_id:
-          title: Track Id
+        actor_id:
+          title: Actor Id
           type: integer
         agent_type:
           $ref: '#/components/schemas/ControlType'
@@ -391,18 +414,6 @@ components:
         width:
           title: Width
           type: number
-    TrafficLightStates:
-      title: TrafficLightStates
-      type: object
-      properties:
-        id:
-          title: Id
-          type: integer
-          default: 14106
-        states:
-          allOf:
-          - $ref: '#/components/schemas/ControlStateType'
-          default: green
     ValidationError:
       title: ValidationError
       required:
