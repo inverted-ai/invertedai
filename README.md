@@ -103,7 +103,7 @@ behave, try our
 [Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb),
 where all agents are NPCs, or go to our
 [github repository](https://github.com/inverted-ai/invertedai/tree/master/examples) to execute it locally.
-When you're ready to try our NPCs with a real simulator, see the example [CARLA integration](examples/carlasim.md).
+When you're ready to try our NPCs with a real simulator, see the example [CARLA integration](https://github.com/inverted-ai/invertedai/tree/master/examples/carla).
 The examples are currently only provided in Python, but if you want to use the API from another language,
 you can use the [REST API](apireference.md) directly.
 

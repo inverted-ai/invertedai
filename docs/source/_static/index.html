@@ -689,12 +689,6 @@
   <script>
     // Script section to load models into a JS Var
     var defs = {}
-            defs["AllOfTrafficLightStatesStates"] = {
-  "allOf" : [ {
-    "$ref" : "#/components/schemas/ControlStateType"
-  } ],
-  "default" : "green"
-};
             defs["AnyOfValidationErrorLocItems"] = {};
             defs["ControlStateType"] = {
   "title" : "ControlStateType",
@@ -760,10 +754,9 @@
       "default" : false
     },
     "traffic_lights_states" : {
-      "title" : "Traffic Lights States",
-      "type" : "array",
-      "items" : {
-        "$ref" : "#/components/schemas/TrafficLightStates"
+      "type" : "object",
+      "additionalProperties" : {
+        "$ref" : "#/components/schemas/ControlStateType"
       }
     },
     "random_seed" : {
@@ -877,8 +870,21 @@
       "title" : "Traffic Light State History",
       "type" : "array",
       "items" : {
-        "$ref" : "#/components/schemas/TrafficLightStates"
+        "type" : "object",
+        "additionalProperties" : {
+          "$ref" : "#/components/schemas/ControlStateType"
+        }
       }
+    },
+    "get_birdview" : {
+      "title" : "Get Birdview",
+      "type" : "boolean",
+      "default" : false
+    },
+    "get_infractions" : {
+      "title" : "Get Infractions",
+      "type" : "boolean",
+      "default" : false
     },
     "random_seed" : {
       "title" : "Random Seed",
@@ -888,6 +894,7 @@
 };
             defs["InitializeResponse"] = {
   "title" : "InitializeResponse",
+  "required" : [ "birdview" ],
   "type" : "object",
   "properties" : {
     "agent_states" : {
@@ -919,6 +926,23 @@
         "type" : "array",
         "items" : {
           "type" : "number"
+        }
+      }
+    },
+    "birdview" : {
+      "title" : "Birdview",
+      "type" : "array",
+      "items" : {
+        "type" : "integer"
+      }
+    },
+    "infraction_indicators" : {
+      "title" : "Infraction Indicators",
+      "type" : "array",
+      "items" : {
+        "type" : "array",
+        "items" : {
+          "type" : "boolean"
         }
       }
     }
@@ -976,11 +1000,11 @@
 };
             defs["StaticMapActors"] = {
   "title" : "StaticMapActors",
-  "required" : [ "agent_type", "length", "orientation", "track_id", "width", "x", "y" ],
+  "required" : [ "actor_id", "agent_type", "length", "orientation", "width", "x", "y" ],
   "type" : "object",
   "properties" : {
-    "track_id" : {
-      "title" : "Track Id",
+    "actor_id" : {
+      "title" : "Actor Id",
       "type" : "integer"
     },
     "agent_type" : {
@@ -1005,23 +1029,6 @@
     "width" : {
       "title" : "Width",
       "type" : "number"
-    }
-  }
-};
-            defs["TrafficLightStates"] = {
-  "title" : "TrafficLightStates",
-  "type" : "object",
-  "properties" : {
-    "id" : {
-      "title" : "Id",
-      "type" : "integer",
-      "default" : 14106
-    },
-    "states" : {
-      "allOf" : [ {
-        "$ref" : "#/components/schemas/ControlStateType"
-      } ],
-      "default" : "green"
     }
   }
 };
@@ -1090,7 +1097,7 @@
         <div id="header">
           <div id="api-_">
             <h2 id="welcome-to-apidoc">API and SDK Documentation</h2>
-              <div class="app-desc">Version: 0.0.1</div>
+              <div class="app-desc">Version: 0.0.2</div>
             <hr>
             <div>Inverted AI's REST API for controlling non-playable characters (NPCs) in autonomous driving simulations.</div>
           </div>
