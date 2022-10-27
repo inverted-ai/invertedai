@@ -1,3 +1,16 @@
+"""
+This script illustrates a simple application of Inverted AI NPCs in CARLA.
+When ran, it will provide visualization in the server window, with
+Inverted AI NPCs indicated by blue dots, the ego vehicle by the red dot,
+and the NPCs outside the supported area, controlled by CARLA's traffic manager,
+not having any dots on them.
+The setup is such that NPCs within a given location's supported area
+are controlled by Inverted AI, while those outside of it are controlled
+by CARLA's traffic manager. As the NPCs enter and exit the supported area,
+they're dynamically handed off between the two controllers. The intention
+is that the scenario of interest occurs when the ego vehicle traverses
+the supported area, so that's where the NPCs need to be maximally realistic.
+"""
 import invertedai as iai
 from carla_simulator import CarlaEnv, CarlaSimulationConfig
 import argparse
@@ -5,8 +18,10 @@ import pygame
 from tqdm import tqdm
 
 
+# Configuration options to set from command line.
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
-parser.add_argument("-n", "--scene_name", type=str, default="carla:Town03:Roundabout")
+parser.add_argument("-n", "--location", type=str, default="carla:Town03:Roundabout",
+                    help='See data/static_carla.py for a list of available locations.')
 parser.add_argument("-c", "--agent_count", type=int, default=8)
 parser.add_argument("-l", "--episode_length", type=int, default=30)
 parser.add_argument("-e", "--ego_spawn_point", default="demo")
@@ -18,28 +33,30 @@ parser.add_argument("-ca", "--max_cars_in_map", type=int, default=100)
 parser.add_argument("-ep", "--episodes", type=int, default=5)
 parser.add_argument("--api_key", type=str, default=None)
 
+# Parse arguments and set defaults
 args = parser.parse_args()
 if args.non_roi_npc_mode == 0:
     non_roi_npc_mode = "spawn_at_entrance"
 elif args.non_roi_npc_mode == 1:
     non_roi_npc_mode = "carla_handoff"
 else:
-    non_roi_npc_mode = "None"
+    non_roi_npc_mode = "no_non_roi_npcs"
 if args.api_key is not None:
     iai.add_apikey(args.api_key)
 
+# Initialize simulation with an API call
+response = iai.initialize(
+    location=args.location,
+    agent_count=args.agent_count,
+)
 
+# Initialize CARLA with the same state
 carla_cfg = CarlaSimulationConfig(
-    scene_name=args.scene_name,
+    location=args.location,
     episode_length=args.episode_length,
     non_roi_npc_mode=non_roi_npc_mode,
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
-)
-
-response = iai.initialize(
-    location=args.scene_name,
-    agent_count=args.agent_count,
 )
 sim = CarlaEnv(
     cfg=carla_cfg,
@@ -49,23 +66,32 @@ sim = CarlaEnv(
     spectator_transform=args.spectator_transform,
 )
 
+try:
+    # Run simulation for a given number of episodes
+    for _ in tqdm(range(args.episodes), position=0):
+        agent_states, recurrent_states, agent_attributes = sim.reset()
+        clock = pygame.time.Clock()
+        for i in tqdm(
+            range(carla_cfg.episode_length * carla_cfg.fps), position=0, leave=False
+        ):
+            # Call the API to obtain the NPC behavior
+            response = iai.drive(
+                agent_attributes=agent_attributes,
+                agent_states=agent_states,
+                recurrent_states=recurrent_states,
+                location=args.location,
+            )
 
-for _ in tqdm(range(args.episodes), position=0):
-    agent_states, recurrent_states, agent_attributes = sim.reset()
-    clock = pygame.time.Clock()
-    for i in tqdm(
-        range(carla_cfg.episode_length * carla_cfg.fps), position=0, leave=False
-    ):
-        response = iai.drive(
-            agent_attributes=agent_attributes,
-            agent_states=agent_states,
-            recurrent_states=recurrent_states,
-            location=args.scene_name,
-        )
-        agent_states, recurrent_states, agent_attributes = sim.step(
-            npcs=response, ego="autopilot"
-        )
+            # Advance the simulation.
+            # Return values are needed to allow the NPCs to enter and
+            # exit the simulation dynamically.
+            agent_states, recurrent_states, agent_attributes = sim.step(
+                npcs=response
+            )
 
-        clock.tick_busy_loop(carla_cfg.fps)
+            # To prevent the simulation from running faster than real time
+            clock.tick_busy_loop(carla_cfg.fps)
 
-sim.destroy()
+finally:
+    # Release the CARLA server
+    sim.destroy()
