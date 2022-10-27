@@ -1,2 +1,0 @@
-# CARLA Example
-
