@@ -15,8 +15,8 @@
 Inverted AI provides an API for controlling non-playable characters (NPCs) in autonomous driving simulations,
 available as either a REST API or a Python library built on top of it. Using the API requires an access key -
 [contact us](mailto:sales@inverted.ai) to get yours. This page describes how to get started quickly. For more in-depth understanding,
-see the [API usage guide](docs/source/userguide.md), and detailed documentation for the [REST API](docs/source/apireference.md) and the
-[Python library](docs/source/pythonapi/index.md).
+see the [API usage guide](https://docs.inverted.ai/en/latest/userguide.html), and detailed documentation for the [REST API](https://docs.inverted.ai/en/latest/apireference.html) and the
+[Python library](https://docs.inverted.ai/en/latest/pythonapi/index.html).
 To understand the underlying technology and why it's necessary for autonomous driving simulations, visit the
 [Inverted AI website](https://www.inverted.ai/).
 <!-- end elevator-pitch -->
@@ -105,6 +105,6 @@ where all agents are NPCs, or go to our
 [github repository](https://github.com/inverted-ai/invertedai/tree/master/examples) to execute it locally.
 When you're ready to try our NPCs with a real simulator, see the example [CARLA integration](https://github.com/inverted-ai/invertedai/tree/master/examples/carla).
 The examples are currently only provided in Python, but if you want to use the API from another language,
-you can use the [REST API](docs/source/apireference.md) directly.
+you can use the [REST API](https://docs.inverted.ai/en/latest/apireference.html) directly.
 
 <!-- end quickstart -->
