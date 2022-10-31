@@ -7,6 +7,9 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+*If running into package not found issue like`ERROR: No matching distribution found for carla==0.9.13`, try update 
+the pip: `pip install upgrade pip `.  
+
 Then, once you obtain an API key, you can run the examples.
 ```commandline
 python npc_only.py --api_key $IAI_API_KEY
@@ -30,8 +33,8 @@ available as a Jupyter notebook and
 The minimal example, as shown on the front page, mocks up the local simulator with
 a class that implements trivial control logic for the ego vehicle. This example is
 meant to provide an illustration of the basic logic for performing co-simulation
-using Inverted AI API and give you a sandbox to experiment with it. It does not 
-provide visualization, which can be obtained in a fashion similar to NPC-only examples.
+using Inverted AI API and give you a sandbox to experiment with it. It will save 
+the generated gif as `iai-example.gif` in the current direcotry..
 
 ## CARLA
 
