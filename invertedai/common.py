@@ -73,6 +73,10 @@ class Image:
         self._encoded_image = encoded_image
 
     def decode(self):
+        """
+        Decode and return the image .
+        Requires numpy and cv2 to be available, otherwise raises `ImportError`.
+        """
         try:
             import numpy as np
             import cv2
@@ -124,9 +128,13 @@ class AgentAttributes:
 
     length: float  #: Longitudinal extent of the agent, in meters.
     width: float  #: Lateral extent of the agent, in meters.
-    rear_axis_offset: float  #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
+    #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
+    rear_axis_offset: float
 
     def tolist(self):
+        """
+        Convert AgentAttributes to a flattened list of agent attributes in this order: [length, width, rear_axis_offset]
+        """
         return [self.length, self.width, self.rear_axis_offset]
 
 
@@ -141,14 +149,21 @@ class AgentState:
     """
 
     center: Point  #: The center point of the agent's bounding box.
-    orientation: float  #: The direction the agent is facing, in radians with 0 pointing along x and pi/2 pointing along y.
+    #: The direction the agent is facing, in radians with 0 pointing along x and pi/2 pointing along y.
+    orientation: float
     speed: float  #: In meters per second, negative if the agent is reversing.
 
     def tolist(self):
+        """
+        Convert AgentState to flattened list of state attributes in this order: [x, y, orientation, speed]
+        """
         return [self.center.x, self.center.y, self.orientation, self.speed]
 
     @classmethod
     def fromlist(cls, l):
+        """
+        Build AgentState from a list with this order: [x, y, orientation, speed]
+        """
         x, y, psi, v = l
         return cls(center=Point(x=x, y=y), orientation=psi, speed=v)
 
@@ -179,12 +194,16 @@ class StaticMapActor:
     actor_id: TrafficLightId  #: ID as used in :func:`iai.initialize` and :func:`iai.drive`.
     agent_type: str  #: Not currently used, there may be more traffic signals in the future.
     center: Point  #: The center of the stop line.
-    orientation: float  #: Natural direction of traffic going through the stop line, in radians like in :class:`AgentState`.
+    #: Natural direction of traffic going through the stop line, in radians like in :class:`AgentState`.
+    orientation: float
     length: float  #: Size of the stop line, in meters, along its `orientation`.
     width: float  #: Size of the stop line, in meters, across its `orientation`.
 
     @classmethod
     def fromdict(cls, d):
+        """
+        Build StaticMapActor from a dictionary with keys: `actor_id`, `agent_type`, `orientation`, `length`, `width`, `x`, `y`
+        """
         d = d.copy()
         d["center"] = Point(d.pop("x"), d.pop("y"))
         return cls(**d)
