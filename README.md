@@ -47,11 +47,12 @@ import numpy as np
 import imageio
 import invertedai as iai
 
-# iai.add_apikey('')  # specify your key here or through the IAI_API_KEY environment variable
+# iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
+
 
 class LocalSimulator:
     """
-    Mock up of a local simulator, where you control the ego vehicle.
+    Mock up of a local simulator, where you control the ego vehicle. This example only supports single ego vehicle.
     """
     def __init__(self, ego_state: iai.AgentState, npc_states: List[iai.AgentState]):
         self.ego_state = ego_state
@@ -80,7 +81,7 @@ class LocalSimulator:
 
 iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for Inverted AI API
     location='canada:vancouver:ubc_roundabout',  # select one of available locations
-    agent_count=5,  #  how many vehicles in total to use in the simulation
+    agent_count=5,  # how many vehicles in total to use in the simulation
     ego_agent_mask=[True, False, False, False, False],  # first vehicle is ego, rest are NPCs
     get_birdview=True,  # provides simple visualization - don't use in production
 )
@@ -97,6 +98,7 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
     images.append(iai_simulation.birdview.decode())
 # save the visualization to disk
 imageio.mimsave("iai-example.gif", np.array(images), format="GIF-PIL")
+
 ```
 To quickly check out how Inverted AI NPCs
 behave, try our
