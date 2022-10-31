@@ -47,7 +47,7 @@ import numpy as np
 import imageio
 import invertedai as iai
 
-# iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
+# iai.add_apikey('')  # specify your key here or through the IAI_API_KEY environment variable
 
 class LocalSimulator:
     """
