@@ -2,7 +2,9 @@ version: "3.3"
 
 services:
   server:
-    image: "carlasim/carla"
+    build:
+      context: .
+      dockerfile: Dockerfile
     network_mode: "host"
     # restart: always
     environment:
