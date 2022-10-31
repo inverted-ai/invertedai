@@ -21,7 +21,7 @@ from data.static_carla import (
     cord,
 )
 from key_controller import KeyboardControl
-from pygame_display import RenderObject, pygame_callback
+from pygame_display import RenderObject
 import pygame
 
 
@@ -278,7 +278,7 @@ class CarlaEnv:
         image_h = camera_bp.get_attribute("image_size_y").as_int()
         # Instantiate objects for rendering and vehicle control
         self.renderObject = RenderObject(image_w, image_h)
-        self.camera.listen(lambda image: pygame_callback(image, self.renderObject))
+        self.camera.listen(lambda image: self.renderObject.pygame_callback(image, self.renderObject))
         self.gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
         self.gameDisplay.fill((0, 0, 0))
         self.gameDisplay.blit(self.renderObject.surface, (0, 0))

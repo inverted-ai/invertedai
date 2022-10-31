@@ -2,9 +2,10 @@ version: "3.3"
 
 services:
   server:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: "carlasim/carla"
+#    build:
+#      context: .
+#      dockerfile: Dockerfile-additional-maps
     network_mode: "host"
     # restart: always
     environment:
