@@ -1,4 +1,4 @@
-# User guide
+# User Guide
 
 Inverted AI API provides a service that controls non-playable characters (NPCs) in driving simulations. The two main
 functions are INITIALIZE, called at the beginning of the simulation, and DRIVE, called at each time step. Typically, the
