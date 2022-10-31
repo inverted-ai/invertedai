@@ -33,8 +33,8 @@ available as a Jupyter notebook and
 The minimal example, as shown on the front page, mocks up the local simulator with
 a class that implements trivial control logic for the ego vehicle. This example is
 meant to provide an illustration of the basic logic for performing co-simulation
-using Inverted AI API and give you a sandbox to experiment with it. It does not 
-provide visualization, which can be obtained in a fashion similar to NPC-only examples.
+using Inverted AI API and give you a sandbox to experiment with it. It will save 
+the generated gif as `iai-example.gif` in the current direcotry..
 
 ## CARLA
 
