@@ -1,6 +1,6 @@
 # Examples
 
-This folder contains examples demonstrating how to use the Inverted AI API in Python.
+This folder contains examples demonstrating how to use the Inverted AI API in Python. [Click here](https://download-directory.github.io/?url=https://github.com/inverted-ai/invertedai/tree/master/examples) to download the folder as a zip-file.
 To run the examples locally, first build the virtual environment.
 ```commandline
 python -m venv .venv
