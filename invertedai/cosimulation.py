@@ -110,6 +110,9 @@ class BasicCosimulation:
 
     @property
     def ego_states(self):
+        """
+        The predicted states for ego_agents only.
+        """
         return [d for d, s in zip(self._agent_states, self._ego_agent_mask) if s]
 
     @property
