@@ -32,6 +32,8 @@ parser.add_argument("-pi", "--npc_population_interval", type=int, default=6)
 parser.add_argument("-ca", "--max_cars_in_map", type=int, default=100)
 parser.add_argument("-ep", "--episodes", type=int, default=5)
 parser.add_argument("--api_key", type=str, default=None)
+parser.add_argument("-mc", "--manual_control_ego", action="store_true")
+
 
 # Parse arguments and set defaults
 args = parser.parse_args()
@@ -57,6 +59,7 @@ carla_cfg = CarlaSimulationConfig(
     non_roi_npc_mode=non_roi_npc_mode,
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
+    manual_control_ego=args.manual_control_ego
 )
 sim = CarlaEnv(
     cfg=carla_cfg,
@@ -65,6 +68,8 @@ sim = CarlaEnv(
     ego_spawn_point=args.ego_spawn_point,
     spectator_transform=args.spectator_transform,
 )
+
+pygame.init()
 
 try:
     # Run simulation for a given number of episodes

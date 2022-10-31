@@ -39,7 +39,7 @@ class KeyboardControl:
 
     def process_control(self):
         if self._throttle:
-            self._control.throttle = min(self._control.throttle + 0.01, 1)
+            self._control.throttle = min(self._control.throttle + 0.02, 1)
             self._control.gear = 1
             self._control.brake = False
         elif not self._brake:

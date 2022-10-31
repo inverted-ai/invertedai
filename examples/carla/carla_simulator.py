@@ -20,6 +20,9 @@ from data.static_carla import (
     NPC_FLAG_COLOR,
     cord,
 )
+from key_controller import KeyboardControl
+from pygame_display import RenderObject, pygame_callback
+import pygame
 
 
 @dataclass
@@ -48,6 +51,7 @@ class CarlaSimulationConfig:
         "carla_handoff"
     )  #: select from ["no_non_roi_npcs", "spawn_at_entrance", "carla_handoff"]
     max_cars_in_map: int = 100  #: upper bound on how many vehicles total are allowed in simulation
+    manual_control_ego: bool = True
 
 
 class Car:
@@ -67,6 +71,7 @@ class Car:
         self._dimension = None
         self._states = deque(maxlen=10)
         self.speed = speed
+        self.external_control = None
 
     def update_dimension(self):
         self._dimension = self._get_actor_dimensions()
@@ -261,6 +266,23 @@ class CarlaEnv:
             self.spectator_mode = "user_defined"
         self.spectator = world.get_spectator()
         self.spectator.set_transform(spectator_transform)
+        spectator_transform = carla.Transform(
+                ego_spawn_point.transform(carla.Location(x=-6, z=2.5)),
+                ego_spawn_point.rotation,
+            )
+        camera_bp = world.get_blueprint_library().find('sensor.camera.rgb')
+        self.camera = world.spawn_actor(camera_bp, spectator_transform)
+        # Start camera with PyGame callback
+        # Get camera dimensions
+        image_w = camera_bp.get_attribute("image_size_x").as_int()
+        image_h = camera_bp.get_attribute("image_size_y").as_int()
+        # Instantiate objects for rendering and vehicle control
+        self.renderObject = RenderObject(image_w, image_h)
+        self.camera.listen(lambda image: pygame_callback(image, self.renderObject))
+        self.gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
+        self.gameDisplay.fill((0, 0, 0))
+        self.gameDisplay.blit(self.renderObject.surface, (0, 0))
+        pygame.display.flip()
 
         # store some variables
         self.world = world
@@ -327,7 +349,10 @@ class CarlaEnv:
             npc.update_dimension()
         self.ego.update_dimension()
         self.set_npc_autopilot(self.npcs, False)
-        self.set_ego_autopilot(self.cfg.ego_autopilot)
+        if self.cfg.manual_control_ego:
+            self.set_ego_keyboard()
+        else:
+            self.set_ego_autopilot(self.cfg.ego_autopilot)
         if self.cfg.non_roi_npc_mode == "carla_handoff":
             self.set_npc_autopilot(self.non_roi_npcs, True)
         self.step_counter = 0
@@ -353,15 +378,26 @@ class CarlaEnv:
             self._flag_npc([self.ego], EGO_FLAG_COLOR)
         if self.cfg.flag_npcs:
             self._flag_npc(self.npcs, NPC_FLAG_COLOR)
+        ego_transform = self.ego.transform
+        spectator_transform = carla.Transform(
+            ego_transform.transform(carla.Location(x=-6, z=2.5)),
+            ego_transform.rotation,
+        )
         if self.spectator_mode == "follow_ego":
-            ego_transform = self.ego.transform
-            spectator_transform = carla.Transform(
-                ego_transform.transform(carla.Location(x=-6, z=2.5)),
-                ego_transform.rotation,
-            )
             self.spectator.set_transform(spectator_transform)
 
+        self.camera.set_transform(spectator_transform)
         self.world.tick()
+        self.gameDisplay.blit(self.renderObject.surface, (0, 0))
+        pygame.display.flip()
+        if self.ego.external_control is not None:
+            self.ego.external_control.process_control()
+            for event in pygame.event.get():
+                self.ego.external_control.parse_control(event)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_r:
+                        self.reset()
+
         return self.get_obs()
 
     def destroy(self, npcs=True, ego=True, world=True):
@@ -439,6 +475,12 @@ class CarlaEnv:
         except BaseException:
             print("Unable to set autopilot")
             # TODO: add logger
+
+    def set_ego_keyboard(self):
+        """
+        Sets the ego vehicle to be controlled by CARLA's traffic manager.
+        """
+        self.ego.external_control = KeyboardControl(self.ego.actor)
 
     @classmethod
     def from_preset_data(
