@@ -2,7 +2,7 @@ version: "3.3"
 
 services:
   server:
-    image: "carlasim/carla"
+    image: "carlasim/carla:0.9.13"
 #    build:
 #      context: .
 #      dockerfile: Dockerfile-additional-maps
