@@ -30,7 +30,7 @@ To understand the underlying technology and why it's necessary for autonomous dr
 For installing the Python package from [PyPI][pypi-link]:
 
 ```bash
-pip install invertedai
+pip install --upgrade invertedai
 ```
 
 The Python client library is [open source](https://github.com/inverted-ai/invertedai),
