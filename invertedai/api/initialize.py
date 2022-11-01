@@ -92,7 +92,8 @@ def initialize(
 
     See Also
     --------
-    invertedai.drive
+    :func:`drive`
+    :func:`location_info`
     """
 
     if should_use_mock_api():

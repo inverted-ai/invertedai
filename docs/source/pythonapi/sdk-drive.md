@@ -2,7 +2,12 @@
 
 
 ```{eval-rst}
-.. automodule:: invertedai.api.drive
+.. autofunction:: invertedai.api.drive
+```
+
+---
+```{eval-rst}
+.. autoclass:: invertedai.api.DriveResponse
    :members:
    :undoc-members:
 ```

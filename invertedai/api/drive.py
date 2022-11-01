@@ -75,7 +75,7 @@ def drive(
 
     recurrent_states:
         Recurrent states for all agents, obtained from the previous call to
-        :func:`drive` or :func:`initialize.
+        :func:`drive` or :func:`initialize`.
 
     get_birdview:
         Whether to return an image visualizing the simulation state.
@@ -92,6 +92,11 @@ def drive(
 
     random_seed:
         Controls the stochastic aspects of agent behavior for reproducibility.
+
+    See Also
+    --------
+    :func:`initialize`
+    :func:`location_info`
     """
 
     if should_use_mock_api():
