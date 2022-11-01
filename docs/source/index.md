@@ -37,7 +37,7 @@ The following pages will help you integrate the Inverted AI API with your own si
 self
 userguide
 pythonapi/index
-REST API <https://app.swaggerhub.com/apis-docs/swaggerhub59/Inverted-AI>
+REST API <https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI>
 Examples <https://github.com/inverted-ai/invertedai/tree/master/examples>
 ```
 
