@@ -10,6 +10,8 @@ hide-toc: true
 [github-badge]: https://badgen.net/badge/icon/github?icon=github&label
 [github-link]: https://github.com/inverted-ai/invertedai/
 [colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb
+[rest-link]: https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI
+[examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
 [![GitHub][github-badge]][github-link]
 [![PyPI][pypi-badge]][pypi-link]
 [![Open In Colab][colab-badge]][colab-link]
@@ -35,7 +37,7 @@ The following pages will help you integrate the Inverted AI API with your own si
 self
 userguide
 pythonapi/index
-apireference
+REST API <https://app.swaggerhub.com/apis-docs/swaggerhub59/Inverted-AI>
 Examples <https://github.com/inverted-ai/invertedai/tree/master/examples>
 ```
 
