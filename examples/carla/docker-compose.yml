@@ -3,6 +3,7 @@ version: "3.3"
 services:
   server:
     image: "carlasim/carla:0.9.13"
+    # Uncomment the three lines below and comment out the above line to also access Town06 and Town07
 #    build:
 #      context: .
 #      dockerfile: Dockerfile-additional-maps
