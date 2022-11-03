@@ -15,7 +15,10 @@ Run the following command to start the Carla server.
 docker compose up
 ```
 
-    - NOTE: You may need to run the above command with `sudo`
+    - NOTE: You may need to run the above command with `sudo`  
+
+To access `Town06` and `Town07`, follow the commented instruction in `docker-compose.yml` to switch to use the
+`Dockerfile.additional-maps` file instead
 
 Create a python virtual environment and install dependencies.
 Requires Python version between `3.6` and `3.8`, inclusive,
