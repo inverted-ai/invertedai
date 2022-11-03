@@ -278,7 +278,7 @@ class CarlaEnv:
         image_h = camera_bp.get_attribute("image_size_y").as_int()
         # Instantiate objects for rendering and vehicle control
         self.renderObject = RenderObject(image_w, image_h)
-        self.camera.listen(lambda image: self.renderObject.pygame_callback(image, self.renderObject))
+        self.camera.listen(self.renderObject.pygame_callback)
         self.gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
         self.gameDisplay.fill((0, 0, 0))
         self.gameDisplay.blit(self.renderObject.surface, (0, 0))
