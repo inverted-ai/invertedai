@@ -28,13 +28,18 @@ using the wrapper provided as a part of our library, the latter version also bei
 available as a Jupyter notebook and
 [Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb).
 
+## Controlling the traffic-lights
+Inverted AI API allows for controlling the traffic light states. 
+We provided a [sample code](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_with_traffic_lights_REST.py)
+for doing so at a traffic-light controlled intersection.
+
 ## Minimal example
 
 The minimal example, as shown on the front page, mocks up the local simulator with
 a class that implements trivial control logic for the ego vehicle. This example is
 meant to provide an illustration of the basic logic for performing co-simulation
 using Inverted AI API and give you a sandbox to experiment with it. It will save 
-the generated gif as `iai-example.gif` in the current direcotry..
+the generated gif as `iai-example.gif` in the current directory.
 
 ## CARLA
 

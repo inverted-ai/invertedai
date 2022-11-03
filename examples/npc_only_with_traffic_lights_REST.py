@@ -49,7 +49,7 @@ for i in pbar:
         agent_attributes=agent_attributes,
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
-        traffic_lights_states=df[traffic_light_counter%600].to_dict(),
+        traffic_lights_states=df[traffic_light_counter%len(df.columns)].to_dict(),
         get_birdview=True,
         location=args.location,
         get_infractions=True,

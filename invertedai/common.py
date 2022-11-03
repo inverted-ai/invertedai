@@ -74,7 +74,7 @@ class Image:
 
     def decode(self):
         """
-        Decode and return the image .
+        Decode and return the image.
         Requires numpy and cv2 to be available, otherwise raises `ImportError`.
         """
         try:
@@ -133,7 +133,8 @@ class AgentAttributes:
 
     def tolist(self):
         """
-        Convert AgentAttributes to a flattened list of agent attributes in this order: [length, width, rear_axis_offset]
+        Convert AgentAttributes to a flattened list of agent attributes
+        in this order: [length, width, rear_axis_offset]
         """
         return [self.length, self.width, self.rear_axis_offset]
 
@@ -202,7 +203,8 @@ class StaticMapActor:
     @classmethod
     def fromdict(cls, d):
         """
-        Build StaticMapActor from a dictionary with keys: `actor_id`, `agent_type`, `orientation`, `length`, `width`, `x`, `y`
+        Build StaticMapActor from a dictionary
+        with keys: `actor_id`, `agent_type`, `orientation`, `length`, `width`, `x`, `y`
         """
         d = d.copy()
         d["center"] = Point(d.pop("x"), d.pop("y"))
