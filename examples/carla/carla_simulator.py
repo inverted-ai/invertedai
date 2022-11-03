@@ -52,6 +52,8 @@ class CarlaSimulationConfig:
     )  #: select from ["no_non_roi_npcs", "spawn_at_entrance", "carla_handoff"]
     max_cars_in_map: int = 100  #: upper bound on how many vehicles total are allowed in simulation
     manual_control_ego: bool = True
+    pygame_window: bool = True  #: wheather to display scene in pygame window
+    spectator_fov: int = 100  # : spectator field of view
 
 
 class Car:
@@ -154,6 +156,7 @@ class CarlaEnv:
         initial_recurrent_states=None,
         npc_entrance_spawn_points=None,
         spectator_transform=None,
+        static_actors=None
     ) -> None:
 
         self.cfg = cfg
@@ -182,6 +185,23 @@ class CarlaEnv:
         world.apply_settings(world_settings)
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_hybrid_physics_mode(True)
+
+        # Get Traffic-light IDS
+        # FIXME:
+        self.static_actors = static_actors
+        self.tl_objs = list(world.get_actors().filter('traffic.traffic_light*'))
+        self.traffic_lights = {}
+        if static_actors:
+            traffic_lights_obj = list(world.get_actors().filter('traffic.traffic_light*'))
+            # traffic_lights = world.get_environment_objects(carla.CityObjectLabel.TrafficLight)
+            # traffic_lights_obj[0].state.name
+            for tl in static_actors:
+                if tl.agent_type == "traffic-light":
+                    for tlo in (traffic_lights_obj):
+                        x, y = tlo.get_transform().location.x, tlo.get_transform().location.y
+                        print((abs(x + tl.center.x) + abs(y - tl.center.x)))
+                        if (abs(x + tl.center.x) + abs(y - tl.center.x)) < 1:
+                            self.traffic_lights[tl.actor_id] = tlo
 
         # pick spawn points for NPCs
         if initial_states is None:
@@ -249,7 +269,7 @@ class CarlaEnv:
 
         # set the spectator camera
         if spectator_transform is None:
-            camera_loc = carla.Location(self.roi_center.x, self.roi_center.y, z=100)
+            camera_loc = carla.Location(self.roi_center.x, self.roi_center.y, z=cfg.spectator_fov)
             camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
             spectator_transform = carla.Transform(camera_loc, camera_rot)
             self.spectator_mode = "birdview"
@@ -267,22 +287,24 @@ class CarlaEnv:
         self.spectator = world.get_spectator()
         self.spectator.set_transform(spectator_transform)
         spectator_transform = carla.Transform(
-                ego_spawn_point.transform(carla.Location(x=-6, z=2.5)),
-                ego_spawn_point.rotation,
-            )
-        camera_bp = world.get_blueprint_library().find('sensor.camera.rgb')
-        self.camera = world.spawn_actor(camera_bp, spectator_transform)
-        # Start camera with PyGame callback
-        # Get camera dimensions
-        image_w = camera_bp.get_attribute("image_size_x").as_int()
-        image_h = camera_bp.get_attribute("image_size_y").as_int()
-        # Instantiate objects for rendering and vehicle control
-        self.renderObject = RenderObject(image_w, image_h)
-        self.camera.listen(self.renderObject.pygame_callback)
-        self.gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
-        self.gameDisplay.fill((0, 0, 0))
-        self.gameDisplay.blit(self.renderObject.surface, (0, 0))
-        pygame.display.flip()
+            ego_spawn_point.transform(carla.Location(x=-6, z=2.5)),
+            ego_spawn_point.rotation,
+        )
+
+        if self.cfg.pygame_window:
+            camera_bp = world.get_blueprint_library().find('sensor.camera.rgb')
+            self.camera = world.spawn_actor(camera_bp, spectator_transform)
+            # Start camera with PyGame callback
+            # Get camera dimensions
+            image_w = camera_bp.get_attribute("image_size_x").as_int()
+            image_h = camera_bp.get_attribute("image_size_y").as_int()
+            # Instantiate objects for rendering and vehicle control
+            self.renderObject = RenderObject(image_w, image_h)
+            self.camera.listen(self.renderObject.pygame_callback)
+            self.gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
+            self.gameDisplay.fill((0, 0, 0))
+            self.gameDisplay.blit(self.renderObject.surface, (0, 0))
+            pygame.display.flip()
 
         # store some variables
         self.world = world
@@ -372,6 +394,32 @@ class CarlaEnv:
         """
         Advance the simulation using supplied NPC predictions.
         """
+        # FIXME:
+        # HACK:
+        for tl in self.static_actors:
+            loc = Location(-tl.center.x, tl.center.y, 3)
+            self.world.debug.draw_point(
+                location=loc,
+                size=0.1,
+                color=carla.Color(0, 255, 0, 0),
+                life_time=2 / self.cfg.fps,
+            )
+
+        for tl in self.tl_objs:
+            loc = tl.get_transform().location
+            loc.z += 2
+            self.world.debug.draw_point(
+                location=loc,
+                size=0.1,
+                color=carla.Color(0, 255, 255, 0),
+                life_time=2 / self.cfg.fps,
+            )
+            self.world.debug.draw_string(
+                location=loc,
+                text=f"x:{loc.x:.0f}, {loc.y:.0f}",
+                life_time=2 / self.cfg.fps,
+            )
+        ##
         self.step_counter += 1
         self._set_state_and_filter_npcs(npcs, include_ego)
         if self.cfg.flag_ego:
@@ -386,10 +434,12 @@ class CarlaEnv:
         if self.spectator_mode == "follow_ego":
             self.spectator.set_transform(spectator_transform)
 
-        self.camera.set_transform(spectator_transform)
+        if self.cfg.pygame_window:
+            self.camera.set_transform(spectator_transform)
         self.world.tick()
-        self.gameDisplay.blit(self.renderObject.surface, (0, 0))
-        pygame.display.flip()
+        if self.cfg.pygame_window:
+            self.gameDisplay.blit(self.renderObject.surface, (0, 0))
+            pygame.display.flip()
         if self.ego.external_control is not None:
             self.ego.external_control.process_control()
             for event in pygame.event.get():
