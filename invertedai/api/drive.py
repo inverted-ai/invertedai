@@ -11,7 +11,7 @@ from invertedai.api.mock import (
     get_mock_infractions,
 )
 from invertedai.error import APIConnectionError
-
+from invertedai.api.validations import drive_validation
 from invertedai.common import (
     AgentState,
     RecurrentState,
@@ -46,6 +46,7 @@ class DriveResponse:
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
 
 
+@drive_validation
 def drive(
     location: str,
     agent_states: List[AgentState],

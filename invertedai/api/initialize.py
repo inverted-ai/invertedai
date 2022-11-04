@@ -12,7 +12,7 @@ from invertedai.api.mock import (
     get_mock_birdview,
     get_mock_infractions,
 )
-
+from invertedai.api.validations import initialize_validation
 from invertedai.common import (
     RecurrentState,
     AgentState,
@@ -45,6 +45,7 @@ class InitializeResponse:
     ]  #: If `get_infractions` was set, they are returned here.
 
 
+@initialize_validation
 def initialize(
     location: str,
     agent_attributes: Optional[List[AgentAttributes]] = None,

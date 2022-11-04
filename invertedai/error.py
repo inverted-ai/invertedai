@@ -146,3 +146,11 @@ class SignatureVerificationError(InvertedAIError):
             self.sig_header,
             self.http_body,
         )
+
+
+class InvalidInput(InvertedAIError):
+    pass
+
+
+class InvalidInputType(InvalidInput):
+    pass
