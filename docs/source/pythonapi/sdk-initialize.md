@@ -2,7 +2,11 @@
 
 
 ```{eval-rst}
-.. automodule:: invertedai.api.initialize
+.. autofunction:: invertedai.api.initialize
+```
+---
+```{eval-rst}
+.. autoclass:: invertedai.api.InitializeResponse
    :members:
    :undoc-members:
 ```

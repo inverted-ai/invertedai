@@ -5,7 +5,7 @@ To run the examples locally, first build the virtual environment.
 ```commandline
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install --upgrade -r requirements.txt
 ```
 *If running into package not found issue like`ERROR: No matching distribution found for carla==0.9.13`, try update 
 the pip: `pip install upgrade pip `.  
