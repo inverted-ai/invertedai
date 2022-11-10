@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from enum import Enum
 
 import invertedai as iai
@@ -197,8 +197,9 @@ class StaticMapActor:
     center: Point  #: The center of the stop line.
     #: Natural direction of traffic going through the stop line, in radians like in :class:`AgentState`.
     orientation: float
-    length: float  #: Size of the stop line, in meters, along its `orientation`.
-    width: float  #: Size of the stop line, in meters, across its `orientation`.
+    length: Optional[float]  #: Size of the stop line, in meters, along its `orientation`.
+    width: Optional[float]  #: Size of the stop line, in meters, across its `orientation`.
+    dependant: Optional[List[int]]  # : List of ID's of other actors that are dependant to this actor.
 
     @classmethod
     def fromdict(cls, d):
