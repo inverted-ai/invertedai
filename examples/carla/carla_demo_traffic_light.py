@@ -17,12 +17,11 @@ os.environ["IAI_DEV"] = "1"
 os.environ["IAI_DEV_URL"] = "http://localhost:8888"
 sys.path.append("../..")
 
-import invertedai as iai
-from carla_simulator import CarlaEnv, CarlaSimulationConfig
-import argparse
-import pygame
 from tqdm import tqdm
-
+import pygame
+import argparse
+from carla_simulator import CarlaEnv, CarlaSimulationConfig
+import invertedai as iai
 
 # Configuration options to set from command line.
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
@@ -56,12 +55,6 @@ if args.api_key is not None:
 response = iai.location_info(location=args.location)
 static_actors = response.static_actors
 
-# Initialize simulation with an API call
-response = iai.initialize(
-    location=args.location,
-    agent_count=args.agent_count,
-)
-
 # Initialize CARLA with the same state
 carla_cfg = CarlaSimulationConfig(
     location=args.location,
@@ -75,11 +68,14 @@ carla_cfg = CarlaSimulationConfig(
 )
 sim = CarlaEnv(
     cfg=carla_cfg,
-    initial_states=response.agent_states,
-    initial_recurrent_states=response.recurrent_states,
-    ego_spawn_point=args.ego_spawn_point,
-    spectator_transform=args.spectator_transform,
     static_actors=static_actors,
+)
+
+# Initialize simulation with an API call
+initialize_response = iai.initialize(
+    location=args.location,
+    agent_count=args.agent_count,
+    traffic_light_state_history=[sim.traffic_light_states],
 )
 
 pygame.init()
@@ -87,17 +83,24 @@ pygame.init()
 try:
     # Run simulation for a given number of episodes
     for _ in tqdm(range(args.episodes), position=0):
-        agent_states, recurrent_states, agent_attributes = sim.reset()
+        agent_states, recurrent_states, agent_attributes = sim.reset(
+            initial_states=initialize_response.agent_states,
+            ego_spawn_point=args.ego_spawn_point,
+            spectator_transform=args.spectator_transform,
+            initial_recurrent_states=initialize_response.recurrent_states,
+        )
         clock = pygame.time.Clock()
         for i in tqdm(
             range(carla_cfg.episode_length * carla_cfg.fps), position=0, leave=False
         ):
             # Call the API to obtain the NPC behavior
+            tl_states = sim.traffic_light_states
             response = iai.drive(
                 agent_attributes=agent_attributes,
                 agent_states=agent_states,
                 recurrent_states=recurrent_states,
                 location=args.location,
+                traffic_lights_states=tl_states,
             )
 
             # Advance the simulation.
