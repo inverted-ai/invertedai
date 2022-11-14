@@ -46,12 +46,6 @@ else:
 if args.api_key is not None:
     iai.add_apikey(args.api_key)
 
-# Initialize simulation with an API call
-response = iai.initialize(
-    location=args.location,
-    agent_count=args.agent_count,
-)
-
 # Initialize CARLA with the same state
 carla_cfg = CarlaSimulationConfig(
     location=args.location,
@@ -59,14 +53,17 @@ carla_cfg = CarlaSimulationConfig(
     non_roi_npc_mode=non_roi_npc_mode,
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
-    manual_control_ego=args.manual_control_ego
+    manual_control_ego=args.manual_control_ego,
+    pygame_window=args.manual_control_ego,
 )
 sim = CarlaEnv(
     cfg=carla_cfg,
-    initial_states=response.agent_states,
-    initial_recurrent_states=response.recurrent_states,
-    ego_spawn_point=args.ego_spawn_point,
-    spectator_transform=args.spectator_transform,
+)
+
+# Initialize simulation with an API call
+response = iai.initialize(
+    location=args.location,
+    agent_count=args.agent_count,
 )
 
 pygame.init()
@@ -74,7 +71,12 @@ pygame.init()
 try:
     # Run simulation for a given number of episodes
     for _ in tqdm(range(args.episodes), position=0):
-        agent_states, recurrent_states, agent_attributes = sim.reset()
+        agent_states, recurrent_states, agent_attributes = sim.reset(
+            initial_states=response.agent_states,
+            initial_recurrent_states=response.recurrent_states,
+            ego_spawn_point=args.ego_spawn_point,
+            spectator_transform=args.spectator_transform,
+        )
         clock = pygame.time.Clock()
         for i in tqdm(
             range(carla_cfg.episode_length * carla_cfg.fps), position=0, leave=False

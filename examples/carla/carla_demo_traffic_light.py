@@ -11,13 +11,10 @@ they're dynamically handed off between the two controllers. The intention
 is that the scenario of interest occurs when the ego vehicle traverses
 the supported area, so that's where the NPCs need to be maximally realistic.
 """
-import os
-import sys
-os.environ["IAI_DEV"] = "1"
-os.environ["IAI_DEV_URL"] = "http://localhost:8888"
-sys.path.append("../..")
-
 from tqdm import tqdm
+from PIL import Image as PImage
+import imageio
+import numpy as np
 import pygame
 import argparse
 from carla_simulator import CarlaEnv, CarlaSimulationConfig
@@ -78,6 +75,7 @@ initialize_response = iai.initialize(
     traffic_light_state_history=[sim.traffic_light_states],
 )
 
+frames = []
 pygame.init()
 
 try:
@@ -101,7 +99,11 @@ try:
                 recurrent_states=recurrent_states,
                 location=args.location,
                 traffic_lights_states=tl_states,
+                get_birdview=True,
             )
+            image = response.birdview.decode()
+            frames.append(image)
+            im = PImage.fromarray(image)
 
             # Advance the simulation.
             # Return values are needed to allow the NPCs to enter and
@@ -112,7 +114,7 @@ try:
 
             # To prevent the simulation from running faster than real time
             clock.tick_busy_loop(carla_cfg.fps)
-
+    imageio.mimsave("iai-carla.gif", np.array(frames), format="GIF-PIL")
 finally:
     # Release the CARLA server
     sim.destroy()
