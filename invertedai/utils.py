@@ -34,6 +34,22 @@ class Session:
         if not iai.dev and not api_token:
             raise error.InvalidAPIKeyError("Empty API key received.")
         self.session.auth = APITokenAuth(api_token)
+        response = self.session.request(method="get", url=self.base_url)
+        if response.status_code != 200:
+            url_acd = "https://api.inverted.ai/v0/academic/m1"
+            response_acd = self.session.request(method="get", url=url_acd)
+            if response_acd.status_code == 200:
+                self.base_url = url_acd
+                response = response_acd
+            elif response_acd.status_code != 403:
+                response = response_acd
+        if response.status_code == 403:
+            raise error.AuthenticationError(
+                "Access denied. Please check the provided API key."
+            )
+        elif response.status_code != 200:
+            raise error.APIError("The server is aware that it has erred or is incapable of performing the requested"
+                                 " method.")
 
     def use_mock_api(self, use_mock: bool = True) -> None:
         invertedai.api.config.mock_api = use_mock
