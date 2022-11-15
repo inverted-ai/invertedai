@@ -205,7 +205,7 @@ class StaticMapActor:
     def fromdict(cls, d):
         """
         Build StaticMapActor from a dictionary
-        with keys: `actor_id`, `agent_type`, `orientation`, `length`, `width`, `x`, `y`
+        with keys: `actor_id`, `agent_type`, `orientation`, `length`, `width`, `x`, `y`, `dependant`
         """
         d = d.copy()
         d["center"] = Point(d.pop("x"), d.pop("y"))

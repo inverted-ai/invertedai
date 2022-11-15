@@ -151,10 +151,6 @@ class CarlaEnv:
     def __init__(
         self,
         cfg: CarlaSimulationConfig,
-        # ego_spawn_point=None,
-        # initial_states=None,
-        # npc_entrance_spawn_points=None,
-        # spectator_transform=None,
         static_actors=None
     ) -> None:
 
@@ -193,7 +189,7 @@ class CarlaEnv:
             traffic_lights_obj = list(world.get_actors().filter('traffic.traffic_light*'))
             for tl in static_actors:
                 if tl.agent_type == "traffic-light-actor":
-                    for tlo in (traffic_lights_obj):
+                    for tlo in traffic_lights_obj:
                         x, y = tlo.get_transform().location.x, tlo.get_transform().location.y
                         if (abs(x + tl.center.x) + abs(y - tl.center.y)) < 1:
                             for traffic_line in tl.dependant:
@@ -510,11 +506,8 @@ class CarlaEnv:
 
     @classmethod
     def from_preset_data(
-        cls,
-        ego_spawn_point=None,
-        initial_states=None,
-        npc_entrance_spawn_points=None,
-        spectator_transform=None,
+            cls,
+            static_actors=None,
     ):
         """
         Constructs a CARLA simulation.
@@ -522,10 +515,7 @@ class CarlaEnv:
         cfg = CarlaSimulationConfig()
         return cls(
             cfg,
-            ego_spawn_point,
-            initial_states,
-            npc_entrance_spawn_points,
-            spectator_transform,
+            static_actors,
         )
 
     def _destroy_npcs(self, npcs: List):
