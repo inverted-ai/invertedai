@@ -41,6 +41,11 @@ def location_info(
     include_map_source:
         Whether to return full map specification in Lanelet2 OSM format.
         This significantly increases the response size, consuming more network resources.
+
+    See Also
+    --------
+    :func:`drive`
+    :func:`initialize`
     """
 
     if should_use_mock_api():

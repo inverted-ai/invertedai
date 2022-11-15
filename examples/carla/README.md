@@ -1,6 +1,7 @@
 # Inverted AI CARLA simulator integration
 
 This folder provides a basic example for using Inverted AI NPCs in CARLA.
+[Click here](https://download-directory.github.io/?url=https://github.com/inverted-ai/invertedai/tree/master/examples) to download the example folder as a zip-file.
 The entry script is `carla_demo.py`, while `carla_simulator.py` encapsulates
 the basic simulation logic for controlling CARLA.
 
@@ -15,7 +16,10 @@ Run the following command to start the Carla server.
 docker compose up
 ```
 
-    - NOTE: You may need to run the above command with `sudo`
+    - NOTE: You may need to run the above command with `sudo`  
+
+To access `Town06` and `Town07`, follow the commented instruction in `docker-compose.yml` to switch to use the
+`Dockerfile.additional-maps` file instead
 
 Create a python virtual environment and install dependencies.
 Requires Python version between `3.6` and `3.8`, inclusive,

@@ -2,7 +2,8 @@
 [pypi-link]: https://pypi.org/project/invertedai/
 [colab-badge]: https://colab.research.google.com/assets/colab-badge.svg
 [colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb
-
+[rest-link]: https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI
+[examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
 
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
 [![PyPI][pypi-badge]][pypi-link]
@@ -15,8 +16,8 @@
 Inverted AI provides an API for controlling non-playable characters (NPCs) in autonomous driving simulations,
 available as either a REST API or a Python library built on top of it. Using the API requires an access key -
 [contact us](mailto:sales@inverted.ai) to get yours. This page describes how to get started quickly. For more in-depth understanding,
-see the [API usage guide](userguide.md), and detailed documentation for the [REST API](apireference.md) and the
-[Python library](pythonapi/index.md).
+see the [API usage guide](https://docs.inverted.ai/en/latest/userguide.html), and detailed documentation for the [REST API][rest-link] and the
+[Python library](https://docs.inverted.ai/en/latest/pythonapi/index.html).
 To understand the underlying technology and why it's necessary for autonomous driving simulations, visit the
 [Inverted AI website](https://www.inverted.ai/).
 <!-- end elevator-pitch -->
@@ -29,7 +30,7 @@ To understand the underlying technology and why it's necessary for autonomous dr
 For installing the Python package from [PyPI][pypi-link]:
 
 ```bash
-pip install invertedai
+pip install --upgrade invertedai
 ```
 
 The Python client library is [open source](https://github.com/inverted-ai/invertedai),
@@ -49,9 +50,10 @@ import invertedai as iai
 
 # iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
 
+
 class LocalSimulator:
     """
-    Mock up of a local simulator, where you control the ego vehicle.
+    Mock up of a local simulator, where you control the ego vehicle. This example only supports single ego vehicle.
     """
     def __init__(self, ego_state: iai.AgentState, npc_states: List[iai.AgentState]):
         self.ego_state = ego_state
@@ -80,7 +82,7 @@ class LocalSimulator:
 
 iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for Inverted AI API
     location='canada:vancouver:ubc_roundabout',  # select one of available locations
-    agent_count=5,  #  how many vehicles in total to use in the simulation
+    agent_count=5,  # how many vehicles in total to use in the simulation
     ego_agent_mask=[True, False, False, False, False],  # first vehicle is ego, rest are NPCs
     get_birdview=True,  # provides simple visualization - don't use in production
 )
@@ -97,6 +99,7 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
     images.append(iai_simulation.birdview.decode())
 # save the visualization to disk
 imageio.mimsave("iai-example.gif", np.array(images), format="GIF-PIL")
+
 ```
 To quickly check out how Inverted AI NPCs
 behave, try our
@@ -105,6 +108,6 @@ where all agents are NPCs, or go to our
 [github repository](https://github.com/inverted-ai/invertedai/tree/master/examples) to execute it locally.
 When you're ready to try our NPCs with a real simulator, see the example [CARLA integration](https://github.com/inverted-ai/invertedai/tree/master/examples/carla).
 The examples are currently only provided in Python, but if you want to use the API from another language,
-you can use the [REST API](apireference.md) directly.
+you can use the [REST API][rest-link] directly.
 
 <!-- end quickstart -->

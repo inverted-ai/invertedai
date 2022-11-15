@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional
 import random
 
 from invertedai import drive, initialize
@@ -110,6 +110,10 @@ class BasicCosimulation:
 
     @property
     def ego_states(self):
+        """
+        Returns the predicted states of ego agents in order.
+        The NPC agents are excluded.
+        """
         return [d for d, s in zip(self._agent_states, self._ego_agent_mask) if s]
 
     @property

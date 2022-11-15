@@ -11,12 +11,14 @@ they're dynamically handed off between the two controllers. The intention
 is that the scenario of interest occurs when the ego vehicle traverses
 the supported area, so that's where the NPCs need to be maximally realistic.
 """
-import invertedai as iai
-from carla_simulator import CarlaEnv, CarlaSimulationConfig
-import argparse
-import pygame
 from tqdm import tqdm
-
+from PIL import Image as PImage
+import imageio
+import numpy as np
+import pygame
+import argparse
+from carla_simulator import CarlaEnv, CarlaSimulationConfig
+import invertedai as iai
 
 # Configuration options to set from command line.
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
@@ -46,6 +48,10 @@ else:
 if args.api_key is not None:
     iai.add_apikey(args.api_key)
 
+# Get static information about a given location.
+response = iai.location_info(location=args.location)
+static_actors = response.static_actors
+
 # Initialize CARLA with the same state
 carla_cfg = CarlaSimulationConfig(
     location=args.location,
@@ -54,40 +60,50 @@ carla_cfg = CarlaSimulationConfig(
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
     manual_control_ego=args.manual_control_ego,
-    pygame_window=args.manual_control_ego,
+    pygame_window=False,
+    spectator_fov=150
 )
 sim = CarlaEnv(
     cfg=carla_cfg,
+    static_actors=static_actors,
 )
 
 # Initialize simulation with an API call
-response = iai.initialize(
+initialize_response = iai.initialize(
     location=args.location,
     agent_count=args.agent_count,
+    traffic_light_state_history=[sim.traffic_light_states],
 )
 
+frames = []
 pygame.init()
 
 try:
     # Run simulation for a given number of episodes
     for _ in tqdm(range(args.episodes), position=0):
         agent_states, recurrent_states, agent_attributes = sim.reset(
-            initial_states=response.agent_states,
-            initial_recurrent_states=response.recurrent_states,
+            initial_states=initialize_response.agent_states,
             ego_spawn_point=args.ego_spawn_point,
             spectator_transform=args.spectator_transform,
+            initial_recurrent_states=initialize_response.recurrent_states,
         )
         clock = pygame.time.Clock()
         for i in tqdm(
             range(carla_cfg.episode_length * carla_cfg.fps), position=0, leave=False
         ):
             # Call the API to obtain the NPC behavior
+            tl_states = sim.traffic_light_states
             response = iai.drive(
                 agent_attributes=agent_attributes,
                 agent_states=agent_states,
                 recurrent_states=recurrent_states,
                 location=args.location,
+                traffic_lights_states=tl_states,
+                get_birdview=True,
             )
+            image = response.birdview.decode()
+            frames.append(image)
+            im = PImage.fromarray(image)
 
             # Advance the simulation.
             # Return values are needed to allow the NPCs to enter and
@@ -98,7 +114,7 @@ try:
 
             # To prevent the simulation from running faster than real time
             clock.tick_busy_loop(carla_cfg.fps)
-
+    imageio.mimsave("iai-carla.gif", np.array(frames), format="GIF-PIL")
 finally:
     # Release the CARLA server
     sim.destroy()
