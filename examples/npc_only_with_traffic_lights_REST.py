@@ -1,11 +1,3 @@
-import os
-import sys
-os.environ["IAI_DEV"] = "1"
-# os.environ["IAI_DEV_URL"] = "http://localhost:8000"
-os.environ["IAI_DEV_URL"] = "http://localhost:8888"
-# os.environ["IAI_DEV_URL"] = "http://172.18.0.2:8000"
-sys.path.append("../")
-
 from PIL import Image as PImage
 import imageio
 import numpy as np
