@@ -2,7 +2,13 @@
 
 
 ```{eval-rst}
-.. automodule:: invertedai.api.location
+.. autofunction:: invertedai.api.location_info
+```
+
+
+---
+```{eval-rst}
+.. autoclass:: invertedai.api.LocationResponse
    :members:
    :undoc-members:
 ```

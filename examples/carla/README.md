@@ -1,6 +1,7 @@
 # Inverted AI CARLA simulator integration
 
 This folder provides a basic example for using Inverted AI NPCs in CARLA.
+[Click here](https://download-directory.github.io/?url=https://github.com/inverted-ai/invertedai/tree/master/examples) to download the example folder as a zip-file.
 The entry script is `carla_demo.py`, while `carla_simulator.py` encapsulates
 the basic simulation logic for controlling CARLA.
 

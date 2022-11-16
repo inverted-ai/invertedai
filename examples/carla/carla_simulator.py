@@ -1,7 +1,7 @@
 """
 This module provides definitions of classes encapsulating a CARLA simulation.
 """
-from invertedai.common import AgentAttributes, Point, AgentState, RecurrentState
+from invertedai.common import AgentAttributes, Point, AgentState, RecurrentState, TrafficLightState
 from dataclasses import dataclass, field
 import carla
 from carla import Location, Rotation, Transform
@@ -52,6 +52,8 @@ class CarlaSimulationConfig:
     )  #: select from ["no_non_roi_npcs", "spawn_at_entrance", "carla_handoff"]
     max_cars_in_map: int = 100  #: upper bound on how many vehicles total are allowed in simulation
     manual_control_ego: bool = True
+    pygame_window: bool = True  #: wheather to display scene in pygame window
+    spectator_fov: int = 100  # : spectator field of view
 
 
 class Car:
@@ -149,11 +151,7 @@ class CarlaEnv:
     def __init__(
         self,
         cfg: CarlaSimulationConfig,
-        ego_spawn_point=None,
-        initial_states=None,
-        initial_recurrent_states=None,
-        npc_entrance_spawn_points=None,
-        spectator_transform=None,
+        static_actors=None
     ) -> None:
 
         self.cfg = cfg
@@ -183,10 +181,41 @@ class CarlaEnv:
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_hybrid_physics_mode(True)
 
-        # pick spawn points for NPCs
+        # Get Traffic-light IDS
+        self.static_actors = static_actors
+        self.tl_objs = list(world.get_actors().filter('traffic.traffic_light*'))
+        self.traffic_lights = {}
+        if static_actors:
+            traffic_lights_obj = list(world.get_actors().filter('traffic.traffic_light*'))
+            for tl in static_actors:
+                if tl.agent_type == "traffic-light-actor":
+                    for tlo in traffic_lights_obj:
+                        x, y = tlo.get_transform().location.x, tlo.get_transform().location.y
+                        if (abs(x + tl.center.x) + abs(y - tl.center.y)) < 1:
+                            for traffic_line in tl.dependant:
+                                self.traffic_lights[traffic_line] = tlo
+
+        # store some variables
+        self.world = world
+        self.client = client
+        self.traffic_manager = traffic_manager
+
+        # compute how many steps to warm up NPCs for
+        self.populate_step = self.cfg.fps * self.cfg.npc_population_interval
+        self.npcs = []
+        self.ego = None
+        self.non_roi_npcs = []
+
+    def _initialize(self, ego_spawn_point=None, initial_states=None, npc_entrance_spawn_points=None,
+                    initial_recurrent_states=None, spectator_transform=None):
+        """
+        Initialize the simulation state by spawning all vehicles and setting
+        their controllers.
+        """
+       # pick spawn points for NPCs
         if initial_states is None:
             # initial state not provided - create one
-            spawn_points = world.get_map().get_spawn_points()
+            spawn_points = self.world.get_map().get_spawn_points()
             (
                 npc_roi_spawn_points,
                 initial_speed,
@@ -207,7 +236,7 @@ class CarlaEnv:
                 spawn_points, speed, initial_recurrent_states=initial_recurrent_states
             )
         # pick a spawn point for the ego vehicle
-        if (ego_spawn_point is None) or (cfg.location not in DEMO_LOCATIONS.keys()):
+        if (ego_spawn_point is None) or (self.cfg.location not in DEMO_LOCATIONS.keys()):
             # pick random spawn point for the ego vehicle
             ego_spawn_point, ego_rs, _ = (
                 npc_roi_spawn_points.pop(),
@@ -216,7 +245,7 @@ class CarlaEnv:
             )
         elif ego_spawn_point == "demo":
             # pick one of designated spawn points for the location for the ego vehicle
-            locs = DEMO_LOCATIONS[cfg.location]
+            locs = DEMO_LOCATIONS[self.cfg.location]
             ego_spawn_point = self.rng.choice(locs["spawning_locations"])
             ego_rs = RecurrentState()
         else:
@@ -227,20 +256,20 @@ class CarlaEnv:
             ), "ego_spawn_point must be a Carla.Transform"
 
         # spawn vehicles
-        if cfg.non_roi_npc_mode == "spawn_at_entrance":
+        if self.cfg.non_roi_npc_mode == "spawn_at_entrance":
             self.nroi_npc_mode = 0
             # TODO: use enum to combine self.nroi_npc_mode and cfg.non_roi_npc_mode
             if npc_entrance_spawn_points is None:
-                spawn_points = world.get_map().get_spawn_points()
+                spawn_points = self.world.get_map().get_spawn_points()
                 npc_entrance_spawn_points = self.get_entrance(spawn_points)
             else:
                 spawn_points = self._to_transform(npc_roi_spawn_points)
                 npc_entrance_spawn_points, _, _ = self.get_roi_spawn_points(
                     spawn_points
                 )
-        elif cfg.non_roi_npc_mode == "carla_handoff":
+        elif self.cfg.non_roi_npc_mode == "carla_handoff":
             self.nroi_npc_mode = 1
-            spawn_points = world.get_map().get_spawn_points()
+            spawn_points = self.world.get_map().get_spawn_points()
             self.non_roi_spawn_points, _, _ = self.get_roi_spawn_points(
                 spawn_points, roi=False
             )
@@ -249,7 +278,7 @@ class CarlaEnv:
 
         # set the spectator camera
         if spectator_transform is None:
-            camera_loc = carla.Location(self.roi_center.x, self.roi_center.y, z=100)
+            camera_loc = carla.Location(self.roi_center.x, self.roi_center.y, z=self.cfg.spectator_fov)
             camera_rot = carla.Rotation(pitch=-90, yaw=90, roll=0)
             spectator_transform = carla.Transform(camera_loc, camera_rot)
             self.spectator_mode = "birdview"
@@ -264,47 +293,35 @@ class CarlaEnv:
                 spectator_transform, carla.Transform
             ), "spectator_transform must be a Carla.Transform"
             self.spectator_mode = "user_defined"
-        self.spectator = world.get_spectator()
+        self.spectator = self.world.get_spectator()
         self.spectator.set_transform(spectator_transform)
         spectator_transform = carla.Transform(
-                ego_spawn_point.transform(carla.Location(x=-6, z=2.5)),
-                ego_spawn_point.rotation,
-            )
-        camera_bp = world.get_blueprint_library().find('sensor.camera.rgb')
-        self.camera = world.spawn_actor(camera_bp, spectator_transform)
-        # Start camera with PyGame callback
-        # Get camera dimensions
-        image_w = camera_bp.get_attribute("image_size_x").as_int()
-        image_h = camera_bp.get_attribute("image_size_y").as_int()
-        # Instantiate objects for rendering and vehicle control
-        self.renderObject = RenderObject(image_w, image_h)
-        self.camera.listen(self.renderObject.pygame_callback)
-        self.gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
-        self.gameDisplay.fill((0, 0, 0))
-        self.gameDisplay.blit(self.renderObject.surface, (0, 0))
-        pygame.display.flip()
+            ego_spawn_point.transform(carla.Location(x=-6, z=2.5)),
+            ego_spawn_point.rotation,
+        )
+        if self.cfg.pygame_window:
+            camera_bp = self.world.get_blueprint_library().find('sensor.camera.rgb')
+            self.camera = self.world.spawn_actor(camera_bp, spectator_transform)
+            # Start camera with PyGame callback
+            # Get camera dimensions
+            image_w = camera_bp.get_attribute("image_size_x").as_int()
+            image_h = camera_bp.get_attribute("image_size_y").as_int()
+            # Instantiate objects for rendering and vehicle control
+            self.renderObject = RenderObject(image_w, image_h)
+            self.camera.listen(self.renderObject.pygame_callback)
+            self.gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
+            self.gameDisplay.fill((0, 0, 0))
+            self.gameDisplay.blit(self.renderObject.surface, (0, 0))
+            pygame.display.flip()
 
-        # store some variables
-        self.world = world
-        self.client = client
-        self.traffic_manager = traffic_manager
+        self.npc_rs = initial_recurrent_states
         self.roi_spawn_points = npc_roi_spawn_points
+        self.spectator_transform = spectator_transform
         self.initial_speed = initial_speed
         self.entrance_spawn_points = npc_entrance_spawn_points
         self.ego_spawn_point = ego_spawn_point
-        self.npc_rs = initial_recurrent_states
         self.ego_rs = ego_rs
 
-        # compute how many steps to warm up NPCs for
-        self.populate_step = self.cfg.fps * self.cfg.npc_population_interval
-        self.npcs = []
-        self.non_roi_npcs = []
-
-    def _initialize(self):
-        """
-        Initialize the simulation state by spawning all vehicles and setting
-        their controllers.
-        """
         # First spawn ego to ensure no NPC is spawned there
         self.ego = self._spawn_npcs(
             [self.ego_spawn_point], [0], [self.cfg.ego_bp], [self.ego_rs]
@@ -357,7 +374,8 @@ class CarlaEnv:
             self.set_npc_autopilot(self.non_roi_npcs, True)
         self.step_counter = 0
 
-    def reset(self, include_ego=True):
+    def reset(self, include_ego=True, ego_spawn_point=None, initial_states=None, npc_entrance_spawn_points=None,
+              initial_recurrent_states=None, spectator_transform=None):
         """
         Re-initialize simulation with the same parameters.
         """
@@ -365,7 +383,9 @@ class CarlaEnv:
             self.destroy(npcs=True, ego=True, world=False)
         except BaseException:
             pass
-        self._initialize()
+        self._initialize(ego_spawn_point=ego_spawn_point, initial_states=initial_states,
+                         npc_entrance_spawn_points=npc_entrance_spawn_points,
+                         initial_recurrent_states=initial_recurrent_states, spectator_transform=spectator_transform)
         return self.get_obs(include_ego=include_ego)
 
     def step(self, npcs=None, include_ego=True):
@@ -386,10 +406,12 @@ class CarlaEnv:
         if self.spectator_mode == "follow_ego":
             self.spectator.set_transform(spectator_transform)
 
-        self.camera.set_transform(spectator_transform)
+        if self.cfg.pygame_window:
+            self.camera.set_transform(spectator_transform)
         self.world.tick()
-        self.gameDisplay.blit(self.renderObject.surface, (0, 0))
-        pygame.display.flip()
+        if self.cfg.pygame_window:
+            self.gameDisplay.blit(self.renderObject.surface, (0, 0))
+            pygame.display.flip()
         if self.ego.external_control is not None:
             self.ego.external_control.process_control()
             for event in pygame.event.get():
@@ -484,11 +506,8 @@ class CarlaEnv:
 
     @classmethod
     def from_preset_data(
-        cls,
-        ego_spawn_point=None,
-        initial_states=None,
-        npc_entrance_spawn_points=None,
-        spectator_transform=None,
+            cls,
+            static_actors=None,
     ):
         """
         Constructs a CARLA simulation.
@@ -496,10 +515,7 @@ class CarlaEnv:
         cfg = CarlaSimulationConfig()
         return cls(
             cfg,
-            ego_spawn_point,
-            initial_states,
-            npc_entrance_spawn_points,
-            spectator_transform,
+            static_actors,
         )
 
     def _destroy_npcs(self, npcs: List):
@@ -533,6 +549,13 @@ class CarlaEnv:
                 npc = Car(actor, speed, rs)
                 npcs.append(npc)
         return npcs
+
+    @property
+    def traffic_light_states(self):
+        tl_states = {}
+        for tl, tlo in self.traffic_lights.items():
+            tl_states[tl] = tlo.state.name.lower()
+        return tl_states
 
     def _flag_npc(self, actors, color):
         """
