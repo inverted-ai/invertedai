@@ -115,6 +115,10 @@ class InvalidRequestError(InvertedAIError):
         )
 
 
+class ResourceNotFoundError(InvertedAIError):
+    pass
+
+
 class AuthenticationError(InvertedAIError):
     pass
 
