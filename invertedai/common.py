@@ -22,7 +22,7 @@ class RecurrentState(BaseModel):
 
     @root_validator
     @classmethod
-    def check_passwords_match(cls, values):
+    def check_recurrentstate(cls, values):
         if len(values.get("packed")) == RECURRENT_SIZE:
             return values
         else:

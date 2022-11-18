@@ -96,7 +96,7 @@ def drive(
     :func:`location_info`
     """
     if len(agent_states) != len(agent_attributes):
-        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'recurrent_states'.")
+        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
     if len(agent_states) != len(recurrent_states):
         raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'recurrent_states'.")
 
