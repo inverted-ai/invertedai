@@ -1,7 +1,6 @@
 import time
-from dataclasses import dataclass
-
 from typing import List, Optional, Dict
+from pydantic import BaseModel, validate_arguments
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -10,8 +9,7 @@ from invertedai.api.mock import (
     get_mock_birdview,
     get_mock_infractions,
 )
-from invertedai.error import APIConnectionError
-from invertedai.api.validations import drive_validation
+from invertedai.error import APIConnectionError, InvalidInputType, InvalidInput
 from invertedai.common import (
     AgentState,
     RecurrentState,
@@ -22,9 +20,7 @@ from invertedai.common import (
     TrafficLightState,
 )
 
-
-@dataclass
-class DriveResponse:
+class DriveResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.drive`.
     """
@@ -46,7 +42,7 @@ class DriveResponse:
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
 
 
-@drive_validation
+@validate_arguments
 def drive(
     location: str,
     agent_states: List[AgentState],
@@ -99,6 +95,10 @@ def drive(
     :func:`initialize`
     :func:`location_info`
     """
+    if len(agent_states) != len(agent_attributes):
+        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'recurrent_states'.")
+    if len(agent_states) != len(recurrent_states):
+        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'recurrent_states'.")
 
     if should_use_mock_api():
         agent_states = [mock_update_agent_state(s) for s in agent_states]
@@ -145,13 +145,13 @@ def drive(
                     AgentState.fromlist(state) for state in response["agent_states"]
                 ],
                 recurrent_states=[
-                    RecurrentState(r) for r in response["recurrent_states"]
+                    RecurrentState.fromval(r) for r in response["recurrent_states"]
                 ],
-                birdview=Image(response["birdview"])
+                birdview=Image.fromval(response["birdview"])
                 if response["birdview"] is not None
                 else None,
                 infractions=[
-                    InfractionIndicators(*infractions)
+                    InfractionIndicators.fromlist(infractions)
                     for infractions in response["infraction_indicators"]
                 ]
                 if response["infraction_indicators"]

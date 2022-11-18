@@ -12,6 +12,7 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.7,<3.11"
 requests = "^2.28.1"
+pydantic = "^1.10.2"
 
 [tool.poetry.group.dev.dependencies]
 numpy = "^1.17.0"
