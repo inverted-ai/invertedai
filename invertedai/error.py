@@ -1,11 +1,14 @@
 import invertedai as iai
-
 """
 Inspired by OpenAI python-API error handling
 """
 
 
 class InvertedAIError(Exception):
+    """
+    Base exception class for Inverted AI Python-API error handling.
+    """
+
     def __init__(
         self,
         message=None,
@@ -50,18 +53,31 @@ class InvertedAIError(Exception):
 
 
 class APIError(InvertedAIError):
+    """
+    Errors which are caused by incorrect API call.
+    """
     pass
 
 
 class TryAgain(InvertedAIError):
+    """
+    Errors that may be resolved upon resending the request.
+    """
     pass
 
 
 class InvalidAPIKeyError(InvertedAIError):
+    """
+    Missing API Key or invalid API Key type.
+    """
     pass
 
 
 class APIConnectionError(InvertedAIError):
+    """
+    API-gateway error due to invalid API Key.
+    """
+
     def __init__(
         self,
         message,
@@ -79,6 +95,11 @@ class APIConnectionError(InvertedAIError):
 
 
 class InvalidRequestError(InvertedAIError):
+    """
+    Bad Request error (for example, malformed request syntax,
+    invalid request message framing, or deceptive request routing).
+    """
+
     def __init__(
         self,
         message,
@@ -120,6 +141,9 @@ class ResourceNotFoundError(InvertedAIError):
 
 
 class AuthenticationError(InvertedAIError):
+    """
+    API-gateway error due to invalid API Key.
+    """
     pass
 
 
@@ -150,3 +174,17 @@ class SignatureVerificationError(InvertedAIError):
             self.sig_header,
             self.http_body,
         )
+
+
+class InvalidInput(InvertedAIError):
+    """
+    Invalid Python API input.
+    """
+    pass
+
+
+class InvalidInputType(InvalidInput):
+    """
+    Invalid input type for Python API.
+    """
+    pass

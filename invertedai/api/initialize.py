@@ -1,10 +1,10 @@
 import time
-from dataclasses import dataclass
+from pydantic import BaseModel, validate_arguments, root_validator
 from typing import List, Optional, Dict
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
-from invertedai.error import TryAgain
+from invertedai.error import TryAgain, InvalidInputType, InvalidInput
 from invertedai.api.mock import (
     get_mock_agent_attributes,
     get_mock_agent_state,
@@ -12,7 +12,6 @@ from invertedai.api.mock import (
     get_mock_birdview,
     get_mock_infractions,
 )
-
 from invertedai.common import (
     RecurrentState,
     AgentState,
@@ -23,9 +22,7 @@ from invertedai.common import (
     InfractionIndicators,
 )
 
-
-@dataclass
-class InitializeResponse:
+class InitializeResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.initialize`.
     """
@@ -45,6 +42,7 @@ class InitializeResponse:
     ]  #: If `get_infractions` was set, they are returned here.
 
 
+@validate_arguments
 def initialize(
     location: str,
     agent_attributes: Optional[List[AgentAttributes]] = None,
@@ -96,6 +94,13 @@ def initialize(
     :func:`location_info`
     """
 
+    if (states_history is not None) or (agent_attributes is not None):
+        if (agent_attributes is None) or (states_history is None):
+            raise InvalidInput("'agent_attributes' or 'states_history' are not provided.")
+        for agent_states in states_history:
+            if len(agent_states) != len(agent_attributes):
+                raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
+
     if should_use_mock_api():
         if agent_attributes is None:
             assert agent_count is not None
@@ -144,16 +149,16 @@ def initialize(
                     AgentState.fromlist(state) for state in response["agent_states"]
                 ],
                 agent_attributes=[
-                    AgentAttributes(*attr) for attr in response["agent_attributes"]
+                    AgentAttributes.fromlist(attr) for attr in response["agent_attributes"]
                 ],
                 recurrent_states=[
-                    RecurrentState(r) for r in response["recurrent_states"]
+                    RecurrentState.fromval(r) for r in response["recurrent_states"]
                 ],
-                birdview=Image(response["birdview"])
+                birdview=Image.fromval(response["birdview"])
                 if response["birdview"] is not None
                 else None,
                 infractions=[
-                    InfractionIndicators(*infractions)
+                    InfractionIndicators.fromlist(infractions)
                     for infractions in response["infraction_indicators"]
                 ]
                 if response["infraction_indicators"]
