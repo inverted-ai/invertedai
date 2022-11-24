@@ -2,6 +2,8 @@
 
 using json = nlohmann::json;
 
+namespace invertedai {
+
 InitializeResponse::InitializeResponse(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
 
@@ -76,3 +78,51 @@ std::string InitializeResponse::body_str() {
   this->refresh_body_json_();
   return this->body_json_.dump();
 }
+
+std::vector<AgentState> InitializeResponse::agent_states() const {
+  return this->agent_states_;
+}
+
+std::vector<AgentAttributes> InitializeResponse::agent_attributes() const {
+  return this->agent_attributes_;
+}
+
+std::vector<std::vector<double>> InitializeResponse::recurrent_states() const {
+  return this->recurrent_states_;
+}
+
+std::vector<unsigned char> InitializeResponse::birdview() const {
+  return this->birdview_;
+}
+
+std::vector<InfractionIndicator>
+InitializeResponse::infraction_indicators() const {
+  return this->infraction_indicators_;
+}
+
+void InitializeResponse::set_agent_states(
+    const std::vector<AgentState> &agent_states) {
+  this->agent_states_ = agent_states;
+}
+
+void InitializeResponse::set_agent_attributes(
+    const std::vector<AgentAttributes> &agent_attributes) {
+  this->agent_attributes_ = agent_attributes;
+}
+
+void InitializeResponse::set_recurrent_states(
+    const std::vector<std::vector<double>> &recurrent_states) {
+  this->recurrent_states_ = recurrent_states;
+}
+
+void InitializeResponse::set_birdview(
+    const std::vector<unsigned char> &birdview) {
+  this->birdview_ = birdview;
+}
+
+void InitializeResponse::set_infraction_indicators(
+    const std::vector<InfractionIndicator> &infraction_indicators) {
+  this->infraction_indicators_ = infraction_indicators;
+}
+
+} // namespace invertedai

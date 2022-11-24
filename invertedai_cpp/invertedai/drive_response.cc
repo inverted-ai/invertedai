@@ -2,6 +2,8 @@
 
 using json = nlohmann::json;
 
+namespace invertedai {
+
 DriveResponse::DriveResponse(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
 
@@ -73,3 +75,49 @@ std::string DriveResponse::body_str() {
   this->refresh_body_json_();
   return this->body_json_.dump();
 }
+
+std::vector<AgentState> DriveResponse::agent_states() const {
+  return this->agent_states_;
+}
+
+std::vector<bool> DriveResponse::is_inside_supported_area() const {
+  return this->is_inside_supported_area_;
+}
+
+std::vector<std::vector<double>> DriveResponse::recurrent_states() const {
+  return this->recurrent_states_;
+}
+
+std::vector<unsigned char> DriveResponse::birdview() const {
+  return this->birdview_;
+}
+
+std::vector<InfractionIndicator> DriveResponse::infraction_indicators() const {
+  return this->infraction_indicators_;
+}
+
+void DriveResponse::set_agent_states(
+    const std::vector<AgentState> &agent_states) {
+  this->agent_states_ = agent_states;
+}
+
+void DriveResponse::set_is_inside_supported_area(
+    const std::vector<bool> &is_inside_supported_area) {
+  this->is_inside_supported_area_ = is_inside_supported_area;
+}
+
+void DriveResponse::set_recurrent_states(
+    const std::vector<std::vector<double>> &recurrent_states) {
+  this->recurrent_states_ = recurrent_states;
+}
+
+void DriveResponse::set_birdview(const std::vector<unsigned char> &birdview) {
+  this->birdview_ = birdview;
+}
+
+void DriveResponse::set_infraction_indicators(
+    const std::vector<InfractionIndicator> &infraction_indicators) {
+  this->infraction_indicators_ = infraction_indicators;
+}
+
+} // namespace invertedai

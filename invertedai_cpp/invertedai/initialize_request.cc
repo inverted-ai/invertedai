@@ -2,6 +2,7 @@
 
 using json = nlohmann::json;
 
+namespace invertedai {
 InitializeRequest::InitializeRequest(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
 
@@ -87,10 +88,67 @@ std::string InitializeRequest::body_str() {
   return this->body_json_.dump();
 }
 
-void InitializeRequest::set_agent_num(int agent_num) {
-  this->num_agents_to_spawn_ = agent_num;
+std::string InitializeRequest::location() const { return this->location_; }
+
+int InitializeRequest::num_agents_to_spawn() const {
+  return this->num_agents_to_spawn_;
 }
 
-void InitializeRequest::set_location(const std::string& location) {
+std::vector<std::vector<AgentState>> InitializeRequest::states_history() const {
+  return this->states_history_;
+}
+
+std::vector<AgentAttributes> InitializeRequest::agent_attributes() const {
+  return this->agent_attributes_;
+}
+
+std::vector<std::vector<TrafficLightState>>
+InitializeRequest::traffic_light_state_history() const {
+  return this->traffic_light_state_history_;
+}
+
+bool InitializeRequest::get_birdview() const { return this->get_birdview_; }
+
+bool InitializeRequest::get_infractions() const {
+  return this->get_infractions_;
+}
+
+int InitializeRequest::random_seed() const { return this->random_seed_; }
+
+void InitializeRequest::set_location(const std::string &location) {
   this->location_ = location;
 }
+
+void InitializeRequest::set_num_agents_to_spawn(int num_agents_to_spawn) {
+  this->num_agents_to_spawn_ = num_agents_to_spawn;
+}
+
+void InitializeRequest::set_states_history(
+    const std::vector<std::vector<AgentState>> &states_history) {
+  this->states_history_ = states_history;
+}
+
+void InitializeRequest::set_agent_attributes(
+    const std::vector<AgentAttributes> &agent_attributes) {
+  this->agent_attributes_ = agent_attributes;
+}
+
+void InitializeRequest::set_traffic_light_state_history(
+    const std::vector<std::vector<TrafficLightState>>
+        &traffic_light_state_history) {
+  this->traffic_light_state_history_ = traffic_light_state_history;
+}
+
+void InitializeRequest::set_get_birdview(bool get_birdview) {
+  this->get_birdview_ = get_birdview;
+}
+
+void InitializeRequest::set_get_infractions(bool get_infractions) {
+  this->get_infractions_ = get_infractions;
+}
+
+void InitializeRequest::set_random_seed(int random_seed) {
+  this->random_seed_ = random_seed;
+}
+
+} // namespace invertedai

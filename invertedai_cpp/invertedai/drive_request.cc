@@ -4,6 +4,8 @@
 
 using json = nlohmann::json;
 
+namespace invertedai {
+
 DriveRequest::DriveRequest(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
 
@@ -73,27 +75,79 @@ void DriveRequest::refresh_body_json_() {
 }
 
 void DriveRequest::update(const InitializeResponse &init_res) {
-  this->agent_states_ = init_res.agent_states_;
-  this->agent_attributes_ = init_res.agent_attributes_;
-  this->recurrent_states_ = init_res.recurrent_states_;
-  /*  this->body_json_["agent_states"] = init_res.body_json_["agent_states"];
-    this->body_json_["agent_attributes"] =
-        init_res.body_json_["agent_attributes"];
-    this->body_json_["recurrent_states"] =
-        init_res.body_json_["recurrent_states"];
-  */
+  this->agent_states_ = init_res.agent_states();
+  this->agent_attributes_ = init_res.agent_attributes();
+  this->recurrent_states_ = init_res.recurrent_states();
 }
 
 void DriveRequest::update(const DriveResponse &drive_res) {
-  this->agent_states_ = drive_res.agent_states_;
-  this->recurrent_states_ = drive_res.recurrent_states_;
-  /*  this->body_json_["agent_states"] = drive_res.body_json_["agent_states"];
-    this->body_json_["recurrent_states"] =
-        drive_res.body_json_["recurrent_states"];
-  */
+  this->agent_states_ = drive_res.agent_states();
+  this->recurrent_states_ = drive_res.recurrent_states();
 }
 
 std::string DriveRequest::body_str() {
   this->refresh_body_json_();
   return this->body_json_.dump();
 }
+
+std::string DriveRequest::location() const { return this->location_; }
+
+std::vector<AgentState> DriveRequest::agent_states() const {
+  return this->agent_states_;
+}
+
+std::vector<AgentAttributes> DriveRequest::agent_attributes() const {
+  return this->agent_attributes_;
+};
+
+std::vector<TrafficLightState> DriveRequest::traffic_lights_states() const {
+  return this->traffic_lights_states_;
+};
+
+std::vector<std::vector<double>> DriveRequest::recurrent_states() const {
+  return this->recurrent_states_;
+};
+
+bool DriveRequest::get_birdview() const { return this->get_birdview_; }
+
+bool DriveRequest::get_infractions() const { return this->get_infractions_; }
+
+int DriveRequest::random_seed() const { return this->random_seed_; }
+
+void DriveRequest::set_location(const std::string &location) {
+  this->location_ = location;
+}
+
+void DriveRequest::set_agent_states(
+    const std::vector<AgentState> &agent_states) {
+  this->agent_states_ = agent_states;
+}
+
+void DriveRequest::set_agent_attributes(
+    const std::vector<AgentAttributes> &agent_attributes) {
+  this->agent_attributes_ = agent_attributes;
+}
+
+void DriveRequest::set_traffic_lights_states(
+    const std::vector<TrafficLightState> &traffic_lights_states) {
+  this->traffic_lights_states_ = traffic_lights_states;
+}
+
+void DriveRequest::set_recurrent_states(
+    const std::vector<std::vector<double>> &recurrent_states) {
+  this->recurrent_states_ = recurrent_states;
+}
+
+void DriveRequest::set_get_birdview(bool get_birdview) {
+  this->get_birdview_ = get_birdview;
+}
+
+void DriveRequest::set_get_infractions(bool get_infractions) {
+  this->get_infractions_ = get_infractions;
+}
+
+void DriveRequest::set_random_seed(int random_seed) {
+  this->random_seed_ = random_seed;
+}
+
+} // namespace invertedai

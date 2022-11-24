@@ -25,6 +25,8 @@ namespace net = boost::asio;    // from <boost/asio.hpp>
 namespace ssl = net::ssl;       // from <boost/asio/ssl.hpp>
 using tcp = net::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
+namespace invertedai {
+
 void Session::set_api_key(const std::string &api_key) {
   this->api_key_ = api_key;
 }
@@ -86,3 +88,5 @@ const std::string Session::request(const std::string &mode,
   }
   return res.body().data();
 }
+
+} // namespace invertedai

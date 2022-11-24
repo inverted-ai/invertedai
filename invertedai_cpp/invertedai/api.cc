@@ -1,3 +1,6 @@
+#ifndef INVERTEDAI_API_H
+#define INVERTEDAI_API_H
+
 #include "api.h"
 
 namespace invertedai {
@@ -19,3 +22,5 @@ DriveResponse drive(DriveRequest &drive_request, Session *session) {
 }
 
 } // namespace invertedai
+
+# endif

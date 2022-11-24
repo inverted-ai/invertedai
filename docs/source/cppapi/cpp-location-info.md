@@ -1,16 +1,16 @@
 # LOCATION_INFO (C++)
 
 ```{eval-rst}
-.. doxygenfunction:: location_info
+.. doxygenfunction:: invertedai::location_info
    :project: InvertedAI-CPP
 ```
 
 ---
 ```{eval-rst}
-.. doxygenclass:: LocationInfoRequest
+.. doxygenclass:: invertedai::LocationInfoRequest
    :members:
    :undoc-members:
-.. doxygenclass:: LocationInfoResponse
+.. doxygenclass:: invertedai::LocationInfoResponse
    :members:
    :undoc-members:
 ```

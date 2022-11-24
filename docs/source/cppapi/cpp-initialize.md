@@ -1,16 +1,16 @@
 # INITIALIZE (C++)
 
 ```{eval-rst}
-.. doxygenfunction:: initialize
+.. doxygenfunction:: invertedai::initialize
    :project: InvertedAI-CPP
 ```
 
 ---
 ```{eval-rst}
-.. doxygenclass:: InitializeRequest
+.. doxygenclass:: invertedai::InitializeRequest
    :members:
    :undoc-members:
-.. doxygenclass:: InitializeResponse
+.. doxygenclass:: invertedai::InitializeResponse
    :members:
    :undoc-members:
 ```

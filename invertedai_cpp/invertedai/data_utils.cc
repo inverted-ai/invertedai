@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 
+namespace invertedai {
+
 std::string read_file(const char *path) {
   std::ifstream f(path);
   std::string str;
@@ -16,3 +18,5 @@ std::string read_file(const char *path) {
   }
   return ss.str();
 }
+
+} // namespace invertedai

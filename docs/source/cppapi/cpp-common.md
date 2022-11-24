@@ -1,32 +1,32 @@
 # Common (C++)
 
 ```{eval-rst}
-.. doxygenclass:: Session
+.. doxygenclass:: invertedai::Session
    :members:
    :undoc-members:
 ```
 ---
 ```{eval-rst}
-.. doxygenstruct:: AgentState
+.. doxygenstruct:: invertedai::AgentState
    :members:
    :undoc-members:
-.. doxygenstruct::AgentAttributes
-   :members:
-   :undoc-members:
-
-.. doxygenstruct:: TrafficLightState
+.. doxygenstruct:: invertedai::AgentAttributes
    :members:
    :undoc-members:
 
-.. doxygenstruct:: InfractionIndicator
+.. doxygenstruct:: invertedai::TrafficLightState
    :members:
    :undoc-members:
 
-.. doxygenstruct:: StaticMapActor
+.. doxygenstruct:: invertedai::InfractionIndicator
    :members:
    :undoc-members:
 
-.. doxygenstruct:: Point2d
+.. doxygenstruct:: invertedai::StaticMapActor
+   :members:
+   :undoc-members:
+
+.. doxygenstruct:: invertedai::Point2d
    :members:
    :undoc-members:
 ```

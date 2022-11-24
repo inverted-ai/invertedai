@@ -2,16 +2,16 @@
 
 
 ```{eval-rst}
-.. doxygenfunction:: drive
+.. doxygenfunction:: invertedai::drive
    :project: InvertedAI-CPP
 ```
 
 ---
 ```{eval-rst}
-.. doxygenclass:: DriveRequest
+.. doxygenclass:: invertedai::DriveRequest
    :members:
    :undoc-members:
-.. doxygenclass:: DriveResponse
+.. doxygenclass:: invertedai::DriveResponse
    :members:
    :undoc-members:
 ```
