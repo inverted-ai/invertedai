@@ -12,7 +12,9 @@
 #
 import os
 import sys
+import subprocess
 
+subprocess.call('cd ./../../invertedai_cpp/Docxygen/ ;doxygen Doxyfile.cfg', shell=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
@@ -41,7 +43,12 @@ extensions = [
     "sphinx_design",
     "nbsphinx",
     "myst_parser",
+    'breathe',
 ]
+breathe_projects = {
+    "InvertedAI-CPP": "./../../invertedai_cpp/Docxygen/gen_docs/xml/"
+}
+breathe_default_project = "InvertedAI-CPP"
 
 html_theme_options = {
     "sidebar_hide_name": True,
