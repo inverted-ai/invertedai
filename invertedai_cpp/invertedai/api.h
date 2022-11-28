@@ -12,12 +12,31 @@
 
 namespace invertedai {
 
+/**
+ * Wrap the REST API "location_info".
+ * Provides static information about a given location.
+ */
 LocationInfoResponse location_info(LocationInfoRequest &location_info_request,
                                    Session *session);
 
+/**
+ * Wrap the REST API "initialize".
+ * Initializes a simulation in a given location.
+ * Initializes a simulation in a given location. Either agent_count or both
+ * agent_attributes and states_history need to be provided. In the latter case, the
+ * simulation is initialized with the specific history, and if traffic lights are
+ * present then traffic_light_state_history should also be provided. If only
+ * agent_count is specified, a new initial state is generated with the requested
+ * total number of agents. Every simulation needs to start with a call to this
+ * function in order to obtain correct recurrent states for drive().
+ */
 InitializeResponse initialize(InitializeRequest &initialize_request,
                               Session *session);
 
+/**
+ * Wrap the REST API "drive".
+ * Drive the agents based on given situations.
+ */
 DriveResponse drive(DriveRequest &drive_request, Session *session);
 
 } // namespace invertedai
