@@ -63,7 +63,7 @@ struct TrafficLightState {
 };
 
 /**
- * Infractions committed by a given agent, as returned from iai.drive().
+ * Infractions committed by a given agent, as returned from invertedai::drive().
  */
 struct InfractionIndicator {
   /**
@@ -90,7 +90,7 @@ struct InfractionIndicator {
  */
 struct StaticMapActor {
   /**
-   * ID as used in iai.initialize() and iai.drive().
+   * ID as used in invertedai::initialize() and invertedai::drive().
    */
   int actor_id;
   /**
