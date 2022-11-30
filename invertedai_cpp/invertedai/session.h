@@ -29,9 +29,24 @@ public:
   explicit Session(net::io_context &ioc, ssl::context &ctx)
       : resolver_(ioc), stream_(ioc, ctx){};
 
+  /**
+   * Set your own api key here.
+   */
   void set_api_key(const std::string &api_key);
+  /**
+   * Connect the session to the host.
+   * You can connect once and use the shared session for different request.
+   */
   void connect();
+  /**
+   * Shutdown the session.
+   */
   void shutdown();
+  /**
+   * Use the mode("location_info", "initialize", "drive") to construct a
+   * request, sent the request to host, and return the body string of the
+   * response.
+   */
   const std::string request(const std::string &mode,
                             const std::string &body_str,
                             const std::string &url_params);
