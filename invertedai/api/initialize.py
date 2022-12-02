@@ -92,6 +92,7 @@ def initialize(
     --------
     :func:`drive`
     :func:`location_info`
+    :func:`light`
     """
 
     if (states_history is not None) or (agent_attributes is not None):

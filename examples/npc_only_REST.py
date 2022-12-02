@@ -7,7 +7,7 @@ import invertedai as iai
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default=None)
-parser.add_argument("--location", type=str, default="canada:vancouver:ubc_roundabout")
+parser.add_argument("--location", type=str, default="canada:vancouver:terminal_and_quebec")
 args = parser.parse_args()
 
 if args.api_key is not None:
@@ -22,11 +22,15 @@ if response.osm_map is not None:
 if response.birdview_image is not None:
     file_path = f"{file_name}.jpg"
     response.birdview_image.decode_and_save(file_path)
+
+light_response = iai.light(location=args.location)
+
 response = iai.initialize(
     location=args.location,
     agent_count=10,
     get_birdview=True,
     get_infractions=True,
+    traffic_light_state_history=[light_response.traffic_lights_states],
 )
 print(
     f"Initialize:\n"
@@ -38,6 +42,7 @@ agent_attributes = response.agent_attributes
 frames = []
 pbar = tqdm(range(50))
 for i in pbar:
+    light_response = iai.light(location=args.location, recurrent_states=light_response.recurrent_states)
     response = iai.drive(
         agent_attributes=agent_attributes,
         agent_states=response.agent_states,
@@ -45,6 +50,7 @@ for i in pbar:
         get_birdview=True,
         location=args.location,
         get_infractions=True,
+        traffic_lights_states=light_response.traffic_lights_states,
     )
     pbar.set_description(
         f"Collision rate: {100*np.array([inf.collisions for inf in response.infractions]).mean():.2f}% | "

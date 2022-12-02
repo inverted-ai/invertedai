@@ -45,6 +45,7 @@ def location_info(
     --------
     :func:`drive`
     :func:`initialize`
+    :func:`light`
     """
 
     if should_use_mock_api():

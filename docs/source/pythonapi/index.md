@@ -10,6 +10,7 @@ accessed directly. Below are the key functions of the library, along with some c
 sdk-drive
 sdk-initialize
 sdk-location-info
+sdk-light
 sdk-simulation
 sdk-common
 sdk-env-var

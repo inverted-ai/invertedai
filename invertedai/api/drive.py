@@ -94,6 +94,7 @@ def drive(
     --------
     :func:`initialize`
     :func:`location_info`
+    :func:`light`
     """
     if len(agent_states) != len(agent_attributes):
         raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")

@@ -8,6 +8,7 @@ from PIL import Image as PImage
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default=None)
 parser.add_argument("--location", type=str, default="canada:vancouver:ubc_roundabout")
+# parser.add_argument("--location", type=str, default="canada:vancouver:terminal_and_quebec")
 args = parser.parse_args()
 
 if args.api_key is not None:
@@ -29,6 +30,7 @@ simulation = iai.BasicCosimulation(
     monitor_infractions=True,
     ego_agent_mask=[False] * 10,
     get_birdview=True,
+    traffic_lights=True,
 )
 frames = []
 pbar = tqdm(range(50))

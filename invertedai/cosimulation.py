@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 import random
 
-from invertedai import drive, initialize
-from invertedai.common import AgentState, InfractionIndicators, Image
+from invertedai import drive, initialize, location_info, light
+from invertedai.common import AgentState, InfractionIndicators, Image, TrafficLightStatesDict
 
 
 class BasicCosimulation:
@@ -37,16 +37,28 @@ class BasicCosimulation:
         monitor_infractions: bool = False,
         get_birdview: bool = False,
         random_seed: Optional[int] = None,
+        traffic_lights: bool = False,
         # sufficient arguments to initialize must also be included
         **kwargs,
     ):
         self._location = location
         self.rng = None if random_seed is None else random.Random(random_seed)
+        self.light_flag = False
+        self._light_state = None
+        if traffic_lights:
+            location_info_response = location_info(location=location)
+            static_actors = location_info_response.static_actors
+            if any(actor.agent_type == "traffic-light" for actor in static_actors):
+                self.light_flag = True
+                light_response = light(location=location)
+                self._light_state = light_response.traffic_lights_states
+                self.light_recurrent_state = light_response.recurrent_states
         response = initialize(
             location=location,
             get_birdview=get_birdview,
             get_infractions=monitor_infractions,
             random_seed=None if self.rng is None else self.rng.randint(0, int(9e6)),
+            traffic_light_state_history=[self._light_state] if self._light_state else None,
             **kwargs,
         )
         if monitor_infractions and (response.infractions is not None):
@@ -144,6 +156,13 @@ class BasicCosimulation:
                 npc_states.append(s)
         return npc_states
 
+    @property
+    def light_states(self) -> Optional[TrafficLightStatesDict]:
+        """
+        Returns the traffic light states if any exists on the map.
+        """
+        return self._light_state
+
     def step(self, current_ego_agent_states: List[AgentState]) -> None:
         """
         Calls :func:`drive` to advance the simulation by one time step.
@@ -154,6 +173,13 @@ class BasicCosimulation:
         :return: None - call :func:`self.npc_states` to retrieve predictions.
         """
         self._update_ego_states(current_ego_agent_states)
+        if self.light_flag:
+            light_response = light(location=self.location, recurrent_states=self.light_recurrent_state)
+            self.light_recurrent_state = light_response.recurrent_states
+            self._light_state = light_response.traffic_lights_states
+        else:
+            light_state = None
+
         response = drive(
             location=self.location,
             agent_attributes=self._agent_attributes,
@@ -162,6 +188,7 @@ class BasicCosimulation:
             get_infractions=self._monitor_infractions,
             get_birdview=self._get_birdview,
             random_seed=None if self.rng is None else self.rng.randint(0, int(9e6)),
+            traffic_lights_states=self._light_state,
         )
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
