@@ -1,5 +1,5 @@
 import time
-from typing import List, Optional, Dict
+from typing import List, Optional
 from pydantic import BaseModel, validate_arguments
 
 import invertedai as iai
@@ -9,16 +9,16 @@ from invertedai.api.mock import (
     get_mock_birdview,
     get_mock_infractions,
 )
-from invertedai.error import APIConnectionError, InvalidInputType, InvalidInput
+from invertedai.error import APIConnectionError, InvalidInput
 from invertedai.common import (
     AgentState,
     RecurrentState,
     Image,
     InfractionIndicators,
     AgentAttributes,
-    TrafficLightId,
-    TrafficLightState,
+    TrafficLightStatesDict,
 )
+
 
 class DriveResponse(BaseModel):
     """
@@ -48,7 +48,7 @@ def drive(
     agent_states: List[AgentState],
     agent_attributes: List[AgentAttributes],
     recurrent_states: List[RecurrentState],
-    traffic_lights_states: Optional[Dict[TrafficLightId, TrafficLightState]] = None,
+    traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     get_birdview: bool = False,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,

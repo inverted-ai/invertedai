@@ -1,7 +1,7 @@
 import os
 from distutils.util import strtobool
 
-from invertedai.common import Point, AgentState, AgentAttributes
+from invertedai.api.light import light
 from invertedai.api.location import location_info
 from invertedai.api.initialize import initialize
 from invertedai.api.drive import drive
@@ -29,6 +29,7 @@ model_resources = {
     "initialize": ("post", "/initialize"),
     "drive": ("post", "/drive"),
     "location_info": ("get", "/location_info"),
+    "light": ("get", "/light"),
 }
 __all__ = [
     "BasicCosimulation",
@@ -37,4 +38,8 @@ __all__ = [
     "session",
     "add_apikey",
     "use_mock_api",
+    "drive",
+    "initialize",
+    "location_info",
+    "light",
 ]
