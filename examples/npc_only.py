@@ -7,8 +7,7 @@ from PIL import Image as PImage
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default=None)
-parser.add_argument("--location", type=str, default="canada:vancouver:ubc_roundabout")
-# parser.add_argument("--location", type=str, default="canada:vancouver:terminal_and_quebec")
+parser.add_argument("--location", type=str, default="canada:vancouver:drake_street_and_pacific_blvd")
 args = parser.parse_args()
 
 if args.api_key is not None:
