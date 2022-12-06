@@ -1,5 +1,4 @@
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, Dict
 from enum import Enum
 from pydantic import BaseModel, root_validator
 
@@ -7,7 +6,7 @@ import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
 
-RECURRENT_SIZE=132
+RECURRENT_SIZE = 132
 TrafficLightId = int
 
 
@@ -53,6 +52,7 @@ class Origin(Point):
     # lat/lon of the origin point use to project the OSM map to UTM
     pass
 
+
 class LocationMap(BaseModel):
     """
     Serializable representation of a Lanelet2 map and the corresponding origin.
@@ -80,7 +80,6 @@ class Image(BaseModel):
     Decoding the images requires additional dependencies on top of what invertedai uses.
     """
     encoded_image: List[int]
-        # self._encoded_image = encoded_image
 
     def decode(self):
         """
@@ -228,5 +227,8 @@ class StaticMapActor(BaseModel):
         with keys: `actor_id`, `agent_type`, `orientation`, `length`, `width`, `x`, `y`, `dependant`
         """
         d = d.copy()
-        d["center"] = Point(d.pop("x"), d.pop("y"))
+        d["center"] = Point.fromlist([d.pop("x"), d.pop("y")])
         return cls(**d)
+
+
+TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]

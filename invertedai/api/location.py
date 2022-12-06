@@ -9,6 +9,7 @@ from invertedai.api.mock import get_mock_birdview
 
 from invertedai.common import Point, Origin, Image, LocationMap, StaticMapActor
 
+
 class LocationResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.location_info`.
@@ -44,6 +45,7 @@ def location_info(
     --------
     :func:`drive`
     :func:`initialize`
+    :func:`light`
     """
 
     if should_use_mock_api():
@@ -71,7 +73,10 @@ def location_info(
                     StaticMapActor.fromdict(actor) for actor in response["static_actors"]
                 ]
             if response["osm_map"] is not None:
-                response["osm_map"] = LocationMap(encoded_map=response["osm_map"], origin=Origin.fromlist(response["map_origin"]))
+                response["osm_map"] = LocationMap(
+                    encoded_map=response["osm_map"],
+                    origin=Origin.fromlist(
+                        response["map_origin"]))
             del response["map_origin"]
             response['birdview_image'] = Image.fromval(response['birdview_image'])
             return LocationResponse(**response)
