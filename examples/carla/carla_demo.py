@@ -54,7 +54,6 @@ carla_cfg = CarlaSimulationConfig(
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
     manual_control_ego=args.manual_control_ego,
-    pygame_window=args.manual_control_ego,
 )
 sim = CarlaEnv(
     cfg=carla_cfg,
