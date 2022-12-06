@@ -10,6 +10,7 @@ class LocalSimulator:
     """
     Mock up of a local simulator, where you control the ego vehicle. This example only supports single ego vehicle.
     """
+
     def __init__(self, ego_state: iai.AgentState, npc_states: List[iai.AgentState]):
         self.ego_state = ego_state
         self.npc_states = npc_states
@@ -40,6 +41,7 @@ iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for In
     agent_count=5,  # how many vehicles in total to use in the simulation
     ego_agent_mask=[True, False, False, False, False],  # first vehicle is ego, rest are NPCs
     get_birdview=True,  # provides simple visualization - don't use in production
+    traffic_lights=True,  # gets the traffic light states and used for initialization and steping the simulation
 )
 local_simulation = LocalSimulator(iai_simulation.ego_states[0], iai_simulation.npc_states)
 images = [iai_simulation.birdview.decode()]  # images storing visualizations of subsequent states

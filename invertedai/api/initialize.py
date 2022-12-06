@@ -16,11 +16,11 @@ from invertedai.common import (
     RecurrentState,
     AgentState,
     AgentAttributes,
-    TrafficLightId,
-    TrafficLightState,
+    TrafficLightStatesDict,
     Image,
     InfractionIndicators,
 )
+
 
 class InitializeResponse(BaseModel):
     """
@@ -48,7 +48,7 @@ def initialize(
     agent_attributes: Optional[List[AgentAttributes]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[
-        List[Dict[TrafficLightId, TrafficLightState]]
+        List[TrafficLightStatesDict]
     ] = None,
     get_birdview: bool = False,
     get_infractions: bool = False,
@@ -92,6 +92,7 @@ def initialize(
     --------
     :func:`drive`
     :func:`location_info`
+    :func:`light`
     """
 
     if (states_history is not None) or (agent_attributes is not None):
