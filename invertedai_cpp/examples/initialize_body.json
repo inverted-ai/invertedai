@@ -6,5 +6,7 @@
   "traffic_light_state_history": null,
   "get_birdview": true,
   "get_infractions": true,
-  "random_seed": null
+  "random_seed": null,
+  "conditional_agent_states": [[1,1,1,1], [1,1,1,1]],
+  "conditional_agent_attributes": [[1,1,1], [1,1,1]]
 }
