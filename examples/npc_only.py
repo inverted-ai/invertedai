@@ -1,9 +1,9 @@
-import invertedai as iai
-import argparse
-from tqdm import tqdm
-import numpy as np
-import imageio
 from PIL import Image as PImage
+import imageio
+import numpy as np
+from tqdm import tqdm
+import argparse
+import invertedai as iai
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default=None)
@@ -14,35 +14,51 @@ if args.api_key is not None:
     iai.add_apikey(args.api_key)
 
 response = iai.location_info(location=args.location)
-
 file_name = args.location.replace(":", "_")
 if response.osm_map is not None:
     file_path = f"{file_name}.osm"
-    response.osm_map.save_osm_file(file_path)
+    with open(file_path, "w") as f:
+        response.osm_map.save_osm_file(file_path)
 if response.birdview_image is not None:
     file_path = f"{file_name}.jpg"
     response.birdview_image.decode_and_save(file_path)
 
-simulation = iai.BasicCosimulation(
+light_response = iai.light(location=args.location)
+
+response = iai.initialize(
     location=args.location,
     agent_count=10,
-    monitor_infractions=True,
-    ego_agent_mask=[False] * 10,
     get_birdview=True,
-    traffic_lights=True,
+    get_infractions=True,
+    traffic_light_state_history=[light_response.traffic_lights_states],
 )
+print(
+    f"Initialize:\n"
+    + f"Collision: {sum([inf.collisions for inf in response.infractions])}/{len(response.infractions)} | "
+    + f"Off-road: {sum([inf.offroad for inf in response.infractions])}/{len(response.infractions)} |"
+    + f"Wrong-way: {sum([inf.wrong_way for inf in response.infractions])}/{len(response.infractions)}"
+)
+agent_attributes = response.agent_attributes
 frames = []
 pbar = tqdm(range(50))
 for i in pbar:
-    simulation.step(current_ego_agent_states=[])
-    infractions = simulation.infractions
+    light_response = iai.light(location=args.location, recurrent_states=light_response.recurrent_states)
+    response = iai.drive(
+        agent_attributes=agent_attributes,
+        agent_states=response.agent_states,
+        recurrent_states=response.recurrent_states,
+        get_birdview=True,
+        location=args.location,
+        get_infractions=True,
+        traffic_lights_states=light_response.traffic_lights_states,
+    )
     pbar.set_description(
-        f"Collision: {sum([inf.collisions for inf in infractions])}/{simulation.agent_count} | "
-        + f"Off-road: {sum([inf.offroad for inf in infractions])}/{simulation.agent_count} | "
-        + f"Wrong-waye: {sum([inf.wrong_way for inf in infractions])}/{simulation.agent_count}"
+        f"Collision rate: {100*np.array([inf.collisions for inf in response.infractions]).mean():.2f}% | "
+        + f"Off-road rate: {100*np.array([inf.offroad for inf in response.infractions]).mean():.2f}% | "
+        + f"Wrong-way rate: {100*np.array([inf.wrong_way for inf in response.infractions]).mean():.2f}%"
     )
 
-    image = simulation.birdview.decode()
+    image = response.birdview.decode()
     frames.append(image)
     im = PImage.fromarray(image)
 imageio.mimsave("iai-drive.gif", np.array(frames), format="GIF-PIL")
