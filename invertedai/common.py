@@ -1,29 +1,38 @@
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, Dict
 from enum import Enum
+from pydantic import BaseModel, root_validator
 
 import invertedai as iai
+from invertedai.error import InvalidInputType, InvalidInput
 
 
+RECURRENT_SIZE = 132
 TrafficLightId = int
-Origin = Tuple[
-    float, float
-]  # lat/lon of the origin point use to project the OSM map to UTM
 
 
-@dataclass
-class RecurrentState:
+class RecurrentState(BaseModel):
     """
     Recurrent state used in :func:`iai.drive`.
     It should not be modified, but rather passed along as received.
     """
 
-    packed: List[float] = field(default_factory=lambda: [0.0] * 132)
+    packed: List[float] = [0.0] * RECURRENT_SIZE
     #: Internal representation of the recurrent state.
 
+    @root_validator
+    @classmethod
+    def check_recurrentstate(cls, values):
+        if len(values.get("packed")) == RECURRENT_SIZE:
+            return values
+        else:
+            raise InvalidInput("Incorrect Recurrentstate Size.")
 
-@dataclass
-class Point:
+    @classmethod
+    def fromval(cls, val):
+        return cls(packed=val)
+
+
+class Point(BaseModel):
     """
     2D coordinates of a point in a given location.
     Each location comes with a canonical coordinate system, where
@@ -33,44 +42,44 @@ class Point:
     x: float
     y: float
 
+    @classmethod
+    def fromlist(cls, l):
+        x, y = l
+        return cls(x=x, y=y)
 
-class LocationMap:
+
+class Origin(Point):
+    # lat/lon of the origin point use to project the OSM map to UTM
+    pass
+
+
+class LocationMap(BaseModel):
     """
     Serializable representation of a Lanelet2 map and the corresponding origin.
     To reconstruct the map locally, save the OSM file to disk and load it
     with the UTM projector using the origin provided here.
     This projection defines the canonical coordinate frame of the map.
+    Origin of the map, specified as a pair of latitude and longitude coordinates.
+    Allows for geolocation of the map and can be used with a UTM projector to
+    construct the Lanelet2 map object in the canonical coordinate frame.
     """
-
-    def __init__(self, encoded_map: str, origin: Origin):
-        self._encoded_map = encoded_map
-        self._origin = origin
-
-    @property
-    def origin(self) -> Origin:
-        """
-        Origin of the map, specified as a pair of latitude and longitude coordinates.
-        Allows for geolocation of the map and can be used with a UTM projector to
-        construct the Lanelet2 map object in the canonical coordinate frame.
-        """
-        return self._origin
+    encoded_map: str
+    origin: Origin
 
     def save_osm_file(self, path: str):
         """
         Save the OSM file to disk.
         """
         with open(path, "w") as f:
-            f.write(self._encoded_map)
+            f.write(self.encoded_map)
 
 
-class Image:
+class Image(BaseModel):
     """
     Images sent through the API in their encoded format.
     Decoding the images requires additional dependencies on top of what invertedai uses.
     """
-
-    def __init__(self, encoded_image: List[int]):
-        self._encoded_image = encoded_image
+    encoded_image: List[int]
 
     def decode(self):
         """
@@ -85,9 +94,13 @@ class Image:
                 "Decoding images requires numpy and cv2, which were not found."
             )
             raise e
-        array = np.array(self._encoded_image, dtype=np.uint8)
+        array = np.array(self.encoded_image, dtype=np.uint8)
         image = cv2.imdecode(array, cv2.IMREAD_COLOR)
         return image
+
+    @classmethod
+    def fromval(cls, val):
+        return cls(encoded_image=val)
 
     def decode_and_save(self, path):
         """
@@ -115,8 +128,7 @@ class TrafficLightState(str, Enum):
     red = "red"
 
 
-@dataclass
-class AgentAttributes:
+class AgentAttributes(BaseModel):
     """
     Static attributes of the agent, which don't change over the course of a simulation.
     We assume every agent is a rectangle obeying a kinematic bicycle model.
@@ -131,6 +143,11 @@ class AgentAttributes:
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
     rear_axis_offset: float
 
+    @classmethod
+    def fromlist(cls, l):
+        length, width, rear_axis_offset = l
+        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset)
+
     def tolist(self):
         """
         Convert AgentAttributes to a flattened list of agent attributes
@@ -139,8 +156,7 @@ class AgentAttributes:
         return [self.length, self.width, self.rear_axis_offset]
 
 
-@dataclass
-class AgentState:
+class AgentState(BaseModel):
     """
     The current or predicted state of a given agent at a given point.
 
@@ -169,8 +185,7 @@ class AgentState:
         return cls(center=Point(x=x, y=y), orientation=psi, speed=v)
 
 
-@dataclass
-class InfractionIndicators:
+class InfractionIndicators(BaseModel):
     """
     Infractions committed by a given agent, as returned from :func:`iai.drive`.
     """
@@ -179,9 +194,13 @@ class InfractionIndicators:
     offroad: bool  #: True if the agent is outside the designated driveable area specified by the map.
     wrong_way: bool  #: True if the cross product of the agent's and its lanelet's directions is negative.
 
+    @classmethod
+    def fromlist(cls, l):
+        collisions, offroad, wrong_way = l
+        return cls(collisions=collisions, offroad=offroad, wrong_way=wrong_way)
 
-@dataclass
-class StaticMapActor:
+
+class StaticMapActor(BaseModel):
     """
     Specifies a traffic light placement. We represent traffic lights as rectangular bounding boxes
     of the associated stop lines, with orientation matching the direction of traffic
@@ -208,5 +227,8 @@ class StaticMapActor:
         with keys: `actor_id`, `agent_type`, `orientation`, `length`, `width`, `x`, `y`, `dependant`
         """
         d = d.copy()
-        d["center"] = Point(d.pop("x"), d.pop("y"))
+        d["center"] = Point.fromlist([d.pop("x"), d.pop("y")])
         return cls(**d)
+
+
+TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]

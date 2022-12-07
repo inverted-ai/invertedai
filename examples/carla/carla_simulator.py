@@ -11,7 +11,7 @@ from collections import deque
 import socket
 import random
 import time
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 from data.static_carla import (
     MAP_CENTERS,
     DEMO_LOCATIONS,
@@ -51,9 +51,8 @@ class CarlaSimulationConfig:
         "carla_handoff"
     )  #: select from ["no_non_roi_npcs", "spawn_at_entrance", "carla_handoff"]
     max_cars_in_map: int = 100  #: upper bound on how many vehicles total are allowed in simulation
-    manual_control_ego: bool = True
-    pygame_window: bool = True  #: wheather to display scene in pygame window
-    spectator_fov: int = 100  # : spectator field of view
+    manual_control_ego: bool = True  # : manual controll of ego and wheather to display scene in pygame window
+    spectator_fov: int = 100  #: spectator field of view
 
 
 class Car:
@@ -87,11 +86,16 @@ class Car:
     def dims(self):
         return self._dimension
 
+    @property
+    def transform(self):
+        self._transform, state = self._get_actor_state()
+        return self._transform
+
     def get_state(self, from_carla=False):
-        self.transform, state = self._get_actor_state(from_carla)
+        self._transform, state = self._get_actor_state(from_carla)
         self._states.append(state)
         return dict(
-            transform=self.transform,
+            transform=self._transform,
             states=list(self._states),
             recurrent_state=self.recurrent_state,
         )
@@ -101,12 +105,12 @@ class Car:
         if state is not None:
             # NOTE: state is of size 4 : [x, y, angle, speed]
             loc = carla.Location(
-                state.center.x, state.center.y, self.transform.location.z
+                state.center.x, state.center.y, self._transform.location.z
             )
             rot = carla.Rotation(
                 yaw=np.degrees(state.orientation),
-                pitch=self.transform.rotation.pitch,
-                roll=self.transform.rotation.roll,
+                pitch=self._transform.rotation.pitch,
+                roll=self._transform.rotation.roll,
             )
             next_transform = carla.Transform(loc, rot)
             self.actor.set_transform(next_transform)
@@ -199,6 +203,8 @@ class CarlaEnv:
         self.world = world
         self.client = client
         self.traffic_manager = traffic_manager
+        self.sensors = {}
+        self.pygame_window = {}
 
         # compute how many steps to warm up NPCs for
         self.populate_step = self.cfg.fps * self.cfg.npc_population_interval
@@ -299,20 +305,6 @@ class CarlaEnv:
             ego_spawn_point.transform(carla.Location(x=-6, z=2.5)),
             ego_spawn_point.rotation,
         )
-        if self.cfg.pygame_window:
-            camera_bp = self.world.get_blueprint_library().find('sensor.camera.rgb')
-            self.camera = self.world.spawn_actor(camera_bp, spectator_transform)
-            # Start camera with PyGame callback
-            # Get camera dimensions
-            image_w = camera_bp.get_attribute("image_size_x").as_int()
-            image_h = camera_bp.get_attribute("image_size_y").as_int()
-            # Instantiate objects for rendering and vehicle control
-            self.renderObject = RenderObject(image_w, image_h)
-            self.camera.listen(self.renderObject.pygame_callback)
-            self.gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
-            self.gameDisplay.fill((0, 0, 0))
-            self.gameDisplay.blit(self.renderObject.surface, (0, 0))
-            pygame.display.flip()
 
         self.npc_rs = initial_recurrent_states
         self.roi_spawn_points = npc_roi_spawn_points
@@ -326,6 +318,10 @@ class CarlaEnv:
         self.ego = self._spawn_npcs(
             [self.ego_spawn_point], [0], [self.cfg.ego_bp], [self.ego_rs]
         ).pop()
+
+        # Set ego view camera for manual driving
+        if self.cfg.manual_control_ego:
+            self.add_camera("manual_driving", self.ego, carla.Transform(carla.Location(x=-6, z=2.5)), headless=False)
 
         # Check that it's possible to spawn the requested number of NPCs.
         if len(self.roi_spawn_points) < self.cfg.traffic_count:
@@ -399,19 +395,17 @@ class CarlaEnv:
         if self.cfg.flag_npcs:
             self._flag_npc(self.npcs, NPC_FLAG_COLOR)
         ego_transform = self.ego.transform
-        spectator_transform = carla.Transform(
+        ego_spectator_transform = carla.Transform(
             ego_transform.transform(carla.Location(x=-6, z=2.5)),
             ego_transform.rotation,
         )
         if self.spectator_mode == "follow_ego":
-            self.spectator.set_transform(spectator_transform)
+            self.spectator.set_transform(ego_spectator_transform)
+        self._tick_cameras()
 
-        if self.cfg.pygame_window:
-            self.camera.set_transform(spectator_transform)
         self.world.tick()
-        if self.cfg.pygame_window:
-            self.gameDisplay.blit(self.renderObject.surface, (0, 0))
-            pygame.display.flip()
+
+        self._tick_pygame()
         if self.ego.external_control is not None:
             self.ego.external_control.process_control()
             for event in pygame.event.get():
@@ -422,7 +416,7 @@ class CarlaEnv:
 
         return self.get_obs()
 
-    def destroy(self, npcs=True, ego=True, world=True):
+    def destroy(self, npcs=True, ego=True, world=True, sensors=True):
         """
         Finish the simulation, destroying agents and optionally
         releasing the server.
@@ -435,6 +429,10 @@ class CarlaEnv:
         if ego:
             self._destroy_npcs([self.ego])
             self.ego = None
+        if sensors:
+            self.pygame_window = {}
+            self.sensors = {}
+            self._destroy_sensors(list(self.sensors.values()))
         if world:
             self.client.get_world().apply_settings(self.original_settings)
             self.traffic_manager.set_synchronous_mode(False)
@@ -465,11 +463,11 @@ class CarlaEnv:
             dims.append(self.ego.dims)
         agent_states = [
             AgentState(
-                center=Point(*state[0][:2]), orientation=state[0][2], speed=state[0][3]
+                center=Point.fromlist(state[0][:2]), orientation=state[0][2], speed=state[0][3]
             )
             for state in states
         ]
-        agent_attributes = [AgentAttributes(*attr) for attr in dims]
+        agent_attributes = [AgentAttributes.fromlist(attr) for attr in dims]
         # recurrent_state = [RecurrentState(rs) for rs in rec_state]
         recurrent_state = rec_state
         return agent_states, recurrent_state, agent_attributes
@@ -529,6 +527,13 @@ class CarlaEnv:
                 print("Unable to set autopilot")
                 # TODO: add logger
             npc.actor.destroy()
+
+    def _destroy_sensors(self, sensors: List):
+        """
+        Removes selected sensors from CARLA simulation.
+        """
+        for sensor in sensors:
+            sensor["actor"].destroy()
 
     def _spawn_npcs(self, spawn_points, speeds, bps, recurrent_states=None):
         """
@@ -690,6 +695,84 @@ class CarlaEnv:
         if len(keep_initial_recurrent_states) == 0:
             keep_initial_recurrent_states = [RecurrentState()] * len(roi_spawn_points)
         return roi_spawn_points, initial_speed, keep_initial_recurrent_states
+
+    def add_camera(self, name: str, actor_to_attach: Optional[Car]
+                   = None, position: Optional[carla.Transform] = None, headless: bool = True) -> None:
+        # add camera to the simulation
+        # a unique name is required to access the camera image.
+        # if `actor_to_attach` is provided the `position` is relative to the actor
+        # otherside it is regarded w.r.t the world center
+        if name in self.sensors:
+            # TODO: replace with logger
+            print(f"A sensor with name {name} is already defined.")
+            return None
+        else:
+            sensor = {}
+            if position is None:
+                position = carla.Transform(carla.Location(), carla.Rotation())
+            if actor_to_attach is None:
+                attached = None
+                sensor_transform = position
+            else:
+                attached = actor_to_attach
+                x, y, z = position.location.x, position.location.y, position.location.z
+                sensor_transform = carla.Transform(
+                    attached.transform.transform(carla.Location(x, y, z)),
+                    attached.transform.rotation,
+                )
+
+            camera_bp = self.world.get_blueprint_library().find('sensor.camera.rgb')
+            sensor = self.world.spawn_actor(camera_bp, sensor_transform)
+            image_w = camera_bp.get_attribute("image_size_x").as_int()
+            image_h = camera_bp.get_attribute("image_size_y").as_int()
+            # Instantiate objects for rendering and vehicle control
+            recorder = RenderObject(image_w, image_h)
+            sensor.listen(recorder.callback)
+
+            self.sensors[name] = {
+                "actor": sensor,
+                "position": position,
+                "transform": sensor_transform,
+                "attached": attached,
+                "recorder": recorder,
+                "headless": headless,
+            }
+
+            if not headless:
+                if len(self.pygame_window) == 0:
+                    gameDisplay = pygame.display.set_mode((image_w, image_h), pygame.RESIZABLE)
+                    gameDisplay.fill((0, 0, 0))
+                    gameDisplay.blit(recorder.surface, (0, 0))
+                    self.pygame_window["gameDisplay"] = gameDisplay
+                    self.pygame_window["width"] = image_w
+                    self.pygame_window["hight"] = image_h
+                    self.pygame_window["sensors_name"] = [name]
+                    pygame.display.flip()
+                else:
+                    # TODO: addjust size and Concat surfaces for more than one headless sensor
+                    pass
+
+    def _tick_cameras(self):
+        for sensor in self.sensors.values():
+            if sensor["attached"] is not None:
+                attached = sensor["attached"]
+                x, y, z = sensor["position"].location.x, sensor["position"].location.y, sensor["position"].location.z
+                sensor_transform = carla.Transform(
+                    attached.transform.transform(carla.Location(x, y, z)),
+                    attached.transform.rotation,
+                )
+            else:
+                sensor_transform = sensor["position"]
+
+            sensor["actor"].set_transform(sensor_transform)
+
+    def _tick_pygame(self):
+        if "sensors_name" in self.pygame_window:
+            for sensor_name in self.pygame_window["sensors_name"]:
+                # TODO: Concat surfaces for more than one headless sensor
+                surface = self.sensors[sensor_name]["recorder"].surface
+                self.pygame_window["gameDisplay"].blit(surface, (0, 0))
+                pygame.display.flip()
 
 
 def get_available_port(subsequent_ports: int = 2) -> int:

@@ -1,6 +1,5 @@
 import time
-from dataclasses import dataclass
-
+from pydantic import BaseModel, validate_arguments
 from typing import Optional, List
 
 import invertedai as iai
@@ -8,11 +7,10 @@ from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import TryAgain
 from invertedai.api.mock import get_mock_birdview
 
-from invertedai.common import Point, Image, LocationMap, StaticMapActor
+from invertedai.common import Point, Origin, Image, LocationMap, StaticMapActor
 
 
-@dataclass
-class LocationResponse:
+class LocationResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.location_info`.
     """
@@ -26,6 +24,7 @@ class LocationResponse:
     static_actors: List[StaticMapActor]  #: Lists traffic lights with their IDs and locations.
 
 
+@validate_arguments
 def location_info(
     location: str,
     include_map_source: bool = False,
@@ -46,6 +45,7 @@ def location_info(
     --------
     :func:`drive`
     :func:`initialize`
+    :func:`light`
     """
 
     if should_use_mock_api():
@@ -73,9 +73,12 @@ def location_info(
                     StaticMapActor.fromdict(actor) for actor in response["static_actors"]
                 ]
             if response["osm_map"] is not None:
-                response["osm_map"] = LocationMap(encoded_map=response["osm_map"], origin=response["map_origin"])
+                response["osm_map"] = LocationMap(
+                    encoded_map=response["osm_map"],
+                    origin=Origin.fromlist(
+                        response["map_origin"]))
             del response["map_origin"]
-            response['birdview_image'] = Image(response['birdview_image'])
+            response['birdview_image'] = Image.fromval(response['birdview_image'])
             return LocationResponse(**response)
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:

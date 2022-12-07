@@ -6,7 +6,7 @@ Inverted AI API provides a service that controls non-playable characters (NPCs) 
 functions are INITIALIZE, called at the beginning of the simulation, and DRIVE, called at each time step. Typically, the
 user runs their simulator locally, controlling the actions of the ego vehicle, and querying the API to obtain the
 behavior of NPCs. This page describes the high level concepts governing the interaction with the API. Please refer to
-specific pages for {ref}`Python SDK`, [REST API][rest-link], {ref}`Getting started`, and [Examples][examples-link].
+specific pages for {ref}`Python SDK`, {ref}`C++ SDK`, [REST API][rest-link], {ref}`Getting started`, and [Examples][examples-link].
 
 We follow the continuous space, discrete time approach used in most driving simulators. In the current version, the API
 only supports a time step of 100 ms, corresponding to 10 frames per second, and expects to run in a synchronous
@@ -21,9 +21,7 @@ provisioned to accommodate a large number of agents, where the maximum allowed v
 ## Programming language support
 The core interface is a [REST API][rest-link], that can be called from any programming language. This is a low-level,
 bare-bones access mode that offers maximum flexibility to deploy in any environment.
-For convenience, we also provide a {ref}`Python SDK`, freely available on PyPI with minimal dependencies, which
-provides an abstraction layer on top of the REST API. In the future we intend to release a similar library in C++ and
-potentially other languages.
+For convenience, we also provide a {ref}`Python SDK`, freely available on PyPI with minimal dependencies, which provides an abstraction layer on top of the REST API. Recently, we also released {ref}`C++ SDK` and in the future we intend to release similar libraries for other languages.
 
 ## Maps and geofencing
 The API operates on a pre-defined collection of maps and currently there is no programmatic way to add additional

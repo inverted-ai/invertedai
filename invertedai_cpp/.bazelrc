@@ -1,0 +1,2 @@
+startup --output_base=/home/user/.cache/bazel_docker/base
+startup --output_user_root=/home/user/.cache/bazel_docker/root

@@ -14,17 +14,17 @@
 ## Overview
 <!-- start elevator-pitch -->
 Inverted AI provides an API for controlling non-playable characters (NPCs) in autonomous driving simulations,
-available as either a REST API or a Python library built on top of it. Using the API requires an access key -
+available as either a [REST API][rest-link] or a [Python SDK](https://docs.inverted.ai/en/latest/pythonapi/index.html), (and [C++ SDK](https://docs.inverted.ai/en/latest/cppapi/index.html)) built on top of it. Using the API requires an access key -
 [contact us](mailto:sales@inverted.ai) to get yours. This page describes how to get started quickly. For more in-depth understanding,
-see the [API usage guide](https://docs.inverted.ai/en/latest/userguide.html), and detailed documentation for the [REST API][rest-link] and the
-[Python library](https://docs.inverted.ai/en/latest/pythonapi/index.html).
+see the [API usage guide](https://docs.inverted.ai/en/latest/userguide.html), and detailed documentation for the [REST API][rest-link],
+the [Python SDK](https://docs.inverted.ai/en/latest/pythonapi/index.html), and the [C++ SDK](https://docs.inverted.ai/en/latest/cppapi/index.html).
 To understand the underlying technology and why it's necessary for autonomous driving simulations, visit the
 [Inverted AI website](https://www.inverted.ai/).
 <!-- end elevator-pitch -->
 
 ![](docs/images/top_camera.gif)
 
-# Get Started
+# Getting started
 <!-- start quickstart -->
 ## Installation
 For installing the Python package from [PyPI][pypi-link]:
@@ -33,7 +33,7 @@ For installing the Python package from [PyPI][pypi-link]:
 pip install --upgrade invertedai
 ```
 
-The Python client library is [open source](https://github.com/inverted-ai/invertedai),
+The Python client SDK is [open source](https://github.com/inverted-ai/invertedai),
 so you can also download it and build locally.
 
 
@@ -85,6 +85,7 @@ iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for In
     agent_count=5,  # how many vehicles in total to use in the simulation
     ego_agent_mask=[True, False, False, False, False],  # first vehicle is ego, rest are NPCs
     get_birdview=True,  # provides simple visualization - don't use in production
+    traffic_lights=True,  # gets the traffic light states and used for initialization and steping the simulation
 )
 local_simulation = LocalSimulator(iai_simulation.ego_states[0], iai_simulation.npc_states)
 images = [iai_simulation.birdview.decode()]  # images storing visualizations of subsequent states

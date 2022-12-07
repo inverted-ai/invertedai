@@ -101,6 +101,8 @@ class Session:
                 )
             elif e.response.status_code in [400, 422]:
                 raise error.InvalidRequestError(e.response.text, param="")
+            elif e.response.status_code == 404:
+                raise error.ResourceNotFoundError(e.response.text)
             elif e.response.status_code == 429:
                 raise error.RateLimitError("Throttled")
             elif e.response.status_code == 503:
