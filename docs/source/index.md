@@ -39,7 +39,7 @@ userguide
 pythonapi/index
 cppapi/index
 REST API <https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI>
-Examples <https://github.com/inverted-ai/invertedai/tree/master/examples>
+pythonapi/pyexamples
 ```
 
 ```{eval-rst}
