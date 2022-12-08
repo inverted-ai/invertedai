@@ -45,7 +45,7 @@ class InitializeResponse(BaseModel):
 @validate_arguments
 def initialize(
     location: str,
-    conditional_agent_states:  Optional[List[AgentState]] = None,
+    conditional_agent_states: Optional[List[AgentState]] = None,
     conditional_agent_attributes: Optional[List[AgentAttributes]] = None,
     agent_attributes: Optional[List[AgentAttributes]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
@@ -64,8 +64,9 @@ def initialize(
     and if traffic lights are present then `traffic_light_state_history` should also be provided.
     If only `agent_count` is specified, a new initial state is generated with the requested
     total number of agents, which can be optionally conditioned on `conditional_agent_states` and
-    `conditional_agent_attributes`. Every simulation needs to start with a call to this function
-    in order to obtain correct recurrent states for :func:`drive`.
+    `conditional_agent_attributes`. If `agent_count` is higher than the number of agents in `conditional_agent_states`
+    and `conditional_agent_attributes`, the remaining agents will be generated conditionally on the agents provided.
+    Every simulation needs to start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
     Parameters
     ----------
