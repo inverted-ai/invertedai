@@ -21,6 +21,8 @@ class LocationResponse(BaseModel):
     ]  #: Convex polygon denoting the boundary of the supported area within the location.
     birdview_image: Image  #: Visualization of the location.
     osm_map: Optional[LocationMap]  #: Underlying map annotation, returned if `include_map_source` was set.
+    map_center: Point  #: The x,y coordinate of the center of the map.
+    map_fov: float  #: The field of view in meters for the birdview image.
     static_actors: List[StaticMapActor]  #: Lists traffic lights with their IDs and locations.
 
 
@@ -78,6 +80,7 @@ def location_info(
                     origin=Origin.fromlist(
                         response["map_origin"]))
             del response["map_origin"]
+            response["map_center"] = Point.fromlist(response["map_center"])
             response['birdview_image'] = Image.fromval(response['birdview_image'])
             return LocationResponse(**response)
         except TryAgain as e:
