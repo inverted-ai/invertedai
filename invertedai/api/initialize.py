@@ -45,8 +45,6 @@ class InitializeResponse(BaseModel):
 @validate_arguments
 def initialize(
     location: str,
-    conditional_agent_states: Optional[List[AgentState]] = None,
-    conditional_agent_attributes: Optional[List[AgentAttributes]] = None,
     agent_attributes: Optional[List[AgentAttributes]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[
@@ -96,13 +94,6 @@ def initialize(
         If `states_history` is not specified, this needs to be provided and dictates how many
         agents will be spawned.
 
-    conditional_agent_states:
-        Optional conditional agent states when `agent_count` is passed. When passed, `agent_count` includes the number of
-        conditional agents passed.
-
-    conditional_agent_attributes:
-        Optional agent attributes when `conditional_agent_states` is passed
-
     random_seed:
         Controls the stochastic aspects of initialization for reproducibility.
 
@@ -142,10 +133,6 @@ def initialize(
     model_inputs = dict(
         location=location,
         num_agents_to_spawn=agent_count,
-        conditional_agent_states=conditional_agent_states if conditional_agent_states is None
-        else [states.tolist() for states in conditional_agent_states],
-        conditional_agent_attributes=conditional_agent_attributes if conditional_agent_attributes is None
-        else [state.tolist() for state in conditional_agent_attributes],
         states_history=states_history
         if states_history is None
         else [[st.tolist() for st in states] for states in states_history],
