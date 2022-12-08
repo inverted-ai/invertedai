@@ -22,6 +22,7 @@ class LocationResponse(BaseModel):
     birdview_image: Image  #: Visualization of the location.
     osm_map: Optional[LocationMap]  #: Underlying map annotation, returned if `include_map_source` was set.
     map_center: Point  #: The x,y coordinate of the center of the map.
+    map_fov: float  #: The field of view in meters for the birdview image.
     static_actors: List[StaticMapActor]  #: Lists traffic lights with their IDs and locations.
 
 
