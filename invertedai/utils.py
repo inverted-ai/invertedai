@@ -352,13 +352,17 @@ def rot(rot):
 
 class ScenePlotter:
     def __init__(self, map_image, fov, xy_offset, static_actors):
+        self.conditional_agents = None
+        self.agent_attributes = None
+        self.traffic_lights_history = None
+        self.agent_states_history = None
         self.map_image = map_image
         self.fov = fov
         self.extent = (- self.fov / 2 + xy_offset[0], self.fov / 2 + xy_offset[0]) + \
             (- self.fov / 2 + xy_offset[1], self.fov / 2 + xy_offset[1])
 
-        self.traffic_lights = {static_actor.actor_id : static_actor \
-                               for static_actor in static_actors \
+        self.traffic_lights = {static_actor.actor_id: static_actor
+                               for static_actor in static_actors
                                if static_actor.agent_type == 'traffic-light'}
 
         self.traffic_light_colors = {
@@ -479,25 +483,25 @@ class ScenePlotter:
         v = agent.speed
         psi = agent.orientation
         box = np.array([
-            [0, 0], [l * 0.5, 0], # direction vector
-            [0, 0], [v * 0.5, 0], # speed vector at (0.5 m / s ) / m
+            [0, 0], [l * 0.5, 0],  # direction vector
+            [0, 0], [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
         ])
         box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
         if self.direction_vec:
-            if not agent_idx in self.dir_lines:
+            if agent_idx not in self.dir_lines:
                 self.dir_lines[agent_idx] = self.current_ax.plot(box[0:2,0], box[0:2,1], lw=2.0, c=self.dir_c)[0] # plot the direction vector
             else:
                 self.dir_lines[agent_idx].set_xdata(box[0:2,0])
                 self.dir_lines[agent_idx].set_ydata(box[0:2,1])
 
         if self.velocity_vec:
-            if not agent_idx in self.v_lines:
+            if agent_idx not in self.v_lines:
                 self.v_lines[agent_idx] = self.current_ax.plot(box[2:4,0], box[2:4,1], lw=1.5 , c=self.v_c)[0] # plot the speed
             else:
                 self.v_lines[agent_idx].set_xdata(box[2:4,0])
                 self.v_lines[agent_idx].set_ydata(box[2:4,1])
         if self.numbers:
-            if not agent_idx in self.box_labels:
+            if agent_idx not in self.box_labels:
                 self.box_labels[agent_idx] = self.current_ax.text(x, y, str(agent_idx), c='r', fontsize=18)
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
@@ -525,6 +529,7 @@ class ScenePlotter:
         rect = Rectangle((x - l / 2,y - w / 2), l, w, angle=psi * 180 / np.pi,
                          rotation_point='center',
                          fc=self.traffic_light_colors[light_state], lw=0)
-        if light_id in self.traffic_light_boxes: self.traffic_light_boxes[light_id].remove()
+        if light_id in self.traffic_light_boxes:
+            self.traffic_light_boxes[light_id].remove()
         self.current_ax.add_patch(rect)
         self.traffic_light_boxes[light_id] = rect
