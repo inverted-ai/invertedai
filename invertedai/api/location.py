@@ -1,6 +1,6 @@
 import time
 from pydantic import BaseModel, validate_arguments
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -30,6 +30,8 @@ class LocationResponse(BaseModel):
 def location_info(
     location: str,
     include_map_source: bool = False,
+    rendering_fov: Optional[int] = None,
+    rendering_center: Optional[Tuple[float, float]] = None,
 ) -> LocationResponse:
     """
     Provides static information about a given location.
@@ -43,6 +45,11 @@ def location_info(
         Whether to return full map specification in Lanelet2 OSM format.
         This significantly increases the response size, consuming more network resources.
 
+    rendering_fov:
+        Optional fov for both x and y axis for the rendered birdview in meters.
+
+    rendering_center:
+        Optional center x,y coordinates for the rendered birdview.
     See Also
     --------
     :func:`drive`
@@ -64,7 +71,8 @@ def location_info(
     start = time.time()
     timeout = TIMEOUT
 
-    params = {"location": location, "include_map_source": include_map_source}
+    params = {"location": location, "include_map_source": include_map_source, "rendering_fov": rendering_fov,
+              "rendering_center": ",".join([str(rendering_center[0]), str(rendering_center[1])]) if rendering_center else rendering_center}
     while True:
         try:
             response = iai.session.request(model="location_info", params=params)
