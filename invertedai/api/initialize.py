@@ -1,6 +1,6 @@
 import time
 from pydantic import BaseModel, validate_arguments, root_validator
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -51,6 +51,7 @@ def initialize(
         List[TrafficLightStatesDict]
     ] = None,
     get_birdview: bool = False,
+    location_of_interest: Optional[Tuple[float, float]] = None,
     get_infractions: bool = False,
     agent_count: Optional[int] = None,
     random_seed: Optional[int] = None,
@@ -82,6 +83,9 @@ def initialize(
     traffic_light_state_history:
        History of traffic light states - the list is over time, in chronological order.
        Traffic light states should be provided for all time steps where agent states are specified.
+
+    location_of_interest:
+        Optional coordinates for spawning agents with the given location as center instead of the default map center
 
     get_birdview:
         If True, a birdview image will be returned representing the current world. Note this will significantly
@@ -141,6 +145,7 @@ def initialize(
         else [state.tolist() for state in agent_attributes],
         traffic_light_state_history=traffic_light_state_history,
         get_birdview=get_birdview,
+        location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
     )
