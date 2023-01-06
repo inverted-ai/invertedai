@@ -1,5 +1,5 @@
 import time
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from pydantic import BaseModel, validate_arguments
 
 import invertedai as iai
@@ -50,6 +50,8 @@ def drive(
     recurrent_states: List[RecurrentState],
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     get_birdview: bool = False,
+    rendering_center: Optional[Tuple[float, float]] = None,
+    rendering_fov: Optional[float] = None,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
 ) -> DriveResponse:
@@ -77,6 +79,12 @@ def drive(
     get_birdview:
         Whether to return an image visualizing the simulation state.
         This is very slow and should only be used for debugging.
+
+    rendering_center:
+        Optional center coordinates for the rendered birdview.
+
+    rendering_fov:
+        Optional fov for the rendered birdview.
 
     get_infractions:
         Whether to check predicted agent states for infractions.
@@ -133,6 +141,8 @@ def drive(
         get_birdview=get_birdview,
         get_infractions=get_infractions,
         random_seed=random_seed,
+        rendering_center=rendering_center,
+        rendering_fov=rendering_fov
     )
     start = time.time()
     timeout = TIMEOUT
