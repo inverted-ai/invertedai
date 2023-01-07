@@ -101,12 +101,14 @@ public:
    * inner over time, in chronological order. For best results, provide at least
    * 10 historical states for each agent.
    */
-  void set_conditional_agent_states(const std::vector<AgentState> &conditional_agent_states);
+  void set_conditional_agent_states(
+      const std::vector<AgentState> &conditional_agent_states);
   /**
-   * Optional conditional agent states when `agent_count` is passed. When passed,
-   *  `agent_count` includes the number of conditional agents passed.
+   * Optional conditional agent states when `agent_count` is passed. When
+   * passed, `agent_count` includes the number of conditional agents passed.
    */
-  void set_conditional_agent_attributes(const std::vector<AgentAttributes> &conditional_agent_attributes);
+  void set_conditional_agent_attributes(
+      const std::vector<AgentAttributes> &conditional_agent_attributes);
   /**
    * Optional agent attributes when `conditional_agent_states` is passed.
    */
@@ -129,7 +131,8 @@ public:
    * Set coordinates for spawning agents with the given location as center
    * instead of the default map center
    */
-  void set_location_of_interest(const std::optional<std::pair<double, double>>& location_of_interest);
+  void set_location_of_interest(
+      const std::optional<std::pair<double, double>> &location_of_interest);
   /**
    * Set whether to return an image visualizing the simulation state.
    * This is very slow and should only be used for debugging.

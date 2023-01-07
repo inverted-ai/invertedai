@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     invertedai::LocationInfoRequest loc_info_req(
         "{\"location\": \"" + location +
         "\", "
-        "\"include_map_source\": true}");
+        "\"include_map_source\": false}");
     // get response of location information
     invertedai::LocationInfoResponse loc_info_res =
         invertedai::location_info(loc_info_req, &session);

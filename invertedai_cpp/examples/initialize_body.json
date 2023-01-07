@@ -7,6 +7,10 @@
   "get_birdview": true,
   "get_infractions": true,
   "random_seed": null,
-  "conditional_agent_states": [[1,1,1,1], [1,1,1,1]],
-  "conditional_agent_attributes": [[1,1,1], [1,1,1]]
+  "location_of_interest": [
+    100,
+    100
+  ],
+  "conditional_agent_states": null,
+  "conditional_agent_attributes": null
 }
