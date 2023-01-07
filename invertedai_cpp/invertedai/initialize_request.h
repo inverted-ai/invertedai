@@ -4,6 +4,7 @@
 #include "data_utils.h"
 #include "externals/json.hpp"
 
+#include <optional>
 #include <vector>
 
 using json = nlohmann::json;
@@ -19,9 +20,10 @@ private:
   std::vector<std::vector<AgentState>> states_history_;
   std::vector<AgentAttributes> agent_attributes_;
   std::vector<std::vector<TrafficLightState>> traffic_light_state_history_;
+  std::optional<std::pair<double, double>> location_of_interest_;
   bool get_birdview_;
   bool get_infractions_;
-  int random_seed_;
+  std::optional<int> random_seed_;
   json body_json_;
 
   void refresh_body_json_();
@@ -48,11 +50,9 @@ public:
   std::vector<AgentState> conditional_agent_states() const;
   /**
    * Get conditional agent states.
-   * 
    */
   std::vector<AgentAttributes> conditional_agent_attributes() const;
   /**
-   * 
    * Get conditional agent attributes.
    */
 
@@ -68,6 +68,11 @@ public:
   std::vector<std::vector<TrafficLightState>>
   traffic_light_state_history() const;
   /**
+   * Coordinates for spawning agents with the given location as center
+   * instead of the default map center
+   */
+  std::optional<std::pair<double, double>> location_of_interest() const;
+  /**
    * Check whether to return an image visualizing the simulation state.
    */
   bool get_birdview() const;
@@ -79,7 +84,7 @@ public:
    * Get random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.
    */
-  int random_seed() const;
+  std::optional<int> random_seed() const;
 
   // setters
   /**
@@ -121,6 +126,11 @@ public:
       const std::vector<std::vector<TrafficLightState>>
           &traffic_light_state_history);
   /**
+   * Coordinates for spawning agents with the given location as center
+   * instead of the default map center
+   */
+  void set_location_of_interest(const std::optional<std::pair<double, double>>& location_of_interest);
+  /**
    * Set whether to return an image visualizing the simulation state.
    * This is very slow and should only be used for debugging.
    */
@@ -134,7 +144,7 @@ public:
    * Set random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.
    */
-  void set_random_seed(int random_seed);
+  void set_random_seed(std::optional<int> random_seed);
 };
 
 } // namespace invertedai

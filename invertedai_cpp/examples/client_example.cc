@@ -34,8 +34,15 @@ int main(int argc, char **argv) {
         "\", "
         "\"include_map_source\": true}");
     // get response of location information
+
+    std::cout << "loc req" << std::endl;
+    std::cout << loc_info_req.body_str() << std::endl;
+
     invertedai::LocationInfoResponse loc_info_res =
         invertedai::location_info(loc_info_req, &session);
+
+    std::cout << "loc res" << std::endl;
+    std::cout << loc_info_res.body_str() << std::endl;
 
     // use opencv to decode and save the bird's eye view image of the simulation
     auto image = cv::imdecode(loc_info_res.birdview_image(), cv::IMREAD_COLOR);
@@ -55,18 +62,29 @@ int main(int argc, char **argv) {
     // set the number of agents
     init_req.set_num_agents_to_spawn(agent_num);
     // get the response of simulation initialization
+    std::cout << "init req" << std::endl;
+    std::cout << init_req.body_str() << std::endl;
+
     invertedai::InitializeResponse init_res =
         invertedai::initialize(init_req, &session);
+
+    std::cout << "init res" << std::endl;
+    std::cout << init_res.body_str() << std::endl;
 
     // construct request for stepping the simulation (driving the NPCs)
     invertedai::DriveRequest drive_req(
         invertedai::read_file("examples/drive_body.json"));
+    drive_req.set_location(location);
     drive_req.update(init_res);
 
     for (int t = 0; t < timestep; t++) {
       // step the simulation by driving the agents
       invertedai::DriveResponse drive_res =
           invertedai::drive(drive_req, &session);
+
+      std::cout << "drive res" << std::endl;
+      std::cout << drive_res.body_str() << std::endl;
+
       // use opencv to decode and save the bird's eye view image of the
       // simulation
       auto image = cv::imdecode(drive_res.birdview(), cv::IMREAD_COLOR);

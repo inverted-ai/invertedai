@@ -1,10 +1,13 @@
 #include "location_info_response.h"
 
+#include <iostream>
+
 using json = nlohmann::json;
 
 namespace invertedai {
 
 LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
+  std::cout << body_str << std::endl;
   this->body_json_ = json::parse(body_str);
 
   this->version_ = this->body_json_["version"];
@@ -26,9 +29,22 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
                        this->body_json_["map_origin"][1]};
   this->static_actors_.clear();
   for (const auto &element : this->body_json_["static_actors"]) {
-    StaticMapActor static_map_actor = {element[0], element[1], element[2],
-                                       element[3], element[4], element[5],
-                                       element[6], element[7]};
+    std::cout << "element" << std::endl;
+    std::cout << element << std::endl;
+    std::optional<int> length = element["length"].is_number_float()
+                                    ? std::optional<int>{element["length"]}
+                                    : std::nullopt;
+    std::optional<int> width = element["width"].is_number_float()
+                                   ? std::optional<int>{element["width"]}
+                                   : std::nullopt;
+    StaticMapActor static_map_actor = {element["actor_id"],
+                                       element["agent_type"],
+                                       element["x"],
+                                       element["y"],
+                                       element["orientation"],
+                                       length,
+                                       width,
+                                       element["dependant"]};
     this->static_actors_.push_back(static_map_actor);
   }
 }
@@ -49,10 +65,26 @@ void LocationInfoResponse::refresh_body_json_() {
   this->body_json_["map_origin"] = {this->map_origin_.x, this->map_origin_.y};
   this->body_json_["static_actors"].clear();
   for (const auto &static_map_actor : this->static_actors_) {
-    json element = {static_map_actor.actor_id,    static_map_actor.agent_type,
-                    static_map_actor.x,           static_map_actor.y,
-                    static_map_actor.orientation, static_map_actor.length,
-                    static_map_actor.width,       static_map_actor.dependant};
+    json element;
+    element["actor_id"] = static_map_actor.actor_id;
+    element["agent_type"] = static_map_actor.agent_type;
+    element["x"] = static_map_actor.x;
+    element["y"] = static_map_actor.y;
+    element["orientation"] = static_map_actor.orientation;
+
+    if (static_map_actor.length.has_value()) {
+      element["length"] = static_map_actor.length.value();
+    } else {
+      element["length"] = nullptr;
+    }
+    if (static_map_actor.width.has_value()) {
+      element["width"] = static_map_actor.width.value();
+    } else {
+      element["width"] = nullptr;
+    }
+
+    element["width"] = static_map_actor.width.value_or(0);
+    element["dependant"] = static_map_actor.dependant;
     this->body_json_["static_actors"].push_back(element);
   }
 }
