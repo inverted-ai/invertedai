@@ -2,7 +2,9 @@
 #define DATA_UTILS_H
 
 #include <map>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace invertedai {
 
@@ -96,7 +98,7 @@ struct StaticMapActor {
   /**
    * Not currently used, there may be more traffic signals in the future.
    */
-  int agent_type;
+  std::string agent_type;
   /**
    * The position of the stop line.
    */
@@ -109,8 +111,8 @@ struct StaticMapActor {
   /**
    * Size of the stop line, in meters, along its orientation.
    */
-  double length, width;
-  int dependant;
+  std::optional<double> length, width;
+  std::vector<int> dependant;
 };
 
 /**

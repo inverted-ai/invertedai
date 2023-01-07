@@ -13,13 +13,13 @@ services:
     # restart: always
     environment:
       DISPLAY: $DISPLAY
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [ gpu ]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [ gpu ]
     privileged: true
     # stdin_open: true # docker run -i
     # tty: true        # docker run -t

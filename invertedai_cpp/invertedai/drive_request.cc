@@ -35,9 +35,10 @@ DriveRequest::DriveRequest(const std::string &body_str) {
   this->get_infractions_ = this->body_json_["get_infractions"].is_boolean()
                                ? this->body_json_["get_infractions"].get<bool>()
                                : false;
-  this->random_seed_ = this->body_json_["random_seed"].is_number_integer()
-                           ? this->body_json_["random_seed"].get<int>()
-                           : 0;
+  this->random_seed_ =
+      this->body_json_["random_seed"].is_number_integer()
+          ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
+          : std::nullopt;
 }
 
 void DriveRequest::refresh_body_json_() {
@@ -71,7 +72,12 @@ void DriveRequest::refresh_body_json_() {
   }
   this->body_json_["get_birdview"] = this->get_birdview_;
   this->body_json_["get_infractions"] = this->get_infractions_;
-  this->body_json_["random_seed"] = this->random_seed_;
+  if (this->random_seed_.has_value()) {
+    this->body_json_["random_seed"] = this->random_seed_.value();
+
+  } else {
+    this->body_json_["random_seed"] = nullptr;
+  }
 }
 
 void DriveRequest::update(const InitializeResponse &init_res) {
@@ -112,7 +118,9 @@ bool DriveRequest::get_birdview() const { return this->get_birdview_; }
 
 bool DriveRequest::get_infractions() const { return this->get_infractions_; }
 
-int DriveRequest::random_seed() const { return this->random_seed_; }
+std::optional<int> DriveRequest::random_seed() const {
+  return this->random_seed_;
+}
 
 void DriveRequest::set_location(const std::string &location) {
   this->location_ = location;
@@ -146,7 +154,7 @@ void DriveRequest::set_get_infractions(bool get_infractions) {
   this->get_infractions_ = get_infractions;
 }
 
-void DriveRequest::set_random_seed(int random_seed) {
+void DriveRequest::set_random_seed(std::optional<int> random_seed) {
   this->random_seed_ = random_seed;
 }
 
