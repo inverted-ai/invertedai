@@ -22,7 +22,7 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
     AgentAttributes agent_attribute = {element[0], element[1], element[2]};
     this->conditional_agent_attributes_.push_back(agent_attribute);
   }
-  
+
   this->states_history_.clear();
   for (const auto &elements : this->body_json_["states_history"]) {
     std::vector<AgentState> agent_states;
@@ -48,15 +48,21 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
     }
     this->traffic_light_state_history_.push_back(traffic_light_states);
   }
+  this->location_of_interest_ =
+      this->body_json_["location_of_interest"].is_null()
+          ? std::nullopt
+          : std::optional<std::pair<double, double>>{
+                this->body_json_["location_of_interest"]};
   this->get_birdview_ = this->body_json_["get_birdview"].is_boolean()
                             ? this->body_json_["get_birdview"].get<bool>()
                             : false;
   this->get_infractions_ = this->body_json_["get_infractions"].is_boolean()
                                ? this->body_json_["get_infractions"].get<bool>()
                                : false;
-  this->random_seed_ = this->body_json_["random_seed"].is_number_integer()
-                           ? this->body_json_["random_seed"].get<int>()
-                           : 0;
+  this->random_seed_ =
+      this->body_json_["random_seed"].is_number_integer()
+          ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
+          : std::nullopt;
 }
 
 void InitializeRequest::refresh_body_json_() {
@@ -90,9 +96,19 @@ void InitializeRequest::refresh_body_json_() {
     }
     this->body_json_["traffic_light_state_history"].push_back(elements);
   }
+  if (this->location_of_interest_.has_value()) {
+    this->body_json_["location_of_interest"] =
+        this->location_of_interest_.value();
+  } else {
+    this->body_json_["location_of_interest"] = nullptr;
+  }
   this->body_json_["get_birdview"] = this->get_birdview_;
   this->body_json_["get_infractions"] = this->get_infractions_;
-  this->body_json_["random_seed"] = this->random_seed_;
+  if (this->random_seed_.has_value()) {
+    this->body_json_["random_seed"] = this->random_seed_.value();
+  } else {
+    this->body_json_["random_seed"] = nullptr;
+  }
 };
 
 std::string InitializeRequest::body_str() {
@@ -114,7 +130,8 @@ std::vector<AgentState> InitializeRequest::conditional_agent_states() const {
   return this->conditional_agent_states_;
 }
 
-std::vector<AgentAttributes> InitializeRequest::conditional_agent_attributes() const {
+std::vector<AgentAttributes>
+InitializeRequest::conditional_agent_attributes() const {
   return this->conditional_agent_attributes_;
 }
 
@@ -127,13 +144,20 @@ InitializeRequest::traffic_light_state_history() const {
   return this->traffic_light_state_history_;
 }
 
+std::optional<std::pair<double, double>>
+InitializeRequest::location_of_interest() const {
+  return this->location_of_interest_;
+}
+
 bool InitializeRequest::get_birdview() const { return this->get_birdview_; }
 
 bool InitializeRequest::get_infractions() const {
   return this->get_infractions_;
 }
 
-int InitializeRequest::random_seed() const { return this->random_seed_; }
+std::optional<int> InitializeRequest::random_seed() const {
+  return this->random_seed_;
+}
 
 void InitializeRequest::set_location(const std::string &location) {
   this->location_ = location;
@@ -143,14 +167,16 @@ void InitializeRequest::set_num_agents_to_spawn(int num_agents_to_spawn) {
   this->num_agents_to_spawn_ = num_agents_to_spawn;
 }
 
-void InitializeRequest::set_conditional_agent_states(const std::vector<AgentState> &conditional_agent_states) {
+void InitializeRequest::set_conditional_agent_states(
+    const std::vector<AgentState> &conditional_agent_states) {
   this->conditional_agent_states_ = conditional_agent_states;
 }
-  
-void InitializeRequest::set_conditional_agent_attributes(const std::vector<AgentAttributes> &conditional_agent_attributes) {
+
+void InitializeRequest::set_conditional_agent_attributes(
+    const std::vector<AgentAttributes> &conditional_agent_attributes) {
   this->conditional_agent_attributes_ = conditional_agent_attributes;
 }
- 
+
 void InitializeRequest::set_states_history(
     const std::vector<std::vector<AgentState>> &states_history) {
   this->states_history_ = states_history;
@@ -167,6 +193,11 @@ void InitializeRequest::set_traffic_light_state_history(
   this->traffic_light_state_history_ = traffic_light_state_history;
 }
 
+void InitializeRequest::set_location_of_interest(
+    const std::optional<std::pair<double, double>> &location_of_interest) {
+  this->location_of_interest_ = location_of_interest;
+}
+
 void InitializeRequest::set_get_birdview(bool get_birdview) {
   this->get_birdview_ = get_birdview;
 }
@@ -175,7 +206,7 @@ void InitializeRequest::set_get_infractions(bool get_infractions) {
   this->get_infractions_ = get_infractions;
 }
 
-void InitializeRequest::set_random_seed(int random_seed) {
+void InitializeRequest::set_random_seed(std::optional<int> random_seed) {
   this->random_seed_ = random_seed;
 }
 

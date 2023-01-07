@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     invertedai::LocationInfoRequest loc_info_req(
         "{\"location\": \"" + location +
         "\", "
-        "\"include_map_source\": true}");
+        "\"include_map_source\": false}");
     // get response of location information
     invertedai::LocationInfoResponse loc_info_res =
         invertedai::location_info(loc_info_req, &session);
@@ -61,6 +61,7 @@ int main(int argc, char **argv) {
     // construct request for stepping the simulation (driving the NPCs)
     invertedai::DriveRequest drive_req(
         invertedai::read_file("examples/drive_body.json"));
+    drive_req.set_location(location);
     drive_req.update(init_res);
 
     for (int t = 0; t < timestep; t++) {

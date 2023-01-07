@@ -1,6 +1,7 @@
 #ifndef DRIVE_REQUEST_H
 #define DRIVE_REQUEST_H
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,7 @@ private:
   std::vector<std::vector<double>> recurrent_states_;
   bool get_birdview_;
   bool get_infractions_;
-  int random_seed_;
+  std::optional<int> random_seed_;
   json body_json_;
 
   void refresh_body_json_();
@@ -82,7 +83,7 @@ public:
   /**
    * Get random_seed.
    */
-  int random_seed() const;
+  std::optional<int> random_seed() const;
 
   // setters
   /**
@@ -128,7 +129,7 @@ public:
    * Set random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.
    */
-  void set_random_seed(int random_seed);
+  void set_random_seed(std::optional<int> random_seed);
 };
 
 } // namespace invertedai
