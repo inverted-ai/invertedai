@@ -7,7 +7,6 @@ using json = nlohmann::json;
 namespace invertedai {
 
 LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
-  std::cout << body_str << std::endl;
   this->body_json_ = json::parse(body_str);
 
   this->version_ = this->body_json_["version"];
@@ -29,8 +28,6 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
                        this->body_json_["map_origin"][1]};
   this->static_actors_.clear();
   for (const auto &element : this->body_json_["static_actors"]) {
-    std::cout << "element" << std::endl;
-    std::cout << element << std::endl;
     std::optional<int> length = element["length"].is_number_float()
                                     ? std::optional<int>{element["length"]}
                                     : std::nullopt;
