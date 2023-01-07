@@ -1,7 +1,5 @@
 #include "location_info_response.h"
 
-#include <iostream>
-
 using json = nlohmann::json;
 
 namespace invertedai {
@@ -68,7 +66,6 @@ void LocationInfoResponse::refresh_body_json_() {
     element["x"] = static_map_actor.x;
     element["y"] = static_map_actor.y;
     element["orientation"] = static_map_actor.orientation;
-
     if (static_map_actor.length.has_value()) {
       element["length"] = static_map_actor.length.value();
     } else {
@@ -79,8 +76,6 @@ void LocationInfoResponse::refresh_body_json_() {
     } else {
       element["width"] = nullptr;
     }
-
-    element["width"] = static_map_actor.width.value_or(0);
     element["dependant"] = static_map_actor.dependant;
     this->body_json_["static_actors"].push_back(element);
   }

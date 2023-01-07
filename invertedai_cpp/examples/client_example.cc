@@ -34,7 +34,6 @@ int main(int argc, char **argv) {
         "\", "
         "\"include_map_source\": true}");
     // get response of location information
-
     invertedai::LocationInfoResponse loc_info_res =
         invertedai::location_info(loc_info_req, &session);
 
@@ -56,7 +55,6 @@ int main(int argc, char **argv) {
     // set the number of agents
     init_req.set_num_agents_to_spawn(agent_num);
     // get the response of simulation initialization
-
     invertedai::InitializeResponse init_res =
         invertedai::initialize(init_req, &session);
 
@@ -70,7 +68,6 @@ int main(int argc, char **argv) {
       // step the simulation by driving the agents
       invertedai::DriveResponse drive_res =
           invertedai::drive(drive_req, &session);
-
       // use opencv to decode and save the bird's eye view image of the
       // simulation
       auto image = cv::imdecode(drive_res.birdview(), cv::IMREAD_COLOR);

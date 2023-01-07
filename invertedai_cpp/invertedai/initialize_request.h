@@ -126,7 +126,7 @@ public:
       const std::vector<std::vector<TrafficLightState>>
           &traffic_light_state_history);
   /**
-   * Coordinates for spawning agents with the given location as center
+   * Set coordinates for spawning agents with the given location as center
    * instead of the default map center
    */
   void set_location_of_interest(const std::optional<std::pair<double, double>>& location_of_interest);
