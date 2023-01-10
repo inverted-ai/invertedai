@@ -8,8 +8,8 @@
   "get_infractions": true,
   "random_seed": null,
   "location_of_interest": [
-    100,
-    100
+    10,
+    10
   ],
   "conditional_agent_states": null,
   "conditional_agent_attributes": null
