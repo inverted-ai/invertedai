@@ -72,6 +72,9 @@ cc_library(
     name = "session",
     srcs = ["session.cc"],
     hdrs = ["session.h"],
+    linkopts = [
+        "-lboost_iostreams",
+    ],
     deps = [
         "//invertedai/externals:root-certificates",
         "@boost//:beast",
