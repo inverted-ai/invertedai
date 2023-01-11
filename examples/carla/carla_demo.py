@@ -69,7 +69,7 @@ for _ in range(10):
         )
         break
     except:
-        print("Reinitializing")
+        print("Re-initializing")
 else:
     raise Exception("Unable to initialize")
 
