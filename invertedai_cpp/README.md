@@ -13,6 +13,7 @@ docker compose run --rm dev
 - [Bazel](https://bazel.build/install)
 - Opencv (`sudo apt-get install -y libopencv-dev`)
 - Boost (`sudo apt install openssl libssl-dev libboost-all-dev`)
+- [Rules Boost](https://github.com/nelhage/rules_boost) (Please update the [latest commit](https://github.com/nelhage/rules_boost/commits/master) in the `WORKSPACE`)
 - [JSON for Modern C++](https://json.nlohmann.me/) (under `invertedai/externals/json.hpp`)
 
 ## Usage
