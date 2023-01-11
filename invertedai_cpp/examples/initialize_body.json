@@ -1,16 +1,16 @@
 {
-  "location": "canada:vancouver:ubc_roundabout",
-  "num_agents_to_spawn": 10,
-  "states_history": null,
-  "agent_attributes": null,
-  "traffic_light_state_history": null,
-  "get_birdview": true,
-  "get_infractions": true,
-  "random_seed": null,
-  "location_of_interest": [
-    10,
-    10
-  ],
-  "conditional_agent_states": null,
-  "conditional_agent_attributes": null
+    "location": "canada:vancouver:ubc_roundabout",
+    "num_agents_to_spawn": 10,
+    "states_history": null,
+    "agent_attributes": null,
+    "traffic_light_state_history": null,
+    "get_birdview": true,
+    "get_infractions": true,
+    "random_seed": null,
+    "location_of_interest": [
+        10,
+        10
+    ],
+    "conditional_agent_states": null,
+    "conditional_agent_attributes": null
 }

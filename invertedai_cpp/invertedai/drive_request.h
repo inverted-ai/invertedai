@@ -25,6 +25,8 @@ private:
   bool get_birdview_;
   bool get_infractions_;
   std::optional<int> random_seed_;
+  std::optional<double> rendering_fov_;
+  std::optional<std::pair<double, double>> rendering_center_;
   json body_json_;
 
   void refresh_body_json_();
@@ -81,6 +83,14 @@ public:
    */
   bool get_infractions() const;
   /**
+   * Get the fov for both x and y axis for the rendered birdview in meters.
+   */
+  std::optional<double> rendering_fov() const;
+  /**
+   * Get the center coordinates for the rendered birdview.
+   */
+  std::optional<std::pair<double, double>> rendering_center() const;
+  /**
    * Get random_seed.
    */
   std::optional<int> random_seed() const;
@@ -125,6 +135,15 @@ public:
    * This introduces some overhead, but it should be relatively small.
    */
   void set_get_infractions(bool get_infractions);
+  /**
+   * Set the fov for both x and y axis for the rendered birdview in meters.
+   */
+  void set_rendering_fov(std::optional<double> rendering_fov);
+  /**
+   * Set the center coordinates for the rendered birdview.
+   */
+  void set_rendering_center(
+      const std::optional<std::pair<double, double>> &rendering_center);
   /**
    * Set random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.

@@ -1,0 +1,9 @@
+{
+    "location": "canada:vancouver:ubc_roundabout",
+    "include_map_source": true,
+    "rendering_fov": 200,
+    "rendering_center": [
+        0,
+        0
+    ]
+}
