@@ -26,6 +26,13 @@ import pygame
 
 
 @dataclass
+class PreSets:
+    map_centers = MAP_CENTERS
+    demo_locations = DEMO_LOCATIONS
+    npc_bps = NPC_BPS
+
+
+@dataclass
 class CarlaSimulationConfig:
     """
     A collection of static configuration options for the CARLA simulation.
@@ -36,7 +43,8 @@ class CarlaSimulationConfig:
     """
     ego_bp: str = "vehicle.tesla.model3"  #: blueprint name for the ego vehicle
     npc_bps: Tuple[str] = NPC_BPS  #: blueprint names for NPC vehicles
-    location: str = "CARLA:Town03:Roundabout"  #: in format recognized by Inverted AI API
+    location: str = "carla:Town03"  #: in format recognized by Inverted AI API center map coordinate of the selected carla town
+    map_center: Tuple[float] = (0.0, 0.0)
     fps: int = 10  #: 10 is the only value currently compatible with Inverted AI API
     traffic_count: int = 20  #: total number of vehicles to place in simulation
     episode_length: int = 20  #: in seconds
@@ -162,7 +170,7 @@ class CarlaEnv:
         self.rng = random.Random(cfg.seed)
 
         # assemble information about area where Inverted AI NPCs will be deployed
-        centers = MAP_CENTERS[cfg.location]
+        centers = cfg.map_center
         self.roi_center = cord(x=centers[0], y=centers[1])
         self.proximity_threshold = (
             50
