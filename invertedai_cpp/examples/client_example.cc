@@ -29,10 +29,6 @@ int main(int argc, char **argv) {
     session.connect();
 
     // construct request for getting information about the location
-//    invertedai::LocationInfoRequest loc_info_req(
-//        "{\"location\": \"" + location +
-//        "\", "
-//        "\"include_map_source\": false, \"rendering_fov\": 200,\"rendering_center\": [0, 0]}");
     invertedai::LocationInfoRequest loc_info_req(
         invertedai::read_file("examples/location_info_body.json"));
     loc_info_req.set_location(location);

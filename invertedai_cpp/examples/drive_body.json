@@ -19,9 +19,6 @@
     "get_infractions": true,
     "traffic_lights_states": null,
     "random_seed": null,
-    "rendering_fov": 100.0,
-    "rendering_center": [
-        100,
-        100
-    ]
+    "rendering_fov": null,
+    "rendering_center": null
 }
