@@ -35,6 +35,14 @@ DriveRequest::DriveRequest(const std::string &body_str) {
   this->get_infractions_ = this->body_json_["get_infractions"].is_boolean()
                                ? this->body_json_["get_infractions"].get<bool>()
                                : false;
+  this->rendering_fov_ =
+      this->body_json_["rendering_fov"].is_number_float()
+          ? std::optional<int>{this->body_json_["rendering_fov"].get<double>()}
+          : std::nullopt;
+  this->rendering_center_ = this->body_json_["rendering_center"].is_null()
+                                ? std::nullopt
+                                : std::optional<std::pair<double, double>>{
+                                      this->body_json_["rendering_center"]};
   this->random_seed_ =
       this->body_json_["random_seed"].is_number_integer()
           ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
@@ -72,6 +80,16 @@ void DriveRequest::refresh_body_json_() {
   }
   this->body_json_["get_birdview"] = this->get_birdview_;
   this->body_json_["get_infractions"] = this->get_infractions_;
+  if (this->rendering_fov_.has_value()) {
+    this->body_json_["rendering_fov"] = this->rendering_fov_.value();
+  } else {
+    this->body_json_["rendering_fov"] = nullptr;
+  }
+  if (this->rendering_center_.has_value()) {
+    this->body_json_["rendering_center"] = this->rendering_center_.value();
+  } else {
+    this->body_json_["rendering_center"] = nullptr;
+  }
   if (this->random_seed_.has_value()) {
     this->body_json_["random_seed"] = this->random_seed_.value();
 
@@ -118,6 +136,15 @@ bool DriveRequest::get_birdview() const { return this->get_birdview_; }
 
 bool DriveRequest::get_infractions() const { return this->get_infractions_; }
 
+std::optional<double> DriveRequest::rendering_fov() const {
+  return this->rendering_fov_;
+}
+
+std::optional<std::pair<double, double>>
+DriveRequest::rendering_center() const {
+  return this->rendering_center_;
+}
+
 std::optional<int> DriveRequest::random_seed() const {
   return this->random_seed_;
 }
@@ -152,6 +179,15 @@ void DriveRequest::set_get_birdview(bool get_birdview) {
 
 void DriveRequest::set_get_infractions(bool get_infractions) {
   this->get_infractions_ = get_infractions;
+}
+
+void DriveRequest::set_rendering_fov(std::optional<double> rendering_fov) {
+  this->rendering_fov_ = rendering_fov;
+}
+
+void DriveRequest::set_rendering_center(
+    const std::optional<std::pair<double, double>> &rendering_center) {
+  this->rendering_center_ = rendering_center;
 }
 
 void DriveRequest::set_random_seed(std::optional<int> random_seed) {
