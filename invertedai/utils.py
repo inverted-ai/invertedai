@@ -15,6 +15,7 @@ from matplotlib import animation
 import numpy as np
 import csv
 import math
+from tqdm.contrib import tmap
 from itertools import product
 from PIL import Image as PImage
 from invertedai.common import AgentState, StaticMapActor
@@ -25,9 +26,9 @@ H_SCALE = 10
 text_x_offset = 0
 text_y_offset = 0.7
 text_size = 7
-INITIALIZE_FOV = 100
 TIMEOUT_SECS = 600
 MAX_RETRIES = 10
+SLACK = 5
 
 
 class Session:
@@ -240,31 +241,21 @@ class Session:
         return data
 
 
-def area_initialization(location, agent_density, traffic_lights_states=None, map_center=(0, 0), width=100, height=100, stride=100, *args, **kwargs):
-    path = "/home/alireza/iai/drive-sdk/foretelix/examples/carla"
-    open_drive_file_name = f"{path}/data/open_drive/{location.split(':')[1]}.csv"
-
-    h_start, h_end = map_center[0] - (height/2) + (INITIALIZE_FOV/2), \
-        map_center[0] + (height/2) - (INITIALIZE_FOV/2) + 1
-    w_start, w_end = map_center[1] - (width/2) + (INITIALIZE_FOV/2), \
-        map_center[0] + (width/2) - (INITIALIZE_FOV/2) + 1
+def area_initialization(location, agent_density, traffic_lights_states=None, map_center=(0, 0), width=100, height=100, stride=100, initialize_fov=100, *args, **kwargs):
+    h_start, h_end = map_center[0] - (height/2) + (initialize_fov/2), \
+        map_center[0] + (height/2) - (initialize_fov/2) + 1
+    w_start, w_end = map_center[1] - (width/2) + (initialize_fov/2), \
+        map_center[0] + (width/2) - (initialize_fov/2) + 1
     agent_states = []
     agent_attributes = []
     agent_rs = []
     first = True
-    for area_center in map(Point.fromlist, product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))):
-        scene_plotter = iai.utils.ScenePlotter(
-            static_actors=kwargs["static_actors"],
-            fov=300, xy_offset=(area_center.x, -area_center.y), open_drive=open_drive_file_name)
-        # for i in range(h_start, h_end, STRIDE):
-        # for j in range(w_start, w_end, STRIDE):
-        print(area_center)
-        first_states = deepcopy(agent_states)
-        first_attrs = deepcopy(agent_attributes)
+    for area_center in tmap(Point.fromlist, product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))):
+
         conditional_agent = list(filter(lambda x: x[0].center - area_center <
-                                 INITIALIZE_FOV/2, zip(agent_states, agent_attributes, agent_rs)))
+                                 initialize_fov/2, zip(agent_states, agent_attributes, agent_rs)))
         remaining_agents = list(filter(lambda x: x[0].center - area_center >=
-                                INITIALIZE_FOV/2, zip(agent_states, agent_attributes, agent_rs)))
+                                initialize_fov/2, zip(agent_states, agent_attributes, agent_rs)))
 
         con_agent_state = [x[0] for x in conditional_agent]
         con_agent_attrs = [x[1] for x in conditional_agent]
@@ -274,11 +265,7 @@ def area_initialization(location, agent_density, traffic_lights_states=None, map
         remaining_agents_rs = [x[2] for x in remaining_agents]
 
         if len(con_agent_state) > agent_density:
-            remaining_agents_states.extend(con_agent_state[agent_density:])
-            con_agent_state = con_agent_state[:agent_density]
-            remaining_agents_attrs.extend(con_agent_attrs[agent_density:])
-            con_agent_attrs = con_agent_attrs[:agent_density]
-            remaining_agents_rs.extend(con_agent_rs[agent_density:])
+            continue
 
         for _ in range(1):
             try:
@@ -299,9 +286,10 @@ def area_initialization(location, agent_density, traffic_lights_states=None, map
                 pass
         else:
             continue
-
+        # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
+        # SLACK is for removing the agents that are very close to the boundary and they may collide agents not filtered as conditional
         valid_agents = list(filter(lambda x: x[0].center - area_center <
-                                   INITIALIZE_FOV/2, zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+                                   (initialize_fov/2)-SLACK, zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
 
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]
@@ -313,6 +301,13 @@ def area_initialization(location, agent_density, traffic_lights_states=None, map
 
         if False:
             # if True:
+            # path = "/home/alireza/iai/drive-sdk/foretelix/examples/carla"
+            # open_drive_file_name = f"{path}/data/open_drive/{location.split(':')[1]}.csv"
+            scene_plotter = iai.utils.ScenePlotter(
+                static_actors=kwargs["static_actors"],
+                fov=300, xy_offset=(area_center.x, -area_center.y), open_drive=open_drive_file_name)
+            first_states = deepcopy(agent_states)
+            first_attrs = deepcopy(agent_attributes)
             fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2)
 
             ax1.set_title("Existing agents")
@@ -324,10 +319,10 @@ def area_initialization(location, agent_density, traffic_lights_states=None, map
             ax6.set_title("From Server map")
 
             def init_fov(area_center): return plt.Circle(
-                (area_center.x, -area_center.y), INITIALIZE_FOV/2, color='g', fill=False)
+                (area_center.x, -area_center.y), initialize_fov/2, color='g', fill=False)
 
             def init_center(area_center): return plt.Circle(
-                (area_center.x, -area_center.y), INITIALIZE_FOV/2, color='b')
+                (area_center.x, -area_center.y), initialize_fov/2, color='b')
             image = response.birdview.decode()
             im = PImage.fromarray(image)
             ax4.imshow(im.rotate(180))
