@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict
 from enum import Enum
 from pydantic import BaseModel, root_validator
+import math
 
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
@@ -46,6 +47,9 @@ class Point(BaseModel):
     def fromlist(cls, l):
         x, y = l
         return cls(x=x, y=y)
+
+    def __sub__(self, other):
+        return math.sqrt((abs(self.x - other.x)**2) + (abs(self.y - other.y)**2))
 
 
 class Origin(Point):

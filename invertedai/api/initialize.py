@@ -62,9 +62,11 @@ def initialize(
     In the latter case, the simulation is initialized with the specific history,
     and if traffic lights are present then `traffic_light_state_history` should also be provided.
     If only `agent_count` is specified, a new initial state is generated with the requested
-    total number of agents, which can be optionally conditioned on `conditional_agent_states` and
-    `conditional_agent_attributes`. If `agent_count` is higher than the number of agents in `conditional_agent_states`
-    and `conditional_agent_attributes`, the remaining agents will be generated conditionally on the agents provided.
+    total number of agents, i.e. when an empty list or None is passed for 'states_history'.
+    Otherwise, if the `agent_count` is higher than the number of agents in `states_history` the remaining agents will be spawned 
+    conditionally on the provided agents. If `agent_count` is equal to the number of agents in `states_history`, 
+    the simulation will be initialized only with the agents provided. 
+    Finally, 'agent_count' cannot be less than he number of agents in `states_history`.
     Every simulation needs to start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
     Parameters

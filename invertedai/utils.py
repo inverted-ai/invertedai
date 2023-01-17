@@ -7,6 +7,7 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error, api
+from invertedai.common import Point
 import logging
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
@@ -14,12 +15,17 @@ from matplotlib import animation
 import numpy as np
 import csv
 import math
+from itertools import product
+from PIL import Image as PImage
+from invertedai.common import AgentState, StaticMapActor
+from matplotlib import transforms
+from copy import deepcopy
 
 H_SCALE = 10
 text_x_offset = 0
 text_y_offset = 0.7
 text_size = 7
-
+INITIALIZE_FOV = 100
 TIMEOUT_SECS = 600
 MAX_RETRIES = 10
 
@@ -232,6 +238,160 @@ class Session:
             raise self._handle_error_response(rbody, rcode, data, rheaders)
 
         return data
+
+
+def area_initialization(location, agent_density, traffic_lights_states=None, map_center=(0, 0), width=100, height=100, stride=100, *args, **kwargs):
+    path = "/home/alireza/iai/drive-sdk/foretelix/examples/carla"
+    open_drive_file_name = f"{path}/data/open_drive/{location.split(':')[1]}.csv"
+
+    h_start, h_end = map_center[0] - (height/2) + (INITIALIZE_FOV/2), \
+        map_center[0] + (height/2) - (INITIALIZE_FOV/2) + 1
+    w_start, w_end = map_center[1] - (width/2) + (INITIALIZE_FOV/2), \
+        map_center[0] + (width/2) - (INITIALIZE_FOV/2) + 1
+    agent_states = []
+    agent_attributes = []
+    agent_rs = []
+    first = True
+    for area_center in map(Point.fromlist, product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))):
+        scene_plotter = iai.utils.ScenePlotter(
+            static_actors=kwargs["static_actors"],
+            fov=300, xy_offset=(area_center.x, -area_center.y), open_drive=open_drive_file_name)
+        # for i in range(h_start, h_end, STRIDE):
+        # for j in range(w_start, w_end, STRIDE):
+        print(area_center)
+        first_states = deepcopy(agent_states)
+        first_attrs = deepcopy(agent_attributes)
+        conditional_agent = list(filter(lambda x: x[0].center - area_center <
+                                 INITIALIZE_FOV/2, zip(agent_states, agent_attributes, agent_rs)))
+        remaining_agents = list(filter(lambda x: x[0].center - area_center >=
+                                INITIALIZE_FOV/2, zip(agent_states, agent_attributes, agent_rs)))
+
+        con_agent_state = [x[0] for x in conditional_agent]
+        con_agent_attrs = [x[1] for x in conditional_agent]
+        con_agent_rs = [x[2] for x in conditional_agent]
+        remaining_agents_states = [x[0] for x in remaining_agents]
+        remaining_agents_attrs = [x[1] for x in remaining_agents]
+        remaining_agents_rs = [x[2] for x in remaining_agents]
+
+        if len(con_agent_state) > agent_density:
+            remaining_agents_states.extend(con_agent_state[agent_density:])
+            con_agent_state = con_agent_state[:agent_density]
+            remaining_agents_attrs.extend(con_agent_attrs[agent_density:])
+            con_agent_attrs = con_agent_attrs[:agent_density]
+            remaining_agents_rs.extend(con_agent_rs[agent_density:])
+
+        for _ in range(1):
+            try:
+                # Initialize simulation with an API cal
+                response = iai.initialize(
+                    location=location,
+                    states_history=[con_agent_state] if len(con_agent_state) > 0 else None,
+                    agent_attributes=con_agent_attrs if len(con_agent_attrs) > 0 else None,
+                    agent_count=agent_density,
+                    get_birdview=True,
+                    get_infractions=False,
+                    traffic_light_state_history=traffic_lights_states,
+                    location_of_interest=(area_center.x, area_center.y),
+                    random_seed=2,
+                )
+                break
+            except:
+                pass
+        else:
+            continue
+
+        valid_agents = list(filter(lambda x: x[0].center - area_center <
+                                   INITIALIZE_FOV/2, zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+
+        valid_agent_state = [x[0] for x in valid_agents]
+        valid_agent_attrs = [x[1] for x in valid_agents]
+        valid_agent_rs = [x[2] for x in valid_agents]
+
+        agent_states = remaining_agents_states + valid_agent_state
+        agent_attributes = remaining_agents_attrs + valid_agent_attrs
+        agent_rs = remaining_agents_rs + valid_agent_rs
+
+        if False:
+            # if True:
+            fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2)
+
+            ax1.set_title("Existing agents")
+            ax3.set_title("Conditional Agent")
+            ax5.set_title("Remaining")
+
+            ax2.set_title("All Agents")
+            ax4.set_title("From Server birdview")
+            ax6.set_title("From Server map")
+
+            def init_fov(area_center): return plt.Circle(
+                (area_center.x, -area_center.y), INITIALIZE_FOV/2, color='g', fill=False)
+
+            def init_center(area_center): return plt.Circle(
+                (area_center.x, -area_center.y), INITIALIZE_FOV/2, color='b')
+            image = response.birdview.decode()
+            im = PImage.fromarray(image)
+            ax4.imshow(im.rotate(180))
+            corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
+                                                    -state.orientation, state.speed]) for state in agent_states]
+            scene_plotter.plot_scene(corrected_agents,
+                                     agent_attributes=agent_attributes,
+                                     ax=ax2,
+                                     numbers=False, velocity_vec=False, direction_vec=True)
+
+            ax2.add_patch(init_fov(area_center))
+            # ax2.add_patch(init_center(area_center))
+
+            if not first:
+
+                corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
+                                                        -state.orientation, state.speed]) for state in first_states]
+                scene_plotter.plot_scene(corrected_agents,
+                                         agent_attributes=first_attrs,
+                                         ax=ax1,
+                                         numbers=False, velocity_vec=False, direction_vec=True)
+                ax1.add_patch(init_fov(area_center))
+                ax1.add_patch(init_fov(previous_center))
+                # ax1.add_patch(init_center(area_center))
+                # ax1.add_patch(init_center(previous_center))
+
+                corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
+                                                        -state.orientation, state.speed]) for state in con_agent_state]
+                scene_plotter.plot_scene(corrected_agents,
+                                         agent_attributes=con_agent_attrs,
+                                         ax=ax3,
+                                         numbers=False, velocity_vec=False, direction_vec=True)
+
+                ax3.add_patch(init_fov(area_center))
+                # ax3.add_patch(init_center(area_center))
+
+                corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
+                                                        -state.orientation, state.speed]) for state in remaining_agents_states]
+                scene_plotter.plot_scene(corrected_agents,
+                                         agent_attributes=remaining_agents_attrs,
+                                         ax=ax5,
+                                         numbers=False, velocity_vec=False, direction_vec=True)
+
+                ax5.add_patch(init_fov(area_center))
+                # ax5.add_patch(init_center(area_center))
+
+                corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
+                                                        -state.orientation, state.speed]) for state in response.agent_states
+                                    ]
+                scene_plotter.plot_scene(corrected_agents,
+                                         agent_attributes=response.agent_attributes,
+                                         ax=ax6,
+                                         numbers=False, velocity_vec=False, direction_vec=True)
+
+                ax6.add_patch(init_fov(area_center))
+                # ax6.add_patch(init_center(area_center))
+
+            first = False
+            previous_center = area_center
+
+    return invertedai.api.InitializeResponse(
+        recurrent_states=agent_rs,
+        agent_states=agent_states,
+        agent_attributes=agent_attributes)
 
 
 class APITokenAuth(AuthBase):
@@ -564,7 +724,7 @@ class ScenePlotter:
         """
         This function plots the parsed xodr map
         the `odrplot` of `esmini` is used for plotting and parsing xord
-        https://esmini.github.io/#_tools_overview
+        https: // esmini.github.io/  # _tools_overview
         """
         with open(self.open_drive) as f:
             reader = csv.reader(f, skipinitialspace=True)
