@@ -250,7 +250,8 @@ def area_initialization(location, agent_density, traffic_lights_states=None, map
     agent_attributes = []
     agent_rs = []
     first = True
-    for area_center in tmap(Point.fromlist, product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))):
+    centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
+    for area_center in tmap(Point.fromlist, centers, total=len(np.arange(h_start, h_end, stride))*len(np.arange(w_start, w_end, stride)), desc=f"Initializing {location.split(':')[1]}"):
 
         conditional_agent = list(filter(lambda x: x[0].center - area_center <
                                  initialize_fov/2, zip(agent_states, agent_attributes, agent_rs)))
@@ -298,90 +299,6 @@ def area_initialization(location, agent_density, traffic_lights_states=None, map
         agent_states = remaining_agents_states + valid_agent_state
         agent_attributes = remaining_agents_attrs + valid_agent_attrs
         agent_rs = remaining_agents_rs + valid_agent_rs
-
-        if False:
-            # if True:
-            # path = "/home/alireza/iai/drive-sdk/foretelix/examples/carla"
-            # open_drive_file_name = f"{path}/data/open_drive/{location.split(':')[1]}.csv"
-            scene_plotter = iai.utils.ScenePlotter(
-                static_actors=kwargs["static_actors"],
-                fov=300, xy_offset=(area_center.x, -area_center.y), open_drive=open_drive_file_name)
-            first_states = deepcopy(agent_states)
-            first_attrs = deepcopy(agent_attributes)
-            fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2)
-
-            ax1.set_title("Existing agents")
-            ax3.set_title("Conditional Agent")
-            ax5.set_title("Remaining")
-
-            ax2.set_title("All Agents")
-            ax4.set_title("From Server birdview")
-            ax6.set_title("From Server map")
-
-            def init_fov(area_center): return plt.Circle(
-                (area_center.x, -area_center.y), initialize_fov/2, color='g', fill=False)
-
-            def init_center(area_center): return plt.Circle(
-                (area_center.x, -area_center.y), initialize_fov/2, color='b')
-            image = response.birdview.decode()
-            im = PImage.fromarray(image)
-            ax4.imshow(im.rotate(180))
-            corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
-                                                    -state.orientation, state.speed]) for state in agent_states]
-            scene_plotter.plot_scene(corrected_agents,
-                                     agent_attributes=agent_attributes,
-                                     ax=ax2,
-                                     numbers=False, velocity_vec=False, direction_vec=True)
-
-            ax2.add_patch(init_fov(area_center))
-            # ax2.add_patch(init_center(area_center))
-
-            if not first:
-
-                corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
-                                                        -state.orientation, state.speed]) for state in first_states]
-                scene_plotter.plot_scene(corrected_agents,
-                                         agent_attributes=first_attrs,
-                                         ax=ax1,
-                                         numbers=False, velocity_vec=False, direction_vec=True)
-                ax1.add_patch(init_fov(area_center))
-                ax1.add_patch(init_fov(previous_center))
-                # ax1.add_patch(init_center(area_center))
-                # ax1.add_patch(init_center(previous_center))
-
-                corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
-                                                        -state.orientation, state.speed]) for state in con_agent_state]
-                scene_plotter.plot_scene(corrected_agents,
-                                         agent_attributes=con_agent_attrs,
-                                         ax=ax3,
-                                         numbers=False, velocity_vec=False, direction_vec=True)
-
-                ax3.add_patch(init_fov(area_center))
-                # ax3.add_patch(init_center(area_center))
-
-                corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
-                                                        -state.orientation, state.speed]) for state in remaining_agents_states]
-                scene_plotter.plot_scene(corrected_agents,
-                                         agent_attributes=remaining_agents_attrs,
-                                         ax=ax5,
-                                         numbers=False, velocity_vec=False, direction_vec=True)
-
-                ax5.add_patch(init_fov(area_center))
-                # ax5.add_patch(init_center(area_center))
-
-                corrected_agents = [AgentState.fromlist([state.center.x, -state.center.y,
-                                                        -state.orientation, state.speed]) for state in response.agent_states
-                                    ]
-                scene_plotter.plot_scene(corrected_agents,
-                                         agent_attributes=response.agent_attributes,
-                                         ax=ax6,
-                                         numbers=False, velocity_vec=False, direction_vec=True)
-
-                ax6.add_patch(init_fov(area_center))
-                # ax6.add_patch(init_center(area_center))
-
-            first = False
-            previous_center = area_center
 
     return invertedai.api.InitializeResponse(
         recurrent_states=agent_rs,
@@ -845,17 +762,17 @@ class ScenePlotter:
         for i in range(len(border_x)):
             ax.plot(border_x[i], border_y[i], linewidth=1.0, color='#AAAAAA')
 
-        # plot red dots indicating lane dections
-        for i in range(len(lane_section_dots_x)):
-            ax.plot(lane_section_dots_x[i], lane_section_dots_y[i], 'o', ms=4.0, color='#BB5555')
-
-        for i in range(len(road_start_dots_x)):
-            # plot a yellow dot at start of each road
-            ax.plot(road_start_dots_x[i], road_start_dots_y[i], 'o', ms=5.0, color='#BBBB33')
-            # and an arrow indicating road direction
-            ax.arrow(road_start_dots_x[i], road_start_dots_y[i], arrow_dx[i],
-                     arrow_dy[i], width=0.1, head_width=1.0, color='#BB5555')
         if extras:
+            # plot red dots indicating lane dections
+            for i in range(len(lane_section_dots_x)):
+                ax.plot(lane_section_dots_x[i], lane_section_dots_y[i], 'o', ms=4.0, color='#BB5555')
+
+            for i in range(len(road_start_dots_x)):
+                # plot a yellow dot at start of each road
+                ax.plot(road_start_dots_x[i], road_start_dots_y[i], 'o', ms=5.0, color='#BBBB33')
+                # and an arrow indicating road direction
+                ax.arrow(road_start_dots_x[i], road_start_dots_y[i], arrow_dx[i],
+                         arrow_dy[i], width=0.1, head_width=1.0, color='#BB5555')
             # plot road id numbers
             for i in range(len(road_id)):
                 ax.text(road_id_x[i], road_id_y[i], road_id[i], size=text_size,

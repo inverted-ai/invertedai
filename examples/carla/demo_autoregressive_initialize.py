@@ -5,6 +5,7 @@ from carla_simulator import PreSets
 from invertedai.common import AgentState, StaticMapActor
 import pathlib
 import matplotlib.pyplot as plt
+from matplotlib import animation
 path = pathlib.Path(__file__).parent.resolve()
 
 
@@ -12,9 +13,9 @@ parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default=None)
 parser.add_argument("--fov", type=float, default=500)
 parser.add_argument("--location", type=str,  default="carla:Town03")
-parser.add_argument("-l", "--episode_length", type=int, default=30)
+parser.add_argument("-l", "--episode_length", type=int, default=300)
 args = parser.parse_args()
-map_center = PreSets.map_centers["carla:Town03:Roundabout"]
+map_center = PreSets.map_centers[args.location]
 
 
 if args.api_key is not None:
@@ -38,7 +39,7 @@ corrected_static_actors = [StaticMapActor.fromdict(dict(x=state.center.x, y=-sta
 
 light_response = iai.light(location=args.location)
 response = iai.utils.area_initialization(
-    location=args.location, agent_density=15, traffic_lights_states=None, map_center=(0, 0), width=500, height=500, stride=50, initialize_fov=100, static_actors=corrected_static_actors)
+    location=args.location, agent_density=6, traffic_lights_states=None, map_center=map_center, width=500, height=500, stride=50, initialize_fov=100, static_actors=corrected_static_actors)
 
 
 # Carla xord map coordinate differ from eachother and position of agents require a simple transformation
@@ -48,18 +49,18 @@ open_drive_file_name = f"{path}/data/open_drive/{args.location.split(':')[1]}.cs
 scene_plotter = iai.utils.ScenePlotter(
     fov=args.fov, xy_offset=(map_center[0], -map_center[1]), static_actors=corrected_static_actors, open_drive=open_drive_file_name)
 
-scene_plotter.plot_scene(corrected_agents,
-                         agent_attributes=response.agent_attributes,
-                         #  traffic_light_states = traffic_light,
-                         numbers=False, velocity_vec=False, direction_vec=True)
-plt.show(block=True)
-"""
-scene_plotter.initialize_recording(corrected_agents, agent_attributes=response.agent_attributes)
+# scene_plotter.plot_scene(corrected_agents,
+#                          agent_attributes=response.agent_attributes,
+#                          #  traffic_light_states = traffic_light,
+#                          numbers=False, velocity_vec=False, direction_vec=True)
+# plt.show(block=True)
 
 agent_attributes = response.agent_attributes
+scene_plotter.initialize_recording(corrected_agents, agent_attributes=agent_attributes)
+
 frames = []
 x_frame = []
-for i in tqdm(range(args.episode_length)):
+for i in tqdm(range(args.episode_length), desc=f"Driving {args.location.split(':')[1]}"):
     light_response = iai.light(
         location=args.location, recurrent_states=light_response.recurrent_states)
     response = iai.drive(
@@ -74,8 +75,11 @@ for i in tqdm(range(args.episode_length)):
                                              (-state.orientation), state.speed]) for state in response.agent_states]
     scene_plotter.record_step(corrected_agents, traffic_light_states=light_response.traffic_lights_states)
 
-gif_name = 'new_iai-drive-side-road-green.gif'
-scene_plotter.animate_scene(output_name=gif_name,
-                            numbers=False, direction_vec=True, velocity_vec=False,
-                            plot_frame_number=True)
-"""
+gif_name = f'iai-driving-on-{args.location}.gif'
+ani = scene_plotter.animate_scene(output_name=gif_name,
+                                  numbers=False, direction_vec=False, velocity_vec=False,
+                                  plot_frame_number=False)
+
+
+ani.save(f'iai-driving-on-{args.location.split(":")[1]}.mp4')
+plt.show(block=True)
