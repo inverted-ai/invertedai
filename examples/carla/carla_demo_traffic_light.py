@@ -22,7 +22,7 @@ import invertedai as iai
 
 # Configuration options to set from command line.
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
-parser.add_argument("-n", "--location", type=str, default="carla:Town03:Roundabout",
+parser.add_argument("-n", "--location", type=str, default="carla:Town03",
                     help='See data/static_carla.py for a list of available locations.')
 parser.add_argument("-c", "--agent_count", type=int, default=8)
 parser.add_argument("-l", "--episode_length", type=int, default=30)
@@ -32,7 +32,7 @@ parser.add_argument("-i", "--initial_states", default=None)
 parser.add_argument("-m", "--non_roi_npc_mode", type=int, default=1)
 parser.add_argument("-pi", "--npc_population_interval", type=int, default=6)
 parser.add_argument("-ca", "--max_cars_in_map", type=int, default=100)
-parser.add_argument("-ep", "--episodes", type=int, default=5)
+parser.add_argument("-ep", "--episodes", type=int, default=1)
 parser.add_argument("--api_key", type=str, default=None)
 parser.add_argument("-mc", "--manual_control_ego", action="store_true")
 
@@ -60,7 +60,6 @@ carla_cfg = CarlaSimulationConfig(
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
     manual_control_ego=args.manual_control_ego,
-    pygame_window=False,
     spectator_fov=150
 )
 sim = CarlaEnv(

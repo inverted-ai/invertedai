@@ -203,7 +203,7 @@ class CarlaEnv:
                 if tl.agent_type == "traffic-light-actor":
                     for tlo in traffic_lights_obj:
                         x, y = tlo.get_transform().location.x, tlo.get_transform().location.y
-                        if (abs(x + tl.center.x) + abs(y - tl.center.y)) < 1:
+                        if (abs(x - tl.center.x) + abs(y - tl.center.y)) < 1:
                             for traffic_line in tl.dependant:
                                 self.traffic_lights[traffic_line] = tlo
 
