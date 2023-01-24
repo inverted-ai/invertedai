@@ -241,11 +241,11 @@ class Session:
         return data
 
 
-def area_initialization(location, agent_density, traffic_lights_states=None, map_center=(0, 0), width=100, height=100, stride=100, initialize_fov=100, *args, **kwargs):
+def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0), width=100, height=100, stride=100, initialize_fov=100, *args, **kwargs):
     h_start, h_end = map_center[0] - (height/2) + (initialize_fov/2), \
         map_center[0] + (height/2) - (initialize_fov/2) + 1
     w_start, w_end = map_center[1] - (width/2) + (initialize_fov/2), \
-        map_center[0] + (width/2) - (initialize_fov/2) + 1
+        map_center[1] + (width/2) - (initialize_fov/2) + 1
     agent_states = []
     agent_attributes = []
     agent_rs = []
@@ -276,11 +276,10 @@ def area_initialization(location, agent_density, traffic_lights_states=None, map
                     states_history=[con_agent_state] if len(con_agent_state) > 0 else None,
                     agent_attributes=con_agent_attrs if len(con_agent_attrs) > 0 else None,
                     agent_count=agent_density,
-                    get_birdview=True,
                     get_infractions=False,
                     traffic_light_state_history=traffic_lights_states,
                     location_of_interest=(area_center.x, area_center.y),
-                    random_seed=2,
+                    random_seed=random_seed,
                 )
                 break
             except:
