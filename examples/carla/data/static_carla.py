@@ -28,6 +28,13 @@ MAP_CENTERS = {
     "carla:Town10HD:3way_Protected": [-32.242706298828125, 87.99059295654297],
     "carla:Town10HD:3way_Stop": [28.333023071289062, 62.63806915283203],
     "carla:Town10HD:4way": [-33.782386779785156, 26.179428100585938],
+    "carla:Town01": [200., 160.],
+    "carla:Town02": [95., 214.],
+    "carla:Town03": [0.0, 0.0],
+    "carla:Town04": [0.0, 0.0],
+    "carla:Town06": [170, 120.0],
+    "carla:Town07": [-57.0, -65.0],
+    "carla:Town10HD": [0.0, 0.0],
 }
 
 DEMO_LOCATIONS = {

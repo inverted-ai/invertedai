@@ -7,14 +7,29 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error, api
+from invertedai.common import Point
 import logging
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib import animation
 import numpy as np
+import csv
+import math
+from tqdm.contrib import tmap
+from itertools import product
+from PIL import Image as PImage
+from invertedai.common import AgentState, StaticMapActor
+from matplotlib import transforms
+from copy import deepcopy
 
+H_SCALE = 10
+text_x_offset = 0
+text_y_offset = 0.7
+text_size = 7
 TIMEOUT_SECS = 600
 MAX_RETRIES = 10
+SLACK = 5
+
 
 class Session:
     def __init__(self, api_token: str = ""):
@@ -226,6 +241,70 @@ class Session:
         return data
 
 
+def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0), width=100, height=100, stride=100, initialize_fov=100, *args, **kwargs):
+    h_start, h_end = map_center[0] - (height/2) + (initialize_fov/2), \
+        map_center[0] + (height/2) - (initialize_fov/2) + 1
+    w_start, w_end = map_center[1] - (width/2) + (initialize_fov/2), \
+        map_center[1] + (width/2) - (initialize_fov/2) + 1
+    agent_states = []
+    agent_attributes = []
+    agent_rs = []
+    first = True
+    centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
+    for area_center in tmap(Point.fromlist, centers, total=len(np.arange(h_start, h_end, stride))*len(np.arange(w_start, w_end, stride)), desc=f"Initializing {location.split(':')[1]}"):
+
+        conditional_agent = list(filter(lambda x: x[0].center - area_center <
+                                 initialize_fov/2, zip(agent_states, agent_attributes, agent_rs)))
+        remaining_agents = list(filter(lambda x: x[0].center - area_center >=
+                                initialize_fov/2, zip(agent_states, agent_attributes, agent_rs)))
+
+        con_agent_state = [x[0] for x in conditional_agent]
+        con_agent_attrs = [x[1] for x in conditional_agent]
+        con_agent_rs = [x[2] for x in conditional_agent]
+        remaining_agents_states = [x[0] for x in remaining_agents]
+        remaining_agents_attrs = [x[1] for x in remaining_agents]
+        remaining_agents_rs = [x[2] for x in remaining_agents]
+
+        if len(con_agent_state) > agent_density:
+            continue
+
+        for _ in range(1):
+            try:
+                # Initialize simulation with an API cal
+                response = iai.initialize(
+                    location=location,
+                    states_history=[con_agent_state] if len(con_agent_state) > 0 else None,
+                    agent_attributes=con_agent_attrs if len(con_agent_attrs) > 0 else None,
+                    agent_count=agent_density,
+                    get_infractions=False,
+                    traffic_light_state_history=traffic_lights_states,
+                    location_of_interest=(area_center.x, area_center.y),
+                    random_seed=random_seed,
+                )
+                break
+            except:
+                pass
+        else:
+            continue
+        # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
+        # SLACK is for removing the agents that are very close to the boundary and they may collide agents not filtered as conditional
+        valid_agents = list(filter(lambda x: x[0].center - area_center <
+                                   (initialize_fov/2)-SLACK, zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+
+        valid_agent_state = [x[0] for x in valid_agents]
+        valid_agent_attrs = [x[1] for x in valid_agents]
+        valid_agent_rs = [x[2] for x in valid_agents]
+
+        agent_states = remaining_agents_states + valid_agent_state
+        agent_attributes = remaining_agents_attrs + valid_agent_attrs
+        agent_rs = remaining_agents_rs + valid_agent_rs
+
+    return invertedai.api.InitializeResponse(
+        recurrent_states=agent_rs,
+        agent_states=agent_states,
+        agent_attributes=agent_attributes)
+
+
 class APITokenAuth(AuthBase):
     def __init__(self, api_token):
         self.api_token = api_token
@@ -351,15 +430,19 @@ def rot(rot):
 
 
 class ScenePlotter:
-    def __init__(self, map_image, fov, xy_offset, static_actors):
+    def __init__(self, map_image=None, fov=None, xy_offset=None, static_actors=None, open_drive=None):
         self.conditional_agents = None
         self.agent_attributes = None
         self.traffic_lights_history = None
         self.agent_states_history = None
-        self.map_image = map_image
+        self.open_drive = open_drive
         self.fov = fov
-        self.extent = (- self.fov / 2 + xy_offset[0], self.fov / 2 + xy_offset[0]) + \
-            (- self.fov / 2 + xy_offset[1], self.fov / 2 + xy_offset[1])
+        self.map_image = map_image
+        if not open_drive:
+            self.extent = (- self.fov / 2 + xy_offset[0], self.fov / 2 + xy_offset[0]) + \
+                (- self.fov / 2 + xy_offset[1], self.fov / 2 + xy_offset[1])
+        else:
+            self.map_center = xy_offset
 
         self.traffic_lights = {static_actor.actor_id: static_actor
                                for static_actor in static_actors
@@ -434,7 +517,8 @@ class ScenePlotter:
         def animate(i):
             self._update_frame_to(i)
 
-        ani = animation.FuncAnimation(fig, animate, np.arange(start_idx, end_idx), interval=100)
+        ani = animation.FuncAnimation(
+            fig, animate, np.arange(start_idx, end_idx), interval=100)
         if output_name is not None:
             ani.save(f'{output_name}', writer='pillow')
         return ani
@@ -443,8 +527,15 @@ class ScenePlotter:
         if ax is None:
             plt.clf()
             ax = plt.gca()
+        if not self.open_drive:
+            ax.imshow(self.map_image, extent=self.extent)
+        else:
+            self._draw_xord_map(ax)
+            self.extent = (self.map_center[0]-self.fov/2, self.map_center[0]+self.fov/2) +\
+                (self.map_center[1]-self.fov/2, self.map_center[1]+self.fov/2)
+            ax.set_xlim((self.extent[0], self.extent[1]))
+            ax.set_ylim((self.extent[2], self.extent[3]))
         self.current_ax = ax
-        ax.imshow(self.map_image, extent=self.extent)
 
         self.dir_lines = {}
         self.v_lines = {}
@@ -470,12 +561,14 @@ class ScenePlotter:
 
         if self.plot_frame_number:
             if self.frame_label is None:
-                self.frame_label = self.current_ax.text(self.extent[0], self.extent[2], str(frame_idx), c='r', fontsize=18)
+                self.frame_label = self.current_ax.text(
+                    self.extent[0], self.extent[2], str(frame_idx), c='r', fontsize=18)
             else:
                 self.frame_label.set_text(str(frame_idx))
 
-        self.current_ax.set_xlim(*self.extent[0:2])
-        self.current_ax.set_ylim(*self.extent[2:4])
+        if not self.open_drive:
+            self.current_ax.set_xlim(*self.extent[0:2])
+            self.current_ax.set_ylim(*self.extent[2:4])
 
     def _update_agent(self, agent_idx, agent, agent_attribute):
         l, w = agent_attribute.length, agent_attribute.width
@@ -489,20 +582,23 @@ class ScenePlotter:
         box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
         if self.direction_vec:
             if agent_idx not in self.dir_lines:
-                self.dir_lines[agent_idx] = self.current_ax.plot(box[0:2,0], box[0:2,1], lw=2.0, c=self.dir_c)[0] # plot the direction vector
+                self.dir_lines[agent_idx] = self.current_ax.plot(
+                    box[0:2, 0], box[0:2, 1], lw=2.0, c=self.dir_c)[0]  # plot the direction vector
             else:
-                self.dir_lines[agent_idx].set_xdata(box[0:2,0])
-                self.dir_lines[agent_idx].set_ydata(box[0:2,1])
+                self.dir_lines[agent_idx].set_xdata(box[0:2, 0])
+                self.dir_lines[agent_idx].set_ydata(box[0:2, 1])
 
         if self.velocity_vec:
             if agent_idx not in self.v_lines:
-                self.v_lines[agent_idx] = self.current_ax.plot(box[2:4,0], box[2:4,1], lw=1.5 , c=self.v_c)[0] # plot the speed
+                self.v_lines[agent_idx] = self.current_ax.plot(
+                    box[2:4, 0], box[2:4, 1], lw=1.5, c=self.v_c)[0]  # plot the speed
             else:
-                self.v_lines[agent_idx].set_xdata(box[2:4,0])
-                self.v_lines[agent_idx].set_ydata(box[2:4,1])
+                self.v_lines[agent_idx].set_xdata(box[2:4, 0])
+                self.v_lines[agent_idx].set_ydata(box[2:4, 1])
         if self.numbers:
             if agent_idx not in self.box_labels:
-                self.box_labels[agent_idx] = self.current_ax.text(x, y, str(agent_idx), c='r', fontsize=18)
+                self.box_labels[agent_idx] = self.current_ax.text(
+                    x, y, str(agent_idx), c='r', fontsize=18)
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
                 self.box_labels[agent_idx].set_x(x)
@@ -513,7 +609,8 @@ class ScenePlotter:
         else:
             c = self.agent_c
 
-        rect = Rectangle((x - l / 2,y - w / 2), l, w, angle=psi * 180 / np.pi, rotation_point='center', fc=c, lw=0)
+        rect = Rectangle((x - l / 2, y - w / 2), l, w, angle=psi *
+                         180 / np.pi, rotation_point='center', fc=c, lw=0)
         if agent_idx in self.actor_boxes:
             self.actor_boxes[agent_idx].remove()
         self.actor_boxes[agent_idx] = rect
@@ -526,10 +623,158 @@ class ScenePlotter:
         psi = light.orientation
         l, w = light.length, light.width
 
-        rect = Rectangle((x - l / 2,y - w / 2), l, w, angle=psi * 180 / np.pi,
+        rect = Rectangle((x - l / 2, y - w / 2), l, w, angle=psi * 180 / np.pi,
                          rotation_point='center',
                          fc=self.traffic_light_colors[light_state], lw=0)
         if light_id in self.traffic_light_boxes:
             self.traffic_light_boxes[light_id].remove()
         self.current_ax.add_patch(rect)
         self.traffic_light_boxes[light_id] = rect
+
+    def _draw_xord_map(self, ax, extras=False):
+        """
+        This function plots the parsed xodr map
+        the `odrplot` of `esmini` is used for plotting and parsing xord
+        https: // esmini.github.io/  # _tools_overview
+        """
+        with open(self.open_drive) as f:
+            reader = csv.reader(f, skipinitialspace=True)
+            positions = list(reader)
+
+        ref_x = []
+        ref_y = []
+        ref_z = []
+        ref_h = []
+
+        lane_x = []
+        lane_y = []
+        lane_z = []
+        lane_h = []
+
+        border_x = []
+        border_y = []
+        border_z = []
+        border_h = []
+
+        road_id = []
+        road_id_x = []
+        road_id_y = []
+
+        road_start_dots_x = []
+        road_start_dots_y = []
+
+        road_end_dots_x = []
+        road_end_dots_y = []
+
+        lane_section_dots_x = []
+        lane_section_dots_y = []
+
+        arrow_dx = []
+        arrow_dy = []
+
+        current_road_id = None
+        current_lane_id = None
+        current_lane_section = None
+        new_lane_section = False
+
+        for i in range(len(positions) + 1):
+
+            if i < len(positions):
+                pos = positions[i]
+
+            # plot road id before going to next road
+            if i == len(positions) or (pos[0] == 'lane' and i > 0 and current_lane_id == '0'):
+
+                if current_lane_section == '0':
+                    road_id.append(int(current_road_id))
+                    index = int(len(ref_x[-1])/3.0)
+                    h = ref_h[-1][index]
+                    road_id_x.append(
+                        ref_x[-1][index] + (text_x_offset * math.cos(h) - text_y_offset * math.sin(h)))
+                    road_id_y.append(
+                        ref_y[-1][index] + (text_x_offset * math.sin(h) + text_y_offset * math.cos(h)))
+                    road_start_dots_x.append(ref_x[-1][0])
+                    road_start_dots_y.append(ref_y[-1][0])
+                    if len(ref_x) > 0:
+                        arrow_dx.append(ref_x[-1][1]-ref_x[-1][0])
+                        arrow_dy.append(ref_y[-1][1]-ref_y[-1][0])
+                    else:
+                        arrow_dx.append(0)
+                        arrow_dy.append(0)
+
+                lane_section_dots_x.append(ref_x[-1][-1])
+                lane_section_dots_y.append(ref_y[-1][-1])
+
+            if i == len(positions):
+                break
+
+            if pos[0] == 'lane':
+                current_road_id = pos[1]
+                current_lane_section = pos[2]
+                current_lane_id = pos[3]
+                if pos[3] == '0':
+                    ltype = 'ref'
+                    ref_x.append([])
+                    ref_y.append([])
+                    ref_z.append([])
+                    ref_h.append([])
+
+                elif pos[4] == 'no-driving':
+                    ltype = 'border'
+                    border_x.append([])
+                    border_y.append([])
+                    border_z.append([])
+                    border_h.append([])
+                else:
+                    ltype = 'lane'
+                    lane_x.append([])
+                    lane_y.append([])
+                    lane_z.append([])
+                    lane_h.append([])
+            else:
+                if ltype == 'ref':
+                    ref_x[-1].append(float(pos[0]))
+                    ref_y[-1].append(float(pos[1]))
+                    ref_z[-1].append(float(pos[2]))
+                    ref_h[-1].append(float(pos[3]))
+
+                elif ltype == 'border':
+                    border_x[-1].append(float(pos[0]))
+                    border_y[-1].append(float(pos[1]))
+                    border_z[-1].append(float(pos[2]))
+                    border_h[-1].append(float(pos[3]))
+                else:
+                    lane_x[-1].append(float(pos[0]))
+                    lane_y[-1].append(float(pos[1]))
+                    lane_z[-1].append(float(pos[2]))
+                    lane_h[-1].append(float(pos[3]))
+
+        # plot driving lanes in blue
+        for i in range(len(lane_x)):
+            ax.plot(lane_x[i], lane_y[i], linewidth=1.0, color='#222222')
+
+        # plot road ref line segments
+        for i in range(len(ref_x)):
+            ax.plot(ref_x[i], ref_y[i], linewidth=2.0, color='#BB5555')
+
+        # plot border lanes in gray
+        for i in range(len(border_x)):
+            ax.plot(border_x[i], border_y[i], linewidth=1.0, color='#AAAAAA')
+
+        if extras:
+            # plot red dots indicating lane dections
+            for i in range(len(lane_section_dots_x)):
+                ax.plot(lane_section_dots_x[i], lane_section_dots_y[i], 'o', ms=4.0, color='#BB5555')
+
+            for i in range(len(road_start_dots_x)):
+                # plot a yellow dot at start of each road
+                ax.plot(road_start_dots_x[i], road_start_dots_y[i], 'o', ms=5.0, color='#BBBB33')
+                # and an arrow indicating road direction
+                ax.arrow(road_start_dots_x[i], road_start_dots_y[i], arrow_dx[i],
+                         arrow_dy[i], width=0.1, head_width=1.0, color='#BB5555')
+            # plot road id numbers
+            for i in range(len(road_id)):
+                ax.text(road_id_x[i], road_id_y[i], road_id[i], size=text_size,
+                        ha='center', va='center', color='#3333BB')
+
+        return None
