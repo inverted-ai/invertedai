@@ -28,7 +28,8 @@ text_y_offset = 0.7
 text_size = 7
 TIMEOUT_SECS = 600
 MAX_RETRIES = 10
-SLACK = 5
+SLACK = 2
+INITIALIZE_FOV = 120
 
 
 class Session:
@@ -241,7 +242,11 @@ class Session:
         return data
 
 
-def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0), width=100, height=100, stride=100, initialize_fov=100, *args, **kwargs):
+def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0), width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, *args, **kwargs):
+    def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
+        return ((center.x - (initialize_fov/2) < point.x < center.x + (initialize_fov/2)) and
+                (center.y - (initialize_fov/2) < point.y < center.y + (initialize_fov/2)))
+
     h_start, h_end = map_center[0] - (height/2) + (initialize_fov/2), \
         map_center[0] + (height/2) - (initialize_fov/2) + 1
     w_start, w_end = map_center[1] - (width/2) + (initialize_fov/2), \
@@ -253,10 +258,10 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
     centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
     for area_center in tmap(Point.fromlist, centers, total=len(np.arange(h_start, h_end, stride))*len(np.arange(w_start, w_end, stride)), desc=f"Initializing {location.split(':')[1]}"):
 
-        conditional_agent = list(filter(lambda x: x[0].center - area_center <
-                                 initialize_fov/2, zip(agent_states, agent_attributes, agent_rs)))
-        remaining_agents = list(filter(lambda x: x[0].center - area_center >=
-                                initialize_fov/2, zip(agent_states, agent_attributes, agent_rs)))
+        conditional_agent = list(filter(lambda x: inside_fov(
+            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes, agent_rs)))
+        remaining_agents = list(filter(lambda x: not inside_fov(
+            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes, agent_rs)))
 
         con_agent_state = [x[0] for x in conditional_agent]
         con_agent_attrs = [x[1] for x in conditional_agent]
@@ -288,8 +293,8 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
             continue
         # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
         # SLACK is for removing the agents that are very close to the boundary and they may collide agents not filtered as conditional
-        valid_agents = list(filter(lambda x: x[0].center - area_center <
-                                   (initialize_fov/2)-SLACK, zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+        valid_agents = list(filter(lambda x: inside_fov(
+            center=area_center, initialize_fov=initialize_fov-SLACK, point=x[0].center), zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
 
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]

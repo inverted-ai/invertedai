@@ -38,7 +38,7 @@ corrected_static_actors = [StaticMapActor.fromdict(dict(x=state.center.x, y=-sta
 
 light_response = iai.light(location=args.location)
 response = iai.utils.area_initialization(
-    location=args.location, agent_density=6, traffic_lights_states=None, map_center=map_center, width=500, height=500, stride=50, initialize_fov=100, static_actors=corrected_static_actors)
+    location=args.location, agent_density=6, traffic_lights_states=None, map_center=map_center, width=500, height=500, stride=50, static_actors=corrected_static_actors)
 
 
 # Carla simulator uses left-hand coordinates and xord map are right-handed, thus, the position of agents require a simple transformation
