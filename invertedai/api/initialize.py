@@ -1,6 +1,7 @@
 import time
 from pydantic import BaseModel, validate_arguments, root_validator
 from typing import List, Optional, Dict, Tuple
+import asyncio
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -63,9 +64,9 @@ def initialize(
     and if traffic lights are present then `traffic_light_state_history` should also be provided.
     If only `agent_count` is specified, a new initial state is generated with the requested
     total number of agents, i.e. when an empty list or None is passed for 'states_history'.
-    Otherwise, if the `agent_count` is higher than the number of agents in `states_history` the remaining agents will be spawned 
-    conditionally on the provided agents. If `agent_count` is equal to the number of agents in `states_history`, 
-    the simulation will be initialized only with the agents provided. 
+    Otherwise, if the `agent_count` is higher than the number of agents in `states_history` the remaining agents will be spawned
+    conditionally on the provided agents. If `agent_count` is equal to the number of agents in `states_history`,
+    the simulation will be initialized only with the agents provided.
     Finally, 'agent_count' cannot be less than he number of agents in `states_history`.
     Every simulation needs to start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
@@ -186,3 +187,50 @@ def initialize(
             if timeout is not None and time.time() > start + timeout:
                 raise e
             iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
+
+
+@validate_arguments
+async def async_initialize(
+    location: str,
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    states_history: Optional[List[List[AgentState]]] = None,
+    traffic_light_state_history: Optional[
+        List[TrafficLightStatesDict]
+    ] = None,
+    get_birdview: bool = False,
+    location_of_interest: Optional[Tuple[float, float]] = None,
+    get_infractions: bool = False,
+    agent_count: Optional[int] = None,
+    random_seed: Optional[int] = None,
+) -> InitializeResponse:
+    """
+    A light async version of :func:`initialize`
+    """
+
+    response = await iai.session.async_request(model="initialize", data=model_inputs)
+    agents_spawned = len(response["agent_states"])
+    if agents_spawned != agent_count:
+        iai.logger.warning(
+            f"Unable to spawn a scenario for {agent_count} agents,  {agents_spawned} spawned instead."
+        )
+    response = InitializeResponse(
+        agent_states=[
+            AgentState.fromlist(state) for state in response["agent_states"]
+        ],
+        agent_attributes=[
+            AgentAttributes.fromlist(attr) for attr in response["agent_attributes"]
+        ],
+        recurrent_states=[
+            RecurrentState.fromval(r) for r in response["recurrent_states"]
+        ],
+        birdview=Image.fromval(response["birdview"])
+        if response["birdview"] is not None
+        else None,
+        infractions=[
+            InfractionIndicators.fromlist(infractions)
+            for infractions in response["infraction_indicators"]
+        ]
+        if response["infraction_indicators"]
+        else [],
+    )
+    return response

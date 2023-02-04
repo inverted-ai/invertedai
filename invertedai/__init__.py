@@ -3,9 +3,9 @@ from distutils.util import strtobool
 
 from invertedai.api.light import light
 from invertedai.api.location import location_info
-from invertedai.api.initialize import initialize
-from invertedai.api.drive import drive
-from invertedai.cosimulation import BasicCosimulation
+from invertedai.api.initialize import initialize, async_initialize
+from invertedai.api.drive import drive, async_drive
+from invertedai.cosimulation import BasicCosimulation, Simulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
@@ -30,6 +30,7 @@ model_resources = {
     "drive": ("post", "/drive"),
     "location_info": ("get", "/location_info"),
     "light": ("get", "/light"),
+    "test": ("get", "/test"),
 }
 __all__ = [
     "BasicCosimulation",
@@ -42,4 +43,7 @@ __all__ = [
     "initialize",
     "location_info",
     "light",
+    "Simulation",
+    "async_initialize",
+    "async_drive",
 ]

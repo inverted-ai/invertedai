@@ -1,4 +1,5 @@
 import requests
+import asyncio
 import json
 import re
 from typing import Dict, Optional
@@ -21,6 +22,7 @@ from PIL import Image as PImage
 from invertedai.common import AgentState, StaticMapActor
 from matplotlib import transforms
 from copy import deepcopy
+from invertedai.future import to_thread
 
 H_SCALE = 10
 text_x_offset = 0
@@ -76,6 +78,9 @@ class Session:
             iai.logger.warning(
                 'Using mock Inverted AI API - predictions will be trivial'
             )
+
+    async def async_request(self, *args, **kwargs):
+        return await to_thread(self.request, *args, **kwargs)
 
     def request(
         self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
@@ -232,7 +237,7 @@ class Session:
             )
         try:
             data = json.loads(rbody)
-        except:
+        except BaseException:
             raise error.APIError(
                 f"HTTP code {rcode} from API ({rbody})", rbody, rcode, headers=rheaders
             )
@@ -242,26 +247,31 @@ class Session:
         return data
 
 
-def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0), width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, *args, **kwargs):
+def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0),
+                        width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, *args, **kwargs):
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
-        return ((center.x - (initialize_fov/2) < point.x < center.x + (initialize_fov/2)) and
-                (center.y - (initialize_fov/2) < point.y < center.y + (initialize_fov/2)))
+        return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
+                (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
 
-    h_start, h_end = map_center[0] - (height/2) + (initialize_fov/2), \
-        map_center[0] + (height/2) - (initialize_fov/2) + 1
-    w_start, w_end = map_center[1] - (width/2) + (initialize_fov/2), \
-        map_center[1] + (width/2) - (initialize_fov/2) + 1
+    h_start, h_end = map_center[0] - (height / 2) + (initialize_fov / 2), \
+        map_center[0] + (height / 2) - (initialize_fov / 2) + 1
+    w_start, w_end = map_center[1] - (width / 2) + (initialize_fov / 2), \
+        map_center[1] + (width / 2) - (initialize_fov / 2) + 1
     agent_states = []
     agent_attributes = []
     agent_rs = []
     first = True
     centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
-    for area_center in tmap(Point.fromlist, centers, total=len(np.arange(h_start, h_end, stride))*len(np.arange(w_start, w_end, stride)), desc=f"Initializing {location.split(':')[1]}"):
+    for area_center in tmap(Point.fromlist, centers,
+                            total=len(np.arange(h_start, h_end, stride)) * len(np.arange(w_start, w_end, stride)),
+                            desc=f"Initializing {location.split(':')[1]}"):
 
         conditional_agent = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes, agent_rs)))
+            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
+                                                                                       agent_rs)))
         remaining_agents = list(filter(lambda x: not inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes, agent_rs)))
+            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
+                                                                                       agent_rs)))
 
         con_agent_state = [x[0] for x in conditional_agent]
         con_agent_attrs = [x[1] for x in conditional_agent]
@@ -287,14 +297,16 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
                     random_seed=random_seed,
                 )
                 break
-            except:
+            except BaseException:
                 pass
         else:
             continue
         # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
-        # SLACK is for removing the agents that are very close to the boundary and they may collide agents not filtered as conditional
+        # SLACK is for removing the agents that are very close to the boundary and
+        # they may collide agents not filtered as conditional
         valid_agents = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov-SLACK, point=x[0].center), zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+            center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
+            zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
 
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]
@@ -398,7 +410,7 @@ class IAILogger(logging.Logger):
     ) -> None:
 
         level = logging.getLevelName(level)
-        log_level = level if type(level) == int else 30
+        log_level = level if isinstance(level, int) else 30
         super().__init__(name, log_level)
         if consoel:
             consoel_handler = logging.StreamHandler()
@@ -431,7 +443,7 @@ class IAILogger(logging.Logger):
 def rot(rot):
     """Rotate in 2d"""
     return np.array([[np.cos(rot), -np.sin(rot)],
-                     [np.sin(rot),  np.cos(rot)]])
+                     [np.sin(rot), np.cos(rot)]])
 
 
 class ScenePlotter:
@@ -454,8 +466,8 @@ class ScenePlotter:
                                if static_actor.agent_type == 'traffic-light'}
 
         self.traffic_light_colors = {
-            'red':    (1.0, 0.0, 0.0),
-            'green':  (0.0, 1.0, 0.0),
+            'red': (1.0, 0.0, 0.0),
+            'green': (0.0, 1.0, 0.0),
             'yellow': (1.0, 0.8, 0.0)
         }
 
@@ -506,7 +518,8 @@ class ScenePlotter:
 
         self.reset_recording()
 
-    def plot_frame(self, idx, ax=None, numbers=False, direction_vec=False, velocity_vec=False, plot_frame_number=False):
+    def plot_frame(self, idx, ax=None, numbers=False, direction_vec=False,
+                   velocity_vec=False, plot_frame_number=False):
         self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
                               velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
         self._update_frame_to(idx)
@@ -528,7 +541,8 @@ class ScenePlotter:
             ani.save(f'{output_name}', writer='pillow')
         return ani
 
-    def _initialize_plot(self, ax=None, numbers=False, direction_vec=True, velocity_vec=False, plot_frame_number=False):
+    def _initialize_plot(self, ax=None, numbers=False, direction_vec=True,
+                         velocity_vec=False, plot_frame_number=False):
         if ax is None:
             plt.clf()
             ax = plt.gca()
@@ -536,8 +550,8 @@ class ScenePlotter:
             ax.imshow(self.map_image, extent=self.extent)
         else:
             self._draw_xord_map(ax)
-            self.extent = (self.map_center[0]-self.fov/2, self.map_center[0]+self.fov/2) +\
-                (self.map_center[1]-self.fov/2, self.map_center[1]+self.fov/2)
+            self.extent = (self.map_center[0] - self.fov / 2, self.map_center[0] + self.fov / 2) +\
+                (self.map_center[1] - self.fov / 2, self.map_center[1] + self.fov / 2)
             ax.set_xlim((self.extent[0], self.extent[1]))
             ax.set_ylim((self.extent[2], self.extent[3]))
         self.current_ax = ax
@@ -692,7 +706,7 @@ class ScenePlotter:
 
                 if current_lane_section == '0':
                     road_id.append(int(current_road_id))
-                    index = int(len(ref_x[-1])/3.0)
+                    index = int(len(ref_x[-1]) / 3.0)
                     h = ref_h[-1][index]
                     road_id_x.append(
                         ref_x[-1][index] + (text_x_offset * math.cos(h) - text_y_offset * math.sin(h)))
@@ -701,8 +715,8 @@ class ScenePlotter:
                     road_start_dots_x.append(ref_x[-1][0])
                     road_start_dots_y.append(ref_y[-1][0])
                     if len(ref_x) > 0:
-                        arrow_dx.append(ref_x[-1][1]-ref_x[-1][0])
-                        arrow_dy.append(ref_y[-1][1]-ref_y[-1][0])
+                        arrow_dx.append(ref_x[-1][1] - ref_x[-1][0])
+                        arrow_dy.append(ref_y[-1][1] - ref_y[-1][0])
                     else:
                         arrow_dx.append(0)
                         arrow_dy.append(0)
