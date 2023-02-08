@@ -3,6 +3,7 @@ import json
 import re
 from typing import Dict, Optional
 from requests.auth import AuthBase
+from requests.adapters import HTTPAdapter, Retry
 import invertedai as iai
 import invertedai.api
 import invertedai.api.config
@@ -27,7 +28,6 @@ text_x_offset = 0
 text_y_offset = 0.7
 text_size = 7
 TIMEOUT_SECS = 600
-MAX_RETRIES = 10
 SLACK = 5
 
 
@@ -35,15 +35,19 @@ class Session:
     def __init__(self, api_token: str = ""):
         self.session = requests.Session()
         self.session.auth = APITokenAuth(api_token)
+        retries = Retry(total=5,
+                        backoff_factor=0.1,
+                        status_forcelist=[500, 502, 503, 504],
+                        raise_on_status=False)
         self.session.mount(
             "https://",
-            requests.adapters.HTTPAdapter(max_retries=MAX_RETRIES),
+            requests.adapters.HTTPAdapter(max_retries=retries),
         )
         self.session.headers.update(
             {
                 "Content-Type": "application/json",
                 "Accept-Encoding": "gzip, deflate, br",
-                # "Connection": "keep-alive",
+                "Connection": "keep-alive",
             }
         )
         self.base_url = self._get_base_url()
