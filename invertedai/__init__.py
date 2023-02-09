@@ -5,7 +5,8 @@ from invertedai.api.light import light
 from invertedai.api.location import location_info
 from invertedai.api.initialize import initialize, async_initialize
 from invertedai.api.drive import drive, async_drive
-from invertedai.cosimulation import BasicCosimulation, Simulation
+from invertedai.cosimulation import BasicCosimulation
+from invertedai.simulation.simulator import Simulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
