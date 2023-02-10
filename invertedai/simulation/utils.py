@@ -3,9 +3,9 @@ import math
 from invertedai.common import Point
 from typing import Tuple
 
+DEBUG = False
 MAX_HISTORY_LEN = 10
 RE_INITIALIZATION_PERIOD = 200  # : In frames
-DEBUG = True
 AGENT_FOV = 35  # : In meters
 
 

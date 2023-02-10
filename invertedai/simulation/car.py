@@ -19,6 +19,7 @@ class Car:
         self._agent_attributes = agent_attributes
         self._recurrent_states = recurrent_states
         self.hue = 0
+        self.color = (255, 0, 0)
         self.stroke = 1
 
         # TODO: Must check if the order is correct
@@ -64,9 +65,12 @@ class Car:
         self._states_history[-1] = agent_states
 
     def render(self):
-
+        # (255, 0, 0)
+        # c = pygame.Color(0, 0, 0)
+        # c.hsva = (self.hue % 360, 100, 100, 100)
+        # color = c
         px, py = self.convertor(self.position.x, self.position.y)
-        pygame.draw.circle(self.screen, (255, 0, 0), (px, py), 3)
+        pygame.draw.circle(self.screen, self.color, (px, py), 5)
         # rect = pygame.Rect((px, py), (5, 5))
         # rotated = pygame.transform.rotate(rect, self.orientation)
         # pygame.draw.rect(self.screen, (255, 0, 0), rect)

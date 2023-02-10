@@ -47,6 +47,7 @@ class Simulation:
                  agent_per_region: float,
                  random_seed: Optional[float] = None,
                  region_fov: Optional[float] = 120,
+                 initialize_stride: Optional[float] = 60,
                  screen=None,
                  convertor=None,
                  use_quadtree: bool = False,
@@ -60,35 +61,38 @@ class Simulation:
         self.agent_per_region = agent_per_region
         self.random_seed = random_seed
         self.region_fov = region_fov
+        self.initialize_stride = initialize_stride
         self.location_info = iai.location_info(location=self.location)
         self.re_initialization = RE_INITIALIZATION_PERIOD  # :
         self.screen = screen
         self.convertor = convertor
         self.async_call = async_call
         self.use_quadtree = use_quadtree
+        self.boundary = Rectangle(Vector2(self.cfg.map_center[0] - (self.cfg.map_fov / 2),
+                                          self.cfg.map_center[1] - (self.cfg.map_fov / 2)),
+                                  Vector2((self.cfg.map_fov, self.cfg.map_fov)),
+                                  convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
+
         self._initialize_regions()
 
     def _initialize_regions(self):
         try:
             light_response = iai.light(location=self.location)
             traffic_lights_states = [light_response.traffic_lights_states]
-        except:
+        except BaseException:
             traffic_lights_states = None
         initialize_response = iai.utils.area_initialization(self.location, self.agent_per_region,
                                                             traffic_lights_states=traffic_lights_states,
                                                             random_seed=self.random_seed,
                                                             map_center=(self.center.x, self.center.y),
-                                                            width=self.width, height=self.height, stride=self.region_fov/2)
+                                                            width=self.width, height=self.height, stride=self.initialize_stride)
 
         npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen, convertor=self.convertor) for attr, state,
                 rs in zip(initialize_response.agent_attributes, initialize_response.agent_states, initialize_response.recurrent_states)]
         quadtree = None
         regions = None
         if self.use_quadtree:
-            boundary = Rectangle(Vector2(self.cfg.map_center[0]-(self.cfg.map_fov/2), self.cfg.map_center[1]-(self.cfg.map_fov/2)), Vector2(
-                (self.cfg.map_fov, self.cfg.map_fov)), convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
-
-            quadtree = QuadTree(cfg=self.cfg, capacity=self.cfg.node_capacity, boundary=boundary,
+            quadtree = QuadTree(cfg=self.cfg, capacity=self.cfg.node_capacity, boundary=self.boundary,
                                 convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
             quadtree.lineThickness = 1
             quadtree.color = (0, 87, 146)
@@ -112,12 +116,29 @@ class Simulation:
         self.quadtree = quadtree
         self.initialize_response = initialize_response
 
-    async def drive_regions(self):
+    def re_create_quadtree(self):
+        quadtree = QuadTree(cfg=self.cfg, capacity=self.cfg.node_capacity, boundary=self.boundary,
+                            convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
+        quadtree.lineThickness = 1
+        quadtree.color = (0, 87, 146)
+        for npc in self.npcs:
+            quadtree.insert(npc)
+        self.quadtree = quadtree
+
+    async def async_drive(self):
         if self.use_quadtree:
             regions = self.quadtree.get_regions()
         else:
             regions = self.regions
-        outgoings = await asyncio.gather(*[region.drive() for region in regions])
+        outgoings = await asyncio.gather(*[region.async_drive() for region in regions])
+        return outgoings
+
+    def sync_drive(self):
+        if self.use_quadtree:
+            regions = self.quadtree.get_regions()
+        else:
+            regions = self.regions
+        outgoings = [region.sync_drive() for region in regions]
         return outgoings
 
     @property
@@ -136,37 +157,37 @@ class Simulation:
 
     def drive(self):
         if self.async_call:
-            self.async_drive()
+            asyncio.run(self.async_drive())
         else:
             self.sync_drive()
 
-    def async_drive(self):
+    # def async_drive(self):
 
-        if self.use_quadtree:
-            pass
-        else:
-            outgoing_npcs = asyncio.run(self.drive_regions())
-            outgoing_npcs = list(chain.from_iterable(outgoing_npcs))
-            for region in self.regions:
-                region_npcs = list(filter(lambda x: UniformGrid.inside_fov(
-                    region.center, region.region_fov, x), outgoing_npcs))
-                # region.incomming(region_npcs)
+    #     if self.use_quadtree:
+    #         pass
+    #     else:
+    #         outgoing_npcs = asyncio.run(self.drive_regions())
+    #         outgoing_npcs = list(chain.from_iterable(outgoing_npcs))
+    #         for region in self.regions:
+    #             region_npcs = list(filter(lambda x: UniformGrid.inside_fov(
+    #                 region.center, region.region_fov, x), outgoing_npcs))
+    #             # region.incomming(region_npcs)
 
-        return True
+    #     return True
 
-    def sync_drive(self):
+    # def sync_drive(self):
 
-        if self.use_quadtree:
-            pass
-        else:
-            outgoing_npcs = asyncio.run(self.drive_regions())
-            outgoing_npcs = list(chain.from_iterable(outgoing_npcs))
-            for region in self.regions:
-                region_npcs = list(filter(lambda x: UniformGrid.inside_fov(
-                    region.center, region.region_fov, x), outgoing_npcs))
-                # region.incomming(region_npcs)
+    #     if self.use_quadtree:
+    #         pass
+    #     else:
+    #         outgoing_npcs = self.drive_regions()
+    #         outgoing_npcs = list(chain.from_iterable(outgoing_npcs))
+    #         for region in self.regions:
+    #             region_npcs = list(filter(lambda x: UniformGrid.inside_fov(
+    #                 region.center, region.region_fov, x), outgoing_npcs))
+    #             # region.incomming(region_npcs)
 
-        return True
+    #     return True
 
     def show(self):
         if self.use_quadtree:

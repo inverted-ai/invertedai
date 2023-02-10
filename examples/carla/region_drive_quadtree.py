@@ -13,7 +13,6 @@ from pygame.math import Vector2
 path = pathlib.Path(__file__).parent.resolve()
 
 Width, Height = 1000, 1000
-map_width, map_height = 500, 500
 agent_per_region = 20
 Resolution = (Width, Height)
 
@@ -45,6 +44,7 @@ if response.birdview_image is not None:
     map_image = pygame.surfarray.make_surface(rendered_static_map)
     map_fov = response.map_fov
 
+map_width, map_height = map_fov, map_fov
 scene_plotter = iai.utils.ScenePlotter(rendered_static_map, map_fov,
                                        (response.map_center.x,
                                         response.map_center.y), response.static_actors) if args.scene_plotter == 1 else None
@@ -89,8 +89,8 @@ simcfg = SimulationConfig(location=args.location, map_center=(map_center_x, map_
 simcfg.convert_to_pygame_coords = convert_to_pygame_coords
 simcfg.convert_to_pygame_scales = convert_to_pygame_scales
 simcfg.node_capacity = NODE_CAPACITY
-simulation = Simulation(cfg=simcfg, location=args.location, center=PreSets.map_centers[args.center], width=map_width, height=map_height,
-                        agent_per_region=agent_per_region, screen=screen, convertor=convert_to_pygame_coords, region_fov=120, use_quadtree=True)
+simulation = Simulation(cfg=simcfg, location=args.location, center=(map_center_x, map_center_y), width=map_width+200, height=map_height+200,
+                        agent_per_region=agent_per_region, screen=screen, convertor=convert_to_pygame_coords, region_fov=100, use_quadtree=True, initialize_stride=50)
 
 fps = 100
 run = True
