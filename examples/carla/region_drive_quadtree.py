@@ -36,7 +36,6 @@ parser.add_argument("-sp", "--scene_plotter", type=int, default=0)
 args = parser.parse_args()
 # map_center = PreSets.map_centers[args.location]
 
-simcfg = SimulationConfig(location=args.location, map_center=args.center)
 
 if args.api_key is not None:
     iai.add_apikey(args.api_key)
@@ -86,8 +85,12 @@ rect_3 = pygame.Rect(bottom_right, (10, 10))
 x_scale = bottom_right[0] - top_left[0]
 y_scale = bottom_right[1] - top_left[1]
 
+simcfg = SimulationConfig(location=args.location, map_center=(map_center_x, map_center_y), map_fov=map_fov)
+simcfg.convert_to_pygame_coords = convert_to_pygame_coords
+simcfg.convert_to_pygame_scales = convert_to_pygame_scales
+simcfg.node_capacity = NODE_CAPACITY
 simulation = Simulation(cfg=simcfg, location=args.location, center=PreSets.map_centers[args.center], width=map_width, height=map_height,
-                        agent_per_region=agent_per_region, screen=screen, convertor=convert_to_pygame_coords, region_fov=120)
+                        agent_per_region=agent_per_region, screen=screen, convertor=convert_to_pygame_coords, region_fov=120, use_quadtree=True)
 
 fps = 100
 run = True
@@ -117,20 +120,22 @@ while run:
     # -----------------------------
 
     simulation.drive()
+    simulation.show()
 
     clock.tick(fps)
 
-    boundary = Rectangle(Vector2(map_center_x-(map_fov/2), map_center_y-(map_fov/2)), Vector2(
-        (map_fov, map_fov)), convertors=(convert_to_pygame_coords, convert_to_pygame_scales))
+    # boundary = Rectangle(Vector2(map_center_x-(map_fov/2), map_center_y-(map_fov/2)), Vector2(
+    #     (map_fov, map_fov)), convertors=(convert_to_pygame_coords, convert_to_pygame_scales))
 
-    quadtree = QuadTree(NODE_CAPACITY, boundary, convertors=(
-        convert_to_pygame_coords, convert_to_pygame_scales), cfg=simcfg)
-    quadtree.lineThickness = 1
-    quadtree.color = (0, 87, 146)
+    # quadtree = QuadTree(cfg=simcfg, capacity=NODE_CAPACITY, boundary=boundary,
+    #                     convertors=(convert_to_pygame_coords, convert_to_pygame_scales))
+    # quadtree.lineThickness = 1
+    # quadtree.color = (0, 87, 146)
 
-    for npc in simulation.npcs:
-        # quadtree.insert((npc.position.x, npc.position.y))
-        quadtree.insert(npc)
+    # for npc in simulation.npcs:
+    #     # quadtree.insert((npc.position.x, npc.position.y))
+    #     quadtree.insert(npc)
+
     # quadtree.insert(convert_to_pygame_coords(npc.position.x, npc.position.y))
 
     # boundary = Rectangle(Vector2(top_left), Vector2(x_scale, y_scale),
@@ -142,7 +147,7 @@ while run:
     # for npc in simulation.npcs:
     #     quadtree.insert(convert_to_pygame_coords(npc.position.x, npc.position.y))
 
-    quadtree.Show(screen)
+    # quadtree.Show(screen)
 
     # flock.Simulate()
 

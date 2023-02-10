@@ -5,7 +5,7 @@ from typing import Tuple
 
 MAX_HISTORY_LEN = 10
 RE_INITIALIZATION_PERIOD = 200  # : In frames
-DEBUG = False
+DEBUG = True
 AGENT_FOV = 35  # : In meters
 
 
@@ -40,8 +40,8 @@ class Rectangle:
         self.convertors = convertors
 
     def containsParticle(self, particle):
-        x, y = particle
-        # x, y = particle.position
+        # x, y = particle
+        x, y = particle.position.x, particle.position.y
         bx, by = self.position
         w, h = self.scale
         if x > bx and x < bx+w and y > by and y < by+h:
