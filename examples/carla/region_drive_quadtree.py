@@ -21,7 +21,7 @@ RADIUS = 10
 
 SIZE = 120
 
-Black, White, Blue, Red, Green = (0, 0, 0), (255, 255, 255), (0, 255, 0), (255, 0, 0), (0, 0, 255)
+Black, White, Blue, Red, Green = (0, 0, 0), (255, 255, 255), (0, 0, 255), (255, 0, 0),  (0, 255, 0)
 Color1 = (1, 1, 1)
 
 
@@ -117,10 +117,16 @@ while run:
                 run = False
             if event.key == pygame.K_q:
                 run = False
+            if event.key == pygame.K_t:
+                simulation.show_quadtree = not simulation.show_quadtree
+            if event.key == pygame.K_l:
+                for npc in simulation.npcs:
+                    npc.show_agent_neighbors = not npc.show_agent_neighbors
+
     # -----------------------------
 
     simulation.drive()
-    simulation.show()
+    # simulation.show()
 
     clock.tick(fps)
 

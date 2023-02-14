@@ -7,6 +7,7 @@ DEBUG = False
 MAX_HISTORY_LEN = 10
 RE_INITIALIZATION_PERIOD = 200  # : In frames
 AGENT_FOV = 35  # : In meters
+QUAD_RE_INITIALIZATION_PERIOD = 10
 
 
 class Rotations:
@@ -54,10 +55,14 @@ class Rectangle:
         w, h = self.scale
         xr, yr = other.position
         wr, hr = other.scale
-        if xr > x + w or xr+wr < x-w or yr > y + h or yr+hr < y-h:
+        if ((x < xr < x+w) and (y < yr < y+h)) or ((xr < x < xr+wr) and (yr < y < yr+hr)):
             return True
         else:
             return False
+        # if xr > x + w or xr+wr < x-w or yr > y + h or yr+hr < y-h:
+        #     return True
+        # else:
+        #     return False
 
     def Draw(self, screen):
 

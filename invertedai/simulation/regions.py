@@ -73,6 +73,13 @@ class Region:
             pass
         else:
             self.time_to_reinitialize -= 1
+        agents_in_fov = []
+        for car in self.npcs:
+            agents_in_fov.extend(filter(lambda x: x not in self.npcs, car.fov_agents))
+            # for others in car.fov_agents:
+            #     if others not in self.npcs:
+            #         agent_attributes.append(others)
+
         agent_states = []
         agent_attributes = []
         recurrent_states = []
@@ -80,6 +87,12 @@ class Region:
             agent_states.append(npc.agent_states)
             agent_attributes.append(npc.agent_attributes)
             recurrent_states.append(npc.recurrent_states)
+
+        for npc in agents_in_fov:
+            agent_states.append(npc.agent_states)
+            agent_attributes.append(npc.agent_attributes)
+            recurrent_states.append(npc.recurrent_states)
+
         drive_response = await async_drive(location=self.location,
                                            agent_attributes=agent_attributes,
                                            agent_states=agent_states,
@@ -92,7 +105,7 @@ class Region:
 
         outgoing_npcs = []
         remaining_npcs = []
-        for npc, state, rs in zip(self.npcs, drive_response.agent_states, drive_response.recurrent_states):
+        for npc, state, rs in zip(self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
             npc.update(state, rs)
             remaining_npcs.append(npc)
             # if self.bounary.containsParticle(npc):
@@ -199,6 +212,7 @@ class QuadTree:
         if self.leaf:
             self.particles.append(particle)
             self.region.insert(particle)
+            particle.region = self.region
             return True
         else:
             if self.northWest.insert(particle):
@@ -218,6 +232,7 @@ class QuadTree:
         if len(self.particles) < self.capacity and self.leaf:
             self.particles.append(particle)
             self.region.insert(particle)
+            particle.region = self.region
             return True
         else:
             if self.leaf:
@@ -239,40 +254,19 @@ class QuadTree:
         else:
             return self.northWest.get_regions() + self.northEast.get_regions() + self.southWest.get_regions() + self.southEast.get_regions()
 
-    # def queryRange(self, _range):
-    #     particlesInRange = []
-
-    #     if _range.name == "circle":
-    #         if _range.intersects(self.boundary) == False:
-    #             return particlesInRange
-    #     else:
-    #         if _range.intersects(self.boundary) == True:
-    #             return particlesInRange
-
-    #     for particle in self.particles:
-    #         if _range.containsParticle(particle):
-    #             particlesInRange.append(particle)
-    #     if self.northWest != None:
-    #         particlesInRange += self.northWest.queryRange(_range)
-    #         particlesInRange += self.northEast.queryRange(_range)
-    #         particlesInRange += self.southWest.queryRange(_range)
-    #         particlesInRange += self.southEast.queryRange(_range)
-    #     return particlesInRange
-
-        # if self.boundary.intersects(_range):
-        #     return particlesInRange
-        # else:
-        #     for particle in self.particles:
-        #         if _range.containsParticle(particle):
-        #             particlesInRange.append(particle)
-        #
-        #     if self.northWest != None:
-        #         particlesInRange += self.northWest.queryRange(_range)
-        #         particlesInRange += self.northEast.queryRange(_range)
-        #         particlesInRange += self.southWest.queryRange(_range)
-        #         particlesInRange += self.southEast.queryRange(_range)
-        #
-        #     return particlesInRange
+    def queryRange(self, query_range):
+        particlesInRange = []
+        if self.leaf:
+            if query_range.intersects(self.boundary):
+                for particle in self.particles:
+                    if query_range.containsParticle(particle):
+                        particlesInRange.append(particle)
+        else:
+            particlesInRange += self.northWest.queryRange(query_range)
+            particlesInRange += self.northEast.queryRange(query_range)
+            particlesInRange += self.southWest.queryRange(query_range)
+            particlesInRange += self.southEast.queryRange(query_range)
+        return particlesInRange
 
     def Show(self, screen):
         self.boundary.color = self.color

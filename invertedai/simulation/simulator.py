@@ -12,7 +12,7 @@ import invertedai as iai
 from invertedai import initialize, location_info, light, drive, async_drive, async_initialize
 from invertedai.common import (AgentState, InfractionIndicators, Image,
                                TrafficLightStatesDict, AgentAttributes, RecurrentState, Point)
-from invertedai.simulation.utils import Rotations, RE_INITIALIZATION_PERIOD, Rectangle
+from invertedai.simulation.utils import Rotations, RE_INITIALIZATION_PERIOD, Rectangle, QUAD_RE_INITIALIZATION_PERIOD
 from invertedai.simulation.regions import QuadTree, UniformGrid
 from invertedai.simulation.car import Car
 
@@ -64,10 +64,13 @@ class Simulation:
         self.initialize_stride = initialize_stride
         self.location_info = iai.location_info(location=self.location)
         self.re_initialization = RE_INITIALIZATION_PERIOD  # :
+        self.quad_re_initialization = QUAD_RE_INITIALIZATION_PERIOD  # :
+        self.timer = 0
         self.screen = screen
         self.convertor = convertor
         self.async_call = async_call
         self.use_quadtree = use_quadtree
+        self.show_quadtree = False
         self.boundary = Rectangle(Vector2(self.cfg.map_center[0] - (self.cfg.map_fov / 2),
                                           self.cfg.map_center[1] - (self.cfg.map_fov / 2)),
                                   Vector2((self.cfg.map_fov, self.cfg.map_fov)),
@@ -87,7 +90,8 @@ class Simulation:
                                                             map_center=(self.center.x, self.center.y),
                                                             width=self.width, height=self.height, stride=self.initialize_stride)
 
-        npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen, convertor=self.convertor) for attr, state,
+        npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen,
+                    convertor=self.convertor, cfg=self.cfg) for attr, state,
                 rs in zip(initialize_response.agent_attributes, initialize_response.agent_states, initialize_response.recurrent_states)]
         quadtree = None
         regions = None
@@ -126,6 +130,12 @@ class Simulation:
         self.quadtree = quadtree
 
     async def async_drive(self):
+        if self.timer > self.quad_re_initialization:
+            if self.use_quadtree:
+                self.re_create_quadtree()
+            self.timer = 0
+        else:
+            self.timer += 1
         if self.use_quadtree:
             regions = self.quadtree.get_regions()
         else:
@@ -134,6 +144,12 @@ class Simulation:
         return outgoings
 
     def sync_drive(self):
+        if self.timer > self.quad_re_initialization:
+            if self.use_quadtree:
+                self.re_create_quadtree()
+            self.timer = 0
+        else:
+            self.timer += 1
         if self.use_quadtree:
             regions = self.quadtree.get_regions()
         else:
@@ -156,39 +172,21 @@ class Simulation:
         return attributes
 
     def drive(self):
+        self.update_agents_in_fov()
         if self.async_call:
             asyncio.run(self.async_drive())
         else:
             self.sync_drive()
+        if self.show_quadtree:
+            self._show_quadtree()
 
-    # def async_drive(self):
+    def update_agents_in_fov(self):
+        if self.use_quadtree:
+            for car in self.npcs:
+                car.fov_agents = self.quadtree.queryRange(car.fov_range())
+        else:
+            raise Exception("Not implemented")
 
-    #     if self.use_quadtree:
-    #         pass
-    #     else:
-    #         outgoing_npcs = asyncio.run(self.drive_regions())
-    #         outgoing_npcs = list(chain.from_iterable(outgoing_npcs))
-    #         for region in self.regions:
-    #             region_npcs = list(filter(lambda x: UniformGrid.inside_fov(
-    #                 region.center, region.region_fov, x), outgoing_npcs))
-    #             # region.incomming(region_npcs)
-
-    #     return True
-
-    # def sync_drive(self):
-
-    #     if self.use_quadtree:
-    #         pass
-    #     else:
-    #         outgoing_npcs = self.drive_regions()
-    #         outgoing_npcs = list(chain.from_iterable(outgoing_npcs))
-    #         for region in self.regions:
-    #             region_npcs = list(filter(lambda x: UniformGrid.inside_fov(
-    #                 region.center, region.region_fov, x), outgoing_npcs))
-    #             # region.incomming(region_npcs)
-
-    #     return True
-
-    def show(self):
+    def _show_quadtree(self):
         if self.use_quadtree:
             self.quadtree.Show(self.screen)
