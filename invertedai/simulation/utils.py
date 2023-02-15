@@ -10,21 +10,39 @@ AGENT_FOV = 35  # : In meters
 QUAD_RE_INITIALIZATION_PERIOD = 10
 
 
+def get_pygame_convertors(x_min, x_max, y_min, y_max, H, W):
+    def convert_to_pygame_coords(x, y):
+        x_range = x_max - x_min
+        y_range = y_max - y_min
+        pygame_x = int((x - x_min) * W / x_range)
+        pygame_y = int((y - y_min) * H / y_range)
+        return (pygame_x, pygame_y)
+
+    def convert_to_pygame_scales(w, h):
+        x_range = x_max - x_min
+        y_range = y_max - y_min
+        pygame_w = int((w) * W / x_range)
+        pygame_h = int((h) * H / y_range)
+        return (pygame_w, pygame_h)
+
+    return convert_to_pygame_coords, convert_to_pygame_scales
+
+
 class Rotations:
 
-    @staticmethod
+    @ staticmethod
     def rotationX(angle):
         return [[1, 0, 0],
                 [0, math.cos(angle), -math.sin(angle)],
                 [0, math.sin(angle), math.cos(angle)]]
 
-    @staticmethod
+    @ staticmethod
     def rotationY(angle):
         return [[math.cos(angle), 0, -math.sin(angle)],
                 [0, 1, 0],
                 [math.sin(angle), 0, math.cos(angle)]]
 
-    @staticmethod
+    @ staticmethod
     def rotationZ(angle):
         return [[math.cos(angle), -math.sin(angle), 0],
                 [math.sin(angle), math.cos(angle), 0],

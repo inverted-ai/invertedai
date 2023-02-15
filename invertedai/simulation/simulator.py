@@ -12,9 +12,11 @@ import invertedai as iai
 from invertedai import initialize, location_info, light, drive, async_drive, async_initialize
 from invertedai.common import (AgentState, InfractionIndicators, Image,
                                TrafficLightStatesDict, AgentAttributes, RecurrentState, Point)
-from invertedai.simulation.utils import Rotations, RE_INITIALIZATION_PERIOD, Rectangle, QUAD_RE_INITIALIZATION_PERIOD
-from invertedai.simulation.regions import QuadTree, UniformGrid
+from invertedai.simulation.utils import Rotations, RE_INITIALIZATION_PERIOD, Rectangle, QUAD_RE_INITIALIZATION_PERIOD, get_pygame_convertors
+from invertedai.simulation.regions import QuadTree
 from invertedai.simulation.car import Car
+
+Color1 = (1, 1, 1)
 
 
 @dataclass
@@ -24,10 +26,22 @@ class SimulationConfig:
     """
     location: str = "carla:Town10HD"  #: in format recognized by Inverted AI API center map coordinate of the selected carla town
     map_center: Tuple[float] = (0.0, 0.0)
+    map_width: float = 100
+    map_height: float = 100
+    map_fov: float = 100
+    rendered_static_map: Optional[np.ndarray] = None
+    agent_density: float = 10
+    initialize_stride: float = 100
     fps: int = 10  #: 10 is the only value currently compatible with Inverted AI API
     traffic_count: int = 20  #: total number of vehicles to place in simulation
     episode_length: int = 20  #: in seconds
-    map_fov: float = 200
+    random_seed: Optional[int] = None
+    re_initialization_period: Optional[int] = None
+    quadtree_reconstruction_period: int = 10
+    quadtree_capacity: int = 10
+    async_call: bool = True
+    pygame_window: bool = True
+    pygame_resolution: Tuple[int] = (1400, 1400)
 
 
 class Simulation:
@@ -40,42 +54,38 @@ class Simulation:
 
     def __init__(self,
                  cfg: SimulationConfig,
-                 location: str,
-                 center: Tuple[float],
-                 width: float,
-                 height: float,
-                 agent_per_region: float,
-                 random_seed: Optional[float] = None,
-                 region_fov: Optional[float] = 120,
-                 initialize_stride: Optional[float] = 60,
-                 screen=None,
-                 convertor=None,
-                 use_quadtree: bool = False,
-                 async_call: bool = True,
                  ):
         self.cfg = cfg
         self.location = cfg.location
-        self.center = Point(x=center[0], y=center[1])
-        self.width = width
-        self.height = height
-        self.agent_per_region = agent_per_region
-        self.random_seed = random_seed
-        self.region_fov = region_fov
-        self.initialize_stride = initialize_stride
-        self.location_info = iai.location_info(location=self.location)
-        self.re_initialization = RE_INITIALIZATION_PERIOD  # :
-        self.quad_re_initialization = QUAD_RE_INITIALIZATION_PERIOD  # :
+        self.center = Point(x=cfg.map_center[0], y=cfg.map_center[1])
+        self.width = cfg.map_width
+        self.height = cfg.map_height
+        self.agent_per_region = cfg.agent_density
+        self.random_seed = cfg.random_seed
+        self.initialize_stride = cfg.initialize_stride
+        self.re_initialization = cfg.re_initialization_period
+        self.quad_re_initialization = cfg.quadtree_reconstruction_period
         self.timer = 0
-        self.screen = screen
-        self.convertor = convertor
-        self.async_call = async_call
-        self.use_quadtree = use_quadtree
+        self.screen = None
+        self.async_call = cfg.async_call
         self.show_quadtree = False
-        self.boundary = Rectangle(Vector2(self.cfg.map_center[0] - (self.cfg.map_fov / 2),
-                                          self.cfg.map_center[1] - (self.cfg.map_fov / 2)),
-                                  Vector2((self.cfg.map_fov, self.cfg.map_fov)),
+        self.location_info = iai.location_info(location=self.location)
+        self.map_fov = cfg.map_fov
+        self.map_image = pygame.surfarray.make_surface(cfg.rendered_static_map)
+        self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales = get_pygame_convertors(
+            self.center.x-self.map_fov/2, self.center.x+self.map_fov/2,
+            self.center.y-self.map_fov/2, self.center.y+self.map_fov/2,
+            cfg.pygame_resolution[0], cfg.pygame_resolution[1])
+        self.boundary = Rectangle(Vector2(self.cfg.map_center[0] - (self.map_fov / 2),
+                                          self.cfg.map_center[1] - (self.map_fov / 2)),
+                                  Vector2((self.map_fov, self.map_fov)),
                                   convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
+        if cfg.pygame_window:
+            self.top_left = cfg.convert_to_pygame_coords(self.center.x-(self.map_fov/2), self.center.y-(self.map_fov/2))
+            self.x_scale, self.y_scale = cfg.convert_to_pygame_scales(self.map_fov, self.map_fov)
 
+            self.screen = pygame.display.set_mode(cfg.pygame_resolution)
+            pygame.display.set_caption("Quadtree")
         self._initialize_regions()
 
     def _initialize_regions(self):
@@ -91,37 +101,22 @@ class Simulation:
                                                             width=self.width, height=self.height, stride=self.initialize_stride)
 
         npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen,
-                    convertor=self.convertor, cfg=self.cfg) for attr, state,
+                    convertor=self.cfg.convert_to_pygame_coords, cfg=self.cfg) for attr, state,
                 rs in zip(initialize_response.agent_attributes, initialize_response.agent_states, initialize_response.recurrent_states)]
         quadtree = None
-        regions = None
-        if self.use_quadtree:
-            quadtree = QuadTree(cfg=self.cfg, capacity=self.cfg.node_capacity, boundary=self.boundary,
-                                convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
-            quadtree.lineThickness = 1
-            quadtree.color = (0, 87, 146)
-            for npc in npcs:
-                quadtree.insert(npc)
-        else:
-            h_start, h_end = self.center.x - (self.height / 2) + (self.region_fov /
-                                                                  2), self.center.x + (self.height / 2) - (self.region_fov / 2) + 1
-            w_start, w_end = self.center.y - (self.width / 2) + (self.region_fov /
-                                                                 2), self.center.y + (self.width / 2) - (self.region_fov / 2) + 1
-            region_centers = product(np.arange(h_start, h_end, self.region_fov / 2),
-                                     np.arange(w_start, w_end, self.region_fov / 2))
-            regions = []
-            for region_center in map(Point.fromlist, region_centers):
-                region_npcs = list(filter(lambda x: UniformGrid.inside_fov(region_center, self.region_fov, x), npcs))
-                regions.append(UniformGrid(location=self.location, center=region_center,
-                                           region_fov=self.region_fov, npcs=region_npcs))
+        quadtree = QuadTree(cfg=self.cfg, capacity=self.cfg.quadtree_capacity, boundary=self.boundary,
+                            convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
+        quadtree.lineThickness = 1
+        quadtree.color = (0, 87, 146)
+        for npc in npcs:
+            quadtree.insert(npc)
 
-        self.regions = regions
         self.npcs = npcs
         self.quadtree = quadtree
         self.initialize_response = initialize_response
 
-    def re_create_quadtree(self):
-        quadtree = QuadTree(cfg=self.cfg, capacity=self.cfg.node_capacity, boundary=self.boundary,
+    def create_quadtree(self):
+        quadtree = QuadTree(cfg=self.cfg, capacity=self.cfg.quadtree_capacity, boundary=self.boundary,
                             convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
         quadtree.lineThickness = 1
         quadtree.color = (0, 87, 146)
@@ -131,31 +126,21 @@ class Simulation:
 
     async def async_drive(self):
         if self.timer > self.quad_re_initialization:
-            if self.use_quadtree:
-                self.re_create_quadtree()
+            self.create_quadtree()
             self.timer = 0
         else:
             self.timer += 1
-        if self.use_quadtree:
-            regions = self.quadtree.get_regions()
-        else:
-            regions = self.regions
-        outgoings = await asyncio.gather(*[region.async_drive() for region in regions])
-        return outgoings
+        regions = self.quadtree.get_regions()
+        await asyncio.gather(*[region.async_drive() for region in regions])
 
     def sync_drive(self):
         if self.timer > self.quad_re_initialization:
-            if self.use_quadtree:
-                self.re_create_quadtree()
-            self.timer = 0
+            self.create_quadtree()
         else:
             self.timer += 1
-        if self.use_quadtree:
-            regions = self.quadtree.get_regions()
-        else:
-            regions = self.regions
-        outgoings = [region.sync_drive() for region in regions]
-        return outgoings
+        regions = self.quadtree.get_regions()
+        for region in regions:
+            region.sync_drive()
 
     @property
     def agent_states(self):
@@ -172,6 +157,12 @@ class Simulation:
         return attributes
 
     def drive(self):
+        if self.cfg.pygame_window:
+            self.screen.fill(Color1)
+            # pygame.display.set_caption("QuadTree Fps: " + str(int(clock.get_fps())))
+            self.screen.blit(pygame.transform.scale(pygame.transform.flip(
+                pygame.transform.rotate(self.map_image, 90), True, False), (self.x_scale, self.y_scale)), self.top_left)
+
         self.update_agents_in_fov()
         if self.async_call:
             asyncio.run(self.async_drive())
@@ -180,13 +171,12 @@ class Simulation:
         if self.show_quadtree:
             self._show_quadtree()
 
+        if self.cfg.pygame_window:
+            pygame.display.flip()
+
     def update_agents_in_fov(self):
-        if self.use_quadtree:
-            for car in self.npcs:
-                car.fov_agents = self.quadtree.queryRange(car.fov_range())
-        else:
-            raise Exception("Not implemented")
+        for car in self.npcs:
+            car.fov_agents = self.quadtree.queryRange(car.fov_range())
 
     def _show_quadtree(self):
-        if self.use_quadtree:
-            self.quadtree.Show(self.screen)
+        self.quadtree.Show(self.screen)
