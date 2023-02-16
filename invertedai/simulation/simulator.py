@@ -41,7 +41,7 @@ class SimulationConfig:
     quadtree_capacity: int = 10
     async_call: bool = True
     pygame_window: bool = True
-    pygame_resolution: Tuple[int] = (1400, 1400)
+    pygame_resolution: Tuple[int] = (1200, 1200)
 
 
 class Simulation:

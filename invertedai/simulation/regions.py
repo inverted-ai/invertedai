@@ -1,12 +1,9 @@
-import pygame
 from pygame.math import Vector2
-from invertedai.simulation.utils import Rectangle, Circle, RE_INITIALIZATION_PERIOD, DEBUG
+from invertedai.simulation.utils import Rectangle, RE_INITIALIZATION_PERIOD, DEBUG
 from typing import List, Optional, Callable
 from random import randint
-from invertedai import initialize, location_info, light, drive, async_drive, async_initialize
+from invertedai import drive, async_drive, initialize, async_initialize
 from invertedai.simulation.car import Car
-from invertedai.common import (AgentState, InfractionIndicators, Image,
-                               TrafficLightStatesDict, AgentAttributes, RecurrentState, Point)
 
 
 class Region:
@@ -22,18 +19,7 @@ class Region:
         self.timer = 0
         self.color = (randint(0, 255), randint(0, 255), randint(0, 255))
 
-    def sync_drive(self):
-        """_summary_
-        updates the state of all NPCs inside the region and returns a list of NPCs that are not longer int the region
-        """
-        if self.empty:
-            return []
-        if self.time_to_reinitialize == 0:
-            # TODO: Initialization
-            self.time_to_reinitialize = self.re_initialization_period
-            pass
-        else:
-            self.time_to_reinitialize -= 1
+    def pre_drive(self):
         agents_in_fov = []
         for car in self.npcs:
             agents_in_fov.extend(filter(lambda x: x not in self.npcs, car.fov_agents))
@@ -50,12 +36,9 @@ class Region:
             agent_states.append(npc.agent_states)
             agent_attributes.append(npc.agent_attributes)
             recurrent_states.append(npc.recurrent_states)
+        return agent_attributes, agent_states, recurrent_states
 
-        drive_response = drive(location=self.location,
-                               agent_attributes=agent_attributes,
-                               agent_states=agent_states,
-                               recurrent_states=recurrent_states,
-                               get_birdview=DEBUG)
+    def post_drive(self, drive_response):
         if DEBUG:
             file_path = f"img/debug/{self.center}-{self.timer}.jpg"
             drive_response.birdview.decode_and_save(file_path)
@@ -65,54 +48,37 @@ class Region:
         for npc, state, rs in zip(self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
             npc.update(state, rs)
             remaining_npcs.append(npc)
-
         self.npcs = remaining_npcs
+
+    def sync_drive(self):
+        """_summary_
+        updates the state of all NPCs inside the region and returns a list of NPCs that are not longer int the region
+        """
+        if self.empty:
+            return
+        else:
+            agent_attributes, agent_states, recurrent_states = self.pre_drive()
+            drive_response = drive(location=self.location,
+                                   agent_attributes=agent_attributes,
+                                   agent_states=agent_states,
+                                   recurrent_states=recurrent_states,
+                                   get_birdview=DEBUG)
+            self.post_drive(drive_response=drive_response)
 
     async def async_drive(self):
         """_summary_
         updates the state of all NPCs inside the region and returns a list of NPCs that are not longer int the region
         """
         if self.empty:
-            return []
-        if self.time_to_reinitialize == 0:
-            # TODO: Initialization
-            self.time_to_reinitialize = self.re_initialization_period
-            pass
+            return
         else:
-            self.time_to_reinitialize -= 1
-        agents_in_fov = []
-        for car in self.npcs:
-            agents_in_fov.extend(filter(lambda x: x not in self.npcs, car.fov_agents))
-
-        agent_states = []
-        agent_attributes = []
-        recurrent_states = []
-        for npc in self.npcs:
-            agent_states.append(npc.agent_states)
-            agent_attributes.append(npc.agent_attributes)
-            recurrent_states.append(npc.recurrent_states)
-
-        for npc in agents_in_fov:
-            agent_states.append(npc.agent_states)
-            agent_attributes.append(npc.agent_attributes)
-            recurrent_states.append(npc.recurrent_states)
-
-        drive_response = await async_drive(location=self.location,
-                                           agent_attributes=agent_attributes,
-                                           agent_states=agent_states,
-                                           recurrent_states=recurrent_states,
-                                           get_birdview=DEBUG)
-        if DEBUG:
-            file_path = f"img/debug/{self.center}-{self.timer}.jpg"
-            drive_response.birdview.decode_and_save(file_path)
-            self.timer += 1
-
-        remaining_npcs = []
-        for npc, state, rs in zip(self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
-            npc.update(state, rs)
-            remaining_npcs.append(npc)
-
-        self.npcs = remaining_npcs
+            agent_attributes, agent_states, recurrent_states = self.pre_drive()
+            drive_response = await async_drive(location=self.location,
+                                               agent_attributes=agent_attributes,
+                                               agent_states=agent_states,
+                                               recurrent_states=recurrent_states,
+                                               get_birdview=DEBUG)
+            self.post_drive(drive_response=drive_response)
 
     def insert(self, npc):
         self.npcs.append(npc)
