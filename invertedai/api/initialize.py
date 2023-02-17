@@ -79,8 +79,8 @@ def initialize(
         Static attributes for all agents.
 
     states_history:
-        History of agent states - the outer list is over agents and the inner over time,
-        in chronological order.
+        History of agent states - the outer list is over time and the inner over agents,
+        in chronological order, i.e., index 0 is the oldest state and index -1 is the current state.
         For best results, provide at least 10 historical states for each agent.
 
     traffic_light_state_history:
@@ -206,6 +206,28 @@ async def async_initialize(
     """
     A light async version of :func:`initialize`
     """
+    if (states_history is not None) or (agent_attributes is not None):
+        if (agent_attributes is None) or (states_history is None):
+            raise InvalidInput("'agent_attributes' or 'states_history' are not provided.")
+        for agent_states in states_history:
+            if len(agent_states) != len(agent_attributes):
+                raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
+
+    model_inputs = dict(
+        location=location,
+        num_agents_to_spawn=agent_count,
+        states_history=states_history
+        if states_history is None
+        else [[st.tolist() for st in states] for states in states_history],
+        agent_attributes=agent_attributes
+        if agent_attributes is None
+        else [state.tolist() for state in agent_attributes],
+        traffic_light_state_history=traffic_light_state_history,
+        get_birdview=get_birdview,
+        location_of_interest=location_of_interest,
+        get_infractions=get_infractions,
+        random_seed=random_seed,
+    )
 
     response = await iai.session.async_request(model="initialize", data=model_inputs)
     agents_spawned = len(response["agent_states"])

@@ -84,6 +84,10 @@ class Car:
         return self.agent_states.orientation
 
     @ property
+    def agent_states_history(self):
+        return self._states_history
+
+    @ property
     def agent_states(self):
         return self._states_history[-1]
 

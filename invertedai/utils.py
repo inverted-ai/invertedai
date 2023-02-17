@@ -17,7 +17,7 @@ import numpy as np
 import csv
 import math
 from tqdm.contrib import tmap
-from itertools import product
+from itertools import product, chain
 from PIL import Image as PImage
 from invertedai.common import AgentState, StaticMapActor
 from matplotlib import transforms
@@ -248,6 +248,161 @@ class Session:
         return data
 
 
+async def async_area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None,
+                                       random_seed=None, map_center=(0, 0), width=100, height=100,
+                                       initialize_fov=INITIALIZE_FOV):
+    def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
+        return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
+                (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
+
+    async def reinit(reinitialize_agent_state, reinitialize_agent_attrs, area_center):
+        try:
+            # Initialize simulation with an API cal
+            response = await iai.async_initialize(
+                location=location,
+                states_history=reinitialize_agent_state,
+                agent_attributes=reinitialize_agent_attrs,
+                agent_count=len(reinitialize_agent_attrs),
+                get_infractions=False,
+                traffic_light_state_history=traffic_lights_states,
+                location_of_interest=(area_center.x, area_center.y),
+                random_seed=random_seed,
+            )
+        except BaseException:
+            return [], [], []
+        SLACK = 0
+        valid_agents = list(filter(lambda x: inside_fov(
+            center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
+            zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+
+        valid_agent_state = [x[0] for x in valid_agents]
+        valid_agent_attrs = [x[1] for x in valid_agents]
+        valid_agent_rs = [x[2] for x in valid_agents]
+
+        return valid_agent_state, valid_agent_attrs, valid_agent_rs
+
+    stride = initialize_fov/2
+    h_start, h_end = map_center[0] - (height / 2) + (initialize_fov / 2), \
+        map_center[0] + (height / 2) - (initialize_fov / 2) + 1
+    w_start, w_end = map_center[1] - (width / 2) + (initialize_fov / 2), \
+        map_center[1] + (width / 2) - (initialize_fov / 2) + 1
+    remaining_agents_states = states_history
+    remaining_agents_attrs = agent_attributes
+    new_agent_state = []
+    new_attributes = []
+    new_recurrent_states = []
+    # first = True
+    centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
+    initialize_payload = []
+    for area_center in tmap(Point.fromlist, centers,
+                            total=len(np.arange(h_start, h_end, stride)) * len(np.arange(w_start, w_end, stride)),
+                            desc=f"Initializing {location.split(':')[1]}"):
+
+        reinitialize_agent = list(filter(lambda x: inside_fov(
+            center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
+        remaining_agents = list(filter(lambda x: not inside_fov(
+            center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
+
+        reinitialize_agent_state = [x[0] for x in reinitialize_agent]
+        #: Reorder form list of agents to list of time steps
+        reinitialize_agent_state = [list(st) for st in zip(*reinitialize_agent_state)]
+        reinitialize_agent_attrs = [x[1] for x in reinitialize_agent]
+        remaining_agents_states = [x[0] for x in remaining_agents]
+        remaining_agents_attrs = [x[1] for x in remaining_agents]
+
+        initialize_payload.append({"center": area_center, "state": reinitialize_agent_state,
+                                  "attr": reinitialize_agent_attrs})
+
+    results = await asyncio.gather(*[reinit(agnts["state"], agnts["attr"],  agnts["center"]) for agnts in initialize_payload])
+
+    for result in results:
+        new_agent_state += result[0]
+        new_attributes += result[1]
+        new_recurrent_states += result[2]
+
+    return invertedai.api.InitializeResponse(
+        recurrent_states=new_recurrent_states,
+        agent_states=new_agent_state,
+        agent_attributes=new_attributes)
+
+
+def area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None, random_seed=None,
+                           map_center=(0, 0), width=100, height=100, initialize_fov=INITIALIZE_FOV):
+    def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
+        return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
+                (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
+    stride = initialize_fov/2
+    h_start, h_end = map_center[0] - (height / 2) + (initialize_fov / 2),
+    map_center[0] + (height / 2) - (initialize_fov / 2) + 1
+    w_start, w_end = map_center[1] - (width / 2) + (initialize_fov / 2),
+    map_center[1] + (width / 2) - (initialize_fov / 2) + 1
+    remaining_agents_states = states_history
+    remaining_agents_attrs = agent_attributes
+    new_agent_state = []
+    new_attributes = []
+    new_recurrent_states = []
+    # first = True
+    centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
+    for area_center in tmap(Point.fromlist, centers,
+                            total=len(np.arange(h_start, h_end, stride)) * len(np.arange(w_start, w_end, stride)),
+                            desc=f"Initializing {location.split(':')[1]}"):
+
+        reinitialize_agent = list(filter(lambda x: inside_fov(
+            center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
+        remaining_agents = list(filter(lambda x: not inside_fov(
+            center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
+
+        reinitialize_agent_state = [x[0] for x in reinitialize_agent]
+        #: Reorder form list of agents to list of time steps
+        reinitialize_agent_state = [list(st) for st in zip(*reinitialize_agent_state)]
+        reinitialize_agent_attrs = [x[1] for x in reinitialize_agent]
+
+        remaining_agents_states = [x[0] for x in remaining_agents]
+        remaining_agents_attrs = [x[1] for x in remaining_agents]
+
+        if not reinitialize_agent_state:
+            continue
+
+        for _ in range(1):
+            try:
+                # Initialize simulation with an API cal
+                response = iai.initialize(
+                    location=location,
+                    states_history=reinitialize_agent_state,
+                    agent_attributes=reinitialize_agent_attrs,
+                    agent_count=len(reinitialize_agent_attrs),
+                    get_infractions=False,
+                    traffic_light_state_history=traffic_lights_states,
+                    location_of_interest=(area_center.x, area_center.y),
+                    random_seed=random_seed,
+                )
+                break
+            except BaseException:
+                pass
+        else:
+            continue
+        # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
+        # SLACK is for removing the agents that are very close to the boundary and
+        # they may collide agents not filtered as conditional
+        SLACK = 0
+        valid_agents = list(filter(lambda x: inside_fov(
+            center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
+            zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+
+        valid_agent_state = [x[0] for x in valid_agents]
+        valid_agent_attrs = [x[1] for x in valid_agents]
+        valid_agent_rs = [x[2] for x in valid_agents]
+
+        new_agent_state += valid_agent_state
+        new_attributes += valid_agent_attrs
+        new_recurrent_states += valid_agent_rs
+
+    return invertedai.api.InitializeResponse(
+        recurrent_states=new_recurrent_states,
+        agent_states=new_agent_state,
+        agent_attributes=new_attributes)
+
+
 def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0),
                         width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, *args, **kwargs):
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
@@ -420,7 +575,7 @@ class IAILogger(logging.Logger):
             file_handler = logging.FileHandler("iai.log")
             self.addHandler(file_handler)
 
-    @staticmethod
+    @ staticmethod
     def logfmt(message, **params):
         props = dict(message=message, **params)
 

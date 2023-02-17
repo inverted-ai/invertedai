@@ -1,4 +1,5 @@
 from typing import List, Tuple, Optional, Union
+from collections import deque
 from pydantic import BaseModel, validate_arguments
 from pygame.math import Vector2
 from dataclasses import dataclass
@@ -12,7 +13,7 @@ import invertedai as iai
 from invertedai import initialize, location_info, light, drive, async_drive, async_initialize
 from invertedai.common import (AgentState, InfractionIndicators, Image,
                                TrafficLightStatesDict, AgentAttributes, RecurrentState, Point)
-from invertedai.simulation.utils import Rotations, RE_INITIALIZATION_PERIOD, Rectangle, QUAD_RE_INITIALIZATION_PERIOD, get_pygame_convertors
+from invertedai.simulation.utils import MAX_HISTORY_LEN, RE_INITIALIZATION_PERIOD, Rectangle, QUAD_RE_INITIALIZATION_PERIOD, get_pygame_convertors
 from invertedai.simulation.regions import QuadTree
 from invertedai.simulation.car import Car
 
@@ -42,6 +43,7 @@ class SimulationConfig:
     async_call: bool = True
     pygame_window: bool = True
     pygame_resolution: Tuple[int] = (1200, 1200)
+    use_traffic_lights: bool = True
 
 
 class Simulation:
@@ -63,15 +65,16 @@ class Simulation:
         self.agent_per_region = cfg.agent_density
         self.random_seed = cfg.random_seed
         self.initialize_stride = cfg.initialize_stride
-        self.re_initialization = cfg.re_initialization_period
+        self.re_initialization_period = cfg.re_initialization_period
         self.quad_re_initialization = cfg.quadtree_reconstruction_period
-        self.timer = 0
+        self.timer = 1
         self.screen = None
         self.async_call = cfg.async_call
         self.show_quadtree = False
         self.location_info = iai.location_info(location=self.location)
         self.map_fov = cfg.map_fov
         self.map_image = pygame.surfarray.make_surface(cfg.rendered_static_map)
+        self.light_history = deque([], maxlen=MAX_HISTORY_LEN)
         self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales = get_pygame_convertors(
             self.center.x-self.map_fov/2, self.center.x+self.map_fov/2,
             self.center.y-self.map_fov/2, self.center.y+self.map_fov/2,
@@ -87,32 +90,44 @@ class Simulation:
             self.screen = pygame.display.set_mode(cfg.pygame_resolution)
             pygame.display.set_caption("Quadtree")
         self._initialize_regions()
+        self.create_quadtree()
 
-    def _initialize_regions(self):
-        try:
-            light_response = iai.light(location=self.location)
-            traffic_lights_states = [light_response.traffic_lights_states]
-        except BaseException:
-            traffic_lights_states = None
-        initialize_response = iai.utils.area_initialization(self.location, self.agent_per_region,
-                                                            traffic_lights_states=traffic_lights_states,
-                                                            random_seed=self.random_seed,
-                                                            map_center=(self.center.x, self.center.y),
-                                                            width=self.width, height=self.height, stride=self.initialize_stride)
+    def _initialize_regions(self, reintialize: bool = False):
+        if reintialize:
+            if len(self.light_history) > 0:
+                traffic_lights_states = self.light_history
+            else:
+                traffic_lights_states = None
+
+            agent_attributes = [car.agent_attributes for car in self.npcs]
+            states_history = [list(car.agent_states_history) for car in self.npcs]
+
+            initialize_response = asyncio.run(iai.utils.async_area_re_initialization(self.location,
+                                                                                     agent_attributes=agent_attributes,
+                                                                                     states_history=states_history,
+                                                                                     traffic_lights_states=traffic_lights_states,
+                                                                                     random_seed=self.random_seed,
+                                                                                     map_center=(
+                                                                                         self.center.x, self.center.y),
+                                                                                     width=self.width, height=self.height))
+        else:
+            try:
+                light_response = iai.light(location=self.location)
+                traffic_lights_states = [light_response.traffic_lights_states]
+                self.light_history.append(light_response.traffic_lights_states)
+            except BaseException:
+                traffic_lights_states = None
+            initialize_response = iai.utils.area_initialization(self.location, self.agent_per_region,
+                                                                traffic_lights_states=traffic_lights_states,
+                                                                random_seed=self.random_seed,
+                                                                map_center=(self.center.x, self.center.y),
+                                                                width=self.width, height=self.height, stride=self.initialize_stride)
 
         npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen,
                     convertor=self.cfg.convert_to_pygame_coords, cfg=self.cfg) for attr, state,
                 rs in zip(initialize_response.agent_attributes, initialize_response.agent_states, initialize_response.recurrent_states)]
-        quadtree = None
-        quadtree = QuadTree(cfg=self.cfg, capacity=self.cfg.quadtree_capacity, boundary=self.boundary,
-                            convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales))
-        quadtree.lineThickness = 1
-        quadtree.color = (0, 87, 146)
-        for npc in npcs:
-            quadtree.insert(npc)
 
         self.npcs = npcs
-        self.quadtree = quadtree
         self.initialize_response = initialize_response
 
     def create_quadtree(self):
@@ -125,31 +140,22 @@ class Simulation:
         self.quadtree = quadtree
 
     async def async_drive(self):
-        if self.timer > self.quad_re_initialization:
-            self.create_quadtree()
-            self.timer = 0
-        else:
-            self.timer += 1
         regions = self.quadtree.get_regions()
         await asyncio.gather(*[region.async_drive() for region in regions])
 
     def sync_drive(self):
-        if self.timer > self.quad_re_initialization:
-            self.create_quadtree()
-        else:
-            self.timer += 1
         regions = self.quadtree.get_regions()
         for region in regions:
             region.sync_drive()
 
-    @property
+    @ property
     def agent_states(self):
         states = []
         for npc in self.npcs:
             states.append(npc.agent_states)
         return states
 
-    @property
+    @ property
     def agent_attributes(self):
         attributes = []
         for npc in self.npcs:
@@ -162,6 +168,20 @@ class Simulation:
             # pygame.display.set_caption("QuadTree Fps: " + str(int(clock.get_fps())))
             self.screen.blit(pygame.transform.scale(pygame.transform.flip(
                 pygame.transform.rotate(self.map_image, 90), True, False), (self.x_scale, self.y_scale)), self.top_left)
+        if (self.re_initialization_period) and not (self.timer % self.re_initialization_period):
+            self._initialize_regions(reintialize=True)
+            self.create_quadtree()
+        elif not (self.timer % self.quad_re_initialization):
+            self.create_quadtree()
+        self.timer += 1
+
+        if self.cfg.use_traffic_lights:
+            try:
+                light_response = iai.light(location=self.location)
+                traffic_lights_states = [light_response.traffic_lights_states]
+                self.light_history.append(light_response.traffic_lights_states)
+            except BaseException:
+                traffic_lights_states = None
 
         self.update_agents_in_fov()
         if self.async_call:
