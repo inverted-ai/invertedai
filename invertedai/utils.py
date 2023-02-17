@@ -7,7 +7,7 @@ from requests.auth import AuthBase
 import invertedai as iai
 import invertedai.api
 import invertedai.api.config
-from invertedai import error, api
+from invertedai import error
 from invertedai.common import Point
 import logging
 import matplotlib.pyplot as plt
@@ -17,8 +17,7 @@ import numpy as np
 import csv
 import math
 from tqdm.contrib import tmap
-from itertools import product, chain
-from PIL import Image as PImage
+from itertools import product
 from invertedai.common import AgentState, StaticMapActor
 from matplotlib import transforms
 from copy import deepcopy

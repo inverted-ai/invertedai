@@ -1,19 +1,16 @@
-from typing import List, Tuple, Optional, Union
+from typing import Tuple, Optional
 from collections import deque
-from pydantic import BaseModel, validate_arguments
 from pygame.math import Vector2
 from dataclasses import dataclass
-from itertools import product
 import numpy as np
 import asyncio
-from itertools import chain
+# from itertools import chain
 import pygame
 
 import invertedai as iai
-from invertedai import initialize, location_info, light, drive, async_drive, async_initialize
-from invertedai.common import (AgentState, InfractionIndicators, Image,
-                               TrafficLightStatesDict, AgentAttributes, RecurrentState, Point)
-from invertedai.simulation.utils import MAX_HISTORY_LEN, RE_INITIALIZATION_PERIOD, Rectangle, QUAD_RE_INITIALIZATION_PERIOD, get_pygame_convertors
+# from invertedai import initialize, location_info, light, drive, async_drive, async_initialize
+from invertedai.common import Point
+from invertedai.simulation.utils import MAX_HISTORY_LEN, Rectangle, get_pygame_convertors
 from invertedai.simulation.regions import QuadTree
 from invertedai.simulation.car import Car
 
@@ -165,7 +162,6 @@ class Simulation:
     def drive(self):
         if self.cfg.pygame_window:
             self.screen.fill(Color1)
-            # pygame.display.set_caption("QuadTree Fps: " + str(int(clock.get_fps())))
             self.screen.blit(pygame.transform.scale(pygame.transform.flip(
                 pygame.transform.rotate(self.map_image, 90), True, False), (self.x_scale, self.y_scale)), self.top_left)
         if (self.re_initialization_period) and not (self.timer % self.re_initialization_period):

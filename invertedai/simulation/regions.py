@@ -52,7 +52,7 @@ class Region:
 
     def sync_drive(self):
         """_summary_
-        updates the state of all NPCs inside the region and returns a list of NPCs that are not longer int the region
+        updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
         """
         if self.empty:
             return
@@ -67,7 +67,8 @@ class Region:
 
     async def async_drive(self):
         """_summary_
-        updates the state of all NPCs inside the region and returns a list of NPCs that are not longer int the region
+        async version:
+        updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
         """
         if self.empty:
             return
@@ -166,28 +167,6 @@ class QuadTree:
         self.particles = []
         self.region = None
         self.leaf = False
-
-    def soft_insert(self, particle):
-        # This method inserts a particle without subdividing and violates the max capacity
-        # This is used to not recompute the tree on everycall
-        if self.boundary.containsParticle(particle) == False:
-            return False
-
-        if self.leaf:
-            self.particles.append(particle)
-            self.region.insert(particle)
-            particle.region = self.region
-            return True
-        else:
-            if self.northWest.insert(particle):
-                return True
-            if self.northEast.insert(particle):
-                return True
-            if self.southWest.insert(particle):
-                return True
-            if self.southEast.insert(particle):
-                return True
-            return False
 
     def insert(self, particle):
         if self.boundary.containsParticle(particle) == False:

@@ -204,7 +204,7 @@ async def async_initialize(
     random_seed: Optional[int] = None,
 ) -> InitializeResponse:
     """
-    A light async version of :func:`initialize`
+    The async version of :func:`initialize`
     """
     if (states_history is not None) or (agent_attributes is not None):
         if (agent_attributes is None) or (states_history is None):

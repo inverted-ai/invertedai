@@ -3,6 +3,8 @@ import invertedai as iai
 from invertedai.simulation.simulator import Simulation, SimulationConfig
 import pathlib
 import pygame
+from tqdm import tqdm
+from time import perf_counter
 path = pathlib.Path(__file__).parent.resolve()
 
 
@@ -15,6 +17,7 @@ parser.add_argument("-l", "--episode_length", type=int, default=300)
 parser.add_argument("-cap", "--quadtree_capacity", type=int, default=15)
 parser.add_argument("-ad", "--agent_density", type=int, default=10)
 parser.add_argument("-ri", "--re_initialization", type=int, default=30)
+parser.add_argument("-len", "--simulation_length", type=int, default=10000)
 args = parser.parse_args()
 
 
@@ -34,7 +37,9 @@ simulation = Simulation(cfg=cfg)
 fps = 100
 clock = pygame.time.Clock()
 run = True
-while run:
+start = perf_counter()
+fram_counter = 0
+for _ in tqdm(range(args.simulation_length)):
     # ----- HANDLE EVENTS ------
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -47,8 +52,11 @@ while run:
             if event.key == pygame.K_l:
                 for npc in simulation.npcs:
                     npc.show_agent_neighbors = not npc.show_agent_neighbors
+    if not run:
+        break
     # -----------------------------
     simulation.drive()
     clock.tick(fps)
 
 pygame.quit()
+print(f"Speed: {(perf_counter()-start)/simulation.timer} secs/frame")
