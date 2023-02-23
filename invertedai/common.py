@@ -113,8 +113,7 @@ class Image(BaseModel):
         """
         image = self.decode()
         import cv2
-
-        cv2.imwrite(path, image)
+        cv2.imwrite(path, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
 
 class TrafficLightState(str, Enum):
