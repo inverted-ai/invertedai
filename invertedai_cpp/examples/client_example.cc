@@ -30,9 +30,9 @@ int main(int argc, char **argv) {
 
     // construct request for getting information about the location
     invertedai::LocationInfoRequest loc_info_req(
-        "{\"location\": \"" + location +
-        "\", "
-        "\"include_map_source\": false}");
+        invertedai::read_file("examples/location_info_body.json"));
+    loc_info_req.set_location(location);
+
     // get response of location information
     invertedai::LocationInfoResponse loc_info_res =
         invertedai::location_info(loc_info_req, &session);
