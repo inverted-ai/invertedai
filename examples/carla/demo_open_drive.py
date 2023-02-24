@@ -5,7 +5,6 @@ from carla_simulator import PreSets
 from invertedai.common import AgentState, StaticMapActor
 import pathlib
 import subprocess
-import tempfile
 path = pathlib.Path(__file__).parent.resolve()
 
 
