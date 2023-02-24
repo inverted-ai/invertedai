@@ -14,6 +14,8 @@ parser.add_argument("--location", type=str, default="carla:Town03")
 parser.add_argument("-l", "--episode_length", type=int, default=30)
 parser.add_argument("-xodr", "--opendrive_map_path", type=str, default="data/open_drive/Town03.xodr")
 parser.add_argument("-lhc", "--left_hand_coordinate", type=int, default=1)
+parser.add_argument("-dpi", "--dpi", type=int, default=100)
+parser.add_argument("-res", "--resolution", type=int, nargs=2, default=[640, 480])
 args = parser.parse_args()
 
 if args.api_key is not None:
@@ -64,7 +66,8 @@ result = subprocess.run(['./data/open_drive/odrplot', args.opendrive_map_path], 
 
 open_drive_file_name = f"track.csv"
 scene_plotter = iai.utils.ScenePlotter(
-    fov=args.fov, xy_offset=(map_center[0], -map_center[1]), static_actors=corrected_static_actors, open_drive=open_drive_file_name)
+    fov=args.fov, xy_offset=(map_center[0], -map_center[1]), static_actors=corrected_static_actors,
+    open_drive=open_drive_file_name, dpi=args.dpi, resolution=args.resolution)
 scene_plotter.initialize_recording(corrected_agents, agent_attributes=response.agent_attributes)
 
 agent_attributes = response.agent_attributes
