@@ -1,7 +1,6 @@
 from tqdm import tqdm
 import argparse
 import invertedai as iai
-from carla_simulator import PreSets
 from invertedai.common import AgentState, StaticMapActor
 import pathlib
 import subprocess
@@ -14,7 +13,6 @@ parser.add_argument("--fov", type=float, default=150)
 parser.add_argument("--location", type=str, default="carla:Town03")
 parser.add_argument("-l", "--episode_length", type=int, default=30)
 parser.add_argument("-xodr", "--opendrive_map_path", type=str, default="data/open_drive/Town03.xodr")
-parser.add_argument("-mc", "--map_center", type=str, default=None)
 parser.add_argument("-lhc", "--left_hand_coordinate", type=int, default=1)
 args = parser.parse_args()
 
@@ -31,10 +29,7 @@ if location_info_response.birdview_image is not None:
     file_path = f"{file_name}.jpg"
     location_info_response.birdview_image.decode_and_save(file_path)
 
-if args.map_center:
-    map_center = PreSets.map_centers["carla:Town03:Roundabout"]
-else:
-    map_center = (location_info_response.map_center.x, location_info_response.map_center.y)
+map_center = (location_info_response.map_center.x, location_info_response.map_center.y)
 
 
 rendered_static_map = location_info_response.birdview_image.decode()
@@ -67,7 +62,6 @@ else:
 # Convert xord map to csv for rendering
 result = subprocess.run(['./data/open_drive/odrplot', args.opendrive_map_path], stdout=subprocess.PIPE)
 
-# open_drive_file_name = f"{path}/data/open_drive/{args.location.split(':')[1]}.csv"
 open_drive_file_name = f"track.csv"
 scene_plotter = iai.utils.ScenePlotter(
     fov=args.fov, xy_offset=(map_center[0], -map_center[1]), static_actors=corrected_static_actors, open_drive=open_drive_file_name)
@@ -97,7 +91,7 @@ for i in tqdm(range(args.episode_length)):
         corrected_agents = response.agent_states
     scene_plotter.record_step(corrected_agents, traffic_light_states=light_response.traffic_lights_states if light_response else None)
 
-gif_name = 'new_iai-drive-side-road-green.gif'
+gif_name = 'iai-drive-opendrive.gif'
 scene_plotter.animate_scene(output_name=gif_name,
                             numbers=False, direction_vec=True, velocity_vec=False,
                             plot_frame_number=True)
