@@ -40,17 +40,18 @@ class Region:
 
     def post_drive(self, drive_response):
         if DEBUG:
-            file_path = f"img/debug/{self.center}-{self.timer}.jpg"
+            file_path = f"img/debug/{self.bounary.position}-{self.timer}.jpg"
             drive_response.birdview.decode_and_save(file_path)
             self.timer += 1
 
         remaining_npcs = []
-        for npc, state, rs in zip(self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
+        for npc, state, rs in zip(
+                self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
             npc.update(state, rs)
             remaining_npcs.append(npc)
         self.npcs = remaining_npcs
 
-    def sync_drive(self):
+    def sync_drive(self, traffic_lights_states=None):
         """_summary_
         updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
         """
@@ -62,10 +63,11 @@ class Region:
                                    agent_attributes=agent_attributes,
                                    agent_states=agent_states,
                                    recurrent_states=recurrent_states,
-                                   get_birdview=DEBUG)
+                                   traffic_lights_states=traffic_lights_states,
+                                   get_birdview=DEBUG,)
             self.post_drive(drive_response=drive_response)
 
-    async def async_drive(self):
+    async def async_drive(self, traffic_lights_states=None):
         """_summary_
         async version:
         updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
@@ -78,6 +80,7 @@ class Region:
                                                agent_attributes=agent_attributes,
                                                agent_states=agent_states,
                                                recurrent_states=recurrent_states,
+                                               traffic_lights_states=traffic_lights_states,
                                                get_birdview=DEBUG)
             self.post_drive(drive_response=drive_response)
 
@@ -95,7 +98,8 @@ class Region:
 
 
 class QuadTree:
-    def __init__(self, capacity: int, boundary: Rectangle, color=(140, 255, 160), thickness=1, convertors=None, cfg=None):
+    def __init__(self, capacity: int, boundary: Rectangle, color=(
+            140, 255, 160), thickness=1, convertors=None, cfg=None):
         self.capacity = capacity
         self.boundary = boundary
         self.particles = []
@@ -118,31 +122,31 @@ class QuadTree:
                 parent.position.x,
                 parent.position.y
             ),
-            parent.scale/2,
+            parent.scale / 2,
             convertors=self.convertors
         )
         boundary_ne = Rectangle(
             Vector2(
-                parent.position.x + parent.scale.x/2,
+                parent.position.x + parent.scale.x / 2,
                 parent.position.y
             ),
-            parent.scale/2,
+            parent.scale / 2,
             convertors=self.convertors
         )
         boundary_sw = Rectangle(
             Vector2(
                 parent.position.x,
-                parent.position.y + parent.scale.y/2
+                parent.position.y + parent.scale.y / 2
             ),
-            parent.scale/2,
+            parent.scale / 2,
             convertors=self.convertors
         )
         boundary_se = Rectangle(
             Vector2(
-                parent.position.x + parent.scale.x/2,
-                parent.position.y + parent.scale.y/2
+                parent.position.x + parent.scale.x / 2,
+                parent.position.y + parent.scale.y / 2
             ),
-            parent.scale/2,
+            parent.scale / 2,
             convertors=self.convertors
         )
 
@@ -195,7 +199,8 @@ class QuadTree:
         if self.leaf:
             return [self.region]
         else:
-            return self.northWest.get_regions() + self.northEast.get_regions() + self.southWest.get_regions() + self.southEast.get_regions()
+            return self.northWest.get_regions() + self.northEast.get_regions() + \
+                self.southWest.get_regions() + self.southEast.get_regions()
 
     def queryRange(self, query_range):
         particlesInRange = []
@@ -215,7 +220,7 @@ class QuadTree:
         self.boundary.color = self.color
         self.boundary.lineThickness = self.lineThickness
         self.boundary.Draw(screen)
-        if self.northWest != None:
+        if self.northWest is not None:
             self.northWest.Show(screen)
             self.northEast.Show(screen)
             self.southWest.Show(screen)
