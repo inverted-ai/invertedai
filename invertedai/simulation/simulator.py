@@ -27,6 +27,7 @@ class SimulationConfig:
     map_width: float = 100
     map_height: float = 100
     map_fov: float = 100
+    initialize_center: Optional[Tuple[float]] = None
     rendered_static_map: Optional[np.ndarray] = None
     agent_density: float = 10
     initialize_stride: float = 100
@@ -59,6 +60,8 @@ class Simulation:
         self.cfg = cfg
         self.location = cfg.location
         self.center = Point(x=cfg.map_center[0], y=cfg.map_center[1])
+        self.initialize_center = Point(
+            x=cfg.initialize_center[0], y=cfg.initialize_center[1]) if cfg.initialize_center else self.center
         self.width = cfg.map_width
         self.height = cfg.map_height
         self.agent_per_region = cfg.agent_density
@@ -111,7 +114,8 @@ class Simulation:
                                                                                      traffic_lights_states=traffic_lights_states,
                                                                                      random_seed=self.random_seed,
                                                                                      map_center=(
-                                                                                         self.center.x, self.center.y),
+                                                                                         self.initialize_center.x,
+                                                                                         self.initialize_center.y),
                                                                                      width=self.width, height=self.height))
         else:
 
@@ -132,7 +136,8 @@ class Simulation:
             initialize_response = iai.utils.area_initialization(self.location, self.agent_per_region,
                                                                 traffic_lights_states=traffic_lights_states,
                                                                 random_seed=self.random_seed,
-                                                                map_center=(self.center.x, self.center.y),
+                                                                map_center=(self.initialize_center.x,
+                                                                            self.initialize_center.y),
                                                                 width=self.width, height=self.height, stride=self.initialize_stride)
 
             npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen,

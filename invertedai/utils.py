@@ -300,7 +300,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
     initialize_payload = []
     for area_center in tmap(Point.fromlist, centers,
                             total=len(np.arange(h_start, h_end, stride)) * len(np.arange(w_start, w_end, stride)),
-                            desc=f"Initializing {location.split(':')[1]}"):
+                            desc=f"Renewing Recurrent States {location.split(':')[1]}"):
 
         reinitialize_agent = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
