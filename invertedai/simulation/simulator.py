@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from collections import deque
 from pygame.math import Vector2
 from dataclasses import dataclass
@@ -232,3 +232,13 @@ class Simulation:
 
     def _show_quadtree(self):
         self.quadtree.Show(self.screen)
+
+    def destroy_npc(self, ids: List[int]):
+        self.npcs = list(filter(lambda x: x.id not in ids, self.npcs))
+
+    def keep_npcs(self, ids: List[int]):
+        self.npcs = list(filter(lambda x: x.id in ids, self.npcs))
+
+    @property
+    def agent_ids(self):
+        return [npc.id for npc in self.npcs]

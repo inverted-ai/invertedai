@@ -5,6 +5,7 @@ from pydantic import validate_arguments
 from invertedai.common import AgentState, AgentAttributes, RecurrentState
 from collections import deque
 from invertedai.simulation.utils import MAX_HISTORY_LEN, AGENT_FOV, Rectangle
+from uuid import uuid1 as UUID
 
 
 class Car:
@@ -15,10 +16,12 @@ class Car:
                  recurrent_states: Optional[RecurrentState],
                  screen=None,
                  convertor=None,
-                 cfg=None):
+                 cfg=None,
+                 id=None):
 
         self._agent_attributes = agent_attributes
         self._recurrent_states = recurrent_states
+        self.id = id if id else UUID().int
         self.hue = 0
         self.color = (255, 0, 0)
         self.stroke = 1
