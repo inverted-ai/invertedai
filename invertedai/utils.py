@@ -258,7 +258,7 @@ def get_centers(map_center, height, width, stride):
                 (map_center[1] - height) < center[1] < (map_center[1] + height))
 
     def get_neighbors(center):
-        return [(center[0]+(i*stride), center[1]+(j*stride)) for i, j in list(product(*[(-1, 1),]*2))]
+        return [(center[0] + (i * stride), center[1] + (j * stride)) for i, j in list(product(*[(-1, 1), ] * 2))]
 
     queue, centers = [map_center], []
 
@@ -308,7 +308,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
 
         return valid_agent_state, valid_agent_attrs, valid_agent_rs
 
-    stride = initialize_fov/2
+    stride = initialize_fov / 2
 
     remaining_agents_states = states_history
     remaining_agents_attrs = agent_attributes
@@ -318,7 +318,8 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
     # # first = True
     centers = get_centers(map_center, height, width, stride)
     initialize_payload = []
-    for area_center in tmap(Point.fromlist, centers, total=len(centers), desc=f"Renewing Recurrent States {location.split(':')[1]}"):
+    for area_center in tmap(Point.fromlist, centers, total=len(centers),
+                            desc=f"Renewing Recurrent States {location.split(':')[1]}"):
 
         reinitialize_agent = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
@@ -335,7 +336,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
         initialize_payload.append({"center": area_center, "state": reinitialize_agent_state,
                                   "attr": reinitialize_agent_attrs})
 
-    results = await asyncio.gather(*[reinit(agnts["state"], agnts["attr"],  agnts["center"]) for agnts in initialize_payload])
+    results = await asyncio.gather(*[reinit(agnts["state"], agnts["attr"], agnts["center"]) for agnts in initialize_payload])
 
     for result in results:
         new_agent_state += result[0]
@@ -354,7 +355,7 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
                 (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
-    stride = initialize_fov/2
+    stride = initialize_fov / 2
 
     remaining_agents_states = states_history
     remaining_agents_attrs = agent_attributes
@@ -364,7 +365,8 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
     # first = True
 
     centers = get_centers(map_center, height, width, stride)
-    for area_center in tmap(Point.fromlist, centers, total=len(centers), desc=f"Initializing {location.split(':')[1]}"):
+    for area_center in tmap(Point.fromlist, centers, total=len(centers),
+                            desc=f"Initializing {location.split(':')[1]}"):
 
         reinitialize_agent = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
@@ -438,7 +440,8 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
     agent_rs = []
     first = True
     centers = get_centers(map_center, height, width, stride)
-    for area_center in tmap(Point.fromlist, centers, total=len(centers), desc=f"Initializing {location.split(':')[1]}"):
+    for area_center in tmap(Point.fromlist, centers, total=len(centers),
+                            desc=f"Initializing {location.split(':')[1]}"):
 
         conditional_agent = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
@@ -626,12 +629,15 @@ def rot(rot):
 
 
 class ScenePlotter:
-    def __init__(self, map_image=None, fov=None, xy_offset=None, static_actors=None, open_drive=None):
+    def __init__(self, map_image=None, fov=None, xy_offset=None, static_actors=None,
+                 open_drive=None, resolution=(640, 480), dpi=100):
         self.conditional_agents = None
         self.agent_attributes = None
         self.traffic_lights_history = None
         self.agent_states_history = None
         self.open_drive = open_drive
+        self.dpi = dpi
+        self.resolution = resolution
         self.fov = fov
         self.map_image = map_image
         if not open_drive:
@@ -710,6 +716,7 @@ class ScenePlotter:
                               velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
+        fig.set_size_inches(self.resolution[0] / self.dpi, self.resolution[1] / self.dpi, True)
 
         def animate(i):
             self._update_frame_to(i)
@@ -717,7 +724,7 @@ class ScenePlotter:
         ani = animation.FuncAnimation(
             fig, animate, np.arange(start_idx, end_idx), interval=100)
         if output_name is not None:
-            ani.save(f'{output_name}', writer='pillow')
+            ani.save(f'{output_name}', writer='pillow', dpi=self.dpi)
         return ani
 
     def _initialize_plot(self, ax=None, numbers=False, direction_vec=True,
