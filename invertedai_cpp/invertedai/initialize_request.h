@@ -23,6 +23,7 @@ private:
   std::optional<std::pair<double, double>> location_of_interest_;
   bool get_birdview_;
   bool get_infractions_;
+  std::optional<int> agent_count_;
   std::optional<int> random_seed_;
   json body_json_;
 
@@ -80,6 +81,10 @@ public:
    * Check whether to get predicted agent states for infractions.
    */
   bool get_infractions() const;
+  /**
+   * Dictates how many agents will be spawned.
+   */
+  std::optional<int> agent_count() const;
   /**
    * Get random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.
@@ -143,6 +148,11 @@ public:
    * introduces some overhead, but it should be relatively small.
    */
   void set_get_infractions(bool get_infractions);
+  /**
+   * If states_history is not specified, this needs to be provided and dictates
+   * how many agents will be spawned.
+   */
+  void set_agent_count(std::optional<int> agent_count);
   /**
    * Set random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.
