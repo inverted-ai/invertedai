@@ -252,9 +252,28 @@ class Session:
         return data
 
 
+def get_centers(map_center, height, width, stride):
+    def check_valid_center(center):
+        return ((map_center[0] - width) < center[0] < (map_center[0] + width) and
+                (map_center[1] - height) < center[1] < (map_center[1] + height))
+
+    def get_neighbors(center):
+        return [(center[0]+(i*stride), center[1]+(j*stride)) for i, j in list(product(*[(-1, 1),]*2))]
+
+    queue, centers = [map_center], []
+
+    while queue:
+        center = queue.pop(0)
+        neighbors = filter(check_valid_center, get_neighbors(center))
+        queue.extend([neighbor for neighbor in neighbors if neighbor not in queue and neighbor not in centers])
+        if center not in centers and check_valid_center(center):
+            centers.append(center)
+    return centers
+
+
 async def async_area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None,
                                        random_seed=None, map_center=(0, 0), width=100, height=100,
-                                       initialize_fov=INITIALIZE_FOV):
+                                       initialize_fov=INITIALIZE_FOV, get_birdview=False, birdview_path=None):
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
                 (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
@@ -271,6 +290,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
                 traffic_light_state_history=traffic_lights_states,
                 location_of_interest=(area_center.x, area_center.y),
                 random_seed=random_seed,
+                get_birdview=get_birdview,
             )
         except BaseException:
             return [], [], []
@@ -282,25 +302,23 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]
         valid_agent_rs = [x[2] for x in valid_agents]
+        if get_birdview:
+            file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
+            response.birdview.decode_and_save(file_path)
 
         return valid_agent_state, valid_agent_attrs, valid_agent_rs
 
     stride = initialize_fov/2
-    h_start, h_end = map_center[0] - (height / 2) + (initialize_fov / 2), \
-        map_center[0] + (height / 2) - (initialize_fov / 2) + 1
-    w_start, w_end = map_center[1] - (width / 2) + (initialize_fov / 2), \
-        map_center[1] + (width / 2) - (initialize_fov / 2) + 1
+
     remaining_agents_states = states_history
     remaining_agents_attrs = agent_attributes
     new_agent_state = []
     new_attributes = []
     new_recurrent_states = []
-    # first = True
-    centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
+    # # first = True
+    centers = get_centers(map_center, height, width, stride)
     initialize_payload = []
-    for area_center in tmap(Point.fromlist, centers,
-                            total=len(np.arange(h_start, h_end, stride)) * len(np.arange(w_start, w_end, stride)),
-                            desc=f"Renewing Recurrent States {location.split(':')[1]}"):
+    for area_center in tmap(Point.fromlist, centers, total=len(centers), desc=f"Renewing Recurrent States {location.split(':')[1]}"):
 
         reinitialize_agent = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
@@ -331,25 +349,22 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
 
 
 def area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None, random_seed=None,
-                           map_center=(0, 0), width=100, height=100, initialize_fov=INITIALIZE_FOV):
+                           map_center=(0, 0), width=100, height=100, initialize_fov=INITIALIZE_FOV, get_birdview=False,
+                           birdview_path=None):
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
                 (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
     stride = initialize_fov/2
-    h_start, h_end = map_center[0] - (height / 2) + (initialize_fov / 2),
-    map_center[0] + (height / 2) - (initialize_fov / 2) + 1
-    w_start, w_end = map_center[1] - (width / 2) + (initialize_fov / 2),
-    map_center[1] + (width / 2) - (initialize_fov / 2) + 1
+
     remaining_agents_states = states_history
     remaining_agents_attrs = agent_attributes
     new_agent_state = []
     new_attributes = []
     new_recurrent_states = []
     # first = True
-    centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
-    for area_center in tmap(Point.fromlist, centers,
-                            total=len(np.arange(h_start, h_end, stride)) * len(np.arange(w_start, w_end, stride)),
-                            desc=f"Initializing {location.split(':')[1]}"):
+
+    centers = get_centers(map_center, height, width, stride)
+    for area_center in tmap(Point.fromlist, centers, total=len(centers), desc=f"Initializing {location.split(':')[1]}"):
 
         reinitialize_agent = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
@@ -379,6 +394,7 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
                     traffic_light_state_history=traffic_lights_states,
                     location_of_interest=(area_center.x, area_center.y),
                     random_seed=random_seed,
+                    get_birdview=get_birdview,
                 )
                 break
             except BaseException:
@@ -400,6 +416,9 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
         new_agent_state += valid_agent_state
         new_attributes += valid_agent_attrs
         new_recurrent_states += valid_agent_rs
+        if get_birdview:
+            file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
+            response.birdview.decode_and_save(file_path)
 
     return invertedai.api.InitializeResponse(
         recurrent_states=new_recurrent_states,
@@ -408,23 +427,18 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
 
 
 def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0),
-                        width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, *args, **kwargs):
+                        width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, get_birdview=False,
+                        birdview_path=None):
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
                 (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
 
-    h_start, h_end = map_center[0] - (height / 2) + (initialize_fov / 2), \
-        map_center[0] + (height / 2) - (initialize_fov / 2) + 1
-    w_start, w_end = map_center[1] - (width / 2) + (initialize_fov / 2), \
-        map_center[1] + (width / 2) - (initialize_fov / 2) + 1
     agent_states = []
     agent_attributes = []
     agent_rs = []
     first = True
-    centers = product(np.arange(h_start, h_end, stride), np.arange(w_start, w_end, stride))
-    for area_center in tmap(Point.fromlist, centers,
-                            total=len(np.arange(h_start, h_end, stride)) * len(np.arange(w_start, w_end, stride)),
-                            desc=f"Initializing {location.split(':')[1]}"):
+    centers = get_centers(map_center, height, width, stride)
+    for area_center in tmap(Point.fromlist, centers, total=len(centers), desc=f"Initializing {location.split(':')[1]}"):
 
         conditional_agent = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
@@ -455,10 +469,11 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
                     traffic_light_state_history=traffic_lights_states,
                     location_of_interest=(area_center.x, area_center.y),
                     random_seed=random_seed,
+                    get_birdview=get_birdview,
                 )
                 break
-            except BaseException:
-                pass
+            except BaseException as e:
+                print(e)
         else:
             continue
         # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
@@ -475,6 +490,10 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
         agent_states = remaining_agents_states + valid_agent_state
         agent_attributes = remaining_agents_attrs + valid_agent_attrs
         agent_rs = remaining_agents_rs + valid_agent_rs
+
+        if get_birdview:
+            file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
+            response.birdview.decode_and_save(file_path)
 
     return invertedai.api.InitializeResponse(
         recurrent_states=agent_rs,

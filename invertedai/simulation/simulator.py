@@ -4,13 +4,11 @@ from pygame.math import Vector2
 from dataclasses import dataclass
 import numpy as np
 import asyncio
-# from itertools import chain
 import pygame
 
 import invertedai as iai
-# from invertedai import initialize, location_info, light, drive, async_drive, async_initialize
 from invertedai.common import Point
-from invertedai.simulation.utils import MAX_HISTORY_LEN, Rectangle, get_pygame_convertors
+from invertedai.simulation.utils import MAX_HISTORY_LEN, Rectangle, get_pygame_convertors, DEBUG
 from invertedai.simulation.regions import QuadTree
 from invertedai.simulation.car import Car
 
@@ -99,6 +97,11 @@ class Simulation:
         self.create_quadtree()
 
     def _initialize_regions(self, reintialize: bool = False):
+        if DEBUG:
+            birdview_path = f"img/debug/initialize/{self.timer}"
+        else:
+            birdview_path = None
+
         if reintialize:
             if self.cfg.use_traffic_lights and (len(self.light_history) > 0):
                 traffic_lights_states = self.light_history
@@ -116,7 +119,9 @@ class Simulation:
                                                                                      map_center=(
                                                                                          self.initialize_center.x,
                                                                                          self.initialize_center.y),
-                                                                                     width=self.width, height=self.height))
+                                                                                     width=self.width, height=self.height,
+                                                                                     get_birdview=DEBUG,
+                                                                                     birdview_path=birdview_path))
         else:
 
             if self.cfg.use_traffic_lights:
@@ -138,13 +143,16 @@ class Simulation:
                                                                 random_seed=self.random_seed,
                                                                 map_center=(self.initialize_center.x,
                                                                             self.initialize_center.y),
-                                                                width=self.width, height=self.height, stride=self.initialize_stride)
+                                                                width=self.width, height=self.height, stride=self.initialize_stride,
+                                                                get_birdview=DEBUG,
+                                                                birdview_path=birdview_path)
 
             npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen,
                         convertor=self.cfg.convert_to_pygame_coords, cfg=self.cfg) for attr, state,
                     rs in zip(initialize_response.agent_attributes, initialize_response.agent_states, initialize_response.recurrent_states)]
 
             self.npcs = npcs
+
         self.initialize_response = initialize_response
 
     def create_quadtree(self):

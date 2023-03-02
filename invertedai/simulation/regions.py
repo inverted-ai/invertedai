@@ -2,7 +2,7 @@ from pygame.math import Vector2
 from invertedai.simulation.utils import Rectangle, RE_INITIALIZATION_PERIOD, DEBUG
 from typing import List, Optional, Callable
 from random import randint
-from invertedai import drive, async_drive, initialize, async_initialize
+from invertedai import drive, async_drive
 from invertedai.simulation.car import Car
 
 

@@ -2,8 +2,10 @@ import pygame
 import math
 from invertedai.common import Point
 from typing import Tuple
+import os
 
-DEBUG = False
+
+DEBUG = os.environ.get("IAI_SIMULATOR_DEBUG", False)
 MAX_HISTORY_LEN = 10
 RE_INITIALIZATION_PERIOD = 200  # : In frames
 AGENT_FOV = 35  # : In meters
