@@ -362,7 +362,7 @@ class CarlaEnv:
         self.set_npc_autopilot(self.npcs, True)
 
         # Allow the vehicles to drop to the ground
-        for _ in range(10):
+        for _ in range(self.cfg.fps):
             self.world.tick()
 
         # Set controllers for all vehicles
