@@ -4,7 +4,7 @@ from pygame.math import Vector2
 from pydantic import validate_arguments
 from invertedai.common import AgentState, AgentAttributes, RecurrentState
 from collections import deque
-from invertedai.simulation.utils import MAX_HISTORY_LEN, AGENT_FOV, Rectangle
+from simulation.utils import MAX_HISTORY_LEN, AGENT_FOV, Rectangle
 from uuid import uuid1 as UUID
 
 

@@ -8,9 +8,9 @@ import pygame
 
 import invertedai as iai
 from invertedai.common import Point
-from invertedai.simulation.utils import MAX_HISTORY_LEN, Rectangle, get_pygame_convertors, DEBUG
-from invertedai.simulation.regions import QuadTree
-from invertedai.simulation.car import Car
+from simulation.utils import MAX_HISTORY_LEN, Rectangle, get_pygame_convertors, DEBUG
+from simulation.regions import QuadTree
+from simulation.car import Car
 
 Color1 = (1, 1, 1)
 
