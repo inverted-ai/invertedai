@@ -29,11 +29,11 @@ class InitializeResponse(BaseModel):
     """
 
     recurrent_states: List[
-        RecurrentState
+        Optional[RecurrentState]
     ]  #: To pass to :func:`iai.drive` at the first time step.
-    agent_states: List[AgentState]  #: Initial states of all initialized agents.
+    agent_states: List[Optional[AgentState]]  #: Initial states of all initialized agents.
     agent_attributes: List[
-        AgentAttributes
+        Optional[AgentAttributes]
     ]  #: Static attributes of all initialized agents.
     birdview: Optional[
         Image
