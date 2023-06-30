@@ -800,10 +800,11 @@ class ScenePlotter:
             else:
                 self.v_lines[agent_idx].set_xdata(box[2:4, 0])
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
-        if self.numbers:
+        if (type(self.numbers) == bool and self.numbers) or \
+           (type(self.numbers) == list and agent_idx in self.numbers):
             if agent_idx not in self.box_labels:
                 self.box_labels[agent_idx] = self.current_ax.text(
-                    x, y, str(agent_idx), c='r', fontsize=18)
+                    x, y, str(agent_idx), c='r', fontsize=10)
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
                 self.box_labels[agent_idx].set_x(x)
