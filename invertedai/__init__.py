@@ -9,16 +9,10 @@ from invertedai.api.blame import blame, async_blame
 from invertedai.cosimulation import BasicCosimulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 
-# dev = strtobool(os.environ.get("IAI_DEV", "false"))
-# print("dev")
-# print(dev)
-dev_url = "http://0.0.0.0:8001"
-dev = True
-print("dev")
-print(dev_url)
-# if dev:
-#     dev_url = os.environ.get("IAI_DEV_URL", "http://localhost:8000")
-#     print("in dev")
+dev = strtobool(os.environ.get("IAI_DEV", "false"))
+if dev:
+    dev_url = os.environ.get("IAI_DEV_URL", "http://localhost:8000")
+
 log_level = os.environ.get("IAI_LOG_LEVEL", "WARNING")
 log_console = strtobool(os.environ.get("IAI_LOG_CONSOLE", "true"))
 log_file = strtobool(os.environ.get("IAI_LOG_FILE", "false"))

@@ -804,7 +804,7 @@ class ScenePlotter:
            (type(self.numbers) == list and agent_idx in self.numbers):
             if agent_idx not in self.box_labels:
                 self.box_labels[agent_idx] = self.current_ax.text(
-                    x, y, str(agent_idx), c='r', fontsize=10)
+                    x, y, str(agent_idx), c='r', fontsize=18)
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
                 self.box_labels[agent_idx].set_x(x)
