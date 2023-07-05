@@ -4,6 +4,8 @@ from pydantic import BaseModel, validate_arguments
 
 import sys
 sys.path.append("..")
+# import the local invertedai
+# should be removed after updating the pip lib
 sys.path.insert(0, "..")
 
 import invertedai as iai
@@ -25,7 +27,7 @@ class BlameResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.blame`.
     """
-    blamed_collisions: Optional[List[Tuple[Tuple[int, int], Tuple[int, int], int]]]
+    blamed_collisions: Optional[List[Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, ...]]]]
     blamed_result: Optional[Tuple[bool, bool]]
     birdviews: Optional[List[Image]]  #: If `get_birdview` was set, this contains the resulting image.
 
