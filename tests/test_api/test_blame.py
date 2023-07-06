@@ -42,14 +42,6 @@ def get_reason():
 def get_confidence_score():
     return True
 
-#    location: str,
-#    candidate_agents: Tuple[int, int],
-#    agent_state_history: List[List[AgentState]],
-#    agent_attributes: List[AgentAttributes],
-#    traffic_light_state_history: List[TrafficLightStatesDict],
-#    get_birdview: bool = False,
-#    detect_collisions: bool = False
-
 
 def test_blame(location, candidate_agents, agent_state_history, agent_attributes, get_reason, get_confidence_score):
     response = blame(location=location,
