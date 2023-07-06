@@ -13,6 +13,8 @@ from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.api.mock import (
     get_mock_birdview,
     get_mock_blamed_result,
+    get_mock_blamed_reason,
+    get_mock_confidence_score,
 )
 from invertedai.error import APIConnectionError, InvalidInput
 from invertedai.common import (
@@ -28,7 +30,9 @@ class BlameResponse(BaseModel):
     Response returned from an API call to :func:`iai.blame`.
     """
     blamed_collisions: Optional[List[Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, ...]]]]
-    blamed_result: Optional[Tuple[bool, bool]]
+    blamed_result: Optional[Tuple[int, ...]]
+    reason: Optional[str]
+    confidence_score: Optional[float]
     birdviews: Optional[List[Image]]  #: If `get_birdview` was set, this contains the resulting image.
 
 
@@ -38,7 +42,9 @@ def blame(
     candidate_agents: Tuple[int, int],
     agent_state_history: List[List[AgentState]],
     agent_attributes: List[AgentAttributes],
-    traffic_light_state_history: List[TrafficLightStatesDict],
+    traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
+    get_reason: bool = False,
+    get_confidence_score: bool = False,
     get_birdview: bool = False,
     detect_collisions: bool = False
 ) -> BlameResponse:
@@ -54,14 +60,18 @@ def blame(
     :func:`light`
     """
     if len(agent_state_history[0]) != len(agent_attributes):
-        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
+        raise InvalidInput("Incompatible Number of Agents in either 'agent_state_history' or 'agent_attributes'.")
 
     if should_use_mock_api():
         blamed_result = get_mock_blamed_result()
         birdviews = [get_mock_birdview()]
+        reason = get_mock_blamed_reason()
+        confidence_score = get_mock_confidence_score()
         response = BlameResponse(
             blamed_result=blamed_result,
-            birdviews=birdviews
+            birdviews=birdviews,
+            reason=reason,
+            confidence_score=confidence_score
         )
         return response
 
@@ -71,6 +81,8 @@ def blame(
         agent_state_history=[[state.tolist() for state in agent_states] for agent_states in agent_state_history],
         agent_attributes=[attr.tolist() for attr in agent_attributes],
         traffic_light_state_history=traffic_light_state_history,
+        get_reason=get_reason,
+        get_confidence_score=get_confidence_score,
         get_birdview=get_birdview,
         detect_collisions=detect_collisions
     )
@@ -84,11 +96,15 @@ def blame(
             if detect_collisions:
                 response = BlameResponse(
                     blamed_collisions=response["blamed_collisions"],
+                    reason=response["reason"],
+                    confidence_score=response["confidence_score"],
                     birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
                 )
             else:
                 response = BlameResponse(
                     blamed_result=response["blamed_result"],
+                    reason=response["reason"],
+                    confidence_score=response["confidence_score"],
                     birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
                 )
 
@@ -107,7 +123,9 @@ async def async_blame(
     candidate_agents: Tuple[int, int],
     agent_state_history: List[List[AgentState]],
     agent_attributes: List[AgentAttributes],
-    traffic_light_state_history: List[TrafficLightStatesDict],
+    traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
+    get_reason: bool = False,
+    get_confidence_score: bool = False,
     get_birdview: bool = False,
     detect_collisions: bool = False
 ) -> BlameResponse:
@@ -120,6 +138,8 @@ async def async_blame(
         agent_state_history=[[state.tolist() for state in agent_states] for agent_states in agent_state_history],
         agent_attributes=[attr.tolist() for attr in agent_attributes],
         traffic_light_state_history=traffic_light_state_history,
+        get_reason=get_reason,
+        get_confidence_score=get_confidence_score,
         get_birdview=get_birdview,
         detect_collisions=detect_collisions
     )
@@ -129,11 +149,15 @@ async def async_blame(
     if detect_collisions:
         response = BlameResponse(
             blamed_collisions=response["blamed_collisions"],
+            reason=response["reason"],
+            confidence_score=response["confidence_score"],
             birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
         )
     else:
         response = BlameResponse(
             blamed_result=response["blamed_result"],
+            reason=response["reason"],
+            confidence_score=response["confidence_score"],
             birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
         )
 

@@ -28,8 +28,16 @@ def get_mock_recurrent_state() -> RecurrentState:
     return RecurrentState()  # TODO
 
 
-def get_mock_blamed_result() -> Tuple[bool, bool]:
-    return (False, False)  # TODO
+def get_mock_blamed_result() -> Tuple[int, ...]:
+    return (0, 1)
+
+
+def get_mock_blamed_reason() -> str:
+    return "mock"
+
+
+def get_mock_confidence_score() -> float:
+    return 0.8
 
 
 def mock_update_agent_state(state: AgentState) -> AgentState:
