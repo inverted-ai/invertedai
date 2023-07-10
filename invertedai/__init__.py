@@ -13,10 +13,6 @@ dev = strtobool(os.environ.get("IAI_DEV", "false"))
 if dev:
     dev_url = os.environ.get("IAI_DEV_URL", "http://localhost:8000")
 
-dev = True
-dev_url = os.environ.get("IAI_DEV_URL", "http://0.0.0.0:8001")
-print(dev_url)
-
 log_level = os.environ.get("IAI_LOG_LEVEL", "WARNING")
 log_console = strtobool(os.environ.get("IAI_LOG_CONSOLE", "true"))
 log_file = strtobool(os.environ.get("IAI_LOG_FILE", "false"))

@@ -34,7 +34,7 @@ def agent_attributes() -> List[AgentAttributes]:
 
 
 @pytest.fixture
-def get_reason():
+def get_reasons():
     return True
 
 
@@ -43,17 +43,17 @@ def get_confidence_score():
     return True
 
 
-def test_blame(location, candidate_agents, agent_state_history, agent_attributes, get_reason, get_confidence_score):
+def test_blame(location, candidate_agents, agent_state_history, agent_attributes, get_reasons, get_confidence_score):
     response = blame(location=location,
                      candidate_agents=candidate_agents,
                      agent_state_history=agent_state_history,
                      agent_attributes=agent_attributes,
-                     get_reason=get_reason,
+                     get_reasons=get_reasons,
                      get_confidence_score=get_confidence_score)
     assert response is not None
     assert isinstance(response, BlameResponse)
     assert isinstance(response.blamed_result, Tuple)
-    assert isinstance(response.reason, str)
+    assert isinstance(response.reasons, str)
     assert isinstance(response.confidence_score, float)
     assert len(response.birdviews) == 0
 

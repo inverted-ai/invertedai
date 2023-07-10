@@ -29,11 +29,11 @@ def get_mock_recurrent_state() -> RecurrentState:
 
 
 def get_mock_blamed_result() -> Tuple[int, ...]:
-    return (0, 1)
+    return 0, 1
 
 
-def get_mock_blamed_reason() -> str:
-    return "mock"
+def get_mock_blamed_reasons() -> str:
+    return {0: ["mock"]}
 
 
 def get_mock_confidence_score() -> float:

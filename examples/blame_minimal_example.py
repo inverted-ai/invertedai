@@ -2,10 +2,6 @@ import numpy as np
 import asyncio
 import imageio
 
-import sys
-sys.path.insert(0, "..")
-
-# import the local client library
 import invertedai as iai
 
 location = "canada:vancouver:drake_street_and_pacific_blvd"  # select one of available locations
@@ -58,7 +54,7 @@ blame_response = asyncio.run(iai.async_blame(
     agent_state_history=agent_state_history,
     agent_attributes=agent_attributes,
     traffic_light_state_history=traffic_light_state_history,
-    get_birdview=True,
+    get_birdviews=True,
     detect_collisions=True
 ))
 
