@@ -74,7 +74,7 @@ def blame(
         List of object where key is the traffic-light id and value is the
         state, i.e., 'green', 'yellow', 'red', or None.
 
-    get_birdview:
+    get_birdviews:
         Whether to return images visualizing the collision case.
         This is very slow and should only be used for debugging.
 
