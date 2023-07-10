@@ -48,6 +48,41 @@ def blame(
     """
     Parameters
     ----------
+    location:
+        Location name in IAI format.
+
+    candidate_agents:
+        Two agents involved in the collision.
+
+    agent_state_history:
+        History of the states of all agents (up to 100 agents) right before the collision.
+        Each AgentStates is a list [x, y, orientation, speed] where x: [float], and
+        y: [float] are coordinate in meters, orientation: [float] is in radians with 0 pointing along x and pi/2
+        pointing along y and speed: [float] is in m/s. If an empty list or None is passed, 'num_agents_to_spawn'
+        unconditional agents will be spawned. If the number of agents passed is less than 'num_agents_to_spawn',
+        the remaining agents will be spawned conditionally on the provided agents. If 'num_agents_to_spawn' is equal
+        to the number of agents in `agent_state_history`, the simulation will be initialized only with the agents
+        provided. 'num_agents_to_spawn' cannot be less than the number of agents in `agent_state_history`.
+
+    agent_attributes:
+        Static attributes of all agents.
+        List of agent attributes. Each agent requires, length: [float]
+        width: [float] and rear_axis_offset: [float] all in meters.
+
+    traffic_light_state_history:
+        History (list of) traffic lights states.
+        List of object where key is the traffic-light id and value is the
+        state, i.e., 'green', 'yellow', 'red', or None.
+
+    get_birdview:
+        Whether to return images visualizing the collision case.
+        This is very slow and should only be used for debugging.
+
+    get_reasons:
+        Whether to return the reasons that why the agent(s) are responsible.
+
+    get_confidence_score:
+        Whether to return how confident we are for the blamed agent(s).
 
     See Also
     --------
