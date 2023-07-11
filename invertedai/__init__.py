@@ -1,4 +1,5 @@
 import os
+import importlib.metadata
 from distutils.util import strtobool
 
 from invertedai.api.light import light
@@ -51,3 +52,5 @@ __all__ = [
     "async_drive",
     "async_blame",
 ]
+
+__version__ = importlib.metadata.version("invertedai")
