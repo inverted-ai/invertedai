@@ -27,9 +27,9 @@ class BlameResponse(BaseModel):
     Response returned from an API call to :func:`iai.blame`.
     """
     blamed_collisions: Optional[List[Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, ...]]]]
-    blamed_result: Optional[Tuple[int, ...]]
-    reasons: Optional[Dict[int, List[str]]]
-    confidence_score: Optional[float]
+    blamed_result: Optional[Tuple[int, ...]] #: A tuple containing all agents predicted to be at fault. If empty, the model has predicated no agents are at fault.
+    reasons: Optional[Dict[int, List[str]]] #: A dictionary with agent IDs as keys and a list of fault class strings for why the keyed agent is to blame.
+    confidence_score: Optional[float] #: Float value between [0,1] indicating the models confidence in the response.
     birdviews: Optional[List[Image]]  #: If `get_birdviews` was set, this contains the resulting image.
 
 
@@ -52,37 +52,38 @@ def blame(
         Location name in IAI format.
 
     candidate_agents:
-        Two agents involved in the collision.
+        Two agents involved in the collision. These integers should correspond to the 
+        indices of the relevant agents in the lists within agent_state_history.
 
     agent_state_history:
-        History of the states of all agents (up to 100 agents) right before the collision.
-        Each AgentStates is a list [x, y, orientation, speed] where x: [float], and
-        y: [float] are coordinate in meters, orientation: [float] is in radians with 0 pointing along x and pi/2
-        pointing along y and speed: [float] is in m/s. If an empty list or None is passed, 'num_agents_to_spawn'
-        unconditional agents will be spawned. If the number of agents passed is less than 'num_agents_to_spawn',
-        the remaining agents will be spawned conditionally on the provided agents. If 'num_agents_to_spawn' is equal
-        to the number of agents in `agent_state_history`, the simulation will be initialized only with the agents
-        provided. 'num_agents_to_spawn' cannot be less than the number of agents in `agent_state_history`.
+        List of AgentState objects for every agent within the scene (up to 100 agents) 
+        for every time step preceding the collision. 
+        The final list of AgentState objects should correspond to the first time step 
+        of the collision and no time steps afterwards. The lists of AgentState objects 
+        preceding the collision should capture enough of the collision context for the 
+        Blame model to analyze. 
+        The state must include x: [float], y: [float] corrdinate in meters orientation: 
+        [float] in radians with 0 pointing along x and pi/2 pointing along y and speed: 
+        [float] in m/s.
 
     agent_attributes:
-        Static attributes of all agents.
-        List of agent attributes. Each agent requires, length: [float]
-        width: [float] and rear_axis_offset: [float] all in meters.
+        Static attributes of all agents. List of agent attributes. Each agent requires, 
+        length: [float], width: [float], and rear_axis_offset: [float] all in meters.
 
     traffic_light_state_history:
-        History (list of) traffic lights states.
-        List of object where key is the traffic-light id and value is the
-        state, i.e., 'green', 'yellow', 'red', or None.
+        List of TrafficLightStatesDict objects containing the state of all traffic lights
+        for every time step. The dictionary keys are the traffic-light IDs and value is 
+        the state, i.e., 'green', 'yellow', 'red', or None.
 
     get_birdviews:
         Whether to return images visualizing the collision case.
         This is very slow and should only be used for debugging.
 
     get_reasons:
-        Whether to return the reasons that why the agent(s) are responsible.
+        Whether to return the reasons regarding why each agent was blamed.
 
     get_confidence_score:
-        Whether to return how confident we are for the blamed agent(s).
+        Whether to return how confident the Blame model is in its response.
 
     See Also
     --------
