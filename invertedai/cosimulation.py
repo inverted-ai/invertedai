@@ -145,6 +145,14 @@ class BasicCosimulation:
         return [d for d, s in zip(self._agent_states, self._ego_agent_mask) if s]
 
     @property
+    def ego_attributes(self):
+        """
+        Returns the attributes of ego agents in order.
+        The NPC agents are excluded.
+        """
+        return [attr for attr, s in zip(self._agent_attributes, self._ego_agent_mask) if s]
+
+    @property
     def infractions(self) -> Optional[List[InfractionIndicators]]:
         """
         If `monitor_infractions` was set in the constructor,
