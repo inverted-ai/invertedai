@@ -117,6 +117,13 @@ class BasicCosimulation:
         return self._agent_states
 
     @property
+    def agent_attributes(self) -> List[AgentAttributes]:
+        """
+        The attributes (length, width, rear_axis_offset) for all agents, including ego.
+        """
+        return self._agent_attributes
+
+    @property
     def ego_agent_mask(self) -> List[bool]:
         """
         Lists which agents are ego, which means that you control them externally.
