@@ -117,6 +117,13 @@ class BasicCosimulation:
         return self._agent_states
 
     @property
+    def agent_attributes(self) -> List[AgentAttributes]:
+        """
+        The attributes (length, width, rear_axis_offset) for all agents, including ego.
+        """
+        return self._agent_attributes
+
+    @property
     def ego_agent_mask(self) -> List[bool]:
         """
         Lists which agents are ego, which means that you control them externally.
@@ -136,6 +143,14 @@ class BasicCosimulation:
         The NPC agents are excluded.
         """
         return [d for d, s in zip(self._agent_states, self._ego_agent_mask) if s]
+
+    @property
+    def ego_attributes(self):
+        """
+        Returns the attributes of ego agents in order.
+        The NPC agents are excluded.
+        """
+        return [attr for attr, s in zip(self._agent_attributes, self._ego_agent_mask) if s]
 
     @property
     def infractions(self) -> Optional[List[InfractionIndicators]]:
