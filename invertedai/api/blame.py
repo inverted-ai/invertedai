@@ -21,17 +21,14 @@ from invertedai.common import (
     TrafficLightStatesDict,
 )
 
-
 class BlameResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.blame`.
     """
-    blamed_collisions: Optional[List[Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, ...]]]]
     blamed_result: Optional[Tuple[int, ...]] #: A tuple containing all agents predicted to be at fault. If empty, the model has predicated no agents are at fault.
     reasons: Optional[Dict[int, List[str]]] #: A dictionary with agent IDs as keys and a list of fault class strings for why the keyed agent is to blame.
     confidence_score: Optional[float] #: Float value between [0,1] indicating the models confidence in the response.
     birdviews: Optional[List[Image]]  #: If `get_birdviews` was set, this contains the resulting image.
-
 
 @validate_arguments
 def blame(
@@ -43,7 +40,6 @@ def blame(
     get_reasons: bool = False,
     get_confidence_score: bool = False,
     get_birdviews: bool = False,
-    detect_collisions: bool = False
 ) -> BlameResponse:
     """
     Parameters
@@ -75,15 +71,15 @@ def blame(
         for every time step. The dictionary keys are the traffic-light IDs and value is 
         the state, i.e., 'green', 'yellow', 'red', or None.
 
-    get_birdviews:
-        Whether to return images visualizing the collision case.
-        This is very slow and should only be used for debugging.
-
     get_reasons:
         Whether to return the reasons regarding why each agent was blamed.
 
     get_confidence_score:
         Whether to return how confident the Blame model is in its response.
+
+    get_birdviews:
+        Whether to return images visualizing the collision case.
+        This is very slow and should only be used for debugging.
 
     See Also
     --------
@@ -116,8 +112,7 @@ def blame(
         traffic_light_state_history=traffic_light_state_history,
         get_reasons=get_reasons ,
         get_confidence_score=get_confidence_score,
-        get_birdviews=get_birdviews,
-        detect_collisions=detect_collisions
+        get_birdviews=get_birdviews
     )
     start = time.time()
     timeout = TIMEOUT
@@ -126,20 +121,12 @@ def blame(
         try:
             response = iai.session.request(model="blame", data=model_inputs)
 
-            if detect_collisions:
-                response = BlameResponse(
-                    blamed_collisions=response["blamed_collisions"],
-                    reasons=response["reasons"],
-                    confidence_score=response["confidence_score"],
-                    birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
-                )
-            else:
-                response = BlameResponse(
-                    blamed_result=response["blamed_result"],
-                    reasons=response["reasons"],
-                    confidence_score=response["confidence_score"],
-                    birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
-                )
+            response = BlameResponse(
+                blamed_result=response["blamed_result"],
+                reasons=response["reasons"],
+                confidence_score=response["confidence_score"],
+                birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
+            )
 
             return response
         except APIConnectionError as e:
@@ -159,8 +146,7 @@ async def async_blame(
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
     get_reasons: bool = False,
     get_confidence_score: bool = False,
-    get_birdviews: bool = False,
-    detect_collisions: bool = False
+    get_birdviews: bool = False
 ) -> BlameResponse:
     """
     A light async version of :func:`blame`
@@ -173,25 +159,16 @@ async def async_blame(
         traffic_light_state_history=traffic_light_state_history,
         get_reasons=get_reasons,
         get_confidence_score=get_confidence_score,
-        get_birdviews=get_birdviews,
-        detect_collisions=detect_collisions
+        get_birdviews=get_birdviews
     )
 
     response = await iai.session.async_request(model="blame", data=model_inputs)
 
-    if detect_collisions:
-        response = BlameResponse(
-            blamed_collisions=response["blamed_collisions"],
-            reasons=response["reasons"],
-            confidence_score=response["confidence_score"],
-            birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
-        )
-    else:
-        response = BlameResponse(
-            blamed_result=response["blamed_result"],
-            reasons=response["reasons"],
-            confidence_score=response["confidence_score"],
-            birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
-        )
+    response = BlameResponse(
+        blamed_result=response["blamed_result"],
+        reasons=response["reasons"],
+        confidence_score=response["confidence_score"],
+        birdviews=[Image.fromval(birdview) for birdview in response["birdviews"]]
+    )
 
     return response
