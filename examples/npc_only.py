@@ -7,7 +7,7 @@ import invertedai as iai
 
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
 parser.add_argument("--api_key", type=str, default=None)
-parser.add_argument("--location", type=str, default="canada:vancouver:drake_street_and_pacific_blvd")
+parser.add_argument("--location", type=str, default="iai:drake_street_and_pacific_blvd")
 args = parser.parse_args()
 
 if args.api_key is not None:

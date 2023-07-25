@@ -3,7 +3,7 @@ import numpy as np
 import imageio
 import invertedai as iai
 
-# iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
+iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
 
 
 class LocalSimulator:
@@ -11,7 +11,7 @@ class LocalSimulator:
     Mock up of a local simulator, where you control the ego vehicle. This example only supports single ego vehicle.
     """
 
-    def __init__(self, ego_state: iai.AgentState, npc_states: List[iai.AgentState]):
+    def __init__(self, ego_state: iai.common.AgentState, npc_states: List[iai.common.AgentState]):
         self.ego_state = ego_state
         self.npc_states = npc_states
 
@@ -24,8 +24,8 @@ class LocalSimulator:
         dx = self.ego_state.speed * dt * np.cos(self.ego_state.orientation)
         dy = self.ego_state.speed * dt * np.sin(self.ego_state.orientation)
 
-        self.ego_state = iai.AgentState(
-            center=iai.Point(x=self.ego_state.center.x + dx, y=self.ego_state.center.y + dy),
+        self.ego_state = iai.common.AgentState(
+            center=iai.common.Point(x=self.ego_state.center.x + dx, y=self.ego_state.center.y + dy),
             orientation=self.ego_state.orientation,
             speed=self.ego_state.speed,
         )
@@ -37,7 +37,7 @@ class LocalSimulator:
 
 
 iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for Inverted AI API
-    location='canada:vancouver:ubc_roundabout',  # select one of available locations
+    location='iai:ubc_roundabout',  # select one of available locations
     agent_count=5,  # how many vehicles in total to use in the simulation
     ego_agent_mask=[True, False, False, False, False],  # first vehicle is ego, rest are NPCs
     get_birdview=True,  # provides simple visualization - don't use in production

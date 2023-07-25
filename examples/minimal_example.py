@@ -2,7 +2,7 @@ import numpy as np
 import imageio
 import invertedai as iai
 
-location = "canada:vancouver:drake_street_and_pacific_blvd"  # select one of available locations
+location = "iai:drake_street_and_pacific_blvd"  # select one of available locations
 
 iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
 
