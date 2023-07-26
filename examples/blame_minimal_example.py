@@ -55,11 +55,10 @@ blame_response = asyncio.run(iai.async_blame(
     agent_attributes=agent_attributes,
     traffic_light_state_history=traffic_light_state_history,
     get_birdviews=True,
-    detect_collisions=True
 ))
 
 print("blamed_collisions")
-print(blame_response.blamed_collisions)
+print(blame_response.agents_at_fault)
 
 
 images = [birdview.decode() for birdview in blame_response.birdviews]
