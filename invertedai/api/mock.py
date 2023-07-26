@@ -28,7 +28,7 @@ def get_mock_recurrent_state() -> RecurrentState:
     return RecurrentState()  # TODO
 
 
-def get_mock_blamed_result() -> Tuple[int, ...]:
+def get_mock_agents_at_fault() -> Tuple[int, ...]:
     return 0, 1
 
 
