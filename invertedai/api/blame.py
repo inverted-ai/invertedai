@@ -54,15 +54,17 @@ def blame(
         indices of the relevant agents in the lists within agent_state_history.
 
     agent_state_history:
-        List of AgentState objects for every agent within the scene (up to 100 agents) 
-        for every time step preceding the collision. 
-        The final list of AgentState objects should correspond to the first time step 
-        of the collision and no time steps afterwards. The lists of AgentState objects 
-        preceding the collision should capture enough of the collision context for the 
-        Blame model to analyze. 
-        The state must include x: [float], y: [float] corrdinate in meters orientation: 
-        [float] in radians with 0 pointing along x and pi/2 pointing along y and speed: 
-        [float] in m/s.
+        Lists containing AgentState objects for every agent within the scene (up to 100
+        agents) for each time step within the relevant sequence immediately preceding 
+        the collision.
+        The final list of AgentState objects should include the first time step of the 
+        collision and no time steps afterwards. The lists of AgentState objects preceding 
+        the collision should capture enough of the scenario context before the collision 
+        for the Blame model to analyze and assign fault. 30-100 time steps preceding the 
+        the collision is recommended for best results.
+        Each AgentState state must include x: [float], y: [float] corrdinate in meters 
+        orientation: [float] in radians with 0 pointing along x and pi/2 pointing along 
+        y and speed: [float] in m/s.
 
     agent_attributes:
         Static attributes of all agents. List of agent attributes. Each agent requires, 
