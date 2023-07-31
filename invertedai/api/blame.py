@@ -21,7 +21,6 @@ from invertedai.common import (
     TrafficLightStatesDict,
 )
 
-
 class BlameResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.blame`.
@@ -30,7 +29,6 @@ class BlameResponse(BaseModel):
     reasons: Optional[Dict[int, List[str]]] #: A dictionary with agent IDs as keys and a list of fault class strings for why the keyed agent is to blame.
     confidence_score: Optional[float] #: Float value between [0,1] indicating the models confidence in the response.
     birdviews: Optional[List[Image]]  #: If `get_birdviews` was set, this contains the resulting image.
-
 
 @validate_arguments
 def blame(
@@ -55,20 +53,20 @@ def blame(
 
     agent_state_history:
         Lists containing AgentState objects for every agent within the scene (up to 100
-        agents) for each time step within the relevant sequence immediately preceding 
-        the collision.
-        The final list of AgentState objects should include the first time step of the 
-        collision and no time steps afterwards. The lists of AgentState objects preceding 
-        the collision should capture enough of the scenario context before the collision 
-        for the Blame model to analyze and assign fault. 30-100 time steps preceding the 
-        the collision is recommended for best results.
-        Each AgentState state must include x: [float], y: [float] corrdinate in meters 
-        orientation: [float] in radians with 0 pointing along x and pi/2 pointing along 
-        y and speed: [float] in m/s.
+        agents) for each time step within the relevant continuous sequence immediately 
+        preceding the collision.
+        The list of AgentState objects should include the first time step of the collision
+        and no time steps afterwards. The lists of AgentState objects preceding the 
+        collision should capture enough of the scenario context before the collision for 
+        the Blame model to analyze and assign fault. For best results it is recommended to 
+        input 30-100 time steps of 0.1s each preceding the collision.
+        Each AgentState state must include x: [float], y: [float] coordinates in meters, 
+        orientation: [float] in radians with 0 pointing along the positive x axis and 
+        pi/2 pointing along the positive y axis, and speed: [float] in m/s.
 
     agent_attributes:
-        Static attributes of all agents. List of agent attributes. Each agent requires, 
-        length: [float], width: [float], and rear_axis_offset: [float] all in meters.
+        List of static AgentAttribute objects for all agents. Each agent requires, length: 
+        [float], width: [float], and rear_axis_offset: [float] all in meters.
 
     traffic_light_state_history:
         List of TrafficLightStatesDict objects containing the state of all traffic lights
@@ -82,8 +80,8 @@ def blame(
         Whether to return how confident the Blame model is in its response.
 
     get_birdviews:
-        Whether to return images visualizing the collision case.
-        This is very slow and should only be used for debugging.
+        Whether to return images visualizing the collision case.This is very slow and 
+        should only be used for debugging.
 
     See Also
     --------
