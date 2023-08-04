@@ -132,6 +132,8 @@ class Session:
                 raise error.InvalidRequestError(e.response.text, param="")
             elif e.response.status_code == 404:
                 raise error.ResourceNotFoundError(e.response.text)
+            elif e.response.status_code == 413:
+                raise error.LargeRequestTimeout(e.response.text)
             elif e.response.status_code == 429:
                 raise error.RateLimitError("Throttled")
             elif e.response.status_code == 503:
@@ -800,7 +802,8 @@ class ScenePlotter:
             else:
                 self.v_lines[agent_idx].set_xdata(box[2:4, 0])
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
-        if self.numbers:
+        if (type(self.numbers) == bool and self.numbers) or \
+           (type(self.numbers) == list and agent_idx in self.numbers):
             if agent_idx not in self.box_labels:
                 self.box_labels[agent_idx] = self.current_ax.text(
                     x, y, str(agent_idx), c='r', fontsize=18)
