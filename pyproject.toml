@@ -24,6 +24,7 @@ ipywidgets = "^8.0.2"
 carla = "^0.9.13"
 jupyterlab = "^3.3"
 twine = "^4.0.1"
+shapely = "^2.0.1"
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = "^5.2.3"
