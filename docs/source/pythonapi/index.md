@@ -11,6 +11,7 @@ sdk-drive
 sdk-initialize
 sdk-location-info
 sdk-light
+sdk-blame
 sdk-simulation
 sdk-common
 sdk-env-var
