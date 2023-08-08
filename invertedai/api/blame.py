@@ -2,9 +2,6 @@ import time
 from typing import List, Optional, Tuple, Dict
 from pydantic import BaseModel, validate_arguments
 
-import sys
-sys.path.append("..")
-
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.api.mock import (
