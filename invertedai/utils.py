@@ -675,6 +675,9 @@ class ScenePlotter:
 
         self.numbers = False
 
+        self.agent_face_colors = None
+        self.agent_edge_colors = None
+
     def initialize_recording(self, agent_states, agent_attributes, traffic_light_states=None, conditional_agents=None):
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
@@ -689,6 +692,8 @@ class ScenePlotter:
         self.traffic_lights_history = []
         self.agent_attributes = None
         self.conditional_agents = []
+        self.agent_face_colors = None #: Optional[Optional[Tuple[float,float,float]]] representing R,G,B values for each agent's main color between [0,1] or None if using the default
+        self.agent_edge_colors = None #: Optional[Optional[Tuple[float,float,float]]] representing R,G,B values for each agent's border color between [0,1] or None if using the default
 
     def record_step(self, agent_states, traffic_light_states=None):
         self.agent_states_history.append(agent_states)
@@ -713,7 +718,17 @@ class ScenePlotter:
 
     def animate_scene(self, output_name=None, start_idx=0, end_idx=-1, ax=None,
                       numbers=False, direction_vec=True, velocity_vec=False,
-                      plot_frame_number=False):
+                      plot_frame_number=False, agent_face_colors=None,
+                      agent_edge_colors=None):
+        
+        if (agent_face_colors and self.agent_attributes) and (len(agent_face_colors) != len(self.agent_attributes)):
+            raise Exception("Number of agent colors does not match number of agents.")
+        if (agent_edge_colors and self.agent_attributes) and (len(agent_edge_colors) != len(self.agent_attributes)):
+            raise Exception("Number of agent colors does not match number of agents.")
+
+        self.agent_face_colors = agent_face_colors
+        self.agent_edge_colors = agent_edge_colors
+
         self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
                               velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
@@ -757,6 +772,19 @@ class ScenePlotter:
         self.plot_frame_number = plot_frame_number
 
         self._update_frame_to(0)
+
+    def _get_color(self,agent_idx,color_list):
+        c = None
+        if color_list and color_list[agent_idx]:
+            is_good_color_format = isinstance(color_list[agent_idx],tuple)
+            for pc in color_list[agent_idx]:
+                is_good_color_format *= isinstance(pc,float) and (0.0 <= pc <= 1.0)
+            
+            if not is_good_color_format:
+                raise Exception(f"Expected color format is Tuple[float,float,float] with 0 <= float <= 1 but received {color_list[agent_idx]}.")
+            c = color_list[agent_idx]
+
+        return c
 
     def _update_frame_to(self, frame_idx):
         for i, (agent, agent_attribute) in enumerate(zip(self.agent_states_history[frame_idx], self.agent_attributes)):
@@ -812,13 +840,20 @@ class ScenePlotter:
                 self.box_labels[agent_idx].set_x(x)
                 self.box_labels[agent_idx].set_y(y)
 
-        if agent_idx in self.conditional_agents:
-            c = self.cond_c
-        else:
-            c = self.agent_c
+        lw = 1
+        fc = self._get_color(agent_idx,self.agent_face_colors)
+        if not fc:
+            if agent_idx in self.conditional_agents:
+                fc = self.cond_c
+            else:
+                fc = self.agent_c
+        ec = self._get_color(agent_idx,self.agent_edge_colors)
+        if not ec:
+            lw = 0
+            ec = fc
 
         rect = Rectangle((x - l / 2, y - w / 2), l, w, angle=psi *
-                         180 / np.pi, rotation_point='center', fc=c, lw=0)
+                         180 / np.pi, rotation_point='center', fc=fc, ec=ec, lw=lw)
         if agent_idx in self.actor_boxes:
             self.actor_boxes[agent_idx].remove()
         self.actor_boxes[agent_idx] = rect
