@@ -6,6 +6,7 @@ cc_binary(
     data = [
         "drive_body.json",
         "initialize_body.json",
+        "location_info_body.json",
     ],
     deps = [
         "//invertedai:api",

@@ -49,6 +49,7 @@ def light(
     :func:`initialize`
     :func:`location_info`
     :func:`drive`
+    :func:`blame`
     """
     if should_use_mock_api():
         response = LightResponse(traffic_lights_states={123: TrafficLightState("green"),

@@ -59,6 +59,10 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
   this->get_infractions_ = this->body_json_["get_infractions"].is_boolean()
                                ? this->body_json_["get_infractions"].get<bool>()
                                : false;
+  this->agent_count_ =
+      this->body_json_["agent_count"].is_number_integer()
+          ? std::optional<int>{this->body_json_["agent_count"].get<int>()}
+          : std::nullopt;
   this->random_seed_ =
       this->body_json_["random_seed"].is_number_integer()
           ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
@@ -104,6 +108,11 @@ void InitializeRequest::refresh_body_json_() {
   }
   this->body_json_["get_birdview"] = this->get_birdview_;
   this->body_json_["get_infractions"] = this->get_infractions_;
+  if (this->agent_count_.has_value()) {
+    this->body_json_["agent_count"] = this->agent_count_.value();
+  } else {
+    this->body_json_["agent_count"] = nullptr;
+  }
   if (this->random_seed_.has_value()) {
     this->body_json_["random_seed"] = this->random_seed_.value();
   } else {
@@ -155,6 +164,10 @@ bool InitializeRequest::get_infractions() const {
   return this->get_infractions_;
 }
 
+std::optional<int> InitializeRequest::agent_count() const {
+  return this->agent_count_;
+}
+
 std::optional<int> InitializeRequest::random_seed() const {
   return this->random_seed_;
 }
@@ -204,6 +217,10 @@ void InitializeRequest::set_get_birdview(bool get_birdview) {
 
 void InitializeRequest::set_get_infractions(bool get_infractions) {
   this->get_infractions_ = get_infractions;
+}
+
+void InitializeRequest::set_agent_count(std::optional<int> agent_count) {
+  this->agent_count_ = agent_count;
 }
 
 void InitializeRequest::set_random_seed(std::optional<int> random_seed) {

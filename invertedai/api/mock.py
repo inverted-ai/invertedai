@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 from invertedai.common import (
     AgentAttributes,
@@ -26,6 +26,18 @@ def get_mock_agent_state() -> AgentState:
 
 def get_mock_recurrent_state() -> RecurrentState:
     return RecurrentState()  # TODO
+
+
+def get_mock_agents_at_fault() -> Tuple[int, ...]:
+    return 0, 1
+
+
+def get_mock_blamed_reasons() -> str:
+    return {0: ["mock"]}
+
+
+def get_mock_confidence_score() -> float:
+    return 0.8
 
 
 def mock_update_agent_state(state: AgentState) -> AgentState:

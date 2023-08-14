@@ -12,25 +12,24 @@ is that the scenario of interest occurs when the ego vehicle traverses
 the supported area, so that's where the NPCs need to be maximally realistic.
 """
 import invertedai as iai
-from carla_simulator import CarlaEnv, CarlaSimulationConfig
+from carla_simulator import CarlaEnv, CarlaSimulationConfig, PreSets
 import argparse
 import pygame
 from tqdm import tqdm
 
-
 # Configuration options to set from command line.
 parser = argparse.ArgumentParser(description="Simulation Parameters.")
-parser.add_argument("-n", "--location", type=str, default="carla:Town03:Roundabout",
+parser.add_argument("-n", "--location", type=str, default="carla:Town03",
                     help='See data/static_carla.py for a list of available locations.')
 parser.add_argument("-c", "--agent_count", type=int, default=8)
 parser.add_argument("-l", "--episode_length", type=int, default=30)
 parser.add_argument("-e", "--ego_spawn_point", default="demo")
 parser.add_argument("-s", "--spectator_transform", default=None)
 parser.add_argument("-i", "--initial_states", default=None)
-parser.add_argument("-m", "--non_roi_npc_mode", type=int, default=1)
+parser.add_argument("-m", "--non_roi_npc_mode", type=int, default=2)
 parser.add_argument("-pi", "--npc_population_interval", type=int, default=6)
 parser.add_argument("-ca", "--max_cars_in_map", type=int, default=100)
-parser.add_argument("-ep", "--episodes", type=int, default=5)
+parser.add_argument("-ep", "--episodes", type=int, default=1)
 parser.add_argument("--api_key", type=str, default=None)
 parser.add_argument("-mc", "--manual_control_ego", action="store_true")
 
@@ -54,16 +53,25 @@ carla_cfg = CarlaSimulationConfig(
     npc_population_interval=args.npc_population_interval,
     max_cars_in_map=args.max_cars_in_map,
     manual_control_ego=args.manual_control_ego,
+    map_center=PreSets.map_centers["carla:Town03:Roundabout"]
 )
 sim = CarlaEnv(
     cfg=carla_cfg,
 )
 
-# Initialize simulation with an API call
-response = iai.initialize(
-    location=args.location,
-    agent_count=args.agent_count,
-)
+for _ in range(10):
+    try:
+        # Initialize simulation with an API call
+        response = iai.initialize(
+            location=args.location,
+            agent_count=args.agent_count,
+            location_of_interest=carla_cfg.map_center,
+        )
+        break
+    except:
+        print("Re-initializing")
+else:
+    raise Exception("Unable to initialize")
 
 pygame.init()
 
