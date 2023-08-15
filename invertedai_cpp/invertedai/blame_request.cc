@@ -28,15 +28,21 @@ BlameRequest::BlameRequest(const std::string &body_str) {
     AgentAttributes agent_attribute = {element[0], element[1], element[2]};
     this->agent_attributes_.push_back(agent_attribute);
   }
-  this->traffic_light_state_history_.clear();
-  for (const auto &elements : this->body_json_["traffic_light_state_history"]) {
-    std::vector<TrafficLightState> traffic_light_states;
-    traffic_light_states.clear();
-    for (const auto &element : elements) {
-      TrafficLightState traffic_light_state = {element[0], element[1]};
-      traffic_light_states.push_back(traffic_light_state);
+  if (this->body_json_["traffic_light_state_history"].is_null()) {
+    this->traffic_light_state_history_ = std::nullopt;
+  } else {
+    std::vector<std::vector<TrafficLightState>> traffic_light_state_history;
+    for (const auto &elements :
+         this->body_json_["traffic_light_state_history"]) {
+      std::vector<TrafficLightState> traffic_light_states;
+      traffic_light_states.clear();
+      for (const auto &element : elements) {
+        TrafficLightState traffic_light_state = {element[0], element[1]};
+        traffic_light_states.push_back(traffic_light_state);
+      }
+      traffic_light_state_history.push_back(traffic_light_states);
     }
-    this->traffic_light_state_history_.push_back(traffic_light_states);
+    this->traffic_light_state_history_ = traffic_light_state_history;
   }
   this->get_birdviews_ = this->body_json_["get_birdviews"].is_boolean()
                              ? this->body_json_["get_birdviews"].get<bool>()
@@ -71,16 +77,21 @@ void BlameRequest::refresh_body_json_() {
                     agent_attribute.rear_axis_offset};
     this->body_json_["agent_attributes"].push_back(element);
   }
-  this->body_json_["traffic_light_state_history"].clear();
-  for (const std::vector<TrafficLightState> &traffic_light_states :
-       this->traffic_light_state_history_) {
-    json elements;
-    elements.clear();
-    for (const TrafficLightState &traffic_light_state : traffic_light_states) {
-      json element = {traffic_light_state.id, traffic_light_state.value};
-      elements.push_back(element);
+  if (this->traffic_light_state_history_.has_value()) {
+    this->body_json_["traffic_light_state_history"].clear();
+    for (const std::vector<TrafficLightState> &traffic_light_states :
+         this->traffic_light_state_history_.value()) {
+      json elements;
+      elements.clear();
+      for (const TrafficLightState &traffic_light_state :
+           traffic_light_states) {
+        json element = {traffic_light_state.id, traffic_light_state.value};
+        elements.push_back(element);
+      }
+      this->body_json_["traffic_light_state_history"].push_back(elements);
     }
-    this->body_json_["traffic_light_state_history"].push_back(elements);
+  } else {
+    this->body_json_["traffic_light_state_history"] = nullptr;
   }
   this->body_json_["get_birdviews"] = this->get_birdviews_;
   this->body_json_["get_reasons"] = this->get_reasons_;
@@ -106,7 +117,7 @@ std::vector<AgentAttributes> BlameRequest::agent_attributes() const {
   return this->agent_attributes_;
 }
 
-std::vector<std::vector<TrafficLightState>>
+std::optional<std::vector<std::vector<TrafficLightState>>>
 BlameRequest::traffic_light_state_history() const {
   return this->traffic_light_state_history_;
 }
@@ -139,7 +150,7 @@ void BlameRequest::set_agent_attributes(
 }
 
 void BlameRequest::set_traffic_light_state_history(
-    const std::vector<std::vector<TrafficLightState>>
+    const std::optional<std::vector<std::vector<TrafficLightState>>>
         &traffic_light_state_history) {
   this->traffic_light_state_history_ = traffic_light_state_history;
 }

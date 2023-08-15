@@ -47,7 +47,7 @@
     ]
   ],
   "traffic_light_state_history": [],
-  "get_birdviews": false,
+  "get_birdviews": true,
   "get_reasons": true,
   "get_confidence_score": true
 }

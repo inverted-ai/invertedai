@@ -19,7 +19,8 @@ private:
   std::pair<int, int> colliding_agents_;
   std::vector<std::vector<AgentState>> agent_state_history_;
   std::vector<AgentAttributes> agent_attributes_;
-  std::vector<std::vector<TrafficLightState>> traffic_light_state_history_;
+  std::optional<std::vector<std::vector<TrafficLightState>>>
+      traffic_light_state_history_;
   bool get_birdviews_;
   bool get_reasons_;
   bool get_confidence_score_;
@@ -39,35 +40,50 @@ public:
    * Get location string in IAI format.
    */
   std::string location() const;
-
+  /**
+   * Get two agents involved in the collision.
+   * These integers should correspond to the indices of
+   * the relevant agents in the lists within agent_state_history.
+   */
   std::pair<int, int> colliding_agents() const;
   /**
-   * Get current states of all agents.
-   * x: [float], y: [float] coordinate in meters;
-   * orientation: [float] in radians with 0 pointing along x
-   * and pi/2 pointing along y;
-   * speed: [float] in m/s.
+   * Lists containing AgentState objects for every agent within the scene (up to
+   * 100 agents) for each time step within the relevant continuous sequence
+   * immediately preceding the collision. The list of AgentState objects should
+   * include the first time step of the collision and no time steps afterwards.
+   * The lists of AgentState objects preceding the collision should capture
+   * enough of the scenario context before the collision for BLAME to analyze
+   * and assign fault. For best results it is recommended to input 20-50 time
+   * steps of 0.1s each preceding the collision. Each AgentState state must
+   * include x: [float], y: [float] coordinates in meters, orientation: [float]
+   * in radians with 0 pointing along the positive x axis and pi/2 pointing
+   * along the positive y axis, and speed: [float] in m/s.
    */
   std::vector<std::vector<AgentState>> agent_state_history() const;
   /**
    * Get static attributes for all agents.
+   * Each agent requires, length: [float], width: [float], and rear_axis_offset:
+   * [float] all in meters.
    */
   std::vector<AgentAttributes> agent_attributes() const;
   /**
-   * Get the states of traffic lights.
+   * Get the state history of traffic lights.
+   * List of TrafficLightStatesDict objects containing the state of all traffic
+   * lights for every time step. The dictionary keys are the traffic-light IDs
+   * and value is the state, i.e., ‘green’, ‘yellow’, ‘red’, or None.
    */
-  std::vector<std::vector<TrafficLightState>>
+  std::optional<std::vector<std::vector<TrafficLightState>>>
   traffic_light_state_history() const;
   /**
-   * Check whether to return an image visualizing the simulation state.
+   * Check whether to return images visualizing the simulation state.
    */
   bool get_birdviews() const;
   /**
-   * Check whether to check predicted agent states for infractions.
+   * Check whether to return the reasons regarding why each agent was blamed.
    */
   bool get_reasons() const;
   /**
-   * Check whether to check predicted agent states for infractions.
+   * Check whether to return how confident the BLAME is in its response.
    */
   bool get_confidence_score() const;
 
@@ -77,38 +93,52 @@ public:
    */
   void set_location(const std::string &location);
   /**
-   * Set current states of all agents. The state must include x:
-   * [float], y: [float] coordinate in meters orientation: [float] in radians
-   * with 0 pointing along x and pi/2 pointing along y and speed: [float] in
-   * m/s.
+   * Set two agents involved in the collision.
+   * These integers should correspond to the indices of
+   * the relevant agents in the lists within agent_state_history.
    */
   void set_colliding_agents(const std::pair<int, int> &colliding_agents);
-
+  /**
+   * Set the lists containing AgentState objects for every agent within the
+   * scene (up to 100 agents) for each time step within the relevant continuous
+   * sequence immediately preceding the collision. The list of AgentState
+   * objects should include the first time step of the collision and no time
+   * steps afterwards. The lists of AgentState objects preceding the collision
+   * should capture enough of the scenario context before the collision for
+   * BLAME to analyze and assign fault. For best results it is recommended to
+   * input 20-50 time steps of 0.1s each preceding the collision. Each
+   * AgentState state must include x: [float], y: [float] coordinates in meters,
+   * orientation: [float] in radians with 0 pointing along the positive x axis
+   * and pi/2 pointing along the positive y axis, and speed: [float] in m/s.
+   */
   void set_agent_state_history(
       const std::vector<std::vector<AgentState>> &agent_state_history);
   /**
    * Set static attributes for all agents.
+   * Each agent requires, length: [float], width: [float], and rear_axis_offset:
+   * [float] all in meters.
    */
   void
   set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes);
   /**
-   * Set the states of traffic lights. If the location contains traffic lights
-   * within the supported area, their current state should be provided here. Any
-   * traffic light for which no state is provided will be ignored by the agents.
+   * Set the list of TrafficLightStatesDict objects containing the state of all
+   * traffic lights for every time step. The dictionary keys are the
+   * traffic-light IDs and value is the state, i.e., ‘green’, ‘yellow’, ‘red’,
+   * or None.
    */
   void set_traffic_light_state_history(
-      const std::vector<std::vector<TrafficLightState>> &traffic_light_state_history);
+      const std::optional<std::vector<std::vector<TrafficLightState>>>
+          &traffic_light_state_history);
   /**
-   * Set whether to return an image visualizing the simulation state.
-   * This is very slow and should only be used for debugging.
+   * Set whether to return the images visualizing the collision case.
    */
   void set_get_birdviews(bool get_birdviews);
   /**
-   * Check whether to check predicted agent states for infractions.
+   * Set whether to return the reasons regarding why each agent was blamed.
    */
   void set_get_reasons(bool get_reasons);
   /**
-   * Check whether to check predicted agent states for infractions.
+   * Set whether to return how confident the BLAME is in its response.
    */
   void set_get_confidence_score(bool get_confidence_score);
 };

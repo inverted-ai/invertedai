@@ -13,7 +13,8 @@ BlameResponse::BlameResponse(const std::string &body_str) {
   }
   this->confidence_score_ =
       this->body_json_["confidence_score"].is_number()
-          ? std::optional<float>{this->body_json_["confidence_score"].get<float>()}
+          ? std::optional<float>{this->body_json_["confidence_score"]
+                                     .get<float>()}
           : std::nullopt;
   if (this->body_json_["reasons"].is_null()) {
     this->reasons_ = std::nullopt;
@@ -28,7 +29,13 @@ BlameResponse::BlameResponse(const std::string &body_str) {
     this->reasons_ =
         std::optional<std::map<int, std::vector<std::string>>>{reasons};
   }
-  this->birdviews_ = this->body_json_["birdviews"].get<std::vector<std::vector<unsigned char>>>();
+  if (this->body_json_["birdviews"].is_null()) {
+    this->birdviews_ = std::nullopt;
+  } else {
+    this->birdviews_ = std::optional<std::vector<std::vector<unsigned char>>>{
+        this->body_json_["birdviews"]
+            .get<std::vector<std::vector<unsigned char>>>()};
+  }
 }
 
 void BlameResponse::refresh_body_json_() {
@@ -46,7 +53,11 @@ void BlameResponse::refresh_body_json_() {
   } else {
     this->body_json_["reasons"] = nullptr;
   }
-  this->body_json_["birdviews"] = this->birdviews_;
+  if (this->birdviews_.has_value()) {
+    this->body_json_["birdviews"] = this->birdviews_.value();
+  } else {
+    this->body_json_["birdviews"] = nullptr;
+  }
 }
 
 std::string BlameResponse::body_str() {
@@ -67,7 +78,7 @@ BlameResponse::reasons() const {
   return this->reasons_;
 }
 
-std::vector<std::vector<unsigned char>> BlameResponse::birdviews() const {
+std::optional<std::vector<std::vector<unsigned char>>> BlameResponse::birdviews() const {
   return this->birdviews_;
 }
 
@@ -76,7 +87,8 @@ void BlameResponse::set_agents_at_fault(
   this->agents_at_fault_ = agents_at_fault;
 }
 
-void BlameResponse::set_confidence_score(std::optional<float> confidence_score) {
+void BlameResponse::set_confidence_score(
+    std::optional<float> confidence_score) {
   this->confidence_score_ = confidence_score;
 }
 
@@ -86,7 +98,7 @@ void BlameResponse::set_reasons(
 }
 
 void BlameResponse::set_birdviews(
-    const std::vector<std::vector<unsigned char>> &birdviews) {
+    const std::optional<std::vector<std::vector<unsigned char>>> &birdviews) {
   this->birdviews_ = birdviews;
 }
 
