@@ -2,7 +2,7 @@ import requests
 import asyncio
 import json
 import re
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Tuple, Any
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter, Retry
 import invertedai as iai
@@ -13,16 +13,18 @@ from invertedai.common import Point
 import logging
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from matplotlib import animation
+from matplotlib.animation import FuncAnimation
+from matplotlib.axes import Axes
 import numpy as np
 import csv
 import math
 from tqdm.contrib import tmap
 from itertools import product
-from invertedai.common import AgentState, StaticMapActor
+from invertedai.common import AgentState, AgentAttributes, TrafficLightState, StaticMapActor, Image
 from matplotlib import transforms
 from copy import deepcopy
 from invertedai.future import to_thread
+from pydantic import validate_arguments, BaseModel, ConfigDict
 
 H_SCALE = 10
 text_x_offset = 0
@@ -630,9 +632,43 @@ def rot(rot):
                      [np.sin(rot), np.cos(rot)]])
 
 
-class ScenePlotter:
-    def __init__(self, map_image=None, fov=None, xy_offset=None, static_actors=None,
-                 open_drive=None, resolution=(640, 480), dpi=100):
+
+class ScenePlotter():
+    """
+    A class providing features and handling the data regarding visualization of a scene involving IAI data.
+    """
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @validate_arguments
+    def __init__(
+        self,
+        map_image: Optional[Any] = None, 
+        fov: float = 100, 
+        xy_offset: Optional[Tuple[int,int]] = None, 
+        static_actors: Optional[List[StaticMapActor]] = None,
+        open_drive: bool = False, 
+        resolution: Tuple[int,int] = (640, 480), 
+        dpi: float = 100
+    ):
+        """
+        Arguments
+        ----------
+        map_image: Image
+            Base image onto which the scene is visualized. It is recommended to acquire this information from the relevant LocationReponse object for the scene.
+        fov: float
+            The field of view in meters corresponding to the map_image attribute. It is recommended to acquire this information from the relevant LocationReponse object for the scene.
+        xy_offset: Optional[Tuple[int,int]] = None
+            The left-hand offset for the center of the map image. It is recommended to acquire this information from the relevant LocationReponse object for the scene.
+        static_actors: Optional[List[StaticMapActor]] = None
+            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. It is recommended to acquire this information from the relevant LocationReponse object for the scene.
+        open_drive: bool = False
+            A flag dictating whether the map is in the ASAM OpenDRIVE format (i.e. xodr maps)
+        resolution: Tuple[int,int] = (640, 480)
+            The desired resolution of the map image expressed as a Tuple with two integers for the width and height respectively.
+        dpi: float = 100
+            Dots per inch to define the level of detail in the image.
+        """
+
         self.conditional_agents = None
         self.agent_attributes = None
         self.traffic_lights_history = None
@@ -675,10 +711,32 @@ class ScenePlotter:
 
         self.numbers = False
 
-        self.agent_face_colors = None
-        self.agent_edge_colors = None
+        self.agent_face_colors = None 
+        self.agent_edge_colors = None 
 
-    def initialize_recording(self, agent_states, agent_attributes, traffic_light_states=None, conditional_agents=None):
+    @validate_arguments
+    def initialize_recording(
+        self,
+        agent_states: List[AgentState], 
+        agent_attributes: List[AgentAttributes], 
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
+        conditional_agents: Optional[List[int]] = None
+    ):
+        """
+        Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous agent state, agent attribute, conditional agent, traffic light, and agent style data.
+
+        Arguments
+        ----------
+        agent_states: List[AgentState]
+            A list of AgentState objects corresponding to the initial time step to be visualized.
+        agent_attributes: List[AgentState]
+            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic bicycle model.
+        traffic_light_states: Optional[Dict[int, TrafficLightState]]
+            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
+        conditional_agents: List[int]
+            Optional parameter containing a list of agent IDs corresponding to conditional agents to be visualized to distinguish themselves.
+        """
+
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
         self.agent_attributes = agent_attributes
@@ -687,47 +745,134 @@ class ScenePlotter:
         else:
             self.conditional_agents = []
 
+        self.agent_face_colors = None
+        self.agent_edge_colors = None
+
     def reset_recording(self):
+        """
+        Explicitly reset the recording and remove the previous agent state, agent attribute, conditional agent, traffic light, and agent style data.
+        """
         self.agent_states_history = []
         self.traffic_lights_history = []
         self.agent_attributes = None
         self.conditional_agents = []
-        self.agent_face_colors = None #: Optional[Optional[Tuple[float,float,float]]] representing R,G,B values for each agent's main color between [0,1] or None if using the default
-        self.agent_edge_colors = None #: Optional[Optional[Tuple[float,float,float]]] representing R,G,B values for each agent's border color between [0,1] or None if using the default
+        self.agent_face_colors = None 
+        self.agent_edge_colors = None 
 
-    def record_step(self, agent_states, traffic_light_states=None):
+    @validate_arguments
+    def record_step(
+        self,
+        agent_states: List[AgentState], 
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
+    ):
+        """
+        Record a single timestep of scene data to be used in a visualization
+
+        Arguments
+        ----------
+        agent_states: List[AgentState]
+            A list of AgentState objects corresponding to the initial time step to be visualized.
+        traffic_light_states: Optional[Dict[int, TrafficLightState]]
+            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
+        """
+
         self.agent_states_history.append(agent_states)
         self.traffic_lights_history.append(traffic_light_states)
 
-    def plot_scene(self, agent_states, agent_attributes, traffic_light_states=None, conditional_agents=None,
-                   ax=None, numbers=False, direction_vec=True, velocity_vec=False):
+    @validate_arguments
+    def plot_scene(
+        self,
+        agent_states: List[AgentState], 
+        agent_attributes: List[AgentAttributes], 
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
+        conditional_agents: Optional[List[int]] = None,
+        ax: Optional[Any] = None,
+        numbers: bool = False, 
+        direction_vec: bool = True, 
+        velocity_vec: bool = False,
+        agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None,
+        agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
+    ):
+        """
+        A standalone scene plotting function that initializes and resets a recording. It is assumed this function will be used not while recording steps for a full animation.
+
+        Parameters
+        ----------
+        agent_states: List[AgentState]
+            A list of agents to be visualized in the image.
+        agent_attributes: List[AgentState]
+            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic bicycle model.
+        traffic_light_states: Optional[Dict[int, TrafficLightState]]
+            Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the corresponding map contains traffic light static actors.
+        conditional_agents: List[int]
+            Optional parameter containing a list of agent IDs of conditional agents to be visualized in the image to distinguish themselves.
+        ax: Optional[Axes] = None
+            A matplotlib Axes object used to plot the image. By default, an Axes object is created if a value of None is passed.
+        numbers: bool = False
+            Flag to determine if the ID's of all agents should be plotted in the image. By default this flag is set to False.
+        direction_vec: bool = True
+            Flag to determine if a vector showing the vehicles direction should be plotted in the image. By default this flag is set to True.
+        velocity_vec: bool = False
+            Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
+        agent_face_colors: Optional[List[Tuple[float,float,float]]] = None
+            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+        agent_edge_colors: Optional[List[Tuple[float,float,float]]] = None
+            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+
+        """
         self.initialize_recording(agent_states, agent_attributes,
                                   traffic_light_states=traffic_light_states,
                                   conditional_agents=conditional_agents)
 
-        self.plot_frame(idx=0, ax=ax, numbers=numbers, direction_vec=direction_vec,
+        self._validate_agent_style_data(agent_face_colors,agent_edge_colors)
+
+        self._plot_frame(idx=0, ax=ax, numbers=numbers, direction_vec=direction_vec,
                         velocity_vec=velocity_vec, plot_frame_number=False)
 
         self.reset_recording()
 
-    def plot_frame(self, idx, ax=None, numbers=False, direction_vec=False,
-                   velocity_vec=False, plot_frame_number=False):
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
-        self._update_frame_to(idx)
+    @validate_arguments
+    def animate_scene(
+        self,
+        output_name: Optional[str] = None,
+        start_idx: int = 0, 
+        end_idx: int = -1,
+        ax: Optional[Any] = None,
+        numbers: bool = False, 
+        direction_vec: bool = True, 
+        velocity_vec: bool = False,
+        plot_frame_number: bool = False, 
+        agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None,
+        agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
+    ) -> FuncAnimation:
+        """
+        Produce an animation of the sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
 
-    def animate_scene(self, output_name=None, start_idx=0, end_idx=-1, ax=None,
-                      numbers=False, direction_vec=True, velocity_vec=False,
-                      plot_frame_number=False, agent_face_colors=None,
-                      agent_edge_colors=None):
-        
-        if (agent_face_colors and self.agent_attributes) and (len(agent_face_colors) != len(self.agent_attributes)):
-            raise Exception("Number of agent colors does not match number of agents.")
-        if (agent_edge_colors and self.agent_attributes) and (len(agent_edge_colors) != len(self.agent_attributes)):
-            raise Exception("Number of agent colors does not match number of agents.")
+        Parameters
+        ----------
+        output_name: Optional[str] = None
+            File name of the gif to which the animation will be saved.
+        start_idx: int = 0
+            The index of the time step from which the animation will begin. By default it is assumed all recorded steps are desired to be animated.
+        end_idx: int = 0
+            The index of the time step from which the animation will end. By default it is assumed all recorded steps are desired to be animated.
+        ax: Optional[Axes] = None
+            A matplotlib Axes object used to plot the animation. By default, an Axes object is created if a value of None is passed.
+        numbers: bool = False
+            Flag to determine if the ID's of all agents should be plotted in the animation. By default this flag is set to False.
+        direction_vec: bool = True
+            Flag to determine if a vector showing the vehicles direction should be plotted in the animation. By default this flag is set to True.
+        velocity_vec: bool = False
+            Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
+        plot_frame_number: bool = False
+            Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
+        agent_face_colors: Optional[List[Tuple[float,float,float]]] = None
+            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+        agent_edge_colors: Optional[List[Tuple[float,float,float]]] = None
+            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+        """
 
-        self.agent_face_colors = agent_face_colors
-        self.agent_edge_colors = agent_edge_colors
+        self._validate_agent_style_data(agent_face_colors,agent_edge_colors)
 
         self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
                               velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
@@ -738,11 +883,29 @@ class ScenePlotter:
         def animate(i):
             self._update_frame_to(i)
 
-        ani = animation.FuncAnimation(
+        ani = FuncAnimation(
             fig, animate, np.arange(start_idx, end_idx), interval=100)
         if output_name is not None:
             ani.save(f'{output_name}', writer='pillow', dpi=self.dpi)
         return ani
+
+    def _plot_frame(self, idx, ax=None, numbers=False, direction_vec=False,
+                   velocity_vec=False, plot_frame_number=False):
+        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
+                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+        self._update_frame_to(idx)
+
+    def _validate_agent_style_data(self,agent_face_colors,agent_edge_colors):
+        if self.agent_attributes is not None: 
+            if agent_face_colors is not None:
+                if len(agent_face_colors) != len(self.agent_attributes):
+                    raise Exception("Number of agent face colors does not match number of agents.")
+            if agent_edge_colors is not None:
+                if len(agent_edge_colors) != len(self.agent_attributes):
+                    raise Exception("Number of agent edge colors does not match number of agents.")
+
+        self.agent_face_colors = agent_face_colors
+        self.agent_edge_colors = agent_edge_colors
 
     def _initialize_plot(self, ax=None, numbers=False, direction_vec=True,
                          velocity_vec=False, plot_frame_number=False):
@@ -752,7 +915,7 @@ class ScenePlotter:
         if not self.open_drive:
             ax.imshow(self.map_image, extent=self.extent)
         else:
-            self._draw_xord_map(ax)
+            self._draw_xodr_map(ax)
             self.extent = (self.map_center[0] - self.fov / 2, self.map_center[0] + self.fov / 2) +\
                 (self.map_center[1] - self.fov / 2, self.map_center[1] + self.fov / 2)
             ax.set_xlim((self.extent[0], self.extent[1]))
@@ -874,10 +1037,10 @@ class ScenePlotter:
         self.current_ax.add_patch(rect)
         self.traffic_light_boxes[light_id] = rect
 
-    def _draw_xord_map(self, ax, extras=False):
+    def _draw_xodr_map(self, ax, extras=False):
         """
         This function plots the parsed xodr map
-        the `odrplot` of `esmini` is used for plotting and parsing xord
+        the `odrplot` of `esmini` is used for plotting and parsing xodr
         https: // esmini.github.io/  # _tools_overview
         """
         with open(self.open_drive) as f:
