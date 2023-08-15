@@ -911,7 +911,7 @@ class ScenePlotter():
 
     def _validate_kwargs(self,arg_name):
         if arg_name in kwargs: 
-            setattr(self,kwargs["map_image"])
+            setattr(self,kwargs[arg_name])
         else: 
             raise Exception("Expected keyword argument 'map_image' but none was given.")
 
