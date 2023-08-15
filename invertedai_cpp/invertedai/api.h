@@ -2,6 +2,8 @@
  * Interface wrappers for the REST API.
  */
 
+#include "blame_request.h"
+#include "blame_response.h"
 #include "drive_request.h"
 #include "drive_response.h"
 #include "initialize_request.h"
@@ -55,5 +57,18 @@ InitializeResponse initialize(InitializeRequest &initialize_request,
  * @see invertedai::initialize
 */
 DriveResponse drive(DriveRequest &drive_request, Session *session);
+
+
+/**
+ * Wrap the REST API "drive".
+ * Drive the agents based on given situations.
+ *
+ * @param drive_request the initialize request to send to the API
+ * @param session the shared session connected with the host
+ * @return the initialize response receive from the API
+ * @see invertedai::location_info
+ * @see invertedai::initialize
+*/
+BlameResponse blame(BlameRequest &blame_request, Session *session);
 
 } // namespace invertedai
