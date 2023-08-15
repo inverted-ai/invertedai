@@ -21,6 +21,7 @@ import math
 from tqdm.contrib import tmap
 from itertools import product
 from invertedai.common import AgentState, AgentAttributes, TrafficLightState, StaticMapActor, Image
+from invertedai.light import LocationResponse
 from matplotlib import transforms
 from copy import deepcopy
 from invertedai.future import to_thread
@@ -642,38 +643,59 @@ class ScenePlotter():
     @validate_arguments
     def __init__(
         self,
-        map_image: Optional[Any] = None, 
-        fov: float = 100, 
-        xy_offset: Optional[Tuple[int,int]] = None, 
-        static_actors: Optional[List[StaticMapActor]] = None,
+        location_response: Optional[LocationResponse] = None,
         open_drive: bool = False, 
         resolution: Tuple[int,int] = (640, 480), 
-        dpi: float = 100
+        dpi: float = 100,
+        **kwargs
     ):
         """
         Arguments
         ----------
-        map_image: Image
-            Base image onto which the scene is visualized. It is recommended to acquire this information from the relevant LocationReponse object for the scene.
-        fov: float
-            The field of view in meters corresponding to the map_image attribute. It is recommended to acquire this information from the relevant LocationReponse object for the scene.
-        xy_offset: Optional[Tuple[int,int]] = None
-            The left-hand offset for the center of the map image. It is recommended to acquire this information from the relevant LocationReponse object for the scene.
-        static_actors: Optional[List[StaticMapActor]] = None
-            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. It is recommended to acquire this information from the relevant LocationReponse object for the scene.
+        location_response: Optional[LocationResponse] = None
+            A LocationResponse object taken from calling iai.light() containing relevant data regarding the location of the scene including the map image.
         open_drive: bool = False
             A flag dictating whether the map is in the ASAM OpenDRIVE format (i.e. xodr maps)
         resolution: Tuple[int,int] = (640, 480)
             The desired resolution of the map image expressed as a Tuple with two integers for the width and height respectively.
         dpi: float = 100
             Dots per inch to define the level of detail in the image.
+
+        Keyword Arguments
+        -----------------
+        map_image: [np.ndarray]
+            Base image onto which the scene is visualized. Only use this argument if not using the respective information from the relevant LocationReponse object.
+        fov: float
+            The field of view in meters corresponding to the map_image attribute. Only use this argument if not using the respective information from the relevant LocationReponse object.
+        xy_offset: Optional[Tuple[int,int]] = None
+            The left-hand offset for the center of the map image. Only use this argument if not using the respective information from the relevant LocationReponse object.
+        static_actors: Optional[List[StaticMapActor]] = None
+            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. Only use this argument if not using the respective information from the relevant LocationReponse object.
+
+
         """
 
         self.conditional_agents = None
         self.agent_attributes = None
         self.traffic_lights_history = None
         self.agent_states_history = None
+        
         self.open_drive = open_drive
+        
+        if not self.open_drive
+            self.map_image = location_response.birdview_image.decode()
+            self.fov = location_response.map_fov
+            self.xy_offset = (location_response.map_center.x, location_response.map_center.y)
+            static_actor = location_response.static_actors
+        else:
+            self._validate_kwargs("map_image")
+            self._validate_kwargs("fov")
+            self._validate_kwargs("xy_offset")
+            self._validate_kwargs("static_actor")
+
+        self.traffic_lights = {static_actor.actor_id: static_actor for static_actor in static_actors if static_actor.agent_type == 'traffic-light'}
+
+
         self.dpi = dpi
         self.resolution = resolution
         self.fov = fov
@@ -684,9 +706,7 @@ class ScenePlotter():
         else:
             self.map_center = xy_offset
 
-        self.traffic_lights = {static_actor.actor_id: static_actor
-                               for static_actor in static_actors
-                               if static_actor.agent_type == 'traffic-light'}
+        
 
         self.traffic_light_colors = {
             'red': (1.0, 0.0, 0.0),
@@ -707,12 +727,12 @@ class ScenePlotter():
         self.frame_label = None
         self.current_ax = None
 
-        self.reset_recording()
-
         self.numbers = False
 
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
+
+        self.reset_recording()
 
     @validate_arguments
     def initialize_recording(
@@ -779,14 +799,14 @@ class ScenePlotter():
         self.agent_states_history.append(agent_states)
         self.traffic_lights_history.append(traffic_light_states)
 
-    @validate_arguments
+    @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def plot_scene(
         self,
         agent_states: List[AgentState], 
         agent_attributes: List[AgentAttributes], 
         traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
         conditional_agents: Optional[List[int]] = None,
-        ax: Optional[Any] = None,
+        ax: Optional[Axes] = None,
         numbers: bool = False, 
         direction_vec: bool = True, 
         velocity_vec: bool = False,
@@ -831,13 +851,13 @@ class ScenePlotter():
 
         self.reset_recording()
 
-    @validate_arguments
+    @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def animate_scene(
         self,
         output_name: Optional[str] = None,
         start_idx: int = 0, 
         end_idx: int = -1,
-        ax: Optional[Any] = None,
+        ax: Optional[Axes] = None,
         numbers: bool = False, 
         direction_vec: bool = True, 
         velocity_vec: bool = False,
@@ -888,6 +908,13 @@ class ScenePlotter():
         if output_name is not None:
             ani.save(f'{output_name}', writer='pillow', dpi=self.dpi)
         return ani
+
+    def _validate_kwargs(self,arg_name):
+        if arg_name in kwargs: 
+            setattr(self,kwargs["map_image"])
+        else: 
+            raise Exception("Expected keyword argument 'map_image' but none was given.")
+
 
     def _plot_frame(self, idx, ax=None, numbers=False, direction_vec=False,
                    velocity_vec=False, plot_frame_number=False):
