@@ -22,7 +22,7 @@ class BlameResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.blame`.
     """
-    agents_at_fault: Optional[Tuple[int, ...]] #: A tuple containing all agents predicted to be at fault. If empty, the model has predicated no agents are at fault.
+    agents_at_fault: Optional[Tuple[int, ...]] #: A tuple containing all agents predicted to be at fault. If empty, the model has predicted no agents are at fault.
     reasons: Optional[Dict[int, List[str]]] #: A dictionary with agent IDs as keys and a list of fault class strings for why the keyed agent is to blame.
     confidence_score: Optional[float] #: Float value between [0,1] indicating the models confidence in the response.
     birdviews: Optional[List[Image]]  #: If `get_birdviews` was set, this contains the resulting image.

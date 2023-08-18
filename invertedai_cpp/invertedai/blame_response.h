@@ -30,8 +30,8 @@ public:
 
   // getters
   /**
-   * Get a tuple containing all agents predicted to be at fault. If empty, BLAME
-   * has predicated no agents are at fault.
+   * Get a vector containing all agents predicted to be at fault. If empty, BLAME
+   * has predicted no agents are at fault.
    */
   std::vector<int> agents_at_fault() const;
   /**
@@ -40,7 +40,7 @@ public:
    */
   std::optional<float> confidence_score() const;
   /**
-   * Get a dictionary with agent IDs as keys corresponding to “agents_at_fault”
+   * Get a map with agent IDs as keys corresponding to “agents_at_fault”
    * paired with a list of reasons why the keyed agent is at fault (e.g.
    * traffic_light_violation).
    */
@@ -52,7 +52,7 @@ public:
 
   // setters
   /**
-   * Set a tuple containing all agents at fault.
+   * Set a vector containing all agents at fault.
    */
   void set_agents_at_fault(const std::vector<int> &agents_at_fault);
   /**
@@ -60,7 +60,7 @@ public:
    */
   void set_confidence_score(std::optional<float> confidence_score);
   /**
-   * Set a dictionary with agent IDs as keys corresponding to “agents_at_fault”
+   * Set a map with agent IDs as keys corresponding to “agents_at_fault”
    * paired with a list of reasons why the keyed agent is at fault (e.g.
    * traffic_light_violation).
    */
