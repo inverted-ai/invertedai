@@ -31,7 +31,7 @@ quickly give you an idea for how the underlying NPCs behave. This example is ava
 in a few different versions, one calling the underlying REST API directly, and others
 using the wrapper provided as a part of our library, the latter version also being
 available as a Jupyter notebook and
-[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb).
+[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only.ipynb).
 
 ## Cosimulation Minimal example
 

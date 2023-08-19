@@ -155,7 +155,7 @@ imageio.mimsave("iai-example.gif", np.array(images), format="GIF-PIL")
 ```
 To quickly check out how Inverted AI NPCs
 behave, try our
-[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb),
+[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/IAI_full_demo.ipynb),
 where all agents are NPCs, or go to our
 [github repository](https://github.com/inverted-ai/invertedai/tree/master/examples) to execute it locally.
 When you're ready to try our NPCs with a real simulator, see the example [CARLA integration](https://github.com/inverted-ai/invertedai/tree/master/examples/carla).
