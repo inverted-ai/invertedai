@@ -1,0 +1,53 @@
+{
+  "location": "iai:dunbar_diversion",
+  "colliding_agents": [
+    0,
+    1
+  ],
+  "agent_state_history": [
+    [
+      [
+        0,
+        0,
+        1.57,
+        0.1
+      ],
+      [
+        0,
+        -5.5,
+        1.57,
+        10
+      ]
+    ],
+    [
+      [
+        0,
+        0.01,
+        1.57,
+        0.1
+      ],
+      [
+        0,
+        -4.5,
+        1.57,
+        10
+      ]
+    ]
+  ],
+  "agent_attributes": [
+    [
+      5,
+      2,
+      1.5
+    ],
+    [
+      5,
+      2,
+      1.5
+    ]
+  ],
+  "traffic_light_state_history": [],
+  "get_birdviews": true,
+  "get_reasons": true,
+  "get_confidence_score": true
+}

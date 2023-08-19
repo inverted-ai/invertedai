@@ -2,6 +2,8 @@
  * Interface wrappers for the REST API.
  */
 
+#include "blame_request.h"
+#include "blame_response.h"
 #include "drive_request.h"
 #include "drive_response.h"
 #include "initialize_request.h"
@@ -21,6 +23,7 @@ namespace invertedai {
  * @return the location_info response receive from the API
  * @see invertedai::initialize
  * @see invertedai::drive
+ * @see invertedai::blame
  */
 LocationInfoResponse location_info(LocationInfoRequest &location_info_request,
                                    Session *session);
@@ -40,6 +43,7 @@ LocationInfoResponse location_info(LocationInfoRequest &location_info_request,
  * @return the initialize response receive from the API
  * @see invertedai::location_info
  * @see invertedai::drive
+ * @see invertedai::blame
  */
 InitializeResponse initialize(InitializeRequest &initialize_request,
                               Session *session);
@@ -48,12 +52,27 @@ InitializeResponse initialize(InitializeRequest &initialize_request,
  * Wrap the REST API "drive".
  * Drive the agents based on given situations.
  *
- * @param drive_request the initialize request to send to the API
+ * @param drive_request the drive request to send to the API
  * @param session the shared session connected with the host
- * @return the initialize response receive from the API
+ * @return the drive response receive from the API
  * @see invertedai::location_info
  * @see invertedai::initialize
+ * @see invertedai::blame
 */
 DriveResponse drive(DriveRequest &drive_request, Session *session);
+
+
+/**
+ * Wrap the REST API "blame".
+ * Blame the agents at fault in the collision.
+ *
+ * @param blame_request the blame request to send to the API
+ * @param session the shared session connected with the host
+ * @return the blame response receive from the API
+ * @see invertedai::location_info
+ * @see invertedai::initialize
+ * @see invertedai::drive
+*/
+BlameResponse blame(BlameRequest &blame_request, Session *session);
 
 } // namespace invertedai
