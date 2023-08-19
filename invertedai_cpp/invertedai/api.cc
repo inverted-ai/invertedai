@@ -21,10 +21,6 @@ DriveResponse drive(DriveRequest &drive_request, Session *session) {
   return DriveResponse(session->request("drive", drive_request.body_str(), ""));
 }
 
-BlameResponse blame(BlameRequest &blame_request, Session *session) {
-  return BlameResponse(session->request("blame", blame_request.body_str(), ""));
-}
-
 } // namespace invertedai
 
 # endif

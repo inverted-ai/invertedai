@@ -69,26 +69,6 @@ cc_library(
 )
 
 cc_library(
-    name = "blame_request",
-    srcs = ["blame_request.cc"],
-    hdrs = ["blame_request.h"],
-    deps = [
-        ":data_utils",
-        "//invertedai/externals:json",
-    ],
-)
-
-cc_library(
-    name = "blame_response",
-    srcs = ["blame_response.cc"],
-    hdrs = ["blame_response.h"],
-    deps = [
-        ":data_utils",
-        "//invertedai/externals:json",
-    ],
-)
-
-cc_library(
     name = "session",
     srcs = ["session.cc"],
     hdrs = ["session.h"],
@@ -107,8 +87,6 @@ cc_library(
     hdrs = ["api.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":blame_request",
-        ":blame_response",
         ":drive_request",
         ":drive_response",
         ":initialize_request",

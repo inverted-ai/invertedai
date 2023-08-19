@@ -32,7 +32,7 @@ public:
   // getters
   /**
    * Get current states of all agents.
-   * x: [float], y: [float] coordinate in meters;
+   * x: [float], y: [float] corrdinate in meters;
    * orientation: [float] in radians with 0 pointing along x
    * and pi/2 pointing along y;
    * speed: [float] in m/s.
@@ -58,7 +58,7 @@ public:
   // setters
   /**
    * Set current states of all agents. The state must include x:
-   * [float], y: [float] coordinate in meters orientation: [float] in radians
+   * [float], y: [float] corrdinate in meters orientation: [float] in radians
    * with 0 pointing along x and pi/2 pointing along y and speed: [float] in
    * m/s.
    */

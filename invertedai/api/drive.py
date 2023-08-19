@@ -64,7 +64,7 @@ def drive(
 
     agent_states:
         Current states of all agents.
-        The state must include x: [float], y: [float] coordinate in meters
+        The state must include x: [float], y: [float] corrdinate in meters
         orientation: [float] in radians with 0 pointing along x and pi/2 pointing along y and
         speed: [float] in m/s.
 
