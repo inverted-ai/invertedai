@@ -7,11 +7,11 @@ accessed directly. Below are the key functions of the library, along with some c
 ```{toctree}
 :maxdepth: 1
 
+cpp-blame
 cpp-drive
 cpp-initialize
 cpp-location-info
 cpp-common
-cpp-blame
 ```
 
 

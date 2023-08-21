@@ -7,13 +7,13 @@ accessed directly. Below are the key functions of the library, along with some c
 ```{toctree}
 :maxdepth: 1
 
+sdk-blame
 sdk-drive
 sdk-initialize
-sdk-location-info
 sdk-light
-sdk-blame
-sdk-simulation
+sdk-location-info
 sdk-common
+sdk-simulation
 sdk-env-var
 ```
 
