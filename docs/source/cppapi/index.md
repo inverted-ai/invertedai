@@ -11,6 +11,7 @@ cpp-drive
 cpp-initialize
 cpp-location-info
 cpp-common
+cpp-blame
 ```
 
 
