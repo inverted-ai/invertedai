@@ -11,18 +11,6 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
       this->body_json_["num_agents_to_spawn"].is_number_integer()
           ? this->body_json_["num_agents_to_spawn"].get<int>()
           : 0;
-  this->conditional_agent_states_.clear();
-  for (const auto &element : this->body_json_["conditional_agent_states"]) {
-    AgentState agent_state = {element[0], element[1], element[2], element[3]};
-    this->conditional_agent_states_.push_back(agent_state);
-  }
-
-  this->conditional_agent_attributes_.clear();
-  for (const auto &element : this->body_json_["conditional_agent_attributes"]) {
-    AgentAttributes agent_attribute = {element[0], element[1], element[2]};
-    this->conditional_agent_attributes_.push_back(agent_attribute);
-  }
-
   this->states_history_.clear();
   for (const auto &elements : this->body_json_["states_history"]) {
     std::vector<AgentState> agent_states;
@@ -135,15 +123,6 @@ std::vector<std::vector<AgentState>> InitializeRequest::states_history() const {
   return this->states_history_;
 }
 
-std::vector<AgentState> InitializeRequest::conditional_agent_states() const {
-  return this->conditional_agent_states_;
-}
-
-std::vector<AgentAttributes>
-InitializeRequest::conditional_agent_attributes() const {
-  return this->conditional_agent_attributes_;
-}
-
 std::vector<AgentAttributes> InitializeRequest::agent_attributes() const {
   return this->agent_attributes_;
 }
@@ -178,16 +157,6 @@ void InitializeRequest::set_location(const std::string &location) {
 
 void InitializeRequest::set_num_agents_to_spawn(int num_agents_to_spawn) {
   this->num_agents_to_spawn_ = num_agents_to_spawn;
-}
-
-void InitializeRequest::set_conditional_agent_states(
-    const std::vector<AgentState> &conditional_agent_states) {
-  this->conditional_agent_states_ = conditional_agent_states;
-}
-
-void InitializeRequest::set_conditional_agent_attributes(
-    const std::vector<AgentAttributes> &conditional_agent_attributes) {
-  this->conditional_agent_attributes_ = conditional_agent_attributes;
 }
 
 void InitializeRequest::set_states_history(

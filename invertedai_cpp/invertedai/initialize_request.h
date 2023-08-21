@@ -15,8 +15,6 @@ class InitializeRequest {
 private:
   std::string location_;
   int num_agents_to_spawn_;
-  std::vector<AgentState> conditional_agent_states_;
-  std::vector<AgentAttributes> conditional_agent_attributes_;
   std::vector<std::vector<AgentState>> states_history_;
   std::vector<AgentAttributes> agent_attributes_;
   std::vector<std::vector<TrafficLightState>> traffic_light_state_history_;
@@ -48,15 +46,6 @@ public:
   /**
    * Get history of agent states.
    */
-  std::vector<AgentState> conditional_agent_states() const;
-  /**
-   * Get conditional agent states.
-   */
-  std::vector<AgentAttributes> conditional_agent_attributes() const;
-  /**
-   * Get conditional agent attributes.
-   */
-
   std::vector<std::vector<AgentState>> states_history() const;
   /**
    * Get static attributes for all agents.
@@ -105,17 +94,6 @@ public:
    * Set history of agent states. The outer list is over agents and the
    * inner over time, in chronological order. For best results, provide at least
    * 10 historical states for each agent.
-   */
-  void set_conditional_agent_states(
-      const std::vector<AgentState> &conditional_agent_states);
-  /**
-   * Optional conditional agent states when `agent_count` is passed. When
-   * passed, `agent_count` includes the number of conditional agents passed.
-   */
-  void set_conditional_agent_attributes(
-      const std::vector<AgentAttributes> &conditional_agent_attributes);
-  /**
-   * Optional agent attributes when `conditional_agent_states` is passed.
    */
   void set_states_history(
       const std::vector<std::vector<AgentState>> &states_history);
