@@ -3,7 +3,7 @@
 
 ```{eval-rst}
 .. autoclass:: invertedai.utils.ScenePlotter
-   :method:
+   :members:
    :undoc-members:
 ```
 
