@@ -638,7 +638,7 @@ def rot(rot):
 
 class ScenePlotter():
     """
-    A class providing features for handling the data regarding visualization of a scene involving IAI data.
+    A class providing features for handling the data visualization of a scene involving IAI data.
     """
     @validate_arguments
     def __init__(
@@ -652,24 +652,24 @@ class ScenePlotter():
         """
         Arguments
         ----------
-        location_response: Optional[LocationResponse] = None
+        location_response:
             A LocationResponse object taken from calling iai.location_info() containing relevant data regarding the location of the scene including the map image.
-        open_drive: Optional[str] = None
+        open_drive: 
             If using an ASAM OpenDRIVE format map for visualization, this string parameter is used to indicate the path to the corresponding CSV file.
-        resolution: Tuple[int,int] = (640, 480)
+        resolution: 
             The desired resolution of the map image expressed as a Tuple with two integers for the width and height respectively.
-        dpi: float = 100
+        dpi:
             Dots per inch to define the level of detail in the image.
 
         Keyword Arguments
         -----------------
-        map_image: [np.ndarray]
+        map_image:
             Base image onto which the scene is visualized. This parameter must be provided if using an ASAM OpenDRIVE format map.
         fov: float
             The field of view in meters corresponding to the map_image attribute. This parameter must be provided if using an ASAM OpenDRIVE format map.
-        xy_offset: Optional[Tuple[int,int]] = None
+        xy_offset:
             The left-hand offset for the center of the map image. This parameter must be provided if using an ASAM OpenDRIVE format map.
-        static_actors: Optional[List[StaticMapActor]] = None
+        static_actors:
             A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided if using an ASAM OpenDRIVE format map.
         
         See Also
@@ -742,13 +742,13 @@ class ScenePlotter():
 
         Arguments
         ----------
-        agent_states: List[AgentState]
+        agent_states:
             A list of AgentState objects corresponding to the initial time step to be visualized.
-        agent_attributes: List[AgentAttributes]
+        agent_attributes:
             Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic bicycle model.
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
+        traffic_light_states:
             Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
-        conditional_agents: Optional[List[int]] = None
+        conditional_agents:
             Optional parameter containing a list of agent IDs corresponding to conditional agents to be visualized to distinguish themselves.
         """
 
@@ -785,9 +785,9 @@ class ScenePlotter():
 
         Arguments
         ----------
-        agent_states: List[AgentState]
+        agent_states:
             A list of AgentState objects corresponding to the initial time step to be visualized.
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
+        traffic_light_states:
             Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
         """
 
@@ -813,25 +813,25 @@ class ScenePlotter():
 
         Parameters
         ----------
-        agent_states: List[AgentState]
+        agent_states:
             A list of agents to be visualized in the image.
-        agent_attributes: List[AgentAttributes]
+        agent_attributes: 
             Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic bicycle model.
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
+        traffic_light_states: 
             Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the corresponding map contains traffic light static actors.
-        conditional_agents: Optional[List[int]] = None
+        conditional_agents:
             Optional parameter containing a list of agent IDs of conditional agents to be visualized in the image to distinguish themselves.
-        ax: Optional[Axes] = None
+        ax: 
             A matplotlib Axes object used to plot the image. By default, an Axes object is created if a value of None is passed.
-        numbers: bool = False
+        numbers: 
             Flag to determine if the ID's of all agents should be plotted in the image. By default this flag is set to False.
-        direction_vec: bool = True
+        direction_vec:
             Flag to determine if a vector showing the vehicles direction should be plotted in the image. By default this flag is set to True.
-        velocity_vec: bool = False
+        velocity_vec: 
             Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
-        agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
+        agent_face_colors:
             An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
-        agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
+        agent_edge_colors:
             An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
 
         """
@@ -865,25 +865,25 @@ class ScenePlotter():
 
         Parameters
         ----------
-        output_name: Optional[str] = None
+        output_name: 
             File name of the gif to which the animation will be saved.
-        start_idx: int = 0
+        start_idx:
             The index of the time step from which the animation will begin. By default it is assumed all recorded steps are desired to be animated.
-        end_idx: int = -1
+        end_idx:
             The index of the time step from which the animation will end. By default it is assumed all recorded steps are desired to be animated.
-        ax: Optional[Axes] = None
+        ax: 
             A matplotlib Axes object used to plot the animation. By default, an Axes object is created if a value of None is passed.
-        numbers: bool = False
+        numbers: 
             Flag to determine if the ID's of all agents should be plotted in the animation. By default this flag is set to False.
-        direction_vec: bool = True
+        direction_vec: 
             Flag to determine if a vector showing the vehicles direction should be plotted in the animation. By default this flag is set to True.
-        velocity_vec: bool = False
+        velocity_vec:
             Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
-        plot_frame_number: bool = False
+        plot_frame_number: 
             Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
-        agent_face_colors: Optional[List[Tuple[float,float,float]]] = None
+        agent_face_colors:
             An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
-        agent_edge_colors: Optional[List[Tuple[float,float,float]]] = None
+        agent_edge_colors:
             An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
         """
 
