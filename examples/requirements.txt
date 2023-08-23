@@ -8,6 +8,5 @@ imageio==2.20.0
 tqdm==4.64.0
 ipython==8.4.0
 pygame==2.1.2
-carla==0.9.13
 pandas==1.5.1
 shapely==2.0.1
