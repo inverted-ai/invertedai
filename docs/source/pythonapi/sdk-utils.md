@@ -2,7 +2,7 @@
 
 
 ```{eval-rst}
-.. autoclass:: ScenePlotter
-   .. method::
+.. autoclass:: invertedai.utils.ScenePlotter
+   :method::
 ```
 
