@@ -1027,13 +1027,13 @@ class ScenePlotter():
 
         lw = 1
         fc = self._get_color(agent_idx,self.agent_face_colors)
-        if not fc:
+        if fc is None:
             if agent_idx in self.conditional_agents:
                 fc = self.cond_c
             else:
                 fc = self.agent_c
         ec = self._get_color(agent_idx,self.agent_edge_colors)
-        if not ec:
+        if ec is None:
             lw = 0
             ec = fc
 
