@@ -2,30 +2,32 @@ import requests
 import asyncio
 import json
 import re
+import logging
 from typing import Dict, Optional, List, Tuple, Any
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter, Retry
+from pydantic import validate_arguments, BaseModel, ConfigDict
+
 import invertedai as iai
 import invertedai.api
 import invertedai.api.config
+from invertedai.common import AgentState, AgentAttributes, TrafficLightState, StaticMapActor, Image, Point
+from invertedai.api.location import LocationResponse
 from invertedai import error
-from invertedai.common import Point
-import logging
+from invertedai.future import to_thread
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.animation import FuncAnimation
 from matplotlib.axes import Axes
+from matplotlib import transforms
+from tqdm.contrib import tmap
+from itertools import product
+
 import numpy as np
 import csv
 import math
-from tqdm.contrib import tmap
-from itertools import product
-from invertedai.common import AgentState, AgentAttributes, TrafficLightState, StaticMapActor, Image
-from invertedai.light import LocationResponse
-from matplotlib import transforms
 from copy import deepcopy
-from invertedai.future import to_thread
-from pydantic import validate_arguments, BaseModel, ConfigDict
 
 H_SCALE = 10
 text_x_offset = 0
@@ -636,15 +638,13 @@ def rot(rot):
 
 class ScenePlotter():
     """
-    A class providing features and handling the data regarding visualization of a scene involving IAI data.
+    A class providing features for handling the data regarding visualization of a scene involving IAI data.
     """
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
     @validate_arguments
     def __init__(
         self,
         location_response: Optional[LocationResponse] = None,
-        open_drive: bool = False, 
+        open_drive: Optional[str] = None, 
         resolution: Tuple[int,int] = (640, 480), 
         dpi: float = 100,
         **kwargs
@@ -653,9 +653,9 @@ class ScenePlotter():
         Arguments
         ----------
         location_response: Optional[LocationResponse] = None
-            A LocationResponse object taken from calling iai.light() containing relevant data regarding the location of the scene including the map image.
-        open_drive: bool = False
-            A flag dictating whether the map is in the ASAM OpenDRIVE format (i.e. xodr maps)
+            A LocationResponse object taken from calling iai.location_info() containing relevant data regarding the location of the scene including the map image.
+        open_drive: Optional[str] = None
+            If using an ASAM OpenDRIVE format map for visualization, this string parameter is used to indicate the path to the corresponding CSV file.
         resolution: Tuple[int,int] = (640, 480)
             The desired resolution of the map image expressed as a Tuple with two integers for the width and height respectively.
         dpi: float = 100
@@ -664,15 +664,13 @@ class ScenePlotter():
         Keyword Arguments
         -----------------
         map_image: [np.ndarray]
-            Base image onto which the scene is visualized. Only use this argument if not using the respective information from the relevant LocationReponse object.
+            Base image onto which the scene is visualized. This parameter must be provided if using an ASAM OpenDRIVE format map.
         fov: float
-            The field of view in meters corresponding to the map_image attribute. Only use this argument if not using the respective information from the relevant LocationReponse object.
+            The field of view in meters corresponding to the map_image attribute. This parameter must be provided if using an ASAM OpenDRIVE format map.
         xy_offset: Optional[Tuple[int,int]] = None
-            The left-hand offset for the center of the map image. Only use this argument if not using the respective information from the relevant LocationReponse object.
+            The left-hand offset for the center of the map image. This parameter must be provided if using an ASAM OpenDRIVE format map.
         static_actors: Optional[List[StaticMapActor]] = None
-            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. Only use this argument if not using the respective information from the relevant LocationReponse object.
-
-
+            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided if using an ASAM OpenDRIVE format map.
         """
 
         self.conditional_agents = None
@@ -680,33 +678,26 @@ class ScenePlotter():
         self.traffic_lights_history = None
         self.agent_states_history = None
         
-        self.open_drive = open_drive
+        self._open_drive = open_drive
+        self._dpi = dpi
+        self._resolution = resolution
         
-        if not self.open_drive
+        if self._open_drive is None:
             self.map_image = location_response.birdview_image.decode()
             self.fov = location_response.map_fov
             self.xy_offset = (location_response.map_center.x, location_response.map_center.y)
-            static_actor = location_response.static_actors
+            self.static_actors = location_response.static_actors
         else:
-            self._validate_kwargs("map_image")
-            self._validate_kwargs("fov")
-            self._validate_kwargs("xy_offset")
-            self._validate_kwargs("static_actor")
+            self._validate_kwargs("map_image",kwargs)
+            self._validate_kwargs("fov",kwargs)
+            self._validate_kwargs("xy_offset",kwargs)
+            self._validate_kwargs("static_actors",kwargs)
 
-        self.traffic_lights = {static_actor.actor_id: static_actor for static_actor in static_actors if static_actor.agent_type == 'traffic-light'}
+        self.traffic_lights = {static_actor.actor_id: static_actor for static_actor in self.static_actors if static_actor.agent_type == 'traffic-light'}
 
-
-        self.dpi = dpi
-        self.resolution = resolution
-        self.fov = fov
-        self.map_image = map_image
-        if not open_drive:
-            self.extent = (- self.fov / 2 + xy_offset[0], self.fov / 2 + xy_offset[0]) + \
-                (- self.fov / 2 + xy_offset[1], self.fov / 2 + xy_offset[1])
-        else:
-            self.map_center = xy_offset
-
-        
+        if self._open_drive is None:
+            self.extent = (- self.fov / 2 + self.xy_offset[0], self.fov / 2 + self.xy_offset[0]) + \
+                (- self.fov / 2 + self.xy_offset[1], self.fov / 2 + self.xy_offset[1])
 
         self.traffic_light_colors = {
             'red': (1.0, 0.0, 0.0),
@@ -749,11 +740,11 @@ class ScenePlotter():
         ----------
         agent_states: List[AgentState]
             A list of AgentState objects corresponding to the initial time step to be visualized.
-        agent_attributes: List[AgentState]
+        agent_attributes: List[AgentAttributes]
             Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic bicycle model.
-        traffic_light_states: Optional[Dict[int, TrafficLightState]]
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
             Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
-        conditional_agents: List[int]
+        conditional_agents: Optional[List[int]] = None
             Optional parameter containing a list of agent IDs corresponding to conditional agents to be visualized to distinguish themselves.
         """
 
@@ -774,8 +765,8 @@ class ScenePlotter():
         """
         self.agent_states_history = []
         self.traffic_lights_history = []
-        self.agent_attributes = None
         self.conditional_agents = []
+        self.agent_attributes = None
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
 
@@ -792,7 +783,7 @@ class ScenePlotter():
         ----------
         agent_states: List[AgentState]
             A list of AgentState objects corresponding to the initial time step to be visualized.
-        traffic_light_states: Optional[Dict[int, TrafficLightState]]
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
             Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
         """
 
@@ -814,17 +805,17 @@ class ScenePlotter():
         agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
     ):
         """
-        A standalone scene plotting function that initializes and resets a recording. It is assumed this function will be used not while recording steps for a full animation.
+        Plot a single timestep of data then reset the recording. 
 
         Parameters
         ----------
         agent_states: List[AgentState]
             A list of agents to be visualized in the image.
-        agent_attributes: List[AgentState]
+        agent_attributes: List[AgentAttributes]
             Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic bicycle model.
-        traffic_light_states: Optional[Dict[int, TrafficLightState]]
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
             Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the corresponding map contains traffic light static actors.
-        conditional_agents: List[int]
+        conditional_agents: Optional[List[int]] = None
             Optional parameter containing a list of agent IDs of conditional agents to be visualized in the image to distinguish themselves.
         ax: Optional[Axes] = None
             A matplotlib Axes object used to plot the image. By default, an Axes object is created if a value of None is passed.
@@ -834,9 +825,9 @@ class ScenePlotter():
             Flag to determine if a vector showing the vehicles direction should be plotted in the image. By default this flag is set to True.
         velocity_vec: bool = False
             Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
-        agent_face_colors: Optional[List[Tuple[float,float,float]]] = None
+        agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
             An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
-        agent_edge_colors: Optional[List[Tuple[float,float,float]]] = None
+        agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
             An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
 
         """
@@ -866,7 +857,7 @@ class ScenePlotter():
         agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
     ) -> FuncAnimation:
         """
-        Produce an animation of the sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
+        Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
 
         Parameters
         ----------
@@ -874,7 +865,7 @@ class ScenePlotter():
             File name of the gif to which the animation will be saved.
         start_idx: int = 0
             The index of the time step from which the animation will begin. By default it is assumed all recorded steps are desired to be animated.
-        end_idx: int = 0
+        end_idx: int = -1
             The index of the time step from which the animation will end. By default it is assumed all recorded steps are desired to be animated.
         ax: Optional[Axes] = None
             A matplotlib Axes object used to plot the animation. By default, an Axes object is created if a value of None is passed.
@@ -898,7 +889,7 @@ class ScenePlotter():
                               velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
-        fig.set_size_inches(self.resolution[0] / self.dpi, self.resolution[1] / self.dpi, True)
+        fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
 
         def animate(i):
             self._update_frame_to(i)
@@ -906,14 +897,14 @@ class ScenePlotter():
         ani = FuncAnimation(
             fig, animate, np.arange(start_idx, end_idx), interval=100)
         if output_name is not None:
-            ani.save(f'{output_name}', writer='pillow', dpi=self.dpi)
+            ani.save(f'{output_name}', writer='pillow', dpi=self._dpi)
         return ani
 
-    def _validate_kwargs(self,arg_name):
+    def _validate_kwargs(self,arg_name,kwargs):
         if arg_name in kwargs: 
-            setattr(self,kwargs[arg_name])
+            setattr(self,arg_name,kwargs[arg_name])
         else: 
-            raise Exception("Expected keyword argument 'map_image' but none was given.")
+            raise Exception(f"Expected keyword argument '{arg_name}' but none was given.")
 
 
     def _plot_frame(self, idx, ax=None, numbers=False, direction_vec=False,
@@ -939,12 +930,12 @@ class ScenePlotter():
         if ax is None:
             plt.clf()
             ax = plt.gca()
-        if not self.open_drive:
+        if self._open_drive is None:
             ax.imshow(self.map_image, extent=self.extent)
         else:
             self._draw_xodr_map(ax)
-            self.extent = (self.map_center[0] - self.fov / 2, self.map_center[0] + self.fov / 2) +\
-                (self.map_center[1] - self.fov / 2, self.map_center[1] + self.fov / 2)
+            self.extent = (self.xy_offset[0] - self.fov / 2, self.xy_offset[0] + self.fov / 2) +\
+                (self.xy_offset[1] - self.fov / 2, self.xy_offset[1] + self.fov / 2)
             ax.set_xlim((self.extent[0], self.extent[1]))
             ax.set_ylim((self.extent[2], self.extent[3]))
         self.current_ax = ax
@@ -991,7 +982,7 @@ class ScenePlotter():
             else:
                 self.frame_label.set_text(str(frame_idx))
 
-        if not self.open_drive:
+        if self._open_drive is None:
             self.current_ax.set_xlim(*self.extent[0:2])
             self.current_ax.set_ylim(*self.extent[2:4])
 
@@ -1070,7 +1061,7 @@ class ScenePlotter():
         the `odrplot` of `esmini` is used for plotting and parsing xodr
         https: // esmini.github.io/  # _tools_overview
         """
-        with open(self.open_drive) as f:
+        with open(self._open_drive) as f:
             reader = csv.reader(f, skipinitialspace=True)
             positions = list(reader)
 
