@@ -722,7 +722,7 @@ class ScenePlotter():
         self.frame_label = None
         self.current_ax = None
 
-        self.numbers = False
+        self.numbers = None
 
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
@@ -802,7 +802,7 @@ class ScenePlotter():
         traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
         conditional_agents: Optional[List[int]] = None,
         ax: Optional[Axes] = None,
-        numbers: bool = False, 
+        numbers: Optional[List[int]] = None, 
         direction_vec: bool = True, 
         velocity_vec: bool = False,
         agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None,
@@ -824,7 +824,7 @@ class ScenePlotter():
         ax: 
             A matplotlib Axes object used to plot the image. By default, an Axes object is created if a value of None is passed.
         numbers: 
-            Flag to determine if the ID's of all agents should be plotted in the image. By default this flag is set to False.
+            A list of agent ID's that should be plotted in the image. By default this value is set to None.
         direction_vec:
             Flag to determine if a vector showing the vehicles direction should be plotted in the image. By default this flag is set to True.
         velocity_vec: 
@@ -853,7 +853,7 @@ class ScenePlotter():
         start_idx: int = 0, 
         end_idx: int = -1,
         ax: Optional[Axes] = None,
-        numbers: bool = False, 
+        numbers: Optional[List[int]] = None, 
         direction_vec: bool = True, 
         velocity_vec: bool = False,
         plot_frame_number: bool = False, 
@@ -874,7 +874,7 @@ class ScenePlotter():
         ax: 
             A matplotlib Axes object used to plot the animation. By default, an Axes object is created if a value of None is passed.
         numbers: 
-            Flag to determine if the ID's of all agents should be plotted in the animation. By default this flag is set to False.
+            A list of agent ID's that should be plotted in the image. By default this value is set to None.
         direction_vec: 
             Flag to determine if a vector showing the vehicles direction should be plotted in the animation. By default this flag is set to True.
         velocity_vec:
@@ -911,7 +911,7 @@ class ScenePlotter():
             raise Exception(f"Expected keyword argument '{arg_name}' but none was given.")
 
 
-    def _plot_frame(self, idx, ax=None, numbers=False, direction_vec=False,
+    def _plot_frame(self, idx, ax=None, numbers=None, direction_vec=False,
                    velocity_vec=False, plot_frame_number=False):
         self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
                               velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
@@ -929,7 +929,7 @@ class ScenePlotter():
         self.agent_face_colors = agent_face_colors
         self.agent_edge_colors = agent_edge_colors
 
-    def _initialize_plot(self, ax=None, numbers=False, direction_vec=True,
+    def _initialize_plot(self, ax=None, numbers=None, direction_vec=True,
                          velocity_vec=False, plot_frame_number=False):
         if ax is None:
             plt.clf()
@@ -1015,8 +1015,7 @@ class ScenePlotter():
             else:
                 self.v_lines[agent_idx].set_xdata(box[2:4, 0])
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
-        if (type(self.numbers) == bool and self.numbers) or \
-           (type(self.numbers) == list and agent_idx in self.numbers):
+        if self.numbers is not None and agent_idx in self.numbers:
             if agent_idx not in self.box_labels:
                 self.box_labels[agent_idx] = self.current_ax.text(
                     x, y, str(agent_idx), c='r', fontsize=18)
