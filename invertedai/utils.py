@@ -647,6 +647,7 @@ class ScenePlotter():
         open_drive: Optional[str] = None, 
         resolution: Tuple[int,int] = (640, 480), 
         dpi: float = 100,
+        left_hand_coordinates: bool = False,
         **kwargs
     ):
         """
@@ -660,6 +661,8 @@ class ScenePlotter():
             The desired resolution of the map image expressed as a Tuple with two integers for the width and height respectively.
         dpi:
             Dots per inch to define the level of detail in the image.
+        left_hand_coordinates:
+            Boolean flag dictating whether the X-coordinates of all agents and actors should be reversed to fit a left hand coordinate system.
 
         Keyword Arguments
         -----------------
@@ -677,6 +680,8 @@ class ScenePlotter():
         :func:`location_info`
         """
 
+        self.location_response = location_response
+        self._left_hand_coordinates = left_hand_coordinates
         self.conditional_agents = None
         self.agent_attributes = None
         self.traffic_lights_history = None
@@ -751,7 +756,6 @@ class ScenePlotter():
         conditional_agents:
             Optional parameter containing a list of agent IDs corresponding to conditional agents to be visualized to distinguish themselves.
         """
-
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
         self.agent_attributes = agent_attributes
@@ -790,7 +794,6 @@ class ScenePlotter():
         traffic_light_states:
             Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
         """
-
         self.agent_states_history.append(agent_states)
         self.traffic_lights_history.append(traffic_light_states)
 
@@ -904,6 +907,15 @@ class ScenePlotter():
             ani.save(f'{output_name}', writer='pillow', dpi=self._dpi)
         return ani
 
+    def _transform_point_to_left_hand_coordinate_frame(self,x,orientation):
+        t_x = 2*self.location_response.map_center.x - x
+        if orientation >= 0:
+            t_orientation = -orientation + math.pi
+        else:
+            t_orientation = -orientation - math.pi
+
+        return t_x, t_orientation
+
     def _validate_kwargs(self,arg_name,kwargs):
         if arg_name in kwargs: 
             setattr(self,arg_name,kwargs[arg_name])
@@ -995,6 +1007,10 @@ class ScenePlotter():
         x, y = agent.center.x, agent.center.y
         v = agent.speed
         psi = agent.orientation
+
+        if self._left_hand_coordinates:
+            x, psi = self._transform_point_to_left_hand_coordinate_frame(x,psi)
+
         box = np.array([
             [0, 0], [l * 0.5, 0],  # direction vector
             [0, 0], [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
@@ -1048,7 +1064,10 @@ class ScenePlotter():
         light = self.traffic_lights[light_id]
         x, y = light.center.x, light.center.y
         psi = light.orientation
-        l, w = light.length, light.width
+        l, w = max(light.length,1.0), max(light.width,1.0)
+
+        if self._left_hand_coordinates:
+            x, psi = self._transform_point_to_left_hand_coordinate_frame(x,psi)
 
         rect = Rectangle((x - l / 2, y - w / 2), l, w, angle=psi * 180 / np.pi,
                          rotation_point='center',
