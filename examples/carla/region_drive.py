@@ -1,6 +1,5 @@
 import sys
 sys.path.append('../')
-import matplotlib.pyplot as plt
 
 import argparse
 import invertedai as iai
@@ -19,7 +18,7 @@ parser.add_argument("--location", type=str,  default="carla:Town10HD")
 parser.add_argument("--center", type=str,  default="carla:Town10HD")
 parser.add_argument("-l", "--episode_length", type=int, default=300)
 parser.add_argument("-cap", "--quadtree_capacity", type=int, default=15)
-parser.add_argument("-ad", "--agent_density", type=int, default=20)
+parser.add_argument("-ad", "--agent_density", type=int, default=10)
 parser.add_argument("-ri", "--re_initialization", type=int, default=30)
 parser.add_argument("-len", "--simulation_length", type=int, default=600)
 args = parser.parse_args()
