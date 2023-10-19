@@ -195,7 +195,7 @@ class InfractionIndicators(BaseModel):
 
     collisions: bool  #: True if the agent's bounding box overlaps with another agent's bounding box.
     offroad: bool  #: True if the agent is outside the designated driveable area specified by the map.
-    wrong_way: bool  #: True if the cross product of the agent's and its lanelet's directions is negative.
+    wrong_way: bool  #: CURRENTLY DISABLED. True if the cross product of the agent's and its lanelet's directions is negative.
 
     @classmethod
     def fromlist(cls, l):
