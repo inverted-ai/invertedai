@@ -30,3 +30,18 @@ cc_binary(
         "@opencv",
     ],
 )
+
+cc_binary(
+    name = "fps_control_demo",
+    srcs = ["fps_control_demo.cc"],
+    data = [
+        "drive_body.json",
+        "initialize_body.json",
+        "location_info_body.json",
+    ],
+    deps = [
+        "//invertedai:api",
+        "@boost//:beast",
+        "@opencv",
+    ],
+)
