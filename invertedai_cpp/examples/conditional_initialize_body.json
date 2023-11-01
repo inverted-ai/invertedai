@@ -8,6 +8,19 @@
     "get_infractions": false,
     "random_seed": null,
     "location_of_interest": null,
-    "conditional_agent_states": null,
-    "conditional_agent_attributes": null
+    "conditional_agent_states": [
+        [
+            -28.32,
+            47.17,
+            -1.0,
+            3.0
+        ]
+    ],
+    "conditional_agent_attributes": [
+        [
+            4.77,
+            1.53,
+            1.51
+        ]
+    ]
 }

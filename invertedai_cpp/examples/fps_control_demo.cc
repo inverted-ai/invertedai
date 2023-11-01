@@ -86,6 +86,7 @@ int main(int argc, char **argv) {
     ego_agent_attribute.width = 1.53;
     ego_agent_attribute.rear_axis_offset = 1.51;
 
+    std::cout << "Begin initializing json parameter variable. \n";
     json init_parameters;
     init_parameters["location"] = "iai:ubc_roundabout";
     init_parameters["num_agents_to_spawn"] = 10;
@@ -97,17 +98,23 @@ int main(int argc, char **argv) {
     init_parameters["random_seed"] = NULL;
     init_parameters["location_of_interest"] = NULL;
     init_parameters["conditional_agent_states"] = {
-      ego_agent_state.x, 
-      ego_agent_state.y,
-      ego_agent_state.orientation,
-      ego_agent_state.speed
+      {
+        ego_agent_state.x, 
+        ego_agent_state.y,
+        ego_agent_state.orientation,
+        ego_agent_state.speed
+      }
     };
     init_parameters["conditional_agent_attributes"] = {
-      ego_agent_attribute.length, 
-      ego_agent_attribute.width,
-      ego_agent_attribute.rear_axis_offset
+      {
+        ego_agent_attribute.length, 
+        ego_agent_attribute.width,
+        ego_agent_attribute.rear_axis_offset
+      }
     };
+    std::cout << "Begin JSON dump. \n";
     std::string init_parameters_str = init_parameters.dump();
+    std::cout << "JSON Parameter String: " << init_parameters_str << std::endl;
     /*
     std::string init_parameters = R"(
       {
@@ -136,16 +143,17 @@ int main(int argc, char **argv) {
       }
     )";
     */
-
+    std::cout << "Define INITIALIZE Request. \n";
     // construct request for initializing the simulation (placing NPCs on the
     // map)
-    //invertedai::InitializeRequest init_req(invertedai::read_file("examples/initialize_body.json"));
-    invertedai::InitializeRequest init_req(init_parameters_str);
+    invertedai::InitializeRequest init_req(invertedai::read_file("examples/conditional_initialize_body.json"));
+    //invertedai::InitializeRequest init_req(std::ref(init_parameters_str));
     // set the location
     init_req.set_location(location);
     // set the number of agents
     init_req.set_num_agents_to_spawn(agent_num);
     // get the response of simulation initialization
+    std::cout << "Get INITIALIZE Reponse. \n";
     invertedai::InitializeResponse init_res =
         invertedai::initialize(init_req, &session);
 
@@ -155,6 +163,7 @@ int main(int argc, char **argv) {
     drive_req.set_location(location);
     drive_req.update(init_res);
     
+    std::cout << "Pre-run DRIVE. \n";
     invertedai::DriveResponse next_drive_res = invertedai::drive(drive_req, &session);
     std::vector<invertedai::AgentState> next_agent_states = next_drive_res.agent_states();
     std::vector<invertedai::AgentState> current_agent_states = init_res.agent_states();
@@ -162,7 +171,9 @@ int main(int argc, char **argv) {
 
     for (int t = 0; t < timestep; t++) {
       // step the simulation by driving the agents
-      std::future<invertedai::DriveResponse> drive_res = std::async (std::launch::async,&invertedai::drive,drive_req,&session);
+      std::future<invertedai::DriveResponse> drive_res = std::async (std::launch::async,invertedai::drive,std::ref(drive_req),&session);
+      //auto drive_res = std::async (std::launch::async,&invertedai::drive,drive_req,&session);
+
       
       std::vector<std::vector<invertedai::AgentState>> interpolated_states = linear_interpolation(current_agent_states,next_agent_states,NUM_INTERP_STEPS);
       
@@ -175,6 +186,7 @@ int main(int argc, char **argv) {
       video.write(image);
       drive_req.update(next_drive_res);
       std::cout << "Remaining iterations: " << timestep - t << std::endl;
+      
     }
     video.release();
   } catch (std::exception const &e) {
