@@ -4,7 +4,7 @@
     "states_history": null,
     "agent_attributes": null,
     "traffic_light_state_history": null,
-    "get_birdview": false,
+    "get_birdview": true,
     "get_infractions": false,
     "random_seed": null,
     "location_of_interest": null,

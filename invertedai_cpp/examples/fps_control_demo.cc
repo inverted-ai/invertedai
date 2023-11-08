@@ -24,10 +24,10 @@ std::vector<std::vector<invertedai::AgentState>> linear_interpolation(std::vecto
     std::vector<invertedai::AgentState> timestep_states;
     for(int i = 0; i < (int)next_agent_states.size(); i++){
       invertedai::AgentState agent_state;
-      agent_state.x = current_agent_states[i].x + (next_agent_states[i].x - current_agent_states[i].x)*(tt/number_steps);
-      agent_state.y = current_agent_states[i].y + (next_agent_states[i].y - current_agent_states[i].y)*(tt/number_steps);
-      agent_state.orientation = current_agent_states[i].orientation + (next_agent_states[i].orientation - current_agent_states[i].orientation)*(tt/number_steps);
-      agent_state.speed = current_agent_states[i].speed + (next_agent_states[i].speed - current_agent_states[i].speed)*(tt/number_steps);
+      agent_state.x = current_agent_states[i].x + (next_agent_states[i].x - current_agent_states[i].x)*(tt/(double)number_steps);
+      agent_state.y = current_agent_states[i].y + (next_agent_states[i].y - current_agent_states[i].y)*(tt/(double)number_steps);
+      agent_state.orientation = current_agent_states[i].orientation + (next_agent_states[i].orientation - current_agent_states[i].orientation)*(tt/(double)number_steps);
+      agent_state.speed = current_agent_states[i].speed + (next_agent_states[i].speed - current_agent_states[i].speed)*(tt/(double)number_steps);
       timestep_states.push_back(agent_state);
     }
     interpolated_states.push_back(timestep_states);
@@ -75,6 +75,7 @@ int main(int argc, char **argv) {
                           cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 10,
                           cv::Size(frame_width, frame_height));
 
+    /*
     invertedai::AgentState ego_agent_state;
     ego_agent_state.x = -28.32;
     ego_agent_state.y = 47.17;
@@ -115,6 +116,7 @@ int main(int argc, char **argv) {
     std::cout << "Begin JSON dump. \n";
     std::string init_parameters_str = init_parameters.dump();
     std::cout << "JSON Parameter String: " << init_parameters_str << std::endl;
+    */
     /*
     std::string init_parameters = R"(
       {
@@ -144,8 +146,7 @@ int main(int argc, char **argv) {
     )";
     */
     std::cout << "Define INITIALIZE Request. \n";
-    // construct request for initializing the simulation (placing NPCs on the
-    // map)
+    // construct request for initializing the simulation (placing NPCs on the map)
     invertedai::InitializeRequest init_req(invertedai::read_file("examples/conditional_initialize_body.json"));
     //invertedai::InitializeRequest init_req(std::ref(init_parameters_str));
     // set the location
@@ -170,28 +171,41 @@ int main(int argc, char **argv) {
     drive_req.update(next_drive_res);
 
     for (int t = 0; t < timestep; t++) {
+      std::cout << "==========================================================================" << std::endl;
+      std::cout << "==========================================================================" << std::endl;
+      std::cout << "Iteration Number: " << t << std::endl;
       // step the simulation by driving the agents
       std::future<invertedai::DriveResponse> drive_res = std::async (std::launch::async,invertedai::drive,std::ref(drive_req),&session);
-      //auto drive_res = std::async (std::launch::async,&invertedai::drive,drive_req,&session);
-
       
       std::vector<std::vector<invertedai::AgentState>> interpolated_states = linear_interpolation(current_agent_states,next_agent_states,NUM_INTERP_STEPS);
       
+      for(unsigned int i = 0; i < current_agent_states.size(); i++) {
+        std::cout << "==========================================================================" << std::endl;
+        std::cout << "Agent " << i << " current point: [x: " << std::to_string(current_agent_states[i].x) << ", y: " << std::to_string(current_agent_states[i].y) << "]" << std::endl;
+        std::cout << "Agent " << i << " next point: [x: " << std::to_string(next_agent_states[i].x) << ", y: " << std::to_string(next_agent_states[i].y) << "]" << std::endl;
+
+        for (auto & agent : interpolated_states) {
+          std::cout << "Agent " << i << " interpolated point: [x: " << std::to_string(agent[i].x) << ", y: " << std::to_string(agent[i].y) << "]" << std::endl;
+        }
+      }
+      
+      current_agent_states = next_agent_states;
       next_drive_res = drive_res.get();
       next_agent_states = next_drive_res.agent_states();
-      current_agent_states = next_agent_states;
-
+      
       auto image = cv::imdecode(next_drive_res.birdview(), cv::IMREAD_COLOR);
       cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
       video.write(image);
       drive_req.update(next_drive_res);
-      std::cout << "Remaining iterations: " << timestep - t << std::endl;
       
     }
     video.release();
+
   } catch (std::exception const &e) {
     std::cerr << "Error: " << e.what() << std::endl;
     return EXIT_FAILURE;
+
   }
   return EXIT_SUCCESS;
+
 }
