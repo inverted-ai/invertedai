@@ -1,0 +1,1134 @@
+[
+  {
+    "message": "initialized cars",
+    "json": {
+      "agent_states": [
+        [
+          -4.79,
+          -18.32,
+          -1.35,
+          6.62
+        ]
+      ],
+      "agent_attributes": [
+        [
+          4.4,
+          1.94,
+          1.41
+        ]
+      ]
+    }
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -4.65,
+        "y": -18.96,
+        "orientation": -1.36
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -4.52,
+        "y": -19.61,
+        "orientation": -1.37
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -4.37,
+        "y": -20.25,
+        "orientation": -1.35
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -4.18,
+        "y": -20.88,
+        "orientation": -1.32
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -3.95,
+        "y": -21.5,
+        "orientation": -1.27
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -3.7,
+        "y": -22.12,
+        "orientation": -1.23
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -3.44,
+        "y": -22.73,
+        "orientation": -1.2
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -3.16,
+        "y": -23.34,
+        "orientation": -1.17
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -2.84,
+        "y": -23.93,
+        "orientation": -1.12
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -2.5,
+        "y": -24.48,
+        "orientation": -1.07
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -2.16,
+        "y": -25.03,
+        "orientation": -1.05
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -1.81,
+        "y": -25.58,
+        "orientation": -1.03
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -1.45,
+        "y": -26.12,
+        "orientation": -1.01
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -1.08,
+        "y": -26.65,
+        "orientation": -0.99
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -0.7,
+        "y": -27.17,
+        "orientation": -0.97
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": -0.3,
+        "y": -27.68,
+        "orientation": -0.94
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 0.12,
+        "y": -28.18,
+        "orientation": -0.91
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 0.56,
+        "y": -28.67,
+        "orientation": -0.87
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 1.02,
+        "y": -29.15,
+        "orientation": -0.84
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 1.49,
+        "y": -29.63,
+        "orientation": -0.82
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 1.98,
+        "y": -30.1,
+        "orientation": -0.79
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 2.49,
+        "y": -30.55,
+        "orientation": -0.76
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 3.03,
+        "y": -30.97,
+        "orientation": -0.71
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 3.58,
+        "y": -31.37,
+        "orientation": -0.67
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 4.15,
+        "y": -31.74,
+        "orientation": -0.63
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 4.73,
+        "y": -32.1,
+        "orientation": -0.59
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 5.31,
+        "y": -32.46,
+        "orientation": -0.57
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 5.89,
+        "y": -32.82,
+        "orientation": -0.56
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 6.48,
+        "y": -33.18,
+        "orientation": -0.55
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 7.1,
+        "y": -33.54,
+        "orientation": -0.54
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 7.73,
+        "y": -33.89,
+        "orientation": -0.53
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 8.37,
+        "y": -34.23,
+        "orientation": -0.51
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 9.01,
+        "y": -34.56,
+        "orientation": -0.5
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 9.61,
+        "y": -34.87,
+        "orientation": -0.49
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 10.21,
+        "y": -35.18,
+        "orientation": -0.48
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 10.78,
+        "y": -35.44,
+        "orientation": -0.46
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 11.34,
+        "y": -35.7,
+        "orientation": -0.45
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 11.88,
+        "y": -35.95,
+        "orientation": -0.44
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 12.42,
+        "y": -36.21,
+        "orientation": -0.44
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 12.97,
+        "y": -36.47,
+        "orientation": -0.44
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 13.54,
+        "y": -36.75,
+        "orientation": -0.45
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 14.13,
+        "y": -37.05,
+        "orientation": -0.46
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 14.74,
+        "y": -37.37,
+        "orientation": -0.47
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 15.36,
+        "y": -37.71,
+        "orientation": -0.48
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 16,
+        "y": -38.07,
+        "orientation": -0.5
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 16.63,
+        "y": -38.44,
+        "orientation": -0.52
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 17.22,
+        "y": -38.79,
+        "orientation": -0.53
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 17.81,
+        "y": -39.17,
+        "orientation": -0.55
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 18.43,
+        "y": -39.58,
+        "orientation": -0.56
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 19.07,
+        "y": -40.01,
+        "orientation": -0.58
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 19.7,
+        "y": -40.45,
+        "orientation": -0.6
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 20.31,
+        "y": -40.9,
+        "orientation": -0.62
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 20.91,
+        "y": -41.36,
+        "orientation": -0.64
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 21.46,
+        "y": -41.8,
+        "orientation": -0.66
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 21.95,
+        "y": -42.24,
+        "orientation": -0.69
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 22.41,
+        "y": -42.64,
+        "orientation": -0.7
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 22.9,
+        "y": -43.06,
+        "orientation": -0.7
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 23.43,
+        "y": -43.51,
+        "orientation": -0.7
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 23.94,
+        "y": -43.98,
+        "orientation": -0.72
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 24.35,
+        "y": -44.47,
+        "orientation": -0.79
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 24.77,
+        "y": -44.9,
+        "orientation": -0.79
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 25.19,
+        "y": -45.34,
+        "orientation": -0.8
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 25.63,
+        "y": -45.79,
+        "orientation": -0.8
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 26.07,
+        "y": -46.21,
+        "orientation": -0.79
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 26.45,
+        "y": -46.62,
+        "orientation": -0.8
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 26.8,
+        "y": -47.01,
+        "orientation": -0.81
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 27.16,
+        "y": -47.39,
+        "orientation": -0.81
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 27.53,
+        "y": -47.78,
+        "orientation": -0.81
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 27.92,
+        "y": -48.21,
+        "orientation": -0.82
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 28.33,
+        "y": -48.67,
+        "orientation": -0.83
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 28.77,
+        "y": -49.17,
+        "orientation": -0.84
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 29.22,
+        "y": -49.7,
+        "orientation": -0.85
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 29.66,
+        "y": -50.23,
+        "orientation": -0.86
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 30.07,
+        "y": -50.72,
+        "orientation": -0.87
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 30.44,
+        "y": -51.19,
+        "orientation": -0.88
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 30.77,
+        "y": -51.63,
+        "orientation": -0.9
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 31.1,
+        "y": -52.07,
+        "orientation": -0.91
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 31.45,
+        "y": -52.54,
+        "orientation": -0.92
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 31.82,
+        "y": -53.05,
+        "orientation": -0.93
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 32.2,
+        "y": -53.59,
+        "orientation": -0.94
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 32.6,
+        "y": -54.16,
+        "orientation": -0.95
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 33,
+        "y": -54.73,
+        "orientation": -0.95
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 33.4,
+        "y": -55.28,
+        "orientation": -0.95
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 33.77,
+        "y": -55.8,
+        "orientation": -0.95
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 34.14,
+        "y": -56.32,
+        "orientation": -0.95
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 34.51,
+        "y": -56.84,
+        "orientation": -0.95
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 34.91,
+        "y": -57.4,
+        "orientation": -0.95
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 35.33,
+        "y": -58,
+        "orientation": -0.95
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 35.75,
+        "y": -58.62,
+        "orientation": -0.96
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 36.16,
+        "y": -59.24,
+        "orientation": -0.97
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 36.55,
+        "y": -59.83,
+        "orientation": -0.98
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 36.95,
+        "y": -60.43,
+        "orientation": -0.98
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 37.38,
+        "y": -61.04,
+        "orientation": -0.97
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 37.8,
+        "y": -61.66,
+        "orientation": -0.97
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 38.18,
+        "y": -62.26,
+        "orientation": -0.99
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 38.56,
+        "y": -62.84,
+        "orientation": -0.99
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 38.94,
+        "y": -63.4,
+        "orientation": -0.98
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 39.3,
+        "y": -63.93,
+        "orientation": -0.97
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 39.65,
+        "y": -64.46,
+        "orientation": -0.97
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 39.98,
+        "y": -64.97,
+        "orientation": -0.98
+      }
+    ]
+  },
+  {
+    "message": "new car positions after DRIVE call",
+    "cars": [
+      {
+        "id": 0,
+        "x": 40.34,
+        "y": -65.51,
+        "orientation": -0.98
+      }
+    ]
+  }
+]
+
