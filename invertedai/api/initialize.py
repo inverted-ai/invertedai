@@ -41,6 +41,7 @@ class InitializeResponse(BaseModel):
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
+    model_version: str # Model version used for this API call
 
 
 @validate_arguments
@@ -56,6 +57,7 @@ def initialize(
     get_infractions: bool = False,
     agent_count: Optional[int] = None,
     random_seed: Optional[int] = None,
+    model_version: Optional[str] = None  # Model version used for this API call
 ) -> InitializeResponse:
     """
     Initializes a simulation in a given location.
@@ -103,6 +105,9 @@ def initialize(
 
     random_seed:
         Controls the stochastic aspects of initialization for reproducibility.
+
+    model_version:
+        Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
 
     See Also
     --------
@@ -152,6 +157,7 @@ def initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
+        model_version=model_version
     )
     start = time.time()
     timeout = TIMEOUT
@@ -182,6 +188,7 @@ def initialize(
                 ]
                 if response["infraction_indicators"]
                 else [],
+                model_version=response["model_version"]
             )
             return response
         except TryAgain as e:
@@ -203,6 +210,7 @@ async def async_initialize(
     get_infractions: bool = False,
     agent_count: Optional[int] = None,
     random_seed: Optional[int] = None,
+    model_version: Optional[str] = None
 ) -> InitializeResponse:
     """
     The async version of :func:`initialize`
@@ -228,6 +236,7 @@ async def async_initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
+        model_version=model_version
     )
 
     response = await iai.session.async_request(model="initialize", data=model_inputs)
@@ -255,5 +264,6 @@ async def async_initialize(
         ]
         if response["infraction_indicators"]
         else [],
+        model_version=response["model_version"]
     )
     return response
