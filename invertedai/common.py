@@ -6,7 +6,6 @@ import math
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
-
 RECURRENT_SIZE = 132
 TrafficLightId = int
 
@@ -18,6 +17,7 @@ class RecurrentState(BaseModel):
     """
 
     packed: List[float] = [0.0] * RECURRENT_SIZE
+
     #: Internal representation of the recurrent state.
 
     @root_validator
@@ -49,7 +49,7 @@ class Point(BaseModel):
         return cls(x=x, y=y)
 
     def __sub__(self, other):
-        return math.sqrt((abs(self.x - other.x)**2) + (abs(self.y - other.y)**2))
+        return math.sqrt((abs(self.x - other.x) ** 2) + (abs(self.y - other.y) ** 2))
 
 
 class Origin(Point):
@@ -145,18 +145,19 @@ class AgentAttributes(BaseModel):
     width: float  #: Lateral extent of the agent, in meters.
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
     rear_axis_offset: float
+    agent_type: Optional[str] = 'vehicle'  #: Type of agent, default to vehicle, can also be pedestrian
 
     @classmethod
     def fromlist(cls, l):
-        length, width, rear_axis_offset = l
-        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset)
+        length, width, rear_axis_offset, agent_type = l
+        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
 
     def tolist(self):
         """
         Convert AgentAttributes to a flattened list of agent attributes
         in this order: [length, width, rear_axis_offset]
         """
-        return [self.length, self.width, self.rear_axis_offset]
+        return [self.length, self.width, self.rear_axis_offset, self.agent_type]
 
 
 class AgentState(BaseModel):
