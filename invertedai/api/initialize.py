@@ -6,6 +6,7 @@ import asyncio
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import TryAgain, InvalidInputType, InvalidInput
+from invertedai.api.validations import validate_initialize_flows
 from invertedai.api.mock import (
     get_mock_agent_attributes,
     get_mock_agent_state,
@@ -45,17 +46,17 @@ class InitializeResponse(BaseModel):
 
 @validate_arguments
 def initialize(
-    location: str,
-    agent_attributes: Optional[List[AgentAttributes]] = None,
-    states_history: Optional[List[List[AgentState]]] = None,
-    traffic_light_state_history: Optional[
-        List[TrafficLightStatesDict]
-    ] = None,
-    get_birdview: bool = False,
-    location_of_interest: Optional[Tuple[float, float]] = None,
-    get_infractions: bool = False,
-    agent_count: Optional[int] = None,
-    random_seed: Optional[int] = None,
+        location: str,
+        agent_attributes: Optional[List[AgentAttributes]] = None,
+        states_history: Optional[List[List[AgentState]]] = None,
+        traffic_light_state_history: Optional[
+            List[TrafficLightStatesDict]
+        ] = None,
+        get_birdview: bool = False,
+        location_of_interest: Optional[Tuple[float, float]] = None,
+        get_infractions: bool = False,
+        agent_count: Optional[int] = None,
+        random_seed: Optional[int] = None,
 ) -> InitializeResponse:
     """
     Initializes a simulation in a given location.
@@ -111,6 +112,7 @@ def initialize(
     :func:`light`
     :func:`blame`
     """
+    validate_initialize_flows(agent_attributes, states_history, agent_count)
 
     if should_use_mock_api():
         if agent_attributes is None:
@@ -185,21 +187,22 @@ def initialize(
 
 @validate_arguments
 async def async_initialize(
-    location: str,
-    agent_attributes: Optional[List[AgentAttributes]] = None,
-    states_history: Optional[List[List[AgentState]]] = None,
-    traffic_light_state_history: Optional[
-        List[TrafficLightStatesDict]
-    ] = None,
-    get_birdview: bool = False,
-    location_of_interest: Optional[Tuple[float, float]] = None,
-    get_infractions: bool = False,
-    agent_count: Optional[int] = None,
-    random_seed: Optional[int] = None,
+        location: str,
+        agent_attributes: Optional[List[AgentAttributes]] = None,
+        states_history: Optional[List[List[AgentState]]] = None,
+        traffic_light_state_history: Optional[
+            List[TrafficLightStatesDict]
+        ] = None,
+        get_birdview: bool = False,
+        location_of_interest: Optional[Tuple[float, float]] = None,
+        get_infractions: bool = False,
+        agent_count: Optional[int] = None,
+        random_seed: Optional[int] = None,
 ) -> InitializeResponse:
     """
     The async version of :func:`initialize`
     """
+    validate_initialize_flows(agent_attributes, states_history, agent_count)
 
     model_inputs = dict(
         location=location,

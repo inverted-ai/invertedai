@@ -4,6 +4,7 @@ from pydantic import BaseModel, validate_arguments
 import asyncio
 
 import invertedai as iai
+from invertedai.api.validations import validate_drive_flows
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.api.mock import (
     mock_update_agent_state,
@@ -106,10 +107,7 @@ def drive(
     :func:`light`
     :func:`blame`
     """
-    if len(agent_states) != len(agent_attributes):
-        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
-    if len(agent_states) != len(recurrent_states):
-        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'recurrent_states'.")
+    validate_drive_flows(agent_states, agent_attributes, recurrent_states)
 
     if should_use_mock_api():
         agent_states = [mock_update_agent_state(s) for s in agent_states]
@@ -203,6 +201,7 @@ async def async_drive(
         else:
             return input_data
 
+    validate_drive_flows(agent_states, agent_attributes, recurrent_states)
     recurrent_states = (
         _tolist(recurrent_states) if recurrent_states is not None else None
     )  # AxTx2x64

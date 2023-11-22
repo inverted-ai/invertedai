@@ -145,7 +145,7 @@ class AgentAttributes(BaseModel):
     width: Optional[float] = None  #: Lateral extent of the agent, in meters.
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
     rear_axis_offset: Optional[float] = None
-    agent_type: Optional[str] = 'car'  #: Type of agent, default to vehicle, can also be pedestrian
+    agent_type: Optional[str] = 'car'  #: Type of agent, default to car, can also be pedestrian
 
     @classmethod
     def fromlist(cls, l):
