@@ -2,7 +2,6 @@ import requests
 import asyncio
 import json
 import re
-from typing import Dict, Optional
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter, Retry
 import invertedai as iai
@@ -23,6 +22,17 @@ from invertedai.common import AgentState, StaticMapActor
 from matplotlib import transforms
 from copy import deepcopy
 from invertedai.future import to_thread
+
+from pydantic import BaseModel, validate_arguments, root_validator
+from typing import List, Optional, Dict, Tuple
+from invertedai.common import (
+    RecurrentState,
+    AgentState,
+    AgentAttributes,
+    TrafficLightStatesDict,
+    Image,
+    InfractionIndicators,
+)
 
 H_SCALE = 10
 text_x_offset = 0
@@ -433,6 +443,7 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
 def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0),
                         width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, get_birdview=False,
                         birdview_path=None):
+    print("AREA INITIALIZATION")
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
                 (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
@@ -442,8 +453,7 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
     agent_rs = []
     first = True
     centers = get_centers(map_center, height, width, stride)
-    for area_center in tmap(Point.fromlist, centers, total=len(centers),
-                            desc=f"Initializing {location.split(':')[1]}"):
+    for area_center in tmap(Point.fromlist, centers, total=len(centers),desc=f"Initializing {location.split(':')[1]}"):
 
         conditional_agent = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
@@ -465,7 +475,8 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
         for _ in range(1):
             try:
                 # Initialize simulation with an API cal
-                response = iai.initialize(
+                response = retry_initialization(
+                    number_retry=4,
                     location=location,
                     states_history=[con_agent_state] if len(con_agent_state) > 0 else None,
                     agent_attributes=con_agent_attrs if len(con_agent_attrs) > 0 else None,
@@ -505,6 +516,44 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
         agent_states=agent_states,
         agent_attributes=agent_attributes)
 
+@validate_arguments
+def retry_initialization(
+    location: str,
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    states_history: Optional[List[List[AgentState]]] = None,
+    traffic_light_state_history: Optional[
+        List[TrafficLightStatesDict]
+    ] = None,
+    get_birdview: bool = False,
+    location_of_interest: Optional[Tuple[float, float]] = None,
+    get_infractions: bool = False,
+    agent_count: Optional[int] = None,
+    random_seed: Optional[int] = None,
+    number_retry: int = 1,
+):
+    for n in range(number_retry):
+        agent_count_attempt = int(agent_count/(2**n))
+        if agent_count_attempt < 0:
+            agent_count_attempt = 1
+
+        try:
+            response = iai.initialize(
+                location=location,
+                states_history=states_history,
+                agent_attributes=agent_attributes,
+                agent_count=agent_count_attempt,
+                get_infractions=get_infractions,
+                traffic_light_state_history=traffic_light_state_history,
+                location_of_interest=location_of_interest,
+                random_seed=random_seed,
+                get_birdview=get_birdview,
+            )
+            return response
+        except BaseException as e:
+            print("RETRY INITIALIZATION")
+            print(e)
+
+    raise Exception(f"INITIALIZE failed to sample vehicles after {number_retry} retries.")
 
 class APITokenAuth(AuthBase):
     def __init__(self, api_token):
