@@ -112,13 +112,6 @@ def initialize(
     :func:`blame`
     """
 
-    if (states_history is not None) or (agent_attributes is not None):
-        if (agent_attributes is None) or (states_history is None):
-            raise InvalidInput("'agent_attributes' or 'states_history' are not provided.")
-        for agent_states in states_history:
-            if len(agent_states) != len(agent_attributes):
-                raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
-
     if should_use_mock_api():
         if agent_attributes is None:
             assert agent_count is not None
@@ -207,12 +200,6 @@ async def async_initialize(
     """
     The async version of :func:`initialize`
     """
-    if (states_history is not None) or (agent_attributes is not None):
-        if (agent_attributes is None) or (states_history is None):
-            raise InvalidInput("'agent_attributes' or 'states_history' are not provided.")
-        for agent_states in states_history:
-            if len(agent_states) != len(agent_attributes):
-                raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
 
     model_inputs = dict(
         location=location,

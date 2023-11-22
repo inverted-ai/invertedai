@@ -141,23 +141,30 @@ class AgentAttributes(BaseModel):
     AgentState
     """
 
-    length: float  #: Longitudinal extent of the agent, in meters.
-    width: float  #: Lateral extent of the agent, in meters.
+    length: Optional[float] = None  #: Longitudinal extent of the agent, in meters.
+    width: Optional[float] = None  #: Lateral extent of the agent, in meters.
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
-    rear_axis_offset: float
-    agent_type: Optional[str] = 'vehicle'  #: Type of agent, default to vehicle, can also be pedestrian
+    rear_axis_offset: Optional[float] = None
+    agent_type: Optional[str] = 'car'  #: Type of agent, default to vehicle, can also be pedestrian
 
     @classmethod
     def fromlist(cls, l):
-        length, width, rear_axis_offset, agent_type = l
-        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
+        if len(l) == 4:
+            length, width, rear_axis_offset, agent_type = l
+            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
+        else:
+            agent_type = l[0]
+            return cls(agent_type=agent_type)
 
     def tolist(self):
         """
         Convert AgentAttributes to a flattened list of agent attributes
         in this order: [length, width, rear_axis_offset]
         """
-        return [self.length, self.width, self.rear_axis_offset, self.agent_type]
+        if self.length is not None and self.width is not None and self.rear_axis_offset is not None:
+            return [self.length, self.width, self.rear_axis_offset, self.agent_type]
+        else:
+            return [self.agent_type]
 
 
 class AgentState(BaseModel):
