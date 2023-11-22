@@ -16,6 +16,10 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/version.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/device/array.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
 
 #include "externals/root_certificates.hpp"
 
@@ -63,6 +67,7 @@ const std::string Session::request(const std::string &mode,
       target.c_str(), this->version_};
   req.set(http::field::host, this->host_);
   req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+  req.set("Accept-Encoding", "gzip");
   req.set("accept", "application/json");
   req.set("x-api-key", this->api_key_);
   if (debug_mode) {
@@ -86,7 +91,18 @@ const std::string Session::request(const std::string &mode,
     std::cout << "res body content:\n";
     std::cout << res.body().data() << std::endl;
   }
-  return res.body().data();
+
+  if (res["Content-Encoding"] == "gzip") {
+    boost::iostreams::array_source src{res.body().data(), res.body().size()};
+    boost::iostreams::filtering_istream is;
+    is.push(boost::iostreams::gzip_decompressor{}); // gzip
+    is.push(src);
+    std::stringstream strstream;
+    boost::iostreams::copy(is, strstream);
+    return strstream.str();
+  } else {
+    return res.body().data();
+  }
 }
 
 } // namespace invertedai

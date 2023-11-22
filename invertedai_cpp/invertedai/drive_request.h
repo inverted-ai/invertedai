@@ -25,6 +25,8 @@ private:
   bool get_birdview_;
   bool get_infractions_;
   std::optional<int> random_seed_;
+  std::optional<double> rendering_fov_;
+  std::optional<std::pair<double, double>> rendering_center_;
   json body_json_;
 
   void refresh_body_json_();
@@ -54,7 +56,7 @@ public:
   std::string location() const;
   /**
    * Get current states of all agents.
-   * x: [float], y: [float] corrdinate in meters;
+   * x: [float], y: [float] coordinate in meters;
    * orientation: [float] in radians with 0 pointing along x
    * and pi/2 pointing along y;
    * speed: [float] in m/s.
@@ -81,6 +83,14 @@ public:
    */
   bool get_infractions() const;
   /**
+   * Get the fov for both x and y axis for the rendered birdview in meters.
+   */
+  std::optional<double> rendering_fov() const;
+  /**
+   * Get the center coordinates for the rendered birdview.
+   */
+  std::optional<std::pair<double, double>> rendering_center() const;
+  /**
    * Get random_seed.
    */
   std::optional<int> random_seed() const;
@@ -92,7 +102,7 @@ public:
   void set_location(const std::string &location);
   /**
    * Set current states of all agents. The state must include x:
-   * [float], y: [float] corrdinate in meters orientation: [float] in radians
+   * [float], y: [float] coordinate in meters orientation: [float] in radians
    * with 0 pointing along x and pi/2 pointing along y and speed: [float] in
    * m/s.
    */
@@ -125,6 +135,15 @@ public:
    * This introduces some overhead, but it should be relatively small.
    */
   void set_get_infractions(bool get_infractions);
+  /**
+   * Set the fov for both x and y axis for the rendered birdview in meters.
+   */
+  void set_rendering_fov(std::optional<double> rendering_fov);
+  /**
+   * Set the center coordinates for the rendered birdview.
+   */
+  void set_rendering_center(
+      const std::optional<std::pair<double, double>> &rendering_center);
   /**
    * Set random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.

@@ -13,6 +13,8 @@ class LocationInfoRequest {
 private:
   std::string location_;
   bool include_map_source_;
+  std::optional<int> rendering_fov_;
+  std::optional<std::pair<double, double>> rendering_center_;
   json body_json_;
 
   void refresh_body_json_();
@@ -30,22 +32,39 @@ public:
   const std::string url_query_string() const;
 
   /**
-   * Get location string in IAI format.
+   * Get the location string in IAI format.
    */
   std::string location() const;
   /**
    * Check whether include the map source.
    */
   bool include_map_source() const;
+  /**
+   * Get the fov for both x and y axis for the rendered birdview in meters.
+   */
+  std::optional<int> rendering_fov() const;
+  /**
+   * Get the center coordinates for the rendered birdview.
+   */
+  std::optional<std::pair<double, double>> rendering_center() const;
 
   /**
-   * Set location string in IAI format.
+   * Set the location string in IAI format.
    */
   void set_location(const std::string &location);
   /**
    * Set whether include the map source.
    */
   void set_include_map_source(bool include_map_source);
+  /**
+   * Set the fov for both x and y axis for the rendered birdview in meters.
+   */
+  void set_rendering_fov(std::optional<int> rendering_fov);
+  /**
+   * Set the center coordinates for the rendered birdview.
+   */
+  void set_rendering_center(
+      const std::optional<std::pair<double, double>> &rendering_center);
 };
 
 } // namespace invertedai

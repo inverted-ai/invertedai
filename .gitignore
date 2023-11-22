@@ -1,7 +1,8 @@
 # Dev Stuff
 dev/
 dev.py
-
+img/
+gifs/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

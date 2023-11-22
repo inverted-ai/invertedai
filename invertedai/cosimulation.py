@@ -1,8 +1,17 @@
-from typing import List, Optional, Union
+from typing import List, Tuple, Optional, Union
 import random
+from collections import deque
+from queue import Queue
+from pydantic import BaseModel, validate_arguments
+from itertools import product
+import numpy as np
+import asyncio
+from itertools import chain
 
-from invertedai import drive, initialize, location_info, light
-from invertedai.common import AgentState, InfractionIndicators, Image, TrafficLightStatesDict
+import invertedai as iai
+from invertedai import drive, initialize, location_info, light, async_drive, async_initialize
+from invertedai.common import (AgentState, InfractionIndicators, Image,
+                               TrafficLightStatesDict, AgentAttributes, RecurrentState, Point)
 
 
 class BasicCosimulation:
@@ -108,6 +117,13 @@ class BasicCosimulation:
         return self._agent_states
 
     @property
+    def agent_attributes(self) -> List[AgentAttributes]:
+        """
+        The attributes (length, width, rear_axis_offset) for all agents, including ego.
+        """
+        return self._agent_attributes
+
+    @property
     def ego_agent_mask(self) -> List[bool]:
         """
         Lists which agents are ego, which means that you control them externally.
@@ -127,6 +143,14 @@ class BasicCosimulation:
         The NPC agents are excluded.
         """
         return [d for d, s in zip(self._agent_states, self._ego_agent_mask) if s]
+
+    @property
+    def ego_attributes(self):
+        """
+        Returns the attributes of ego agents in order.
+        The NPC agents are excluded.
+        """
+        return [attr for attr, s in zip(self._agent_attributes, self._ego_agent_mask) if s]
 
     @property
     def infractions(self) -> Optional[List[InfractionIndicators]]:
