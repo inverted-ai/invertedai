@@ -161,10 +161,15 @@ class AgentAttributes(BaseModel):
         Convert AgentAttributes to a flattened list of agent attributes
         in this order: [length, width, rear_axis_offset]
         """
-        if self.length is not None and self.width is not None and self.rear_axis_offset is not None:
+        if self.length is not None and self.width is not None:
             return [self.length, self.width, self.rear_axis_offset, self.agent_type]
         else:
             return [self.agent_type]
+
+
+class AgentType(str, Enum):
+    car = "car"
+    pedestrian = "pedestrian"
 
 
 class AgentState(BaseModel):

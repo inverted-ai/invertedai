@@ -1,10 +1,15 @@
 from invertedai.error import InvalidInputType, InvalidInput
 from typing import Optional, List
-from invertedai.common import AgentAttributes, AgentState, RecurrentState
+from invertedai.common import AgentAttributes, AgentState, RecurrentState, AgentType
 
 
-def all_float_gt_zero(agent: AgentAttributes):
-    return all([type(attr) is float and attr > 0 for attr in agent.tolist()[:3]])
+def all_float_fields_valid(agent: AgentAttributes):
+    if agent.agent_type == AgentType.car.value:
+        return all([type(field) is float and field >= 0 for field in agent.tolist()[:3]])
+    elif agent.agent_type == AgentType.pedestrian.value:
+        return all([type(field) is float and field >= 0 for field in agent.tolist()[:2]])
+    else:
+        return False
 
 
 def validate_attributes_without_history(agent_attributes: List[AgentAttributes]):
@@ -30,9 +35,10 @@ def validate_attributes_with_history(states_history: List[List[AgentState]], age
                 f"num_agents_to_spawn ({agent_count}) must be larger than the number of conditional agents"
                 f" passed ({len(states_history[0])})."
             )
-        if not all([len(agent.tolist()) >= 3 and all_float_gt_zero(agent) for agent in agent_attributes]):
+        if not all([all_float_fields_valid(agent) for agent in agent_attributes]):
             raise InvalidInput(
-                "agent attributes: need to specify length, width, rear_axis_offsets in valid float range given full state history."
+                "agent attributes: need to specify length, width, rear_axis_offsets in valid range,"
+                " and agent_type given full state history."
             )
 
 
@@ -52,5 +58,5 @@ def validate_drive_flows(agent_states: List[AgentState],
         raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
     if len(agent_states) != len(recurrent_states):
         raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'recurrent_states'.")
-    if not all([agent.agent_type == "car" for agent in agent_attributes]):
+    if not all([agent.agent_type == AgentType.car.value for agent in agent_attributes]):
         raise InvalidInput("unsupported agent type in agents_attributes.")
