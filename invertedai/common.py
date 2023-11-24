@@ -49,7 +49,7 @@ class Point(BaseModel):
         return cls(x=x, y=y)
 
     def __sub__(self, other):
-        return math.sqrt((abs(self.x - other.x) ** 2) + (abs(self.y - other.y) ** 2))
+        return math.sqrt(((self.x - other.x) ** 2) + ((self.y - other.y) ** 2))
 
 
 class Origin(Point):
@@ -152,24 +152,23 @@ class AgentAttributes(BaseModel):
         if len(l) == 4:
             length, width, rear_axis_offset, agent_type = l
             return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
+        elif len(l) == 3 and type(l[-1]) is not str:
+            length, width, rear_axis_offset, = l
+            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset)
         else:
-            agent_type = l[0]
+            assert len(l) == 1
+            agent_type, = l
             return cls(agent_type=agent_type)
 
     def tolist(self):
         """
         Convert AgentAttributes to a flattened list of agent attributes
-        in this order: [length, width, rear_axis_offset]
+        in this order: [length, width, rear_axis_offset, agent_type]
         """
         if self.length is not None and self.width is not None:
             return [self.length, self.width, self.rear_axis_offset, self.agent_type]
         else:
             return [self.agent_type]
-
-
-class AgentType(str, Enum):
-    car = "car"
-    pedestrian = "pedestrian"
 
 
 class AgentState(BaseModel):

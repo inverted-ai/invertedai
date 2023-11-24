@@ -6,7 +6,6 @@ import asyncio
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import TryAgain, InvalidInputType, InvalidInput
-from invertedai.api.validations import validate_initialize_flows
 from invertedai.api.mock import (
     get_mock_agent_attributes,
     get_mock_agent_state,
@@ -78,6 +77,10 @@ def initialize(
 
     agent_attributes:
         Static attributes for all agents.
+        List of agent attributes. Each agent requires, length: [float]
+        width: [float] and rear_axis_offset: [float] all in meters, agent_type: [str], can be either 'car' or 'pedestrian'.
+        When states_history is present, each agent must be: [length, width, rear_axis_offset, agent_type(optional)]
+        When states_history is absent, if agent_attributes is used, each agent must be [agent_type]
 
     states_history:
         History of agent states - the outer list is over time and the inner over agents,
@@ -112,7 +115,6 @@ def initialize(
     :func:`light`
     :func:`blame`
     """
-    validate_initialize_flows(agent_attributes, states_history, agent_count)
 
     if should_use_mock_api():
         if agent_attributes is None:
@@ -202,7 +204,6 @@ async def async_initialize(
     """
     The async version of :func:`initialize`
     """
-    validate_initialize_flows(agent_attributes, states_history, agent_count)
 
     model_inputs = dict(
         location=location,
