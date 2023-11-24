@@ -18,16 +18,20 @@ class Session {
 private:
   std::string api_key_;
   tcp::resolver resolver_;
-  beast::ssl_stream<beast::tcp_stream> stream_;
+  beast::ssl_stream<beast::tcp_stream> ssl_stream_ ;
+  beast::tcp_stream tcp_stream_ ;
   const char *debug_mode = std::getenv("DEBUG");
+  const char *iai_dev = std::getenv("IAI_DEV");
+  const bool local_mode = iai_dev && (std::string(iai_dev) == "1" || std::string(iai_dev) == "True");
 
 public:
-  const char *host_ = "api.inverted.ai";
-  const char *port_ = "443";
+  const char* host_ = local_mode ? "localhost" : "api.inverted.ai";
+  const char* port_ = local_mode ? "8000" : "443";
+  const char *subdomain = local_mode ? "/" : "/v0/aws/m1/";;
   const int version_ = 11;
 
   explicit Session(net::io_context &ioc, ssl::context &ctx)
-      : resolver_(ioc), stream_(ioc, ctx){};
+      : resolver_(ioc), ssl_stream_(ioc, ctx), tcp_stream_(ioc){};
 
   /**
    * Set your own api key here.
