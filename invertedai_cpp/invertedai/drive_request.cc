@@ -47,6 +47,10 @@ DriveRequest::DriveRequest(const std::string &body_str) {
       this->body_json_["random_seed"].is_number_integer()
           ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
           : std::nullopt;
+  this->model_version_ = this->body_json_["model_version"].is_null()
+                            ? std::nullopt
+                            : std::optional<std::string>{
+                                  this->body_json_["model_version"]};
 }
 
 void DriveRequest::refresh_body_json_() {
@@ -95,6 +99,11 @@ void DriveRequest::refresh_body_json_() {
 
   } else {
     this->body_json_["random_seed"] = nullptr;
+  }
+  if (this->model_version_.has_value()) {
+    this->body_json_["model_version"] = this->model_version_.value();
+  } else {
+    this->body_json_["model_version"] = nullptr;
   }
 }
 
@@ -145,6 +154,11 @@ DriveRequest::rendering_center() const {
   return this->rendering_center_;
 }
 
+std::optional<std::string>
+DriveRequest::model_version() const {
+  return this->model_version_;
+}
+
 std::optional<int> DriveRequest::random_seed() const {
   return this->random_seed_;
 }
@@ -192,6 +206,10 @@ void DriveRequest::set_rendering_center(
 
 void DriveRequest::set_random_seed(std::optional<int> random_seed) {
   this->random_seed_ = random_seed;
+}
+
+void DriveRequest::set_model_version(std::optional<std::string> model_version) {
+  this->model_version_ = model_version;
 }
 
 } // namespace invertedai

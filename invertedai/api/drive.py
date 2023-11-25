@@ -41,7 +41,7 @@ class DriveResponse(BaseModel):
     is_inside_supported_area: List[
         bool
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
-
+    model_version: str # Model version used for this API call
 
 @validate_arguments
 def drive(
@@ -55,6 +55,7 @@ def drive(
     rendering_fov: Optional[float] = None,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
+    model_version: Optional[str] = None
 ) -> DriveResponse:
     """
     Parameters
@@ -100,6 +101,8 @@ def drive(
     random_seed:
         Controls the stochastic aspects of agent behavior for reproducibility.
 
+    model_version:
+        Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
     See Also
     --------
     :func:`initialize`
@@ -142,7 +145,8 @@ def drive(
         get_infractions=get_infractions,
         random_seed=random_seed,
         rendering_center=rendering_center,
-        rendering_fov=rendering_fov
+        rendering_fov=rendering_fov,
+        model_version=model_version
     )
     start = time.time()
     timeout = TIMEOUT
@@ -168,6 +172,7 @@ def drive(
                 if response["infraction_indicators"]
                 else [],
                 is_inside_supported_area=response["is_inside_supported_area"],
+                model_version=response["model_version"]
             )
 
             return response
@@ -191,6 +196,7 @@ async def async_drive(
     rendering_fov: Optional[float] = None,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
+    model_version: Optional[str] = None
 ) -> DriveResponse:
     """
     A light async version of :func:`drive`
@@ -215,7 +221,8 @@ async def async_drive(
         get_infractions=get_infractions,
         random_seed=random_seed,
         rendering_center=rendering_center,
-        rendering_fov=rendering_fov
+        rendering_fov=rendering_fov,
+        model_version=model_version,
     )
     response = await iai.session.async_request(model="drive", data=model_inputs)
 
@@ -236,6 +243,7 @@ async def async_drive(
         if response["infraction_indicators"]
         else [],
         is_inside_supported_area=response["is_inside_supported_area"],
+        model_version=response["model_version"]
     )
 
     return response
