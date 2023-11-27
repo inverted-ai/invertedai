@@ -35,6 +35,8 @@ DriveResponse::DriveResponse(const std::string &body_str) {
                                                 element[2]};
     this->infraction_indicators_.push_back(infraction_indicator);
   }
+  this->model_version_.clear();
+  this->model_version_ = body_json_["model_version"];
 }
 
 void DriveResponse::refresh_body_json_() {
@@ -69,6 +71,8 @@ void DriveResponse::refresh_body_json_() {
                     infraction_indicator.wrong_way};
     this->body_json_["infraction_indicators"].push_back(element);
   }
+  this->model_version_.clear();
+  this->model_version_ = body_json_["model_version"];
 }
 
 std::string DriveResponse::body_str() {
@@ -94,6 +98,11 @@ std::vector<unsigned char> DriveResponse::birdview() const {
 
 std::vector<InfractionIndicator> DriveResponse::infraction_indicators() const {
   return this->infraction_indicators_;
+}
+
+std::string
+DriveResponse::model_version() const {
+  return this->model_version_;
 }
 
 void DriveResponse::set_agent_states(

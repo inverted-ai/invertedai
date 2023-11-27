@@ -1,0 +1,26 @@
+{
+    "location": "iai:ubc_roundabout",
+    "num_agents_to_spawn": 10,
+    "states_history": null,
+    "agent_attributes": null,
+    "traffic_light_state_history": null,
+    "get_birdview": true,
+    "get_infractions": false,
+    "random_seed": null,
+    "location_of_interest": null,
+    "conditional_agent_states": [
+        [
+            -4.79,
+            -18.32,
+            -1.35,
+            6.62
+        ]
+    ],
+    "conditional_agent_attributes": [
+        [
+            4.4,
+            1.94,
+            1.41
+        ]
+    ]
+}

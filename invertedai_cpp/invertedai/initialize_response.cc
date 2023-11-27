@@ -36,6 +36,8 @@ InitializeResponse::InitializeResponse(const std::string &body_str) {
                                                 element[2]};
     this->infraction_indicators_.push_back(infraction_indicator);
   }
+  this->model_version_.clear();
+  this->model_version_ = body_json_["model_version"];
 }
 
 void InitializeResponse::refresh_body_json_() {
@@ -72,6 +74,8 @@ void InitializeResponse::refresh_body_json_() {
                     infraction_indicator.wrong_way};
     this->body_json_["infraction_indicators"].push_back(element);
   }
+  this->model_version_.clear();
+  this->model_version_ = body_json_["model_version"];
 }
 
 std::string InitializeResponse::body_str() {
@@ -98,6 +102,11 @@ std::vector<unsigned char> InitializeResponse::birdview() const {
 std::vector<InfractionIndicator>
 InitializeResponse::infraction_indicators() const {
   return this->infraction_indicators_;
+}
+
+std::string
+InitializeResponse::model_version() const {
+  return this->model_version_;
 }
 
 void InitializeResponse::set_agent_states(

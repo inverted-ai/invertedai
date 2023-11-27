@@ -67,6 +67,10 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
       this->body_json_["random_seed"].is_number_integer()
           ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
           : std::nullopt;
+  this->model_version_ = this->body_json_["model_version"].is_null()
+                             ? std::nullopt
+                             : std::optional<std::string>{
+                                   this->body_json_["model_version"]};
 }
 
 void InitializeRequest::refresh_body_json_() {
@@ -117,6 +121,11 @@ void InitializeRequest::refresh_body_json_() {
     this->body_json_["random_seed"] = this->random_seed_.value();
   } else {
     this->body_json_["random_seed"] = nullptr;
+  }
+  if (this->model_version_.has_value()) {
+    this->body_json_["model_version"] = this->model_version_.value();
+  } else {
+    this->body_json_["model_version"] = nullptr;
   }
 };
 
@@ -172,6 +181,11 @@ std::optional<int> InitializeRequest::random_seed() const {
   return this->random_seed_;
 }
 
+std::optional<std::string>
+InitializeRequest::model_version() const {
+  return this->model_version_;
+}
+
 void InitializeRequest::set_location(const std::string &location) {
   this->location_ = location;
 }
@@ -225,6 +239,10 @@ void InitializeRequest::set_agent_count(std::optional<int> agent_count) {
 
 void InitializeRequest::set_random_seed(std::optional<int> random_seed) {
   this->random_seed_ = random_seed;
+}
+
+void InitializeRequest::set_model_version(std::optional<std::string> model_version) {
+  this->model_version_ = model_version;
 }
 
 } // namespace invertedai

@@ -17,6 +17,7 @@ private:
   std::vector<std::vector<double>> recurrent_states_;
   std::vector<unsigned char> birdview_;
   std::vector<InfractionIndicator> infraction_indicators_;
+  std::string model_version_;
   json body_json_;
 
   void refresh_body_json_();
@@ -53,6 +54,10 @@ public:
    * If get_infractions was set, they are returned here.
    */
   std::vector<InfractionIndicator> infraction_indicators() const;
+  /**
+   * Get model version.
+   */
+  std::string model_version() const;
 
   // setters
   /**
