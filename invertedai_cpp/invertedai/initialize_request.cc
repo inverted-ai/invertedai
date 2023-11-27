@@ -7,19 +7,28 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
 
   this->location_ = this->body_json_["location"];
-  this->num_agents_to_spawn_ =
-      this->body_json_["num_agents_to_spawn"].is_number_integer()
-          ? this->body_json_["num_agents_to_spawn"].get<int>()
-          : 0;
+  this->num_agents_to_spawn_ = this->body_json_["num_agents_to_spawn"].is_number_integer()
+    ? this->body_json_["num_agents_to_spawn"].get<int>()
+    : 0;
   this->conditional_agent_states_.clear();
   for (const auto &element : this->body_json_["conditional_agent_states"]) {
-    AgentState agent_state = {element[0], element[1], element[2], element[3]};
+    AgentState agent_state = {
+      element[0], 
+      element[1], 
+      element[2], 
+      element[3]
+    };
     this->conditional_agent_states_.push_back(agent_state);
   }
 
   this->conditional_agent_attributes_.clear();
   for (const auto &element : this->body_json_["conditional_agent_attributes"]) {
-    AgentAttributes agent_attribute = {element[0], element[1], element[2]};
+    AgentAttributes agent_attribute = {
+      element[0], 
+      element[1], 
+      element[2], 
+      element[3]
+    };
     this->conditional_agent_attributes_.push_back(agent_attribute);
   }
 
@@ -28,14 +37,24 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
     std::vector<AgentState> agent_states;
     agent_states.clear();
     for (const auto &element : elements) {
-      AgentState agent_state = {element[0], element[1], element[2], element[3]};
+      AgentState agent_state = {
+        element[0], 
+        element[1], 
+        element[2], 
+        element[3]
+      };
       agent_states.push_back(agent_state);
     }
     this->states_history_.push_back(agent_states);
   }
   this->agent_attributes_.clear();
   for (const auto &element : this->body_json_["agent_attributes"]) {
-    AgentAttributes agent_attribute = {element[0], element[1], element[2]};
+    AgentAttributes agent_attribute = {
+      element[0], 
+      element[1], 
+      element[2], 
+      element[3]
+    };
     this->agent_attributes_.push_back(agent_attribute);
   }
   this->traffic_light_state_history_.clear();
@@ -43,34 +62,32 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
     std::vector<TrafficLightState> traffic_light_states;
     traffic_light_states.clear();
     for (const auto &element : elements) {
-      TrafficLightState traffic_light_state = {element[0], element[1]};
+      TrafficLightState traffic_light_state = {
+        element[0], 
+        element[1]
+      };
       traffic_light_states.push_back(traffic_light_state);
     }
     this->traffic_light_state_history_.push_back(traffic_light_states);
   }
-  this->location_of_interest_ =
-      this->body_json_["location_of_interest"].is_null()
-          ? std::nullopt
-          : std::optional<std::pair<double, double>>{
-                this->body_json_["location_of_interest"]};
+  this->location_of_interest_ = this->body_json_["location_of_interest"].is_null()
+    ? std::nullopt
+    : std::optional<std::pair<double, double>>{this->body_json_["location_of_interest"]};
   this->get_birdview_ = this->body_json_["get_birdview"].is_boolean()
-                            ? this->body_json_["get_birdview"].get<bool>()
-                            : false;
+    ? this->body_json_["get_birdview"].get<bool>()
+    : false;
   this->get_infractions_ = this->body_json_["get_infractions"].is_boolean()
-                               ? this->body_json_["get_infractions"].get<bool>()
-                               : false;
-  this->agent_count_ =
-      this->body_json_["agent_count"].is_number_integer()
-          ? std::optional<int>{this->body_json_["agent_count"].get<int>()}
-          : std::nullopt;
-  this->random_seed_ =
-      this->body_json_["random_seed"].is_number_integer()
-          ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
-          : std::nullopt;
+    ? this->body_json_["get_infractions"].get<bool>()
+    : false;
+  this->agent_count_ = this->body_json_["agent_count"].is_number_integer()
+    ? std::optional<int>{this->body_json_["agent_count"].get<int>()}
+    : std::nullopt;
+  this->random_seed_ = this->body_json_["random_seed"].is_number_integer()
+    ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
+    : std::nullopt;
   this->model_version_ = this->body_json_["model_version"].is_null()
-                             ? std::nullopt
-                             : std::optional<std::string>{
-                                   this->body_json_["model_version"]};
+    ? std::nullopt
+    : std::optional<std::string>{this->body_json_["model_version"]};
 }
 
 void InitializeRequest::refresh_body_json_() {
@@ -81,32 +98,42 @@ void InitializeRequest::refresh_body_json_() {
     json elements;
     elements.clear();
     for (const AgentState &agent_state : agent_states) {
-      json element = {agent_state.x, agent_state.y, agent_state.orientation,
-                      agent_state.speed};
+      json element = {
+        agent_state.x, 
+        agent_state.y, 
+        agent_state.orientation,
+        agent_state.speed
+      };
       elements.push_back(element);
     }
     this->body_json_["states_history"].push_back(elements);
   }
   this->body_json_["agent_attributes"].clear();
   for (const AgentAttributes &agent_attribute : this->agent_attributes_) {
-    json element = {agent_attribute.length, agent_attribute.width,
-                    agent_attribute.rear_axis_offset};
+    json element = {
+      agent_attribute.length, 
+      agent_attribute.width,
+      agent_attribute.rear_axis_offset,
+      agent_attribute.agent_type
+    };
     this->body_json_["agent_attributes"].push_back(element);
   }
   this->body_json_["traffic_light_state_history"].clear();
-  for (const std::vector<TrafficLightState> &traffic_light_states :
-       this->traffic_light_state_history_) {
+  for (const std::vector<TrafficLightState> &traffic_light_states : this->traffic_light_state_history_) {
     json elements;
     elements.clear();
     for (const TrafficLightState &traffic_light_state : traffic_light_states) {
-      json element = {traffic_light_state.id, traffic_light_state.value};
+      json element = {
+        traffic_light_state.id, 
+        traffic_light_state.value
+      };
       elements.push_back(element);
     }
     this->body_json_["traffic_light_state_history"].push_back(elements);
   }
   if (this->location_of_interest_.has_value()) {
     this->body_json_["location_of_interest"] =
-        this->location_of_interest_.value();
+      this->location_of_interest_.value();
   } else {
     this->body_json_["location_of_interest"] = nullptr;
   }
@@ -194,34 +221,27 @@ void InitializeRequest::set_num_agents_to_spawn(int num_agents_to_spawn) {
   this->num_agents_to_spawn_ = num_agents_to_spawn;
 }
 
-void InitializeRequest::set_conditional_agent_states(
-    const std::vector<AgentState> &conditional_agent_states) {
+void InitializeRequest::set_conditional_agent_states(const std::vector<AgentState> &conditional_agent_states) {
   this->conditional_agent_states_ = conditional_agent_states;
 }
 
-void InitializeRequest::set_conditional_agent_attributes(
-    const std::vector<AgentAttributes> &conditional_agent_attributes) {
+void InitializeRequest::set_conditional_agent_attributes(const std::vector<AgentAttributes> &conditional_agent_attributes) {
   this->conditional_agent_attributes_ = conditional_agent_attributes;
 }
 
-void InitializeRequest::set_states_history(
-    const std::vector<std::vector<AgentState>> &states_history) {
+void InitializeRequest::set_states_history(const std::vector<std::vector<AgentState>> &states_history) {
   this->states_history_ = states_history;
 }
 
-void InitializeRequest::set_agent_attributes(
-    const std::vector<AgentAttributes> &agent_attributes) {
+void InitializeRequest::set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes) {
   this->agent_attributes_ = agent_attributes;
 }
 
-void InitializeRequest::set_traffic_light_state_history(
-    const std::vector<std::vector<TrafficLightState>>
-        &traffic_light_state_history) {
+void InitializeRequest::set_traffic_light_state_history(const std::vector<std::vector<TrafficLightState>>&traffic_light_state_history) {
   this->traffic_light_state_history_ = traffic_light_state_history;
 }
 
-void InitializeRequest::set_location_of_interest(
-    const std::optional<std::pair<double, double>> &location_of_interest) {
+void InitializeRequest::set_location_of_interest(const std::optional<std::pair<double, double>> &location_of_interest) {
   this->location_of_interest_ = location_of_interest;
 }
 

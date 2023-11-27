@@ -54,6 +54,11 @@ struct AgentAttributes {
    * motion constraints.
    */
   double rear_axis_offset;
+  /**
+   * String indicating the agent type which then dictates aspects such as agent
+   * motion behaviour, initialization location, and more.
+   */
+  std::string agent_type;
 };
 
 /**

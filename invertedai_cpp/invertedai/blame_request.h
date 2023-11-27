@@ -19,8 +19,7 @@ private:
   std::pair<int, int> colliding_agents_;
   std::vector<std::vector<AgentState>> agent_state_history_;
   std::vector<AgentAttributes> agent_attributes_;
-  std::optional<std::vector<std::vector<TrafficLightState>>>
-      traffic_light_state_history_;
+  std::optional<std::vector<std::vector<TrafficLightState>>>traffic_light_state_history_;
   bool get_birdviews_;
   bool get_reasons_;
   bool get_confidence_score_;
@@ -126,9 +125,7 @@ public:
    * traffic-light IDs and value is the state, i.e., ‘green’, ‘yellow’, ‘red’,
    * or None.
    */
-  void set_traffic_light_state_history(
-      const std::optional<std::vector<std::vector<TrafficLightState>>>
-          &traffic_light_state_history);
+  void set_traffic_light_state_history(const std::optional<std::vector<std::vector<TrafficLightState>>>&traffic_light_state_history);
   /**
    * Set whether to return the images visualizing the collision case.
    */

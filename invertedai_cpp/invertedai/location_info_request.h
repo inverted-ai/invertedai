@@ -63,8 +63,7 @@ public:
   /**
    * Set the center coordinates for the rendered birdview.
    */
-  void set_rendering_center(
-      const std::optional<std::pair<double, double>> &rendering_center);
+  void set_rendering_center(const std::optional<std::pair<double, double>> &rendering_center);
 };
 
 } // namespace invertedai

@@ -12,7 +12,12 @@ DriveRequest::DriveRequest(const std::string &body_str) {
   this->location_ = this->body_json_["location"];
   this->agent_states_.clear();
   for (const auto &element : this->body_json_["agent_states"]) {
-    AgentState agent_state = {element[0], element[1], element[2], element[3]};
+    AgentState agent_state = {
+      element[0], 
+      element[1], 
+      element[2], 
+      element[3]
+    };
     this->agent_states_.push_back(agent_state);
   }
   this->recurrent_states_.clear();
@@ -26,45 +31,52 @@ DriveRequest::DriveRequest(const std::string &body_str) {
   }
   this->traffic_lights_states_.clear();
   for (const auto &element : this->body_json_["traffic_lights_states"]) {
-    TrafficLightState traffic_light_state = {element[0], element[1]};
+    TrafficLightState traffic_light_state = {
+      element[0], 
+      element[1]
+    };
     this->traffic_lights_states_.push_back(traffic_light_state);
   }
   this->get_birdview_ = this->body_json_["get_birdview"].is_boolean()
-                            ? this->body_json_["get_birdview"].get<bool>()
-                            : false;
+    ? this->body_json_["get_birdview"].get<bool>()
+    : false;
   this->get_infractions_ = this->body_json_["get_infractions"].is_boolean()
-                               ? this->body_json_["get_infractions"].get<bool>()
-                               : false;
-  this->rendering_fov_ =
-      this->body_json_["rendering_fov"].is_number_float()
-          ? std::optional<int>{this->body_json_["rendering_fov"].get<double>()}
-          : std::nullopt;
+    ? this->body_json_["get_infractions"].get<bool>()
+    : false;
+  this->rendering_fov_ = this->body_json_["rendering_fov"].is_number_float()
+    ? std::optional<int>{this->body_json_["rendering_fov"].get<double>()}
+    : std::nullopt;
   this->rendering_center_ = this->body_json_["rendering_center"].is_null()
-                                ? std::nullopt
-                                : std::optional<std::pair<double, double>>{
-                                      this->body_json_["rendering_center"]};
-  this->random_seed_ =
-      this->body_json_["random_seed"].is_number_integer()
-          ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
-          : std::nullopt;
+    ? std::nullopt
+    : std::optional<std::pair<double, double>>{this->body_json_["rendering_center"]};
+  this->random_seed_ = this->body_json_["random_seed"].is_number_integer()
+    ? std::optional<int>{this->body_json_["random_seed"].get<int>()}
+    : std::nullopt;
   this->model_version_ = this->body_json_["model_version"].is_null()
-                            ? std::nullopt
-                            : std::optional<std::string>{
-                                  this->body_json_["model_version"]};
+    ? std::nullopt
+    : std::optional<std::string>{this->body_json_["model_version"]};
 }
 
 void DriveRequest::refresh_body_json_() {
   this->body_json_["location"] = this->location_;
   this->body_json_["agent_states"].clear();
   for (const AgentState &agent_state : this->agent_states_) {
-    json element = {agent_state.x, agent_state.y, agent_state.orientation,
-                    agent_state.speed};
+    json element = {
+      agent_state.x, 
+      agent_state.y, 
+      agent_state.orientation,
+      agent_state.speed
+    };
     this->body_json_["agent_states"].push_back(element);
   }
   this->body_json_["agent_attributes"].clear();
   for (const AgentAttributes &agent_attribute : this->agent_attributes_) {
-    json element = {agent_attribute.length, agent_attribute.width,
-                    agent_attribute.rear_axis_offset};
+    json element = {
+      agent_attribute.length, 
+      agent_attribute.width,
+      agent_attribute.rear_axis_offset,
+      agent_attribute.agent_type
+    };
     this->body_json_["agent_attributes"].push_back(element);
   }
   this->body_json_["recurrent_states"].clear();
@@ -77,9 +89,11 @@ void DriveRequest::refresh_body_json_() {
     this->body_json_["recurrent_states"].push_back(elements);
   }
   this->body_json_["traffic_lights_states"].clear();
-  for (const TrafficLightState &traffic_light_state :
-       this->traffic_lights_states_) {
-    json element = {traffic_light_state.id, traffic_light_state.value};
+  for (const TrafficLightState &traffic_light_state : this->traffic_lights_states_) {
+    json element = {
+      traffic_light_state.id, 
+      traffic_light_state.value
+    };
     this->body_json_["traffic_lights_states"].push_back(element);
   }
   this->body_json_["get_birdview"] = this->get_birdview_;
@@ -123,7 +137,9 @@ std::string DriveRequest::body_str() {
   return this->body_json_.dump();
 }
 
-std::string DriveRequest::location() const { return this->location_; }
+std::string DriveRequest::location() const { 
+  return this->location_; 
+}
 
 std::vector<AgentState> DriveRequest::agent_states() const {
   return this->agent_states_;
@@ -141,9 +157,13 @@ std::vector<std::vector<double>> DriveRequest::recurrent_states() const {
   return this->recurrent_states_;
 };
 
-bool DriveRequest::get_birdview() const { return this->get_birdview_; }
+bool DriveRequest::get_birdview() const { 
+  return this->get_birdview_; 
+}
 
-bool DriveRequest::get_infractions() const { return this->get_infractions_; }
+bool DriveRequest::get_infractions() const { 
+  return this->get_infractions_; 
+}
 
 std::optional<double> DriveRequest::rendering_fov() const {
   return this->rendering_fov_;
@@ -167,23 +187,19 @@ void DriveRequest::set_location(const std::string &location) {
   this->location_ = location;
 }
 
-void DriveRequest::set_agent_states(
-    const std::vector<AgentState> &agent_states) {
+void DriveRequest::set_agent_states(const std::vector<AgentState> &agent_states) {
   this->agent_states_ = agent_states;
 }
 
-void DriveRequest::set_agent_attributes(
-    const std::vector<AgentAttributes> &agent_attributes) {
+void DriveRequest::set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes) {
   this->agent_attributes_ = agent_attributes;
 }
 
-void DriveRequest::set_traffic_lights_states(
-    const std::vector<TrafficLightState> &traffic_lights_states) {
+void DriveRequest::set_traffic_lights_states(const std::vector<TrafficLightState> &traffic_lights_states) {
   this->traffic_lights_states_ = traffic_lights_states;
 }
 
-void DriveRequest::set_recurrent_states(
-    const std::vector<std::vector<double>> &recurrent_states) {
+void DriveRequest::set_recurrent_states(const std::vector<std::vector<double>> &recurrent_states) {
   this->recurrent_states_ = recurrent_states;
 }
 
@@ -199,8 +215,7 @@ void DriveRequest::set_rendering_fov(std::optional<double> rendering_fov) {
   this->rendering_fov_ = rendering_fov;
 }
 
-void DriveRequest::set_rendering_center(
-    const std::optional<std::pair<double, double>> &rendering_center) {
+void DriveRequest::set_rendering_center(const std::optional<std::pair<double, double>> &rendering_center) {
   this->rendering_center_ = rendering_center;
 }
 
