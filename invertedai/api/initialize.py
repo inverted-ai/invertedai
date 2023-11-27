@@ -60,16 +60,16 @@ def initialize(
         model_version: Optional[str] = None  # Model version used for this API call
 ) -> InitializeResponse:
     """
-    Initializes a simulation in a given location.
-    Either `agent_count` or both `agent_attributes` and `states_history` need to be provided.
-    In the latter case, the simulation is initialized with the specific history,
-    and if traffic lights are present then `traffic_light_state_history` should also be provided.
-    If only `agent_count` is specified, a new initial state is generated with the requested
-    total number of agents, i.e. when an empty list or None is passed for 'states_history'.
-    Otherwise, if the `agent_count` is higher than the number of agents in `states_history` the remaining agents will be spawned
-    conditionally on the provided agents. If `agent_count` is equal to the number of agents in `states_history`,
-    the simulation will be initialized only with the agents provided.
-    Finally, 'agent_count' cannot be less than he number of agents in `states_history`.
+    Initializes a simulation in a given location, using a combination of pre-defined and sampled agents.
+    Pre-defined agents are those present in `states_history`, and the remaining ones are sampled conditionally on them.
+    For each agent, pre-defined or sampled, there should be one element in `agent_attributes`, which can either
+    be empty, contain only the agent type, or fully specify all static attributes, including agent type.
+    All pre-defined agents have to have fully specified attributes.
+    The `agent_count` argument is only for backwards compatibility, and setting it is equivalent to padding
+    the `agent_attributes` list to that length with default `AgentAttributes` values.
+    If traffic lights are present in the scene, for best results their state should be specified for the current time,
+    and all historical time steps for which `states_history` is provided. It is legal to omit the traffic light state
+    specification, but the scene will be initialized as if the traffic lights were disabled.
     Every simulation needs to start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
     Parameters
@@ -79,19 +79,18 @@ def initialize(
 
     agent_attributes:
         Static attributes for all agents.
-        List of agent attributes. Each agent requires, length: [float]
-        width: [float] and rear_axis_offset: [float] all in meters, agent_type: [str], can be either 'car' or 'pedestrian'.
-        When states_history is present, each agent must be: [length, width, rear_axis_offset, agent_type(optional)]
-        When states_history is absent, if agent_attributes is used, each agent must be [agent_type]
+        The pre-defined agents should be specified first, followed by the sampled agents.
 
     states_history:
-        History of agent states - the outer list is over time and the inner over agents,
+        History of pre-defined agent states - the outer list is over time and the inner over agents,
         in chronological order, i.e., index 0 is the oldest state and index -1 is the current state.
+        The order of agents should be the same as in `agent_attributes`.
         For best results, provide at least 10 historical states for each agent.
 
     traffic_light_state_history:
-       History of traffic light states - the list is over time, in chronological order.
-       Traffic light states should be provided for all time steps where agent states are specified.
+       History of traffic light states - the list is over time, in chronological order, i.e.
+       the last element is the current state. Not specifying traffic light state is equivalent
+       to disabling traffic lights.
 
     location_of_interest:
         Optional coordinates for spawning agents with the given location as center instead of the default map center
@@ -104,8 +103,7 @@ def initialize(
         If True, infraction metrics will be returned for each agent.
 
     agent_count:
-        If `states_history` is not specified, this needs to be provided and dictates how many
-        agents will be spawned.
+        Deprecated. Equivalent to padding the `agent_attributes` list to this length with default `AgentAttributes`.
 
     random_seed:
         Controls the stochastic aspects of initialization for reproducibility.
