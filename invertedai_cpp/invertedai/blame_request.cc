@@ -136,8 +136,7 @@ std::vector<AgentAttributes> BlameRequest::agent_attributes() const {
   return this->agent_attributes_;
 }
 
-std::optional<std::vector<std::vector<TrafficLightState>>>
-BlameRequest::traffic_light_state_history() const {
+std::optional<std::vector<std::vector<TrafficLightState>>> BlameRequest::traffic_light_state_history() const {
   return this->traffic_light_state_history_;
 }
 

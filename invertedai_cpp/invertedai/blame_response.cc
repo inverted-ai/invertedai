@@ -68,8 +68,7 @@ std::optional<float> BlameResponse::confidence_score() const {
   return this->confidence_score_;
 }
 
-std::optional<std::map<int, std::vector<std::string>>>
-BlameResponse::reasons() const {
+std::optional<std::map<int, std::vector<std::string>>> BlameResponse::reasons() const {
   return this->reasons_;
 }
 

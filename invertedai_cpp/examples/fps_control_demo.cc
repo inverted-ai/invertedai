@@ -216,21 +216,6 @@ int main(int argc, char **argv) {
     split_npc_and_ego_states(current_agent_states,NUMBER_EGO_AGENTS);
 
 
-
-
-
-
-
-    for (auto attributes : init_res.agent_attributes()) {   
-        std::string tmp = attributes.agent_type;
-        std::cout << "Agent type attribute: " << tmp << std::endl; 
-    } 
-
-
-
-
-
-
     // construct request for stepping the simulation (driving the NPCs)
     invertedai::DriveRequest drive_req(
         invertedai::read_file("examples/drive_body.json"));
