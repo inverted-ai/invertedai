@@ -68,8 +68,7 @@ std::optional<int> LocationInfoRequest::rendering_fov() const {
   return this->rendering_fov_;
 }
 
-std::optional<std::pair<double, double>>
-LocationInfoRequest::rendering_center() const {
+std::optional<std::pair<double, double>> LocationInfoRequest::rendering_center() const {
   return this->rendering_center_;
 }
 

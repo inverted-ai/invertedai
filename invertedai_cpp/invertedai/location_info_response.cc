@@ -89,7 +89,9 @@ std::string LocationInfoResponse::body_str() {
   return this->body_json_.dump();
 }
 
-std::string LocationInfoResponse::version() const { return this->version_; }
+std::string LocationInfoResponse::version() const { 
+  return this->version_;
+}
 
 int LocationInfoResponse::max_agent_number() const {
   return this->max_agent_number_;

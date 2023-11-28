@@ -169,13 +169,11 @@ std::optional<double> DriveRequest::rendering_fov() const {
   return this->rendering_fov_;
 }
 
-std::optional<std::pair<double, double>>
-DriveRequest::rendering_center() const {
+std::optional<std::pair<double, double>> DriveRequest::rendering_center() const {
   return this->rendering_center_;
 }
 
-std::optional<std::string>
-DriveRequest::model_version() const {
+std::optional<std::string> DriveRequest::model_version() const {
   return this->model_version_;
 }
 

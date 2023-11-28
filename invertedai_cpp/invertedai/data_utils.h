@@ -55,8 +55,7 @@ struct AgentAttributes {
    */
   double rear_axis_offset;
   /**
-   * String indicating the agent type which then dictates aspects such as agent
-   * motion behaviour, initialization location, and more.
+   * Agent types are used to indicate how that agent might behave in a scenario.
    */
   std::string agent_type;
 };

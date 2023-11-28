@@ -113,8 +113,7 @@ std::vector<InfractionIndicator> DriveResponse::infraction_indicators() const {
   return this->infraction_indicators_;
 }
 
-std::string
-DriveResponse::model_version() const {
+std::string DriveResponse::model_version() const {
   return this->model_version_;
 }
 

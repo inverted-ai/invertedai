@@ -175,8 +175,7 @@ std::vector<AgentState> InitializeRequest::conditional_agent_states() const {
   return this->conditional_agent_states_;
 }
 
-std::vector<AgentAttributes>
-InitializeRequest::conditional_agent_attributes() const {
+std::vector<AgentAttributes> InitializeRequest::conditional_agent_attributes() const {
   return this->conditional_agent_attributes_;
 }
 
@@ -184,17 +183,17 @@ std::vector<AgentAttributes> InitializeRequest::agent_attributes() const {
   return this->agent_attributes_;
 }
 
-std::vector<std::vector<TrafficLightState>>
-InitializeRequest::traffic_light_state_history() const {
+std::vector<std::vector<TrafficLightState>> InitializeRequest::traffic_light_state_history() const {
   return this->traffic_light_state_history_;
 }
 
-std::optional<std::pair<double, double>>
-InitializeRequest::location_of_interest() const {
+std::optional<std::pair<double, double>> InitializeRequest::location_of_interest() const {
   return this->location_of_interest_;
 }
 
-bool InitializeRequest::get_birdview() const { return this->get_birdview_; }
+bool InitializeRequest::get_birdview() const { 
+  return this->get_birdview_; 
+}
 
 bool InitializeRequest::get_infractions() const {
   return this->get_infractions_;
@@ -208,8 +207,7 @@ std::optional<int> InitializeRequest::random_seed() const {
   return this->random_seed_;
 }
 
-std::optional<std::string>
-InitializeRequest::model_version() const {
+std::optional<std::string> InitializeRequest::model_version() const {
   return this->model_version_;
 }
 

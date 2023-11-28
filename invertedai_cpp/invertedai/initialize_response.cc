@@ -121,38 +121,31 @@ std::vector<unsigned char> InitializeResponse::birdview() const {
   return this->birdview_;
 }
 
-std::vector<InfractionIndicator>
-InitializeResponse::infraction_indicators() const {
+std::vector<InfractionIndicator> InitializeResponse::infraction_indicators() const {
   return this->infraction_indicators_;
 }
 
-std::string
-InitializeResponse::model_version() const {
+std::string InitializeResponse::model_version() const {
   return this->model_version_;
 }
 
-void InitializeResponse::set_agent_states(
-    const std::vector<AgentState> &agent_states) {
+void InitializeResponse::set_agent_states(const std::vector<AgentState> &agent_states) {
   this->agent_states_ = agent_states;
 }
 
-void InitializeResponse::set_agent_attributes(
-    const std::vector<AgentAttributes> &agent_attributes) {
+void InitializeResponse::set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes) {
   this->agent_attributes_ = agent_attributes;
 }
 
-void InitializeResponse::set_recurrent_states(
-    const std::vector<std::vector<double>> &recurrent_states) {
+void InitializeResponse::set_recurrent_states(const std::vector<std::vector<double>> &recurrent_states) {
   this->recurrent_states_ = recurrent_states;
 }
 
-void InitializeResponse::set_birdview(
-    const std::vector<unsigned char> &birdview) {
+void InitializeResponse::set_birdview(const std::vector<unsigned char> &birdview) {
   this->birdview_ = birdview;
 }
 
-void InitializeResponse::set_infraction_indicators(
-    const std::vector<InfractionIndicator> &infraction_indicators) {
+void InitializeResponse::set_infraction_indicators(const std::vector<InfractionIndicator> &infraction_indicators) {
   this->infraction_indicators_ = infraction_indicators;
 }
 
