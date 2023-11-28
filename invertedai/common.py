@@ -170,10 +170,16 @@ class AgentAttributes(BaseModel):
         Convert AgentAttributes to a flattened list of agent attributes
         in this order: [length, width, rear_axis_offset, agent_type]
         """
-        if self.length is not None and self.width is not None:
-            return [self.length, self.width, self.rear_axis_offset, self.agent_type]
-        else:
-            return [self.agent_type]
+        attr_list = []
+        if self.length is not None:
+            attr_list.append(self.length)
+        if self.width is not None:
+            attr_list.append(self.width)
+        if self.rear_axis_offset is not None:
+            attr_list.append(self.rear_axis_offset)
+        if self.agent_type is not None:
+            attr_list.append(self.agent_type)
+        return attr_list
 
 
 class AgentState(BaseModel):
