@@ -159,11 +159,6 @@ def initialize(
     while True:
         try:
             response = iai.session.request(model="initialize", data=model_inputs)
-            agents_spawned = len(response["agent_states"])
-            if agents_spawned != agent_count:
-                iai.logger.warning(
-                    f"Unable to spawn a scenario for {agent_count} agents,  {agents_spawned} spawned instead."
-                )
             response = InitializeResponse(
                 agent_states=[
                     AgentState.fromlist(state) for state in response["agent_states"]
