@@ -208,7 +208,6 @@ async def async_drive(
         else:
             return input_data
 
-    validate_drive_flows(agent_states, agent_attributes, recurrent_states)
     recurrent_states = (
         _tolist(recurrent_states) if recurrent_states is not None else None
     )  # AxTx2x64

@@ -157,9 +157,13 @@ class AgentAttributes(BaseModel):
         if len(l) == 4:
             length, width, rear_axis_offset, agent_type = l
             return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
-        elif len(l) == 3 and type(l[-1]) is not str:
-            length, width, rear_axis_offset, = l
-            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset)
+        elif len(l) == 3:
+            if type(l[-1]) is not str:
+                length, width, rear_axis_offset, = l
+                return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=AgentType.car.value)
+            else:
+                length, width, agent_type = l
+                return cls(length=length, width=width, rear_axis_offset=None, agent_type=agent_type)
         else:
             assert len(l) == 1
             agent_type, = l
