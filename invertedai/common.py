@@ -131,6 +131,11 @@ class TrafficLightState(str, Enum):
     red = "red"
 
 
+class AgentType(str, Enum):
+    car = "car"
+    pedestrian = "pedestrian"
+
+
 class AgentAttributes(BaseModel):
     """
     Static attributes of the agent, which don't change over the course of a simulation.
@@ -145,7 +150,7 @@ class AgentAttributes(BaseModel):
     width: Optional[float] = None  #: Lateral extent of the agent, in meters.
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
     rear_axis_offset: Optional[float] = None
-    agent_type: Optional[str] = 'car'  #: Type of agent, default to car, can also be pedestrian
+    agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
 
     @classmethod
     def fromlist(cls, l):

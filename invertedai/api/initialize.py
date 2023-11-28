@@ -62,9 +62,9 @@ def initialize(
     """
     Initializes a simulation in a given location, using a combination of pre-defined and sampled agents.
     Pre-defined agents are those present in `states_history`, and the remaining ones are sampled conditionally on them.
-    For each agent, pre-defined or sampled, there should be one element in `agent_attributes`, which can either
-    be empty, contain only the agent type, or fully specify all static attributes, including agent type.
-    All pre-defined agents have to have fully specified attributes.
+    For each agent, pre-defined or sampled, there should be one element in agent_attributes.
+    The pre-defined agents should have fully specified static attributes including agent type.
+    The sampled agents can have their agent attributes be either empty or contains only agent type.
     The `agent_count` argument is only for backwards compatibility, and setting it is equivalent to padding
     the `agent_attributes` list to that length with default `AgentAttributes` values.
     If traffic lights are present in the scene, for best results their state should be specified for the current time,
