@@ -1,5 +1,5 @@
 {
-    "location": "canada:vancouver:ubc_roundabout",
+    "location": "iai:ubc_roundabout",
     "num_agents_to_spawn": 10,
     "states_history": null,
     "agent_attributes": null,

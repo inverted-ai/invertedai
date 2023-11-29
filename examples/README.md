@@ -4,16 +4,19 @@ This folder contains examples demonstrating how to use the Inverted AI API in Py
 <!-- start exampels -->
 [Click here](https://download-directory.github.io/?url=https://github.com/inverted-ai/invertedai/tree/master/examples) to download the folder as a zip-file.
 To run the examples locally, first build the virtual environment.
-```commandline
+```bash
 python -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install --upgrade -r requirements.txt
+# optionally install carla, if you want to run carla demos 
+pip install carla==0.9.13
 ```
-*If running into package not found issue like`ERROR: No matching distribution found for carla==0.9.13`, try update 
-the pip: `pip install upgrade pip `.  
+*If you run into an issue like`ERROR: No matching distribution found for carla==0.9.13`, your Python version may not
+be CARLA-compatible.
 
 Then, once you obtain an API key, you can run the examples.
-```commandline
+```bash
 python npc_only.py --api_key $IAI_API_KEY
 ```
 There are currently three different examples available.
@@ -28,7 +31,7 @@ quickly give you an idea for how the underlying NPCs behave. This example is ava
 in a few different versions, one calling the underlying REST API directly, and others
 using the wrapper provided as a part of our library, the latter version also being
 available as a Jupyter notebook and
-[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only_colab.ipynb).
+[Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only.ipynb).
 
 ## Cosimulation Minimal example
 

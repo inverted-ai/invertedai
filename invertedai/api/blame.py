@@ -22,9 +22,9 @@ class BlameResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.blame`.
     """
-    agents_at_fault: Optional[Tuple[int, ...]] #: A tuple containing all agents predicted to be at fault. If empty, the model has predicted no agents are at fault.
-    reasons: Optional[Dict[int, List[str]]] #: A dictionary with agent IDs as keys and a list of fault class strings for why the keyed agent is to blame.
-    confidence_score: Optional[float] #: Float value between [0,1] indicating the models confidence in the response.
+    agents_at_fault: Optional[Tuple[int, ...]] #: A tuple containing all agents predicted to be at fault. If empty, BLAME has predicated no agents are at fault.
+    reasons: Optional[Dict[int, List[str]]] #: A dictionary with agent IDs as keys corresponding to "agents_at_fault" paired with a list of reasons why the keyed agent is at fault (e.g. traffic_light_violation).
+    confidence_score: Optional[float] #: Float value between [0,1] indicating BLAME's confidence in the response where 0.0 represents the minimum confidence and 1.0 represents maximum.
     birdviews: Optional[List[Image]]  #: If `get_birdviews` was set, this contains the resulting image.
 
 @validate_arguments
@@ -55,8 +55,8 @@ def blame(
         The list of AgentState objects should include the first time step of the collision
         and no time steps afterwards. The lists of AgentState objects preceding the 
         collision should capture enough of the scenario context before the collision for 
-        the Blame model to analyze and assign fault. For best results it is recommended to 
-        input 30-100 time steps of 0.1s each preceding the collision.
+        BLAME to analyze and assign fault. For best results it is recommended to 
+        input 20-50 time steps of 0.1s each preceding the collision.
         Each AgentState state must include x: [float], y: [float] coordinates in meters, 
         orientation: [float] in radians with 0 pointing along the positive x axis and 
         pi/2 pointing along the positive y axis, and speed: [float] in m/s.
@@ -74,10 +74,10 @@ def blame(
         Whether to return the reasons regarding why each agent was blamed.
 
     get_confidence_score:
-        Whether to return how confident the Blame model is in its response.
+        Whether to return how confident the BLAME is in its response.
 
     get_birdviews:
-        Whether to return images visualizing the collision case.This is very slow and 
+        Whether to return the image visualizing the collision case. This is very slow and 
         should only be used for debugging.
 
     See Also
