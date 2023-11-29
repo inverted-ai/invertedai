@@ -500,11 +500,10 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-    return invertedai.api.InitializeResponse(
-        recurrent_states=agent_rs,
-        agent_states=agent_states,
-        agent_attributes=agent_attributes)
-
+    response.recurrent_states=agent_rs
+    response.agent_states=agent_states
+    response.agent_attributes
+    return response
 
 class APITokenAuth(AuthBase):
     def __init__(self, api_token):
