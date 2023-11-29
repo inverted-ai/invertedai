@@ -41,21 +41,22 @@ class DriveResponse(BaseModel):
     is_inside_supported_area: List[
         bool
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
-    model_version: str # Model version used for this API call
+    model_version: str  # Model version used for this API call
+
 
 @validate_arguments
 def drive(
-    location: str,
-    agent_states: List[AgentState],
-    agent_attributes: List[AgentAttributes],
-    recurrent_states: List[RecurrentState],
-    traffic_lights_states: Optional[TrafficLightStatesDict] = None,
-    get_birdview: bool = False,
-    rendering_center: Optional[Tuple[float, float]] = None,
-    rendering_fov: Optional[float] = None,
-    get_infractions: bool = False,
-    random_seed: Optional[int] = None,
-    model_version: Optional[str] = None
+        location: str,
+        agent_states: List[AgentState],
+        agent_attributes: List[AgentAttributes],
+        recurrent_states: List[RecurrentState],
+        traffic_lights_states: Optional[TrafficLightStatesDict] = None,
+        get_birdview: bool = False,
+        rendering_center: Optional[Tuple[float, float]] = None,
+        rendering_fov: Optional[float] = None,
+        get_infractions: bool = False,
+        random_seed: Optional[int] = None,
+        model_version: Optional[str] = None
 ) -> DriveResponse:
     """
     Parameters
@@ -72,7 +73,8 @@ def drive(
     agent_attributes:
         Static attributes of all agents.
         List of agent attributes. Each agent requires, length: [float]
-        width: [float] and rear_axis_offset: [float] all in meters.
+        width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
+        currently only supports 'car', but support for 'pedestrian' will be added in the future
 
     recurrent_states:
         Recurrent states for all agents, obtained from the previous call to
@@ -109,10 +111,6 @@ def drive(
     :func:`light`
     :func:`blame`
     """
-    if len(agent_states) != len(agent_attributes):
-        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
-    if len(agent_states) != len(recurrent_states):
-        raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'recurrent_states'.")
 
     if should_use_mock_api():
         agent_states = [mock_update_agent_state(s) for s in agent_states]
@@ -181,28 +179,29 @@ def drive(
         except APIConnectionError as e:
             iai.logger.warning("Retrying")
             if (
-                timeout is not None and time.time() > start + timeout
+                    timeout is not None and time.time() > start + timeout
             ) or not e.should_retry:
                 raise e
 
 
 @validate_arguments
 async def async_drive(
-    location: str,
-    agent_states: List[AgentState],
-    agent_attributes: List[AgentAttributes],
-    recurrent_states: List[RecurrentState],
-    traffic_lights_states: Optional[TrafficLightStatesDict] = None,
-    get_birdview: bool = False,
-    rendering_center: Optional[Tuple[float, float]] = None,
-    rendering_fov: Optional[float] = None,
-    get_infractions: bool = False,
-    random_seed: Optional[int] = None,
-    model_version: Optional[str] = None
+        location: str,
+        agent_states: List[AgentState],
+        agent_attributes: List[AgentAttributes],
+        recurrent_states: List[RecurrentState],
+        traffic_lights_states: Optional[TrafficLightStatesDict] = None,
+        get_birdview: bool = False,
+        rendering_center: Optional[Tuple[float, float]] = None,
+        rendering_fov: Optional[float] = None,
+        get_infractions: bool = False,
+        random_seed: Optional[int] = None,
+        model_version: Optional[str] = None
 ) -> DriveResponse:
     """
     A light async version of :func:`drive`
     """
+
     def _tolist(input_data: List):
         if not isinstance(input_data, list):
             return input_data.tolist()

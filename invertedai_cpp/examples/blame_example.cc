@@ -29,13 +29,35 @@ int main(int argc, char **argv) {
     invertedai::BlameRequest blame_req(
         invertedai::read_file("examples/blame_body.json"));
 
-    std::cout << "blame request: \n" << blame_req.body_str() << std::endl;
-
     // get response of location information
     invertedai::BlameResponse blame_res =
         invertedai::blame(blame_req, &session);
 
-    std::cout << "blame response: \n" << blame_res.body_str() << std::endl;
+    //Confirm the returned blame response
+    std::vector<int> agents_at_fault = blame_res.agents_at_fault();
+    std::cout << "Agents at fault: [";
+    for (auto & agent_num : agents_at_fault) {
+      std::cout << agent_num << ", ";
+    }
+    std::cout << "]" << std::endl;
+
+    std::optional<std::map<int, std::vector<std::string>>> reasons = blame_res.reasons();
+    if (reasons) { //Check whether a reasons map was returned
+      std::cout << "Reasons for faulted agents: [";
+
+      for (const auto &agent : reasons.value()){
+        std::cout << "[Reason for agent number " << agent.first << ": ";
+          for (auto & reason : agent.second) {
+            std::cout << reason << ", ";
+          }
+          std::cout << "], ";
+      } 
+      std::cout << "]" << std::endl;
+    }
+    else {
+      std::cout << "Reasons disabled in this response." << std::endl;
+    }
+    
 
   } catch (std::exception const &e) {
     std::cerr << "Error: " << e.what() << std::endl;

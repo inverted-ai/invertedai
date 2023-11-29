@@ -6,7 +6,6 @@ import math
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
-
 RECURRENT_SIZE = 132
 TrafficLightId = int
 
@@ -18,6 +17,7 @@ class RecurrentState(BaseModel):
     """
 
     packed: List[float] = [0.0] * RECURRENT_SIZE
+
     #: Internal representation of the recurrent state.
 
     @root_validator
@@ -49,7 +49,7 @@ class Point(BaseModel):
         return cls(x=x, y=y)
 
     def __sub__(self, other):
-        return math.sqrt((abs(self.x - other.x)**2) + (abs(self.y - other.y)**2))
+        return math.sqrt(((self.x - other.x) ** 2) + ((self.y - other.y) ** 2))
 
 
 class Origin(Point):
@@ -131,6 +131,11 @@ class TrafficLightState(str, Enum):
     red = "red"
 
 
+class AgentType(str, Enum):
+    car = "car"
+    pedestrian = "pedestrian"
+
+
 class AgentAttributes(BaseModel):
     """
     Static attributes of the agent, which don't change over the course of a simulation.
@@ -141,22 +146,44 @@ class AgentAttributes(BaseModel):
     AgentState
     """
 
-    length: float  #: Longitudinal extent of the agent, in meters.
-    width: float  #: Lateral extent of the agent, in meters.
+    length: Optional[float] = None  #: Longitudinal extent of the agent, in meters.
+    width: Optional[float] = None  #: Lateral extent of the agent, in meters.
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
-    rear_axis_offset: float
+    rear_axis_offset: Optional[float] = None
+    agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
 
     @classmethod
     def fromlist(cls, l):
-        length, width, rear_axis_offset = l
-        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset)
+        if len(l) == 4:
+            length, width, rear_axis_offset, agent_type = l
+            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
+        elif len(l) == 3:
+            if type(l[-1]) is not str:
+                length, width, rear_axis_offset, = l
+                return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=AgentType.car.value)
+            else:
+                length, width, agent_type = l
+                return cls(length=length, width=width, rear_axis_offset=None, agent_type=agent_type)
+        else:
+            assert len(l) == 1
+            agent_type, = l
+            return cls(agent_type=agent_type)
 
     def tolist(self):
         """
         Convert AgentAttributes to a flattened list of agent attributes
-        in this order: [length, width, rear_axis_offset]
+        in this order: [length, width, rear_axis_offset, agent_type]
         """
-        return [self.length, self.width, self.rear_axis_offset]
+        attr_list = []
+        if self.length is not None:
+            attr_list.append(self.length)
+        if self.width is not None:
+            attr_list.append(self.width)
+        if self.rear_axis_offset is not None:
+            attr_list.append(self.rear_axis_offset)
+        if self.agent_type is not None:
+            attr_list.append(self.agent_type)
+        return attr_list
 
 
 class AgentState(BaseModel):
