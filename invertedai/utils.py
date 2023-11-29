@@ -502,7 +502,7 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
 
     response.recurrent_states=agent_rs
     response.agent_states=agent_states
-    response.agent_attributes
+    response.agent_attributes = agent_attributes
     return response
 
 class APITokenAuth(AuthBase):
