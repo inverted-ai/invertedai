@@ -64,8 +64,7 @@ public:
    * paired with a list of reasons why the keyed agent is at fault (e.g.
    * traffic_light_violation).
    */
-  void set_reasons(
-      const std::optional<std::map<int, std::vector<std::string>>> &reasons);
+  void set_reasons(const std::optional<std::map<int, std::vector<std::string>>> &reasons);
   /**
    * Set the images visualizing the collision case.
    */

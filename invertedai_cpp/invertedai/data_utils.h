@@ -54,6 +54,11 @@ struct AgentAttributes {
    * motion constraints.
    */
   double rear_axis_offset;
+  /**
+   * Agent types are used to indicate how that agent might behave in a scenario.
+   * Currently "car" is supported with "pedestrian" to be supported soon.
+   */
+  std::string agent_type;
 };
 
 /**
