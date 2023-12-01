@@ -43,7 +43,7 @@ LocationInfoResponse location_info(LocationInfoRequest &location_info_request,
  * If traffic lights are present in the scene, for best results their state should be specified for the current time in a 
  * `TrafficLightStatesDict`, and all historical time steps for which `states_history` is provided. It is legal to omit
  * the traffic light state specification, but the scene will be initialized as if the traffic lights were disabled.
- * Every simulation must start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
+ * Every simulation must start with a call to this function in order to obtain correct recurrent states for invertedai::drive.
  *
  * @param initialize_request the initialize request to send to the API
  * @param session the shared session connected with the host
