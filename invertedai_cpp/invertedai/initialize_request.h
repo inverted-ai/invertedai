@@ -31,6 +31,10 @@ private:
   void refresh_body_json_();
 
 public:
+  
+  /**
+   * A request sent to receive an InitializeResponse from the API.
+   */
   InitializeRequest(const std::string &body_str);
   /**
    * Serialize all the fields into a string.
