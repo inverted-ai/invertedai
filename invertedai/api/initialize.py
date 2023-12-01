@@ -60,17 +60,20 @@ def initialize(
         model_version: Optional[str] = None  # Model version used for this API call
 ) -> InitializeResponse:
     """
-    Initializes a simulation in a given location, using a combination of pre-defined and sampled agents.
-    Pre-defined agents are those present in `states_history`, and the remaining ones are sampled conditionally on them.
-    For each agent, pre-defined or sampled, there should be one element in agent_attributes.
-    The pre-defined agents should have fully specified static attributes including agent type.
-    The sampled agents can have their agent attributes be either empty or contains only agent type.
-    The `agent_count` argument is only for backwards compatibility, and setting it is equivalent to padding
-    the `agent_attributes` list to that length with default `AgentAttributes` values.
-    If traffic lights are present in the scene, for best results their state should be specified for the current time,
-    and all historical time steps for which `states_history` is provided. It is legal to omit the traffic light state
-    specification, but the scene will be initialized as if the traffic lights were disabled.
-    Every simulation needs to start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
+    Initializes a simulation in a given location, using a combination of **user-defined** and **sampled** agents.
+    **User-defined** agents are placed in a scene first, after which a number of agents are sampled conditionally 
+    inferred from the `agent_count` argument.
+    If **user-defined** agents are desired, `states_history` must contain a list of `AgentState's` of all **user-defined** 
+    agents per historical time step.
+    Any **user-defined** agent must have a corresponding fully specified static `AgentAttribute` in `agent_attributes`. 
+    Any **sampled** agents not specified in `agent_attributes` will be generated with default static attribute values however
+     **sampled** agents may be defined by specifying all static attributes or by specifying `agent_type` only. 
+    Agents are identified by their list index, so ensure the indices of each agent match in `states_history` and
+    `agent_attributes` when applicable. 
+    If traffic lights are present in the scene, for best results their state should be specified for the current time in a 
+    `TrafficLightStatesDict`, and all historical time steps for which `states_history` is provided. It is legal to omit
+    the traffic light state specification, but the scene will be initialized as if the traffic lights were disabled.
+    Every simulation must start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
     Parameters
     ----------

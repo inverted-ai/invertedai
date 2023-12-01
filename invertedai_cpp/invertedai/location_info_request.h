@@ -20,6 +20,9 @@ private:
   void refresh_body_json_();
 
 public:
+  /**
+   * A request sent to receive an LocationInfoResponse from the API.
+   */
   LocationInfoRequest(const std::string &body_str);
   /**
    * Serialize all the fields into a string.
