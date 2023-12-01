@@ -67,7 +67,7 @@ def initialize(
     agents per historical time step.
     Any **user-defined** agent must have a corresponding fully specified static `AgentAttribute` in `agent_attributes`. 
     Any **sampled** agents not specified in `agent_attributes` will be generated with default static attribute values however **sampled** 
-    agents may be defined by specifying all static attributes or by specifying `agent_type` only. 
+    agents may be defined by specifying `agent_type` only. 
     Agents are identified by their list index, so ensure the indices of each agent match in `states_history` and
     `agent_attributes` when applicable. 
     If traffic lights are present in the scene, for best results their state should be specified for the current time in a 
