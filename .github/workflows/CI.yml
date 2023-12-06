@@ -1,4 +1,4 @@
-name: Python package CI
+name: CI
 
 on:
   push:
