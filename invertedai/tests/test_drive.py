@@ -100,7 +100,7 @@ def test_negative(location, states_history, agent_attributes, get_infractions, a
     with pytest.raises(InvalidRequestError):
         run_drive(location, states_history, agent_attributes, get_infractions, agent_count)
 
-@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests)
+@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests)
 def test_postivie(location, states_history, agent_attributes, get_infractions, agent_count,
                   simulation_length: int = 20):
     run_drive(location, states_history, agent_attributes, get_infractions, agent_count)
