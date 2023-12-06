@@ -38,5 +38,7 @@ jobs:
         $HOME/.local/bin/poetry install
 
     - name: Run tests
+      env:
+        IAI_API_KEY: ${{ secrets.IAI_API_KEY }}
       run: |
         $HOME/.local/bin/poetry run pytest invertedai/tests/
