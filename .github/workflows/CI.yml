@@ -35,7 +35,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        $HOME/.local/bin/poetry install
+        $HOME/.local/bin/poetry install --without dev
 
     - name: Run tests
       env:
