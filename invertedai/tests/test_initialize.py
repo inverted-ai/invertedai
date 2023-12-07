@@ -8,14 +8,14 @@ from invertedai.api.light import light
 from invertedai.error import InvalidRequestError
 
 positive_tests = [
-    ("iai:ubc_roundabout",
+    ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)]],
      [dict(length=1.39, width=1.78, rear_axis_offset=0.0, agent_type='pedestrian'),
       dict(length=1.37, width=1.98, rear_axis_offset=0.0, agent_type='pedestrian'),
       dict(agent_type='pedestrian')],
      False, None),
-    ("iai:ubc_roundabout",
+    ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
@@ -25,7 +25,7 @@ positive_tests = [
       dict(agent_type='pedestrian'),
       dict(agent_type='car')],
      False, None),
-    ("iai:ubc_roundabout",
+    ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
@@ -59,21 +59,21 @@ positive_tests = [
       dict(agent_type='car'),
       dict()],
      False, None),
-    ("iai:drake_street_and_pacific_blvd",
+    ("canada:drake_street_and_pacific_blvd",
      None,
      [dict(agent_type='pedestrian'),
       dict(),
       dict(agent_type='car'),
       dict()],
      False, None),
-    ("iai:drake_street_and_pacific_blvd",
+    ("canada:drake_street_and_pacific_blvd",
      None,
      [dict(agent_type='pedestrian'),
       dict(),
       dict(agent_type='car'),
       dict()],
      False, 5),
-    ("iai:drake_street_and_pacific_blvd",
+    ("canada:drake_street_and_pacific_blvd",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
@@ -90,12 +90,12 @@ positive_tests = [
 ]
 
 negative_tests = [
-    ("iai:ubc_roundabout",
+    ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)]],
      None,
      False, None),
-    ("iai:ubc_roundabout",
+    ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
@@ -105,7 +105,7 @@ negative_tests = [
       dict(agent_type='pedestrian'),
       dict(agent_type='car')],
      False, None),
-    ("iai:ubc_roundabout",
+    ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
@@ -115,7 +115,7 @@ negative_tests = [
       dict(agent_type='pedestrian'),
       dict(agent_type='car')],
      False, None),
-    ("iai:ubc_roundabout",
+    ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
@@ -125,7 +125,7 @@ negative_tests = [
       dict(width=1.15, agent_type='pedestrian'),
       dict(agent_type='car')],
      False, None),
-    ("iai:ubc_roundabout",
+    ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
@@ -138,7 +138,7 @@ negative_tests = [
 ]
 
 
-def test_initialize(location, states_history, agent_attributes, get_infractions, agent_count):
+def run_initialize(location, states_history, agent_attributes, get_infractions, agent_count):
     location_info_response = location_info(location=location, rendering_fov=200)
     if any(actor.agent_type == "traffic-light" for actor in location_info_response.static_actors):
         scene_has_lights = True
@@ -158,29 +158,12 @@ def test_initialize(location, states_history, agent_attributes, get_infractions,
     assert isinstance(response,
                       InitializeResponse) and response.agent_attributes is not None and response.agent_states is not None
 
-
+@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests)
 def test_negative(location, states_history, agent_attributes, get_infractions, agent_count):
     with pytest.raises(InvalidRequestError):
-        test_initialize(location, states_history, agent_attributes, get_infractions, agent_count)
+        run_initialize(location, states_history, agent_attributes, get_infractions, agent_count)
 
-
-def run_all(tests):
-    i = 0
-    for test in tests:
-        test_initialize(*test)
-        # print(f"positive test case {i} passed")
-        i += 1
-    print(f"all {i} positive tests passed!")
-
-
-def run_all_negative(tests):
-    i = 0
-    for test in tests:
-        test_negative(*test)
-        # print(f"negative test case {i} passed")
-        i += 1
-    print(f"all {i} negative tests passed!")
-
-
-run_all(positive_tests)
-run_all_negative(negative_tests)
+@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests)
+def test_positive(location, states_history, agent_attributes, get_infractions, agent_count):
+    run_initialize(location, states_history, agent_attributes, get_infractions, agent_count)
+  
