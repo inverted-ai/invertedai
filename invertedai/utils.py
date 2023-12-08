@@ -1,8 +1,12 @@
 import requests
 import asyncio
+from deprecated import deprecated
 import json
+import logging
+import os
 import re
 from typing import Dict, Optional
+from requests import Response
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter, Retry
 import invertedai as iai
@@ -34,11 +38,11 @@ SLACK = 2
 INITIALIZE_FOV = 120
 AGENT_FOV = 35
 
+logger = logging.getLogger(__name__)
 
 class Session:
-    def __init__(self, api_token: str = ""):
+    def __init__(self, dev: bool=False):
         self.session = requests.Session()
-        self.session.auth = APITokenAuth(api_token)
         retries = Retry(total=5,
                         backoff_factor=0.1,
                         status_forcelist=[500, 502, 503, 504],
@@ -54,30 +58,94 @@ class Session:
                 "Connection": "keep-alive",
             }
         )
-        self.base_url = self._get_base_url()
+        self._base_url = self._get_base_url()
 
-    def add_apikey(self, api_token: str = "", key_type: Optional[str] = "commercial", url: Optional[str] = None):
-        if not iai.dev and not api_token:
-            raise error.InvalidAPIKeyError("Empty API key received.")
+    @property
+    def base_url(self):
+        return self._base_url
+
+    @base_url.setter
+    def base_url(self, value):
+        self._base_url = value
+
+
+    def _verify_api_key(self, api_token: str, verifying_url: str):
+        """
+        Verifies the API key by making a request to the verifying URL.
+
+        Args:
+            api_token (str): The API token to be used for authentication.
+            verifying_url (str): The URL to be used for verification.
+
+        Returns:
+            str: The final verifying URL after fallback (if applicable).
+
+        Raises:
+            error.AuthenticationError: If access is denied due to an invalid API key.
+        """
         self.session.auth = APITokenAuth(api_token)
-        request_url = self.base_url
-        if key_type is not None and key_type not in ["commercial", "academic"]:
-            raise error.InvalidAPIKeyError(f"Invalid API key type: {key_type}.")
-        if key_type == "academic":
-            request_url = "https://api.inverted.ai/v0/academic/m1"
-        if url is not None:
-            request_url = url
-        response = self.session.request(method="get", url=request_url)
-        if response.status_code != 200 and request_url != self.base_url:
-            request_url = "https://api.inverted.ai/v0/academic/m1"
-            response_acd = self.session.request(method="get", url=request_url)
+        response = self.session.request(method="get", url=verifying_url)
+        if verifying_url == iai.commercial_url and response.status_code != 200 and verifying_url != self.base_url:
+            # Check for academic access in case the previous call to the commercial server fails.
+            logger.warning("Commercial access denied and fallback to check for academic access.")
+            verifying_url = iai.academic_url
+            response_acd = self.session.request(method="get", url=verifying_url)
             if response_acd.status_code == 200:
-                self.base_url = request_url
+                self.base_url = verifying_url
                 response = response_acd
             elif response_acd.status_code != 403:
                 response = response_acd
-        if response.status_code == 200 and self.base_url != request_url:
-            self.base_url = request_url
+        if response.status_code == 403:
+            raise error.AuthenticationError(
+                "Access denied. Please check the provided API key."
+            )
+        return verifying_url
+
+
+    def bind_apikey(self, api_token: str = "", key_type: Optional[str] = None, url: Optional[str] = None):
+        """
+        Bind an API key to the session for authentication.
+
+        Args:
+            api_token (str): The API key to be added. Defaults to an empty string.
+            key_type (str, optional): The type of API key. Defaults to None. When passed, the base_url will be set according to the key_type.
+            url (str, optional): The URL to be used for the request. Defaults to None. When passed, the base_rul will be set to the passed value and the key_type will be ignored.
+
+        Raises:
+            InvalidAPIKeyError: If the API key is empty and not in development mode.
+            InvalidAPIKeyError: If the key_type is invalid.
+            AuthenticationError: If access is denied due to an invalid API key.
+            APIError: If the server encounters an error or is unable to perform the requested method.
+        """
+        if not iai.dev and not api_token:
+            raise error.InvalidAPIKeyError("Empty API key received.")
+        if url is None:
+            request_url = self._get_base_url()
+        if key_type is not None and key_type not in ["commercial", "academic"]:
+            raise error.InvalidAPIKeyError(f"Invalid API key type: {key_type}.")
+        if key_type == "academic":
+            request_url = iai.academic_url
+        elif key_type == "commercial":
+            request_url = iai.commercial_url
+        if url is not None:
+            request_url = url
+        self.base_url = self._verify_api_key(api_token, request_url)
+
+
+    @deprecated(version="0.11.0", reason="This method is not supported anymore. Please use bind_apikey instead.")
+    def add_apikey(self, api_token: str = ""):
+        if not iai.dev and not api_token:
+            raise error.InvalidAPIKeyError("Empty API key received.")
+        self.session.auth = APITokenAuth(api_token)
+        response = self.session.request(method="get", url=self.base_url)
+        if response.status_code != 200:
+            url_acd = iai.academic_url
+            response_acd = self.session.request(method="get", url=url_acd)
+            if response_acd.status_code == 200:
+                self.base_url = url_acd
+                response = response_acd
+            elif response_acd.status_code != 403:
+                response = response_acd
         if response.status_code == 403:
             raise error.AuthenticationError(
                 "Access denied. Please check the provided API key."
@@ -175,7 +243,7 @@ class Session:
         The method path should be appended to the base_url
         """
         if not iai.dev:
-            base_url = "https://api.inverted.ai/v0/aws/m1"
+            base_url = iai.commercial_url # Default to commercial when initializing.
         else:
             base_url = iai.dev_url
         # TODO: Add endpoint option and versioning to base_url
