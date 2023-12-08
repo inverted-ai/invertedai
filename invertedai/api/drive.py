@@ -74,7 +74,7 @@ def drive(
         Static attributes of all agents.
         List of agent attributes. Each agent requires, length: [float]
         width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
-        currently only supports 'car', but support for 'pedestrian' will be added in the future
+        currently supports 'car' and 'pedestrian'.
 
     recurrent_states:
         Recurrent states for all agents, obtained from the previous call to
