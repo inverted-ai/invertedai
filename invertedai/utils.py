@@ -56,19 +56,28 @@ class Session:
         )
         self.base_url = self._get_base_url()
 
-    def add_apikey(self, api_token: str = ""):
+    def add_apikey(self, api_token: str = "", key_type: Optional[str] = "commercial", url: Optional[str] = None):
         if not iai.dev and not api_token:
             raise error.InvalidAPIKeyError("Empty API key received.")
         self.session.auth = APITokenAuth(api_token)
-        response = self.session.request(method="get", url=self.base_url)
-        if response.status_code != 200:
-            url_acd = "https://api.inverted.ai/v0/academic/m1"
-            response_acd = self.session.request(method="get", url=url_acd)
+        request_url = self.base_url
+        if key_type is not None and key_type not in ["commercial", "academic"]:
+            raise error.InvalidAPIKeyError(f"Invalid API key type: {key_type}.")
+        if key_type == "academic":
+            request_url = "https://api.inverted.ai/v0/academic/m1"
+        if url is not None:
+            request_url = url
+        response = self.session.request(method="get", url=request_url)
+        if response.status_code != 200 and request_url != self.base_url:
+            request_url = "https://api.inverted.ai/v0/academic/m1"
+            response_acd = self.session.request(method="get", url=request_url)
             if response_acd.status_code == 200:
-                self.base_url = url_acd
+                self.base_url = request_url
                 response = response_acd
             elif response_acd.status_code != 403:
                 response = response_acd
+        if response.status_code == 200 and self.base_url != request_url:
+            self.base_url = request_url
         if response.status_code == 403:
             raise error.AuthenticationError(
                 "Access denied. Please check the provided API key."
