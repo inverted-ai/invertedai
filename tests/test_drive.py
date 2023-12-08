@@ -8,6 +8,7 @@ from invertedai.api.location import location_info
 from invertedai.api.light import light
 from invertedai.error import InvalidRequestError
 
+
 def recurrent_states_helper(states_to_extend):
     result = [0.0] * 128
     result.extend(states_to_extend)
@@ -58,8 +59,10 @@ positive_tests = [
       dict(agent_type='car')],
      False, None),
 ]
+
+# Notice parameterization in direct drive flows are different
 negative_tests = [
-     ("carla:Town03",
+    ("carla:Town03",
      [dict(center=dict(x=-21.2, y=-17.11), orientation=4.54, speed=1.8),
       dict(center=dict(x=-5.81, y=-49.47), orientation=1.62, speed=11.4)],
      [dict(length=0.97, agent_type="pedestrian"),
@@ -90,6 +93,7 @@ negative_tests = [
              [5.810295104980469, -49.47068786621094, 1.5232856273651123, 11.404326438903809]))],
      False),
 ]
+
 
 def run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count,
                               simulation_length: int = 20):
@@ -137,15 +141,16 @@ def run_direct_drive(location, agent_states, agent_attributes, recurrent_states,
     )
     assert isinstance(drive_response,
                       DriveResponse) and drive_response.agent_states is not None and drive_response.recurrent_states is not None
-    
 
-@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests)
-def test_negative(location, states_history, agent_attributes, get_infractions, agent_count,
-                  simulation_length: int = 20):
+
+@pytest.mark.parametrize("location, agent_states, agent_attributes, recurrent_states, get_infractions", negative_tests)
+def test_negative(location, agent_states, agent_attributes, recurrent_states, get_infractions):
     with pytest.raises(InvalidRequestError):
-        run_direct_drive(location, states_history, agent_attributes, get_infractions, agent_count)
+        run_direct_drive(location, agent_states, agent_attributes, recurrent_states, get_infractions)
+
 
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests)
 def test_postivie(location, states_history, agent_attributes, get_infractions, agent_count,
                   simulation_length: int = 20):
-    run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count)
+    run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count,
+                              simulation_length)
