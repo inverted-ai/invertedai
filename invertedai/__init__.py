@@ -24,7 +24,6 @@ logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log
 
 session = Session()
 add_apikey = session.add_apikey
-bind_apikey = session.bind_apikey
 use_mock_api = session.use_mock_api
 
 if strtobool(os.environ.get("IAI_MOCK_API", "false")):
@@ -44,7 +43,6 @@ __all__ = [
     "logger",
     "session",
     "add_apikey",
-    "bind_apikey",
     "use_mock_api",
     "blame",
     "drive",
