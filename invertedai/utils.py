@@ -41,7 +41,7 @@ AGENT_FOV = 35
 logger = logging.getLogger(__name__)
 
 class Session:
-    def __init__(self, dev: bool=False):
+    def __init__(self):
         self.session = requests.Session()
         retries = Retry(total=5,
                         backoff_factor=0.1,
@@ -85,7 +85,7 @@ class Session:
         """
         self.session.auth = APITokenAuth(api_token)
         response = self.session.request(method="get", url=verifying_url)
-        if verifying_url == iai.commercial_url and response.status_code != 200 and verifying_url != self.base_url:
+        if verifying_url == iai.commercial_url and response.status_code != 200:
             # Check for academic access in case the previous call to the commercial server fails.
             logger.warning("Commercial access denied and fallback to check for academic access.")
             verifying_url = iai.academic_url
