@@ -8,6 +8,12 @@ from invertedai.api.location import location_info
 from invertedai.api.light import light
 from invertedai.error import InvalidRequestError
 
+def recurrent_states_helper(states_to_extend):
+    result = [0.0] * 128
+    result.extend(states_to_extend)
+    return result
+
+
 positive_tests = [
     ("carla:Town04",
      None,
@@ -20,20 +26,20 @@ positive_tests = [
       dict(agent_type='car'),
       dict()],
      False, 5),
-    # ("canada:drake_street_and_pacific_blvd",
-    #  None,
-    #  [dict(agent_type='car'),
-    #   dict(),
-    #   dict(agent_type='pedestrian'),
-    #   dict()],
-    #  False, 5),
-    # ("canada:drake_street_and_pacific_blvd",
-    #  None,
-    #  [dict(agent_type='pedestrian'),
-    #   dict(agent_type='pedestrian'),
-    #   dict(agent_type='pedestrian'),
-    #   dict(agent_type='pedestrian')],
-    #  False, 5),
+    ("canada:drake_street_and_pacific_blvd",
+     None,
+     [dict(agent_type='car'),
+      dict(),
+      dict(agent_type='pedestrian'),
+      dict()],
+     False, 5),
+    ("canada:drake_street_and_pacific_blvd",
+     None,
+     [dict(agent_type='pedestrian'),
+      dict(agent_type='pedestrian'),
+      dict(agent_type='pedestrian'),
+      dict(agent_type='pedestrian')],
+     False, 5),
     ("canada:ubc_roundabout",
      [[dict(center=dict(x=60.82, y=1.22), orientation=0.63, speed=11.43),
        dict(center=dict(x=-36.88, y=-33.93), orientation=-2.64, speed=9.43)]],
@@ -53,16 +59,40 @@ positive_tests = [
      False, None),
 ]
 negative_tests = [
-    ("canada:drake_street_and_pacific_blvd",
-     None,
-     [dict(agent_type='car'),
-      dict(),
-      dict(agent_type='bicycle'),
-      dict()],
-     False, 5),
+     ("carla:Town03",
+     [dict(center=dict(x=-21.2, y=-17.11), orientation=4.54, speed=1.8),
+      dict(center=dict(x=-5.81, y=-49.47), orientation=1.62, speed=11.4)],
+     [dict(length=0.97, agent_type="pedestrian"),
+      dict(length=4.86, width=2.12, rear_axis_offset=1.85, agent_type='car')],
+     [dict(packed=recurrent_states_helper(
+         [21.203039169311523, -17.10862159729004, -1.3971855640411377, 1.7982733249664307])),
+         dict(packed=recurrent_states_helper(
+             [5.810295104980469, -49.47068786621094, 1.5232856273651123, 11.404326438903809]))],
+     False),
+    ("carla:Town03",
+     [dict(center=dict(x=-21.2, y=-17.11), orientation=4.54, speed=1.8),
+      dict(center=dict(x=-5.81, y=-49.47), orientation=1.62, speed=11.4)],
+     [dict(length=0.97, width=1.06, rear_axis_offset=None, agent_type="pedestrian"),
+      dict(length=4.86, width=2.12, agent_type='car')],
+     [dict(packed=recurrent_states_helper(
+         [21.203039169311523, -17.10862159729004, -1.3971855640411377, 1.7982733249664307])),
+         dict(packed=recurrent_states_helper(
+             [5.810295104980469, -49.47068786621094, 1.5232856273651123, 11.404326438903809]))],
+     False),
+    ("carla:Town03",
+     [dict(center=dict(x=-21.2, y=-17.11), orientation=4.54, speed=1.8),
+      dict(center=dict(x=-5.81, y=-49.47), orientation=1.62, speed=11.4)],
+     [dict(length=0.97, width=1.06, agent_type="pedestrian"),
+      dict(width=2.12, rear_axis_offset=1.85)],
+     [dict(packed=recurrent_states_helper(
+         [21.203039169311523, -17.10862159729004, -1.3971855640411377, 1.7982733249664307])),
+         dict(packed=recurrent_states_helper(
+             [5.810295104980469, -49.47068786621094, 1.5232856273651123, 11.404326438903809]))],
+     False),
 ]
 
-def run_drive(location, states_history, agent_attributes, get_infractions, agent_count, simulation_length: int = 20):
+def run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count,
+                              simulation_length: int = 20):
     location_info_response = location_info(location=location, rendering_fov=200)
     if any(actor.agent_type == "traffic-light" for actor in location_info_response.static_actors):
         scene_has_lights = True
@@ -94,13 +124,28 @@ def run_drive(location, states_history, agent_attributes, get_infractions, agent
         assert isinstance(updated_state,
                           DriveResponse) and updated_state.agent_states is not None and updated_state.recurrent_states is not None
 
+
+def run_direct_drive(location, agent_states, agent_attributes, recurrent_states, get_infractions):
+    drive_response = drive(
+        agent_attributes=agent_attributes,
+        agent_states=agent_states,
+        recurrent_states=recurrent_states,
+        traffic_lights_states=None,
+        get_birdview=False,
+        location=location,
+        get_infractions=get_infractions
+    )
+    assert isinstance(drive_response,
+                      DriveResponse) and drive_response.agent_states is not None and drive_response.recurrent_states is not None
+    
+
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests)
 def test_negative(location, states_history, agent_attributes, get_infractions, agent_count,
                   simulation_length: int = 20):
     with pytest.raises(InvalidRequestError):
-        run_drive(location, states_history, agent_attributes, get_infractions, agent_count)
+        run_direct_drive(location, states_history, agent_attributes, get_infractions, agent_count)
 
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests)
 def test_postivie(location, states_history, agent_attributes, get_infractions, agent_count,
                   simulation_length: int = 20):
-    run_drive(location, states_history, agent_attributes, get_infractions, agent_count)
+    run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count)
