@@ -23,7 +23,6 @@ DriveRequest::DriveRequest(const std::string &body_str) {
   this->agent_attributes_.clear();
   for (const auto &element : this->body_json_["agent_attributes"]) {
     AgentAttributes agent_attribute(element);
-    agent_attribute.printFields();
     this->agent_attributes_.push_back(agent_attribute);
   }
   this->recurrent_states_.clear();
