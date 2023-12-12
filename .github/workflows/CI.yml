@@ -41,4 +41,4 @@ jobs:
       env:
         IAI_API_KEY: ${{ secrets.IAI_API_KEY }}
       run: |
-        $HOME/.local/bin/poetry run pytest invertedai/tests/
+        $HOME/.local/bin/poetry run pytest tests/
