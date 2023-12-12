@@ -1,5 +1,5 @@
 #include "drive_request.h"
-
+#include <iostream>
 #include "externals/json.hpp"
 
 using json = nlohmann::json;
@@ -19,6 +19,12 @@ DriveRequest::DriveRequest(const std::string &body_str) {
       element[3]
     };
     this->agent_states_.push_back(agent_state);
+  }
+  this->agent_attributes_.clear();
+  for (const auto &element : this->body_json_["agent_attributes"]) {
+    AgentAttributes agent_attribute(element);
+    agent_attribute.printFields();
+    this->agent_attributes_.push_back(agent_attribute);
   }
   this->recurrent_states_.clear();
   for (const auto &element : this->body_json_["recurrent_states"]) {
@@ -71,12 +77,7 @@ void DriveRequest::refresh_body_json_() {
   }
   this->body_json_["agent_attributes"].clear();
   for (const AgentAttributes &agent_attribute : this->agent_attributes_) {
-    json element = {
-      agent_attribute.length, 
-      agent_attribute.width,
-      agent_attribute.rear_axis_offset,
-      agent_attribute.agent_type
-    };
+    json element = agent_attribute.toJson();
     this->body_json_["agent_attributes"].push_back(element);
   }
   this->body_json_["recurrent_states"].clear();

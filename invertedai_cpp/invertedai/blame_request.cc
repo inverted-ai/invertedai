@@ -1,6 +1,7 @@
 #include "blame_request.h"
 
 #include "externals/json.hpp"
+#include <iostream>
 
 using json = nlohmann::json;
 
@@ -28,12 +29,8 @@ BlameRequest::BlameRequest(const std::string &body_str) {
   }
   this->agent_attributes_.clear();
   for (const auto &element : this->body_json_["agent_attributes"]) {
-    AgentAttributes agent_attribute = {
-      element[0], 
-      element[1], 
-      element[2], 
-      element[3]
-    };
+    AgentAttributes agent_attribute(element);
+    agent_attribute.printFields();
     this->agent_attributes_.push_back(agent_attribute);
   }
   if (this->body_json_["traffic_light_state_history"].is_null()) {
@@ -85,12 +82,7 @@ void BlameRequest::refresh_body_json_() {
   }
   this->body_json_["agent_attributes"].clear();
   for (const AgentAttributes &agent_attribute : this->agent_attributes_) {
-    json element = {
-      agent_attribute.length, 
-      agent_attribute.width,
-      agent_attribute.rear_axis_offset,
-      agent_attribute.agent_type
-    };
+    json element = agent_attribute.toJson();
     this->body_json_["agent_attributes"].push_back(element);
   }
   if (this->traffic_light_state_history_.has_value()) {
