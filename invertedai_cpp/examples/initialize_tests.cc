@@ -17,12 +17,13 @@ int main(int argc, char **argv) {
   // list of test scenarios to run
   const char* tests[] =
   {
+    "examples/initialize_body.json",
     "examples/initialize_with_states_and_attributes.json",
     "examples/initialize_sampling_with_types.json"
   };
 
   try {
-    const std::string api_key(argv[0]);
+    const std::string api_key(argv[1]);
 
     net::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);

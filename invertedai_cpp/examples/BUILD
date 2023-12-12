@@ -66,6 +66,9 @@ cc_binary(
     srcs = ["drive_tests.cc"],
     data = [
         "drive_body.json",
+        "initialize_body.json",
+        "initialize_sampling_with_types.json",
+        "initialize_with_states_and_attributes.json",
     ],
     deps = [
         "//invertedai:api",
