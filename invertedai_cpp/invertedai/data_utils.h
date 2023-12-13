@@ -5,6 +5,11 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <variant>
+#include <iostream>
+#include "externals/json.hpp"
+using json = nlohmann::json;
+using AttrVariant = std::variant<double, std::string>;
 
 namespace invertedai {
 
@@ -48,17 +53,83 @@ struct AgentAttributes {
   /**
    * Longitudinal, lateral extent of the agent in meters.
    */
-  double length, width;
+  std::optional<double> length, width;
   /**
    * Distance from the agent’s center to its rear axis in meters. Determines
    * motion constraints.
    */
-  double rear_axis_offset;
+  std::optional<double> rear_axis_offset;
   /**
    * Agent types are used to indicate how that agent might behave in a scenario.
    * Currently "car" and "pedestrian" are supported.
    */
-  std::string agent_type;
+  std::optional<std::string> agent_type;
+
+  void printFields() const {
+    std::cout << "checking fields of current agent..." << std::endl;
+    if (length.has_value()) {
+        std::cout << "Length: " << length.value() << std::endl;
+    }
+    if (width.has_value()) {
+        std::cout << "Width: " << width.value() << std::endl;
+    }
+    if (rear_axis_offset.has_value()) {
+        std::cout << "rear_axis_offset: " << rear_axis_offset.value() << std::endl;
+    }
+    if (agent_type.has_value()) {
+        std::cout << "Agent type: " << agent_type.value() << std::endl;
+    }
+  }
+
+  json toJson() const {
+    std::vector<AttrVariant> attr_vector;
+    if (length.has_value()) {
+        attr_vector.push_back(length.value());
+    }
+    if (width.has_value()) {
+        attr_vector.push_back(width.value());
+    }
+    if (rear_axis_offset.has_value()) {
+        attr_vector.push_back(rear_axis_offset.value());
+    }
+    if (agent_type.has_value()) {
+        attr_vector.push_back(agent_type.value());
+    }
+    json jsonArray = json::array();
+    for (const auto &element : attr_vector) {
+        std::visit([&jsonArray](const auto& value) {
+            jsonArray.push_back(value);
+        }, element);
+    }
+    return jsonArray;
+  }
+
+  AgentAttributes(const json &element) {
+    int size = element.size();
+    if (size == 1 && element[0].is_string()) {
+        agent_type = element[0];
+    }
+    else if(size == 3) {
+        if (element[2].is_string()) {
+            agent_type = element[2];
+        }
+        else if (element[2].is_number()) {
+            rear_axis_offset = element[2];
+        }
+        length = element[0];
+        width = element[1];
+    }
+    else if(size == 4) {
+        length = element[0];
+        width = element[1];
+        if (element[2].is_number()) {
+            rear_axis_offset = element[2];
+        } else {
+            rear_axis_offset = 0.0;
+        }
+        agent_type = element[3];
+    }
+  }
 };
 
 /**

@@ -157,12 +157,13 @@ def run_initialize(location, states_history, agent_attributes, get_infractions, 
     assert isinstance(response,
                       InitializeResponse) and response.agent_attributes is not None and response.agent_states is not None
 
+
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests)
 def test_negative(location, states_history, agent_attributes, get_infractions, agent_count):
     with pytest.raises(InvalidRequestError):
         run_initialize(location, states_history, agent_attributes, get_infractions, agent_count)
 
+
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests)
 def test_positive(location, states_history, agent_attributes, get_infractions, agent_count):
     run_initialize(location, states_history, agent_attributes, get_infractions, agent_count)
-  
