@@ -16,4 +16,6 @@ RUN curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor >bazel-
 COPY . /usr/src/myapp
 WORKDIR /usr/src/myapp
 
+RUN chmod 755 ./run_all_tests.sh
+
 CMD ["/bin/bash"]

@@ -28,6 +28,9 @@ private:
   void refresh_body_json_();
 
 public:
+  /**
+   * A request sent to receive an BlameResponse from the API.
+   */
   BlameRequest(const std::string &body_str);
   /**
    * Serialize all the fields into a string.

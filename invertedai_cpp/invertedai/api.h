@@ -30,13 +30,20 @@ LocationInfoResponse location_info(LocationInfoRequest &location_info_request,
 
 /**
  * Wrap the REST API "initialize".
- * Initializes a simulation in a given location. Either agent_count or both
- * agent_attributes and states_history need to be provided. In the latter case,
- * the simulation is initialized with the specific history, and if traffic
- * lights are present then traffic_light_state_history should also be provided.
- * If only agent_count is specified, a new initial state is generated with the
- * requested total number of agents. Every simulation needs to start with a call
- * to this function in order to obtain correct recurrent states for drive().
+ * Initializes a simulation in a given location, using a combination of **user-defined** and **sampled** agents.
+ * **User-defined** agents are placed in a scene first, after which a number of agents are sampled conditionally 
+ * inferred from the `num_agents_to_spawn` argument.
+ * If **user-defined** agents are desired, `states_history` must contain a vector of `AgentState's` of all **user-defined** 
+ * agents per historical time step.
+ * Any **user-defined** agent must have a corresponding fully specified static `AgentAttribute` in `agent_attributes`. 
+ * Any **sampled** agents not specified in `agent_attributes` will be generated with default static attribute values however
+ * **sampled** agents may be defined by specifying `agent_type` only. 
+ * Agents are identified by their vector index, so ensure the indices of each agent match in `states_history` and
+ * `agent_attributes` when applicable. 
+ * If traffic lights are present in the scene, for best results their state should be specified for the current time in a 
+ * `TrafficLightStatesDict`, and all historical time steps for which `states_history` is provided. It is legal to omit
+ * the traffic light state specification, but the scene will be initialized as if the traffic lights were disabled.
+ * Every simulation must start with a call to this function in order to obtain correct recurrent states for invertedai::drive.
  *
  * @param initialize_request the initialize request to send to the API
  * @param session the shared session connected with the host
