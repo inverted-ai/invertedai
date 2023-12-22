@@ -1,6 +1,5 @@
 import requests
 import asyncio
-from deprecated import deprecated
 import json
 import logging
 import os
