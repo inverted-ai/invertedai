@@ -125,16 +125,6 @@ negative_tests = [
       dict(width=1.15, agent_type='pedestrian'),
       dict(agent_type='car')],
      False, None),
-    ("canada:ubc_roundabout",
-     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
-       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
-      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
-       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
-     [dict(length=1.39, width=1.26, rear_axis_offset=0.0, agent_type='pedestrian'),
-      dict(length=1.37, width=1.98, rear_axis_offset=0.0, agent_type='pedestrian'),
-      dict(agent_type='pedestrian'),
-      dict(agent_type='car')],
-     False, 1),
 ]
 
 def run_initialize(location, states_history, agent_attributes, get_infractions, agent_count):

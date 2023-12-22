@@ -19,10 +19,14 @@ academic_url = "https://api.inverted.ai/v0/academic/m1"
 log_level = os.environ.get("IAI_LOG_LEVEL", "WARNING")
 log_console = strtobool(os.environ.get("IAI_LOG_CONSOLE", "true"))
 log_file = strtobool(os.environ.get("IAI_LOG_FILE", "false"))
+api_key = os.environ.get("IAI_API_KEY", "")
+
 
 logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log_file))
 
 session = Session()
+if api_key:
+    session.add_apikey(api_key)
 add_apikey = session.add_apikey
 use_mock_api = session.use_mock_api
 
