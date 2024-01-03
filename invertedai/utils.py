@@ -349,7 +349,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
                 get_birdview=get_birdview,
             )
         except BaseException:
-            return [], [], []
+            return [], [], [], ""
         SLACK = 0
         valid_agents = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
@@ -362,7 +362,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-        return valid_agent_state, valid_agent_attrs, valid_agent_rs
+        return valid_agent_state, valid_agent_attrs, valid_agent_rs, response.model_version
 
     stride = initialize_fov / 2
 
@@ -394,15 +394,19 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
 
     results = await asyncio.gather(*[reinit(agnts["state"], agnts["attr"], agnts["center"]) for agnts in initialize_payload])
 
+    model_version = ""
     for result in results:
         new_agent_state += result[0]
         new_attributes += result[1]
         new_recurrent_states += result[2]
+        model_version = result[3]
 
     return invertedai.api.InitializeResponse(
         recurrent_states=new_recurrent_states,
         agent_states=new_agent_state,
-        agent_attributes=new_attributes)
+        agent_attributes=new_attributes,
+        model_version=model_version
+    )
 
 
 def area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None, random_seed=None,
@@ -478,10 +482,10 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-    return invertedai.api.InitializeResponse(
-        recurrent_states=new_recurrent_states,
-        agent_states=new_agent_state,
-        agent_attributes=new_attributes)
+    response.recurrent_states = new_recurrent_states
+    response.agent_states = new_agent_state
+    response.agent_attributes = new_attributes
+    return response
 
 
 def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0),
