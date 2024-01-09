@@ -1,0 +1,81 @@
+{
+    "location": "canada:ubc_roundabout",
+    "num_agents_to_spawn": 10,
+    "states_history": [
+        [
+            [
+                -11.38,
+                25.95,
+                -1.09,
+                9.42
+            ],
+            [
+                48.3,
+                13.65,
+                0.11,
+                0.95
+            ],
+            [
+                -5.81,
+                -37.0,
+                0.15,
+                0.47
+            ],
+            [
+                -11.75,
+                24.38,
+                -2.29,
+                0.98
+            ],
+            [
+                36.69,
+                6.91,
+                -3.07,
+                6.18
+            ]
+        ]
+    ],
+    "agent_attributes": [
+        [
+            5.15,
+            2.43,
+            1.96,
+            "car"
+        ],
+        [
+            1.2,
+            1.51,
+            null,
+            "pedestrian"
+        ],
+        [
+            5.11,
+            2.17,
+            1.94,
+            "car"
+        ],
+        [
+            1.16,
+            1.41,
+            null,
+            "pedestrian"
+        ],
+        [
+            5.18,
+            2.22,
+            1.97,
+            "car"
+        ],
+        [
+
+        ],
+        [
+            "pedestrian"
+        ]
+    ],
+    "traffic_light_state_history": null,
+    "get_birdview": true,
+    "get_infractions": true,
+    "random_seed": null,
+    "location_of_interest": null
+}

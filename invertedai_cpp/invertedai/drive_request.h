@@ -27,11 +27,15 @@ private:
   std::optional<int> random_seed_;
   std::optional<double> rendering_fov_;
   std::optional<std::pair<double, double>> rendering_center_;
+  std::optional<std::string> model_version_;
   json body_json_;
 
   void refresh_body_json_();
 
 public:
+  /**
+   * A request sent to receive an DriveResponse from the API.
+   */
   DriveRequest(const std::string &body_str);
   /**
    * Serialize all the fields into a string.
@@ -94,6 +98,10 @@ public:
    * Get random_seed.
    */
   std::optional<int> random_seed() const;
+  /**
+   * Get model version.
+   */
+  std::optional<std::string> model_version() const;
 
   // setters
   /**
@@ -149,6 +157,10 @@ public:
    * for reproducibility.
    */
   void set_random_seed(std::optional<int> random_seed);
+  /**
+   * Set model version. If None is passed which is by default, the best model will be used.
+   */
+  void set_model_version(std::optional<std::string> model_version);
 };
 
 } // namespace invertedai

@@ -1,5 +1,5 @@
 {
-    "location": "canada:vancouver:ubc_roundabout",
+    "location": "iai:ubc_roundabout",
     "include_map_source": false,
     "rendering_fov": null,
     "rendering_center": null

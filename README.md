@@ -1,7 +1,7 @@
 [pypi-badge]: https://badge.fury.io/py/invertedai.svg
 [pypi-link]: https://pypi.org/project/invertedai/
 [colab-badge]: https://colab.research.google.com/assets/colab-badge.svg
-[colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai/blob/develop/examples/IAI_demo.ipynb
+[colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai/blob/develop/examples/IAI_full_demo.ipynb
 [rest-link]: https://app.swaggerhub.com/apis-docs/InvertedAI/InvertedAI
 [examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
 
@@ -15,7 +15,7 @@
 <!-- start elevator-pitch -->
 Inverted AI provides an API for controlling non-playable characters (NPCs) in autonomous driving simulations,
 available as either a [REST API][rest-link] or a [Python SDK](https://docs.inverted.ai/en/latest/pythonapi/index.html), (and [C++ SDK](https://docs.inverted.ai/en/latest/cppapi/index.html)) built on top of it. Using the API requires an access key -
-[contact us](mailto:sales@inverted.ai) to get yours. This page describes how to get started quickly. For more in-depth understanding,
+create an account on our [user portal](https://www.inverted.ai/portal/login) to get one.  New users are given keys preloaded with an API access budget; researcher users affiliated to academic institutions generally receive a sufficient amount of credits to conduct their research for free.  This page describes how to get started quickly. For more in-depth understanding,
 see the [API usage guide](https://docs.inverted.ai/en/latest/userguide.html), and detailed documentation for the [REST API][rest-link],
 the [Python SDK](https://docs.inverted.ai/en/latest/pythonapi/index.html), and the [C++ SDK](https://docs.inverted.ai/en/latest/cppapi/index.html).
 To understand the underlying technology and why it's necessary for autonomous driving simulations, visit the

@@ -8,19 +8,15 @@ LocationInfoRequest::LocationInfoRequest(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
 
   this->location_ = this->body_json_["location"];
-  this->include_map_source_ =
-      this->body_json_["include_map_source"].is_boolean()
-          ? this->body_json_["include_map_source"].get<bool>()
-          : false;
-  this->rendering_fov_ =
-      this->body_json_["rendering_fov"].is_number_integer()
-          ? std::optional<int>{this->body_json_["rendering_fov"].get<int>()}
-          : std::nullopt;
-  this->rendering_center_=
-      this->body_json_["rendering_center"].is_null()
-          ? std::nullopt
-          : std::optional<std::pair<double, double>>{
-                this->body_json_["rendering_center"]};
+  this->include_map_source_ = this->body_json_["include_map_source"].is_boolean()
+    ? this->body_json_["include_map_source"].get<bool>()
+    : false;
+  this->rendering_fov_ = this->body_json_["rendering_fov"].is_number_integer()
+    ? std::optional<int>{this->body_json_["rendering_fov"].get<int>()}
+    : std::nullopt;
+  this->rendering_center_= this->body_json_["rendering_center"].is_null()
+    ? std::nullopt
+    : std::optional<std::pair<double, double>>{this->body_json_["rendering_center"]};
 }
 
 void LocationInfoRequest::refresh_body_json_() {
@@ -44,19 +40,25 @@ std::string LocationInfoRequest::body_str() {
 }
 
 const std::string LocationInfoRequest::url_query_string() const {
-  return "?location=" + this->location_ + "&include_map_source=" +
-         (this->include_map_source_ ? "true" : "false") +
-         (this->rendering_fov_.has_value()
-              ? "&rendering_fov=" + std::to_string(this->rendering_fov_.value())
-              : "") +
-         (this->rendering_center_.has_value()
-              ? "&rendering_center=" +
-                    std::to_string(this->rendering_center_.value().first) +
-                    "," + std::to_string(this->rendering_center_.value().second)
-              : "");
+  return "?location=" + 
+    this->location_ + 
+    "&include_map_source=" +
+    (this->include_map_source_ ? "true" : "false") +
+    (
+      this->rendering_fov_.has_value()
+        ? "&rendering_fov=" + std::to_string(this->rendering_fov_.value())
+        : ""
+    ) +
+    (
+      this->rendering_center_.has_value()
+        ? "&rendering_center=" + std::to_string(this->rendering_center_.value().first) + "," + std::to_string(this->rendering_center_.value().second)
+        : ""
+    );
 }
 
-std::string LocationInfoRequest::location() const { return this->location_; }
+std::string LocationInfoRequest::location() const { 
+  return this->location_; 
+}
 
 bool LocationInfoRequest::include_map_source() const {
   return this->include_map_source_;
@@ -66,8 +68,7 @@ std::optional<int> LocationInfoRequest::rendering_fov() const {
   return this->rendering_fov_;
 }
 
-std::optional<std::pair<double, double>>
-LocationInfoRequest::rendering_center() const {
+std::optional<std::pair<double, double>> LocationInfoRequest::rendering_center() const {
   return this->rendering_center_;
 }
 
@@ -83,8 +84,7 @@ void LocationInfoRequest::set_rendering_fov(std::optional<int> rendering_fov) {
   this->rendering_fov_ = rendering_fov;
 }
 
-void LocationInfoRequest::set_rendering_center(
-    const std::optional<std::pair<double, double>> &rendering_center) {
+void LocationInfoRequest::set_rendering_center(const std::optional<std::pair<double, double>> &rendering_center) {
   this->rendering_center_ = rendering_center;
 }
 

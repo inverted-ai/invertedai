@@ -1,9 +1,12 @@
 import requests
 import asyncio
 import json
+import logging
+import os
 import re
 import logging
 from typing import Dict, Optional, List, Tuple, Any
+from requests import Response
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter, Retry
 from pydantic import validate_arguments, BaseModel, ConfigDict
@@ -39,11 +42,11 @@ SLACK = 2
 INITIALIZE_FOV = 120
 AGENT_FOV = 35
 
+logger = logging.getLogger(__name__)
 
 class Session:
-    def __init__(self, api_token: str = ""):
+    def __init__(self):
         self.session = requests.Session()
-        self.session.auth = APITokenAuth(api_token)
         retries = Retry(total=5,
                         backoff_factor=0.1,
                         status_forcelist=[500, 502, 503, 504],
@@ -59,18 +62,40 @@ class Session:
                 "Connection": "keep-alive",
             }
         )
-        self.base_url = self._get_base_url()
+        self._base_url = self._get_base_url()
 
-    def add_apikey(self, api_token: str = ""):
-        if not iai.dev and not api_token:
-            raise error.InvalidAPIKeyError("Empty API key received.")
+    @property
+    def base_url(self):
+        return self._base_url
+
+    @base_url.setter
+    def base_url(self, value):
+        self._base_url = value
+
+
+    def _verify_api_key(self, api_token: str, verifying_url: str):
+        """
+        Verifies the API key by making a request to the verifying URL.
+
+        Args:
+            api_token (str): The API token to be used for authentication.
+            verifying_url (str): The URL to be used for verification.
+
+        Returns:
+            str: The final verifying URL after fallback (if applicable).
+
+        Raises:
+            error.AuthenticationError: If access is denied due to an invalid API key.
+        """
         self.session.auth = APITokenAuth(api_token)
-        response = self.session.request(method="get", url=self.base_url)
-        if response.status_code != 200:
-            url_acd = "https://api.inverted.ai/v0/academic/m1"
-            response_acd = self.session.request(method="get", url=url_acd)
+        response = self.session.request(method="get", url=verifying_url)
+        if verifying_url == iai.commercial_url and response.status_code != 200:
+            # Check for academic access in case the previous call to the commercial server fails.
+            logger.warning("Commercial access denied and fallback to check for academic access.")
+            verifying_url = iai.academic_url
+            response_acd = self.session.request(method="get", url=verifying_url)
             if response_acd.status_code == 200:
-                self.base_url = url_acd
+                self.base_url = verifying_url
                 response = response_acd
             elif response_acd.status_code != 403:
                 response = response_acd
@@ -78,9 +103,37 @@ class Session:
             raise error.AuthenticationError(
                 "Access denied. Please check the provided API key."
             )
-        elif response.status_code != 200:
-            raise error.APIError("The server is aware that it has erred or is incapable of performing the requested"
-                                 " method.")
+        return verifying_url
+
+
+    def add_apikey(self, api_token: str = "", key_type: Optional[str] = None, url: Optional[str] = None):
+        """
+        Bind an API key to the session for authentication.
+
+        Args:
+            api_token (str): The API key to be added. Defaults to an empty string.
+            key_type (str, optional): The type of API key. Defaults to None. When passed, the base_url will be set according to the key_type.
+            url (str, optional): The URL to be used for the request. Defaults to None. When passed, the base_rul will be set to the passed value and the key_type will be ignored.
+
+        Raises:
+            InvalidAPIKeyError: If the API key is empty and not in development mode.
+            InvalidAPIKeyError: If the key_type is invalid.
+            AuthenticationError: If access is denied due to an invalid API key.
+            APIError: If the server encounters an error or is unable to perform the requested method.
+        """
+        if not iai.dev and not api_token:
+            raise error.InvalidAPIKeyError("Empty API key received.")
+        if url is None:
+            request_url = self._get_base_url()
+        if key_type is not None and key_type not in ["commercial", "academic"]:
+            raise error.InvalidAPIKeyError(f"Invalid API key type: {key_type}.")
+        if key_type == "academic":
+            request_url = iai.academic_url
+        elif key_type == "commercial":
+            request_url = iai.commercial_url
+        if url is not None:
+            request_url = url
+        self.base_url = self._verify_api_key(api_token, request_url)
 
     def use_mock_api(self, use_mock: bool = True) -> None:
         invertedai.api.config.mock_api = use_mock
@@ -171,7 +224,7 @@ class Session:
         The method path should be appended to the base_url
         """
         if not iai.dev:
-            base_url = "https://api.inverted.ai/v0/aws/m1"
+            base_url = iai.commercial_url # Default to commercial when initializing.
         else:
             base_url = iai.dev_url
         # TODO: Add endpoint option and versioning to base_url
@@ -300,7 +353,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
                 get_birdview=get_birdview,
             )
         except BaseException:
-            return [], [], []
+            return [], [], [], ""
         SLACK = 0
         valid_agents = list(filter(lambda x: inside_fov(
             center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
@@ -313,7 +366,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-        return valid_agent_state, valid_agent_attrs, valid_agent_rs
+        return valid_agent_state, valid_agent_attrs, valid_agent_rs, response.model_version
 
     stride = initialize_fov / 2
 
@@ -345,15 +398,19 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
 
     results = await asyncio.gather(*[reinit(agnts["state"], agnts["attr"], agnts["center"]) for agnts in initialize_payload])
 
+    model_version = ""
     for result in results:
         new_agent_state += result[0]
         new_attributes += result[1]
         new_recurrent_states += result[2]
+        model_version = result[3]
 
     return invertedai.api.InitializeResponse(
         recurrent_states=new_recurrent_states,
         agent_states=new_agent_state,
-        agent_attributes=new_attributes)
+        agent_attributes=new_attributes,
+        model_version=model_version
+    )
 
 
 def area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None, random_seed=None,
@@ -429,10 +486,10 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-    return invertedai.api.InitializeResponse(
-        recurrent_states=new_recurrent_states,
-        agent_states=new_agent_state,
-        agent_attributes=new_attributes)
+    response.recurrent_states = new_recurrent_states
+    response.agent_states = new_agent_state
+    response.agent_attributes = new_attributes
+    return response
 
 
 def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0),
@@ -505,11 +562,10 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-    return invertedai.api.InitializeResponse(
-        recurrent_states=agent_rs,
-        agent_states=agent_states,
-        agent_attributes=agent_attributes)
-
+    response.recurrent_states=agent_rs
+    response.agent_states=agent_states
+    response.agent_attributes = agent_attributes
+    return response
 
 class APITokenAuth(AuthBase):
     def __init__(self, api_token):

@@ -9,7 +9,12 @@ DriveResponse::DriveResponse(const std::string &body_str) {
 
   this->agent_states_.clear();
   for (const auto &element : this->body_json_["agent_states"]) {
-    AgentState agent_state = {element[0], element[1], element[2], element[3]};
+    AgentState agent_state = {
+      element[0], 
+      element[1], 
+      element[2], 
+      element[3]
+    };
     this->agent_states_.push_back(agent_state);
   }
   this->is_inside_supported_area_.clear();
@@ -31,17 +36,26 @@ DriveResponse::DriveResponse(const std::string &body_str) {
   }
   this->infraction_indicators_.clear();
   for (const auto &element : this->body_json_["infraction_indicators"]) {
-    InfractionIndicator infraction_indicator = {element[0], element[1],
-                                                element[2]};
+    InfractionIndicator infraction_indicator = {
+      element[0], 
+      element[1],
+      element[2]
+    };
     this->infraction_indicators_.push_back(infraction_indicator);
   }
+  this->model_version_.clear();
+  this->model_version_ = body_json_["model_version"];
 }
 
 void DriveResponse::refresh_body_json_() {
   this->body_json_["agent_states"].clear();
   for (const AgentState &agent_state : this->agent_states_) {
-    json element = {agent_state.x, agent_state.y, agent_state.orientation,
-                    agent_state.speed};
+    json element = {
+      agent_state.x, 
+      agent_state.y, 
+      agent_state.orientation,
+      agent_state.speed
+    };
     this->body_json_["agent_states"].push_back(element);
   }
   this->body_json_["is_inside_supported_area"].clear();
@@ -62,13 +76,16 @@ void DriveResponse::refresh_body_json_() {
     this->body_json_["birdview"].push_back(element);
   }
   this->body_json_["infraction_indicators"].clear();
-  for (InfractionIndicator infraction_indicator :
-       this->infraction_indicators_) {
-    json element = {infraction_indicator.collisions,
-                    infraction_indicator.offroad,
-                    infraction_indicator.wrong_way};
+  for (InfractionIndicator infraction_indicator : this->infraction_indicators_) {
+    json element = {
+      infraction_indicator.collisions,
+      infraction_indicator.offroad,
+      infraction_indicator.wrong_way
+    };
     this->body_json_["infraction_indicators"].push_back(element);
   }
+  this->model_version_.clear();
+  this->model_version_ = body_json_["model_version"];
 }
 
 std::string DriveResponse::body_str() {
@@ -96,18 +113,19 @@ std::vector<InfractionIndicator> DriveResponse::infraction_indicators() const {
   return this->infraction_indicators_;
 }
 
-void DriveResponse::set_agent_states(
-    const std::vector<AgentState> &agent_states) {
+std::string DriveResponse::model_version() const {
+  return this->model_version_;
+}
+
+void DriveResponse::set_agent_states(const std::vector<AgentState> &agent_states) {
   this->agent_states_ = agent_states;
 }
 
-void DriveResponse::set_is_inside_supported_area(
-    const std::vector<bool> &is_inside_supported_area) {
+void DriveResponse::set_is_inside_supported_area(const std::vector<bool> &is_inside_supported_area) {
   this->is_inside_supported_area_ = is_inside_supported_area;
 }
 
-void DriveResponse::set_recurrent_states(
-    const std::vector<std::vector<double>> &recurrent_states) {
+void DriveResponse::set_recurrent_states(const std::vector<std::vector<double>> &recurrent_states) {
   this->recurrent_states_ = recurrent_states;
 }
 
@@ -115,8 +133,7 @@ void DriveResponse::set_birdview(const std::vector<unsigned char> &birdview) {
   this->birdview_ = birdview;
 }
 
-void DriveResponse::set_infraction_indicators(
-    const std::vector<InfractionIndicator> &infraction_indicators) {
+void DriveResponse::set_infraction_indicators(const std::vector<InfractionIndicator> &infraction_indicators) {
   this->infraction_indicators_ = infraction_indicators;
 }
 

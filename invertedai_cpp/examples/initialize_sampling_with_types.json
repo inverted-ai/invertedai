@@ -1,8 +1,14 @@
 {
-    "location": "carla:Town03",
+    "location": "carla:Town04",
     "num_agents_to_spawn": 10,
     "states_history": null,
-    "agent_attributes": null,
+    "agent_attributes": [
+        ["car"],
+        ["pedestrian"],
+        [],
+        ["pedestrian"],
+        ["pedestrian"]
+    ],
     "traffic_light_state_history": null,
     "get_birdview": true,
     "get_infractions": true,

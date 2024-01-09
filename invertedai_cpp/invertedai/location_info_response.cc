@@ -8,10 +8,9 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
 
   this->version_ = this->body_json_["version"];
-  this->max_agent_number_ =
-      this->body_json_["max_agent_number"].is_number_integer()
-          ? this->body_json_["max_agent_number"].get<int>()
-          : 0;
+  this->max_agent_number_ = this->body_json_["max_agent_number"].is_number_integer()
+    ? this->body_json_["max_agent_number"].get<int>()
+    : 0;
   this->bounding_polygon_.clear();
   for (const auto &element : this->body_json_["bounding_polygon"]) {
     Point2d point = {element[0], element[1]};
@@ -22,24 +21,28 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
     this->birdview_image_.push_back(element);
   }
   this->osm_map_ = this->body_json_["osm_map"];
-  this->map_origin_ = {this->body_json_["map_origin"][0],
-                       this->body_json_["map_origin"][1]};
+  this->map_origin_ = {
+    this->body_json_["map_origin"][0],
+    this->body_json_["map_origin"][1]
+  };
   this->static_actors_.clear();
   for (const auto &element : this->body_json_["static_actors"]) {
     std::optional<int> length = element["length"].is_number_float()
-                                    ? std::optional<int>{element["length"]}
-                                    : std::nullopt;
+      ? std::optional<int>{element["length"]}
+      : std::nullopt;
     std::optional<int> width = element["width"].is_number_float()
-                                   ? std::optional<int>{element["width"]}
-                                   : std::nullopt;
-    StaticMapActor static_map_actor = {element["actor_id"],
-                                       element["agent_type"],
-                                       element["x"],
-                                       element["y"],
-                                       element["orientation"],
-                                       length,
-                                       width,
-                                       element["dependant"]};
+      ? std::optional<int>{element["width"]}
+      : std::nullopt;
+    StaticMapActor static_map_actor = {
+      element["actor_id"],
+      element["agent_type"],
+      element["x"],
+      element["y"],
+      element["orientation"],
+      length,
+      width,
+      element["dependant"]
+    };
     this->static_actors_.push_back(static_map_actor);
   }
 }
@@ -86,7 +89,9 @@ std::string LocationInfoResponse::body_str() {
   return this->body_json_.dump();
 }
 
-std::string LocationInfoResponse::version() const { return this->version_; }
+std::string LocationInfoResponse::version() const { 
+  return this->version_;
+}
 
 int LocationInfoResponse::max_agent_number() const {
   return this->max_agent_number_;
@@ -100,9 +105,13 @@ std::vector<unsigned char> LocationInfoResponse::birdview_image() const {
   return this->birdview_image_;
 }
 
-std::string LocationInfoResponse::osm_map() const { return this->osm_map_; }
+std::string LocationInfoResponse::osm_map() const { 
+  return this->osm_map_; 
+}
 
-Point2d LocationInfoResponse::map_origin() const { return this->map_origin_; }
+Point2d LocationInfoResponse::map_origin() const { 
+  return this->map_origin_; 
+}
 
 std::vector<StaticMapActor> LocationInfoResponse::static_actors() const {
   return static_actors_;
@@ -116,13 +125,11 @@ void LocationInfoResponse::set_max_agent_number(int max_agent_number) {
   this->max_agent_number_ = max_agent_number;
 }
 
-void LocationInfoResponse::set_bounding_polygon(
-    const std::vector<Point2d> &bounding_polygon) {
+void LocationInfoResponse::set_bounding_polygon(const std::vector<Point2d> &bounding_polygon) {
   this->bounding_polygon_ = bounding_polygon;
 }
 
-void LocationInfoResponse::set_birdview_image(
-    const std::vector<unsigned char> &birdview_image) {
+void LocationInfoResponse::set_birdview_image(const std::vector<unsigned char> &birdview_image) {
   this->birdview_image_ = birdview_image;
 }
 
@@ -134,8 +141,7 @@ void LocationInfoResponse::set_map_origin(const Point2d map_origin) {
   this->map_origin_ = map_origin;
 }
 
-void LocationInfoResponse::set_static_actors(
-    const std::vector<StaticMapActor> &static_actors) {
+void LocationInfoResponse::set_static_actors(const std::vector<StaticMapActor> &static_actors) {
   this->static_actors_ = static_actors;
 }
 

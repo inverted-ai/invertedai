@@ -14,22 +14,24 @@ namespace invertedai {
 class InitializeRequest {
 private:
   std::string location_;
-  int num_agents_to_spawn_;
-  std::vector<AgentState> conditional_agent_states_;
-  std::vector<AgentAttributes> conditional_agent_attributes_;
+  std::optional<int> num_agents_to_spawn_;
   std::vector<std::vector<AgentState>> states_history_;
   std::vector<AgentAttributes> agent_attributes_;
   std::vector<std::vector<TrafficLightState>> traffic_light_state_history_;
   std::optional<std::pair<double, double>> location_of_interest_;
   bool get_birdview_;
   bool get_infractions_;
-  std::optional<int> agent_count_;
   std::optional<int> random_seed_;
+  std::optional<std::string> model_version_;
   json body_json_;
 
   void refresh_body_json_();
 
 public:
+  
+  /**
+   * A request sent to receive an InitializeResponse from the API.
+   */
   InitializeRequest(const std::string &body_str);
   /**
    * Serialize all the fields into a string.
@@ -44,19 +46,10 @@ public:
   /**
    * Get how many agents will be spawned.
    */
-  int num_agents_to_spawn() const;
+  std::optional<int> num_agents_to_spawn() const;
   /**
    * Get history of agent states.
    */
-  std::vector<AgentState> conditional_agent_states() const;
-  /**
-   * Get conditional agent states.
-   */
-  std::vector<AgentAttributes> conditional_agent_attributes() const;
-  /**
-   * Get conditional agent attributes.
-   */
-
   std::vector<std::vector<AgentState>> states_history() const;
   /**
    * Get static attributes for all agents.
@@ -82,14 +75,14 @@ public:
    */
   bool get_infractions() const;
   /**
-   * Dictates how many agents will be spawned.
-   */
-  std::optional<int> agent_count() const;
-  /**
    * Get random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.
    */
   std::optional<int> random_seed() const;
+  /**
+   * Get model version.
+   */
+  std::optional<std::string> model_version() const;
 
   // setters
   /**
@@ -100,22 +93,11 @@ public:
    * If states_history is not specified, this needs to be provided and
    * dictates how many agents will be spawned.
    */
-  void set_num_agents_to_spawn(int num_agents_to_spawn);
+  void set_num_agents_to_spawn(std::optional<int> num_agents_to_spawn);
   /**
    * Set history of agent states. The outer list is over agents and the
    * inner over time, in chronological order. For best results, provide at least
    * 10 historical states for each agent.
-   */
-  void set_conditional_agent_states(
-      const std::vector<AgentState> &conditional_agent_states);
-  /**
-   * Optional conditional agent states when `agent_count` is passed. When
-   * passed, `agent_count` includes the number of conditional agents passed.
-   */
-  void set_conditional_agent_attributes(
-      const std::vector<AgentAttributes> &conditional_agent_attributes);
-  /**
-   * Optional agent attributes when `conditional_agent_states` is passed.
    */
   void set_states_history(
       const std::vector<std::vector<AgentState>> &states_history);
@@ -149,15 +131,14 @@ public:
    */
   void set_get_infractions(bool get_infractions);
   /**
-   * If states_history is not specified, this needs to be provided and dictates
-   * how many agents will be spawned.
-   */
-  void set_agent_count(std::optional<int> agent_count);
-  /**
    * Set random_seed, which controls the stochastic aspects of agent behavior
    * for reproducibility.
    */
   void set_random_seed(std::optional<int> random_seed);
+  /**
+   * Set model version. If None is passed which is by default, the best model will be used.
+   */
+  void set_model_version(std::optional<std::string> model_version);
 };
 
 } // namespace invertedai
