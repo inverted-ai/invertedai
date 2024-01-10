@@ -127,7 +127,8 @@ def run_initialize_drive_flow(location, states_history, agent_attributes, get_in
         )
         assert isinstance(updated_state,
                           DriveResponse) and updated_state.agent_states is not None and updated_state.recurrent_states is not None
-
+        if updated_state.traffic_lights_states is not None:
+            assert updated_state.light_recurrent_states is not None
 
 def run_direct_drive(location, agent_states, agent_attributes, recurrent_states, get_infractions):
     drive_response = drive(
