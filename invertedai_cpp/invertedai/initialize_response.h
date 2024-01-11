@@ -5,6 +5,8 @@
 #include "externals/json.hpp"
 
 #include <vector>
+#include <map>
+#include <optional>
 
 using json = nlohmann::json;
 
@@ -15,6 +17,8 @@ private:
   std::vector<AgentState> agent_states_;
   std::vector<AgentAttributes> agent_attributes_;
   std::vector<std::vector<double>> recurrent_states_;
+  std::optional<std::map<std::string, std::string>> traffic_lights_states_;
+  std::optional<std::vector<LightRecurrentState>> light_recurrent_states_;
   std::vector<unsigned char> birdview_;
   std::vector<InfractionIndicator> infraction_indicators_;
   std::string model_version_;
@@ -51,6 +55,16 @@ public:
    */
   std::vector<unsigned char> birdview() const;
   /**
+   * Get the states of traffic lights.
+   */
+  std::optional<std::map<std::string, std::string>> traffic_lights_states() const;
+    /**
+   * Get light recurrent states for all light groups in location,
+   * each light recurrent state corresponds to one light group, 
+   * and contains the state index in its state machine and the number of ticks before the state changes.
+   */
+  std::optional<std::vector<LightRecurrentState>> light_recurrent_states() const;
+  /**
    * If get_infractions was set, they are returned here.
    */
   std::vector<InfractionIndicator> infraction_indicators() const;
@@ -77,6 +91,18 @@ public:
    */
   void set_recurrent_states(
       const std::vector<std::vector<double>> &recurrent_states);
+  /**
+   * Set the states of traffic lights. If the location contains traffic lights
+   * within the supported area, their current state should be provided here. Any
+   * traffic light for which no state is provided will be ignored by the agents.
+   */
+  void set_traffic_lights_states(
+      const std::map<std::string, std::string> &traffic_lights_states);
+   /**
+   * Set light recurrent states for all light groups in location,
+   */
+  void set_light_recurrent_states(
+      const std::vector<LightRecurrentState> &light_recurrent_states);
   /**
    * Set birdview.
    */
