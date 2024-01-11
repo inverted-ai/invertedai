@@ -157,11 +157,13 @@ void DriveRequest::update(const InitializeResponse &init_res) {
   this->agent_states_ = init_res.agent_states();
   this->agent_attributes_ = init_res.agent_attributes();
   this->recurrent_states_ = init_res.recurrent_states();
+  this->light_recurrent_states_ = init_res.light_recurrent_states();
 }
 
 void DriveRequest::update(const DriveResponse &drive_res) {
   this->agent_states_ = drive_res.agent_states();
   this->recurrent_states_ = drive_res.recurrent_states();
+  this->light_recurrent_states_ = drive_res.light_recurrent_states();
 }
 
 std::string DriveRequest::body_str() {
