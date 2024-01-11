@@ -61,7 +61,7 @@ public:
     /**
    * Get light recurrent states for all light groups in location,
    * each light recurrent state corresponds to one light group, 
-   * and contains the state index in its state machine and the number of ticks before the state changes.
+   * and contains the state and the time remaining in that state.
    */
   std::optional<std::vector<LightRecurrentState>> light_recurrent_states() const;
   /**
@@ -99,7 +99,7 @@ public:
   void set_traffic_lights_states(
       const std::map<std::string, std::string> &traffic_lights_states);
    /**
-   * Set light recurrent states for all light groups in location,
+   * Set recurrent states for all light groups in location.
    */
   void set_light_recurrent_states(
       const std::vector<LightRecurrentState> &light_recurrent_states);

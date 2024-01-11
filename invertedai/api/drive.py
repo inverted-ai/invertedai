@@ -44,8 +44,7 @@ class DriveResponse(BaseModel):
         bool
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
     traffic_lights_states: Optional[TrafficLightStatesDict] # Traffic light states for the next time step
-    light_recurrent_states: Optional[LightRecurrentStates] # Recurrent states for traffic lights
-    model_version: str  # Model version used for this API call
+    light_recurrent_states: Optional[LightRecurrentStates] # Recurrent states for all traffic lights at the next time step
 
 
 @validate_arguments
@@ -105,8 +104,7 @@ def drive(
        state is provided will be ignored by the agents.
 
     light_recurrent_states:
-       To use light state machines pre-defined for the area, pass the light recurrent state for each light group.
-       Each light recurrent state consists of the state index from the state machine, and the number of ticks remaining in that state.
+       Specifies the state and time remaining for each light group in the scene.
 
     random_seed:
         Controls the stochastic aspects of agent behavior for reproducibility.

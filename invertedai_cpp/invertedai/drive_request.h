@@ -81,7 +81,7 @@ public:
    */
   std::vector<std::vector<double>> recurrent_states() const;
   /**
-   * Get light recurrent states for all light groups in location.
+   * Get the recurrent states for all light groups in location.
    */
   std::optional<std::vector<LightRecurrentState>> light_recurrent_states() const;
   /**
@@ -140,7 +140,7 @@ public:
   void set_recurrent_states(
       const std::vector<std::vector<double>> &recurrent_states);
   /**
-   * Set light recurrent states for all light groups in location,
+   * Set light recurrent states for all light groups in location.
    */
   void set_light_recurrent_states(
       const std::vector<LightRecurrentState> &light_recurrent_states);

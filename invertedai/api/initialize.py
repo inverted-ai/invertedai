@@ -43,8 +43,8 @@ class InitializeResponse(BaseModel):
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
-    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states
-    light_recurrent_states: Optional[LightRecurrentStates] # Traffic light recurrent states
+    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states at the first time step
+    light_recurrent_states: Optional[LightRecurrentStates] # To pass to :func:`iai.drive` at the first time step
     model_version: str # Model version used for this API call
 
 
