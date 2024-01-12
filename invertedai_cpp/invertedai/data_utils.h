@@ -144,8 +144,8 @@ struct TrafficLightState {
  * Light recurrent state that contains the current state and ticks remaining in this state.
  */
 struct LightRecurrentState {
-  int state;
-  int ticks_remaining;
+  float state;
+  float ticks_remaining;
 };
 
 /**
