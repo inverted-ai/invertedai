@@ -131,6 +131,11 @@ class TrafficLightState(str, Enum):
     red = "red"
 
 
+class LightRecurrentState(BaseModel):
+    state: int
+    ticks_remaining: int
+    
+    
 class AgentType(str, Enum):
     car = "car"
     pedestrian = "pedestrian"
@@ -262,3 +267,4 @@ class StaticMapActor(BaseModel):
 
 
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
+LightRecurrentStates = List[LightRecurrentState]

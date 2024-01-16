@@ -141,6 +141,14 @@ struct TrafficLightState {
 };
 
 /**
+ * Light recurrent state that contains the current state and ticks remaining in this state.
+ */
+struct LightRecurrentState {
+  float state;
+  float ticks_remaining;
+};
+
+/**
  * Infractions committed by a given agent, as returned from invertedai::drive().
  */
 struct InfractionIndicator {

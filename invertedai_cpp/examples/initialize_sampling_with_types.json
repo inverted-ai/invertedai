@@ -1,6 +1,6 @@
 {
-    "location": "carla:Town04",
-    "num_agents_to_spawn": 10,
+    "location": "iai:drake_street_and_pacific_blvd",
+    "num_agents_to_spawn": 20,
     "states_history": null,
     "agent_attributes": [
         ["car"],

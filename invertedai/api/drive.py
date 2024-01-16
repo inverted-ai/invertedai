@@ -18,6 +18,8 @@ from invertedai.common import (
     InfractionIndicators,
     AgentAttributes,
     TrafficLightStatesDict,
+    LightRecurrentStates,
+    LightRecurrentState,
 )
 
 
@@ -41,7 +43,8 @@ class DriveResponse(BaseModel):
     is_inside_supported_area: List[
         bool
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
-    model_version: str  # Model version used for this API call
+    traffic_lights_states: Optional[TrafficLightStatesDict] # Traffic light states for the next time step
+    light_recurrent_states: Optional[LightRecurrentStates] # Recurrent states for all traffic lights at the next time step
 
 
 @validate_arguments
@@ -51,6 +54,7 @@ def drive(
         agent_attributes: List[AgentAttributes],
         recurrent_states: List[RecurrentState],
         traffic_lights_states: Optional[TrafficLightStatesDict] = None,
+        light_recurrent_states: Optional[LightRecurrentStates] = None,
         get_birdview: bool = False,
         rendering_center: Optional[Tuple[float, float]] = None,
         rendering_fov: Optional[float] = None,
@@ -99,6 +103,9 @@ def drive(
        their current state should be provided here. Any traffic light for which no
        state is provided will be ignored by the agents.
 
+    light_recurrent_states:
+       Specifies the state and time remaining for each light group in the scene.
+
     random_seed:
         Controls the stochastic aspects of agent behavior for reproducibility.
 
@@ -141,6 +148,7 @@ def drive(
         agent_attributes=[state.tolist() for state in agent_attributes],
         recurrent_states=[r.packed for r in recurrent_states],
         traffic_lights_states=traffic_lights_states,
+        light_recurrent_states=light_recurrent_states,
         get_birdview=get_birdview,
         get_infractions=get_infractions,
         random_seed=random_seed,
@@ -172,7 +180,16 @@ def drive(
                 if response["infraction_indicators"]
                 else [],
                 is_inside_supported_area=response["is_inside_supported_area"],
-                model_version=response["model_version"]
+                model_version=response["model_version"],
+                traffic_lights_states=response["traffic_lights_states"] 
+                if response["traffic_lights_states"] is not None 
+                else None,
+                light_recurrent_states=[
+                    LightRecurrentState(state=state_arr[0], ticks_remaining=state_arr[1]) 
+                    for state_arr in response["light_recurrent_states"]
+                ] 
+                if response["light_recurrent_states"] is not None 
+                else None
             )
 
             return response
@@ -243,7 +260,16 @@ async def async_drive(
         if response["infraction_indicators"]
         else [],
         is_inside_supported_area=response["is_inside_supported_area"],
-        model_version=response["model_version"]
+        model_version=response["model_version"],
+        traffic_lights_states=response["traffic_lights_states"] 
+        if response["traffic_lights_states"] is not None 
+        else None,
+        light_recurrent_states=[
+            LightRecurrentState(state=state_arr[0], ticks_remaining=state_arr[1]) 
+            for state_arr in response["light_recurrent_states"]
+        ] 
+        if response["light_recurrent_states"] is not None 
+        else None
     )
 
     return response

@@ -20,6 +20,8 @@ from invertedai.common import (
     TrafficLightStatesDict,
     Image,
     InfractionIndicators,
+    LightRecurrentStates,
+    LightRecurrentState,
 )
 
 
@@ -41,6 +43,8 @@ class InitializeResponse(BaseModel):
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
+    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states at the first time step
+    light_recurrent_states: Optional[LightRecurrentStates] # To pass to :func:`iai.drive` at the first time step
     model_version: str # Model version used for this API call
 
 
@@ -181,7 +185,16 @@ def initialize(
                 ]
                 if response["infraction_indicators"]
                 else [],
-                model_version=response["model_version"]
+                model_version=response["model_version"],
+                traffic_lights_states=response["traffic_lights_states"] 
+                if response["traffic_lights_states"] is not None 
+                else None,
+                light_recurrent_states=[
+                    LightRecurrentState(state=state_arr[0], ticks_remaining=state_arr[1]) 
+                    for state_arr in response["light_recurrent_states"]
+                ] 
+                if response["light_recurrent_states"] is not None 
+                else None
             )
             return response
         except TryAgain as e:
@@ -251,6 +264,15 @@ async def async_initialize(
         ]
         if response["infraction_indicators"]
         else [],
-        model_version=response["model_version"]
+        model_version=response["model_version"],
+        traffic_lights_states=response["traffic_lights_states"] 
+        if response["traffic_lights_states"] is not None 
+        else None,
+        light_recurrent_states=[
+            LightRecurrentState(state=state_arr[0], ticks_remaining=state_arr[1]) 
+            for state_arr in response["light_recurrent_states"]
+            ] 
+        if response["light_recurrent_states"] is not None 
+        else None
     )
     return response
