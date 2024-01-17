@@ -64,20 +64,27 @@ struct AgentAttributes {
    * Currently "car" and "pedestrian" are supported.
    */
   std::optional<std::string> agent_type;
+  /**
+   * Define target waypoints for each agent.
+   */
+  std::optional<Point2d> waypoints;
 
   void printFields() const {
     std::cout << "checking fields of current agent..." << std::endl;
     if (length.has_value()) {
-        std::cout << "Length: " << length.value() << std::endl;
+      std::cout << "Length: " << length.value() << std::endl;
     }
     if (width.has_value()) {
-        std::cout << "Width: " << width.value() << std::endl;
+      std::cout << "Width: " << width.value() << std::endl;
     }
     if (rear_axis_offset.has_value()) {
-        std::cout << "rear_axis_offset: " << rear_axis_offset.value() << std::endl;
+      std::cout << "rear_axis_offset: " << rear_axis_offset.value() << std::endl;
     }
     if (agent_type.has_value()) {
-        std::cout << "Agent type: " << agent_type.value() << std::endl;
+      std::cout << "Agent type: " << agent_type.value() << std::endl;
+    }
+    if (waypoints.has_value()) {
+      std::cout << "Waypoints: (" << waypoints.value().x << "," << waypoints.value().y << ")"<< std::endl;
     }
   }
 
@@ -94,6 +101,10 @@ struct AgentAttributes {
     }
     if (agent_type.has_value()) {
         attr_vector.push_back(agent_type.value());
+    }
+    if (waypoints.has_value()) {
+        attr_vector.push_back(waypoints.value().x);
+        attr_vector.push_back(waypoints.value().y);
     }
     json jsonArray = json::array();
     for (const auto &element : attr_vector) {
@@ -116,18 +127,56 @@ struct AgentAttributes {
         else if (element[2].is_number()) {
             rear_axis_offset = element[2];
         }
+        else if (element[2].is_array()) {
+            waypoints = {element[2][0], element[2][1]};
+        }
         length = element[0];
         width = element[1];
     }
-    else if(size == 4) {
+    else if (size == 4)
+    {
+      length = element[0];
+      width = element[1];
+      if (element[3].is_array())
+      {
+        waypoints = {element[3][0], element[3][1]};
+        if (element[2].is_string())
+        {
+          agent_type = element[2];
+        }
+        else if (element[2].is_number())
+        {
+          rear_axis_offset = element[2];
+        }
+      }
+      else if (element[3].is_string()){
+      {
+        agent_type = element[3];
+        if (element[2].is_number())
+        {
+          rear_axis_offset = element[2];
+        }
+        else
+        {
+          rear_axis_offset = 0.0;
+        }
+      }
+    }
+    else
+        {
+          throw std::runtime_error("agent_type must be a string");
+        }
+        
+    }
+    else if(size == 5) {
         length = element[0];
         width = element[1];
-        if (element[2].is_number()) {
-            rear_axis_offset = element[2];
-        } else {
-            rear_axis_offset = 0.0;
-        }
+        rear_axis_offset = element[2];
         agent_type = element[3];
+        waypoints = {element[4][0], element[4][1]};
+    }
+    else {
+        std::cout << "Error: invalid agent attributes" << std::endl;
     }
   }
 };
