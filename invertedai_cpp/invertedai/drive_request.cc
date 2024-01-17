@@ -121,7 +121,7 @@ void DriveRequest::refresh_body_json_() {
     for (const LightRecurrentState &light_recurrent_state : this->light_recurrent_states_.value()) {
       json element = {
         light_recurrent_state.state, 
-        light_recurrent_state.ticks_remaining
+        light_recurrent_state.time_remaining
       };
       this->body_json_["light_recurrent_states"].push_back(element);
     }

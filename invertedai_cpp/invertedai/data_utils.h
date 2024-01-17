@@ -145,7 +145,7 @@ struct TrafficLightState {
  */
 struct LightRecurrentState {
   float state;
-  float ticks_remaining;
+  float time_remaining;
 };
 
 /**
