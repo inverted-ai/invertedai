@@ -148,7 +148,8 @@ def drive(
         agent_attributes=[state.tolist() for state in agent_attributes],
         recurrent_states=[r.packed for r in recurrent_states],
         traffic_lights_states=traffic_lights_states,
-        light_recurrent_states=light_recurrent_states,
+        light_recurrent_states=[light_recurrent_state.tolist() for light_recurrent_state in light_recurrent_states] 
+        if light_recurrent_states is not None else None,
         get_birdview=get_birdview,
         get_infractions=get_infractions,
         random_seed=random_seed,
@@ -181,11 +182,11 @@ def drive(
                 else [],
                 is_inside_supported_area=response["is_inside_supported_area"],
                 model_version=response["model_version"],
-                traffic_lights_states=response["traffic_lights_states"] 
+                traffic_lights_states=response["traffic_lights_states"]
                 if response["traffic_lights_states"] is not None 
                 else None,
                 light_recurrent_states=[
-                    LightRecurrentState(state=state_arr[0], ticks_remaining=state_arr[1]) 
+                    LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
                     for state_arr in response["light_recurrent_states"]
                 ] 
                 if response["light_recurrent_states"] is not None 
@@ -265,7 +266,7 @@ async def async_drive(
         if response["traffic_lights_states"] is not None 
         else None,
         light_recurrent_states=[
-            LightRecurrentState(state=state_arr[0], ticks_remaining=state_arr[1]) 
+            LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
             for state_arr in response["light_recurrent_states"]
         ] 
         if response["light_recurrent_states"] is not None 

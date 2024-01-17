@@ -190,7 +190,7 @@ def initialize(
                 if response["traffic_lights_states"] is not None 
                 else None,
                 light_recurrent_states=[
-                    LightRecurrentState(state=state_arr[0], ticks_remaining=state_arr[1]) 
+                    LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
                     for state_arr in response["light_recurrent_states"]
                 ] 
                 if response["light_recurrent_states"] is not None 
@@ -265,11 +265,11 @@ async def async_initialize(
         if response["infraction_indicators"]
         else [],
         model_version=response["model_version"],
-        traffic_lights_states=response["traffic_lights_states"] 
+        traffic_lights_states=response["traffic_lights_states"]
         if response["traffic_lights_states"] is not None 
         else None,
         light_recurrent_states=[
-            LightRecurrentState(state=state_arr[0], ticks_remaining=state_arr[1]) 
+            LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
             for state_arr in response["light_recurrent_states"]
             ] 
         if response["light_recurrent_states"] is not None 

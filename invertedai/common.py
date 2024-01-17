@@ -132,8 +132,14 @@ class TrafficLightState(str, Enum):
 
 
 class LightRecurrentState(BaseModel):
-    state: int
-    ticks_remaining: int
+    state: float
+    time_remaining: float
+    
+    def tolist(self):
+        """
+        Convert LightRecurrentState to a list in this order: [state, time_remaining]
+        """
+        return [self.state, self.time_remaining]
     
     
 class AgentType(str, Enum):
