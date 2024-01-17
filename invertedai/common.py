@@ -151,19 +151,34 @@ class AgentAttributes(BaseModel):
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
     rear_axis_offset: Optional[float] = None
     agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
+    waypoints: Optional[Point] = None  #: Target waypoint of the agent.
 
     @classmethod
     def fromlist(cls, l):
+        if len(l) == 5:
+            length, width, rear_axis_offset, agent_type, waypoints = l
+            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoints=waypoints)
         if len(l) == 4:
-            length, width, rear_axis_offset, agent_type = l
-            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
-        elif len(l) == 3:
-            if type(l[-1]) is not str:
-                length, width, rear_axis_offset, = l
-                return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=AgentType.car.value)
+            if type(l[3]) == list:
+                if type(l[2]) == str:
+                    length, width, agent_type, waypoints = l
+                    return cls(length=length, width=width, agent_type=agent_type, waypoints=waypoints)
+                else:
+                    length, width, rear_axis_offset, waypoints = l
+                    return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, waypoints=waypoints)
             else:
+                length, width, rear_axis_offset, agent_type = l
+                return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
+        elif len(l) == 3:
+            if type(l[2]) == list:
+                length, width, waypoints = l
+                return cls(length=length, width=width, waypoints=waypoints)
+            elif type(l[2]) == str:
                 length, width, agent_type = l
-                return cls(length=length, width=width, rear_axis_offset=None, agent_type=agent_type)
+                return cls(length=length, width=width, agent_type=agent_type)
+            else:
+                length, width, rear_axis_offset = l
+                return cls(length=length, width=width, rear_axis_offset=rear_axis_offset)
         else:
             assert len(l) == 1
             agent_type, = l
@@ -183,6 +198,8 @@ class AgentAttributes(BaseModel):
             attr_list.append(self.rear_axis_offset)
         if self.agent_type is not None:
             attr_list.append(self.agent_type)
+        if self.waypoints is not None:
+            attr_list.append([self.waypoints.x, self.waypoints.y])
         return attr_list
 
 
