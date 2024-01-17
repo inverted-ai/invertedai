@@ -132,6 +132,9 @@ class TrafficLightState(str, Enum):
 
 
 class LightRecurrentState(BaseModel):
+    """
+    Recurrent state of all the traffic lights in one light group (one intersection).
+    """
     state: float
     time_remaining: float
     
