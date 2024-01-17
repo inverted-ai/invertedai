@@ -34,13 +34,33 @@ DriveRequest::DriveRequest(const std::string &body_str) {
     }
     this->recurrent_states_.push_back(recurrent_state);
   }
-  this->traffic_lights_states_.clear();
-  for (const auto &element : this->body_json_["traffic_lights_states"]) {
-    TrafficLightState traffic_light_state = {
-      element[0], 
-      element[1]
-    };
-    this->traffic_lights_states_.push_back(traffic_light_state);
+  if (this->body_json_["traffic_lights_states"].is_null()) {
+    this->traffic_lights_states_ = std::nullopt;
+  } else {
+    if (this->traffic_lights_states_.has_value()) {
+      this->traffic_lights_states_.value().clear();
+    } else {
+      this->traffic_lights_states_ = std::map<std::string, std::string>();
+    }
+    for (const auto &element : this->body_json_["traffic_lights_states"].items()) {
+      this->traffic_lights_states_.value()[element.key()] = element.value();
+    }
+  }
+  if (this->body_json_["light_recurrent_states"].is_null()) {
+    this->light_recurrent_states_ = std::nullopt;
+  } else {
+    if (this->light_recurrent_states_.has_value()) {
+      this->light_recurrent_states_.value().clear();
+    } else {
+      this->light_recurrent_states_ = std::vector<LightRecurrentState>();
+    }
+    for (const auto &element : this->body_json_["light_recurrent_states"]) {
+      LightRecurrentState light_recurrent_state = {
+        element[0], 
+        element[1]
+      };
+      this->light_recurrent_states_.value().push_back(light_recurrent_state);
+    }
   }
   this->get_birdview_ = this->body_json_["get_birdview"].is_boolean()
     ? this->body_json_["get_birdview"].get<bool>()
@@ -89,12 +109,24 @@ void DriveRequest::refresh_body_json_() {
     this->body_json_["recurrent_states"].push_back(elements);
   }
   this->body_json_["traffic_lights_states"].clear();
-  for (const TrafficLightState &traffic_light_state : this->traffic_lights_states_) {
-    json element = {
-      traffic_light_state.id, 
-      traffic_light_state.value
-    };
-    this->body_json_["traffic_lights_states"].push_back(element);
+  if (this->traffic_lights_states_.has_value()) {
+    for (const auto &pair : this->traffic_lights_states_.value()) {
+      this->body_json_["traffic_lights_states"][pair.first] = pair.second;
+    }
+  } else {
+    this->body_json_["traffic_lights_states"] = nullptr;
+  }
+  this->body_json_["light_recurrent_states"].clear();
+  if (this->light_recurrent_states_.has_value()) {
+    for (const LightRecurrentState &light_recurrent_state : this->light_recurrent_states_.value()) {
+      json element = {
+        light_recurrent_state.state, 
+        light_recurrent_state.time_remaining
+      };
+      this->body_json_["light_recurrent_states"].push_back(element);
+    }
+  } else {
+    this->body_json_["light_recurrent_states"] = nullptr;
   }
   this->body_json_["get_birdview"] = this->get_birdview_;
   this->body_json_["get_infractions"] = this->get_infractions_;
@@ -125,11 +157,13 @@ void DriveRequest::update(const InitializeResponse &init_res) {
   this->agent_states_ = init_res.agent_states();
   this->agent_attributes_ = init_res.agent_attributes();
   this->recurrent_states_ = init_res.recurrent_states();
+  this->light_recurrent_states_ = init_res.light_recurrent_states();
 }
 
 void DriveRequest::update(const DriveResponse &drive_res) {
   this->agent_states_ = drive_res.agent_states();
   this->recurrent_states_ = drive_res.recurrent_states();
+  this->light_recurrent_states_ = drive_res.light_recurrent_states();
 }
 
 std::string DriveRequest::body_str() {
@@ -149,12 +183,16 @@ std::vector<AgentAttributes> DriveRequest::agent_attributes() const {
   return this->agent_attributes_;
 };
 
-std::vector<TrafficLightState> DriveRequest::traffic_lights_states() const {
+std::optional<std::map<std::string, std::string>> DriveRequest::traffic_lights_states() const {
   return this->traffic_lights_states_;
 };
 
 std::vector<std::vector<double>> DriveRequest::recurrent_states() const {
   return this->recurrent_states_;
+};
+
+std::optional<std::vector<LightRecurrentState>> DriveRequest::light_recurrent_states() const {
+  return this->light_recurrent_states_;
 };
 
 bool DriveRequest::get_birdview() const { 
@@ -193,8 +231,12 @@ void DriveRequest::set_agent_attributes(const std::vector<AgentAttributes> &agen
   this->agent_attributes_ = agent_attributes;
 }
 
-void DriveRequest::set_traffic_lights_states(const std::vector<TrafficLightState> &traffic_lights_states) {
+void DriveRequest::set_traffic_lights_states(const std::map<std::string, std::string> &traffic_lights_states) {
   this->traffic_lights_states_ = traffic_lights_states;
+}
+
+void DriveRequest::set_light_recurrent_states(const std::vector<LightRecurrentState> &light_recurrent_states) {
+  this->light_recurrent_states_ = light_recurrent_states;
 }
 
 void DriveRequest::set_recurrent_states(const std::vector<std::vector<double>> &recurrent_states) {

@@ -131,6 +131,20 @@ class TrafficLightState(str, Enum):
     red = "red"
 
 
+class LightRecurrentState(BaseModel):
+    """
+    Recurrent state of all the traffic lights in one light group (one intersection).
+    """
+    state: float
+    time_remaining: float
+    
+    def tolist(self):
+        """
+        Convert LightRecurrentState to a list in this order: [state, time_remaining]
+        """
+        return [self.state, self.time_remaining]
+    
+    
 class AgentType(str, Enum):
     car = "car"
     pedestrian = "pedestrian"
@@ -262,3 +276,4 @@ class StaticMapActor(BaseModel):
 
 
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
+LightRecurrentStates = List[LightRecurrentState]

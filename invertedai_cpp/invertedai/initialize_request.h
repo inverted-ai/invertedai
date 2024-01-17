@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <vector>
+#include <map>
 
 using json = nlohmann::json;
 
@@ -17,7 +18,7 @@ private:
   std::optional<int> num_agents_to_spawn_;
   std::vector<std::vector<AgentState>> states_history_;
   std::vector<AgentAttributes> agent_attributes_;
-  std::vector<std::vector<TrafficLightState>> traffic_light_state_history_;
+  std::vector<std::map<std::string, std::string>> traffic_light_state_history_;
   std::optional<std::pair<double, double>> location_of_interest_;
   bool get_birdview_;
   bool get_infractions_;
@@ -59,7 +60,7 @@ public:
    * Get history of traffic light states - the list is
    * over time, in chronological order.
    */
-  std::vector<std::vector<TrafficLightState>>
+  std::vector<std::map<std::string, std::string>>
   traffic_light_state_history() const;
   /**
    * Coordinates for spawning agents with the given location as center
@@ -112,7 +113,7 @@ public:
    * for all time steps where agent states are specified.
    */
   void set_traffic_light_state_history(
-      const std::vector<std::vector<TrafficLightState>>
+      const std::vector<std::map<std::string, std::string>>
           &traffic_light_state_history);
   /**
    * Set coordinates for spawning agents with the given location as center

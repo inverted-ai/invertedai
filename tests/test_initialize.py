@@ -146,6 +146,8 @@ def run_initialize(location, states_history, agent_attributes, get_infractions, 
     )
     assert isinstance(response,
                       InitializeResponse) and response.agent_attributes is not None and response.agent_states is not None
+    if response.traffic_lights_states is not None:
+      assert response.light_recurrent_states is not None
 
 
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests)
