@@ -20,7 +20,8 @@ int main(int argc, char **argv) {
   {
     "examples/initialize_body.json",
     "examples/initialize_with_states_and_attributes.json",
-    "examples/initialize_sampling_with_types.json"
+    "examples/initialize_sampling_with_types.json",
+    "examples/initialize_body_with_multi_agents_waypoint.json"
   };
 
    try {
@@ -52,9 +53,6 @@ int main(int argc, char **argv) {
         invertedai::DriveRequest drive_req(invertedai::read_file("examples/drive_body.json"));
         drive_req.set_location(init_req.location());
         drive_req.update(init_res);
-        auto first_agent_attributes = drive_req.agent_attributes()[0];
-        first_agent_attributes.setWaypoints(0, 0);
-        drive_req.update_attribute(0, first_agent_attributes);
         for (int t = 0; t < timestep; t++) {
           // step the simulation by driving the agents
           invertedai::DriveResponse drive_res = invertedai::drive(drive_req, &session);
