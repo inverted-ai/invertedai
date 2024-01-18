@@ -6,6 +6,7 @@ from invertedai.api.initialize import initialize
 from invertedai.api.drive import drive, DriveResponse
 from invertedai.api.location import location_info
 from invertedai.api.light import light
+from invertedai.common import Point
 from invertedai.error import InvalidRequestError
 
 
@@ -58,6 +59,36 @@ positive_tests = [
       dict(agent_type='car'),
       dict(agent_type='car')],
      False, None),
+     ("canada:ubc_roundabout",
+     [[dict(center=dict(x=60.82, y=1.22), orientation=0.63, speed=11.43,),
+       dict(center=dict(x=-36.88, y=-33.93), orientation=-2.64, speed=9.43)],
+      [dict(center=dict(x=62.82, y=3.22), orientation=0.63, speed=11.43),
+       dict(center=dict(x=-34.88, y=-31.93), orientation=-2.64, speed=9.43)]],
+     [dict(length=5.3, width=2.25, rear_axis_offset=2.01, agent_type='car', waypoints=Point(x=1, y=2)),
+      dict(length=6.29, width=2.56, rear_axis_offset=2.39, agent_type='pedestrian', waypoints=Point(x=1, y=2)),
+      dict(agent_type='car'),
+      dict(agent_type='car')],
+     False, None),
+     ("canada:ubc_roundabout",
+     [[dict(center=dict(x=60.82, y=1.22), orientation=0.63, speed=11.43,),
+       dict(center=dict(x=-36.88, y=-33.93), orientation=-2.64, speed=9.43)],
+      [dict(center=dict(x=62.82, y=3.22), orientation=0.63, speed=11.43),
+       dict(center=dict(x=-34.88, y=-31.93), orientation=-2.64, speed=9.43)]],
+     [dict(length=5.3, width=2.25, rear_axis_offset=2.01, waypoints=Point(x=1, y=2)),
+      dict(length=6.29, width=2.56, rear_axis_offset=2.39,  waypoints=Point(x=1, y=2)),
+      dict(agent_type='car'),
+      dict(agent_type='car')],
+     False, None),
+     ("canada:ubc_roundabout",
+     [[dict(center=dict(x=60.82, y=1.22), orientation=0.63, speed=11.43,),
+       dict(center=dict(x=-36.88, y=-33.93), orientation=-2.64, speed=9.43)],
+      [dict(center=dict(x=62.82, y=3.22), orientation=0.63, speed=11.43),
+       dict(center=dict(x=-34.88, y=-31.93), orientation=-2.64, speed=9.43)]],
+     [dict(length=5.3, width=2.25, rear_axis_offset=2.01, agent_type='pedestrian',waypoints=Point(x=1, y=2)),
+      dict(length=6.29, width=2.56, rear_axis_offset=None, agent_type='pedestrian', waypoints=Point(x=1, y=2)),
+      dict(agent_type='car'),
+      dict(agent_type='car')],
+     False, None)
 ]
 
 # Notice parameterization in direct drive flows are different
