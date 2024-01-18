@@ -65,7 +65,7 @@ struct AgentAttributes {
    */
   std::optional<std::string> agent_type;
   /**
-   * Define target waypoints for each agent.
+   *  Target waypoint of the agent. If provided the agent will attempt to reach it.
    */
   std::optional<Point2d> waypoints;
 
@@ -184,7 +184,6 @@ struct AgentAttributes {
         agent_type = element[3];
         waypoints = {element[4][0], element[4][1]};
     }
-  std::cout << "agent attributes: " << toJson() << std::endl;
   }
 };
 

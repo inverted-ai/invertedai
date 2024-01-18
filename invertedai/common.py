@@ -151,7 +151,7 @@ class AgentAttributes(BaseModel):
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
     rear_axis_offset: Optional[float] = None
     agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
-    waypoints: Optional[Point] = None  #: Target waypoint of the agent.
+    waypoints: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it.
 
     @classmethod
     def fromlist(cls, l):
