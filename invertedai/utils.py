@@ -12,7 +12,12 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import Point
+from invertedai.common import (
+    Point,
+    AgentState,
+    AgentAttributes,
+    TrafficLightStatesDict,
+)
 import logging
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
@@ -487,9 +492,21 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
     return response
 
 
-def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0),
-                        width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, get_birdview=False,
-                        birdview_path=None):
+def area_initialization(
+    location, 
+    agent_density, #int or Dict[str: int]
+    traffic_lights_states=None, 
+    random_seed=None, 
+    map_center=(0, 0),
+    width=100, 
+    height=100, 
+    stride=100, 
+    initialize_fov=INITIALIZE_FOV, 
+    get_birdview=False,
+    birdview_path=None,
+    agent_type_dict=None
+):
+    print(f"Begin area initialization.")
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
                 (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
@@ -499,15 +516,41 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
     agent_rs = []
     first = True
     centers = get_centers(map_center, height, width, stride)
-    for area_center in tmap(Point.fromlist, centers, total=len(centers),
-                            desc=f"Initializing {location.split(':')[1]}"):
+    # agent_type_dict = None
+    # if isinstance(agent_density,dict):
+    #     print(f"Initializing non-default agent types.")
+    #     agent_type_dict = agent_density
+    #     agent_density = len(agent_density)
+    for area_center in tmap(Point.fromlist, centers, total=len(centers), desc=f"Initializing {location.split(':')[1]}"):
 
-        conditional_agent = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
-                                                                                       agent_rs)))
-        remaining_agents = list(filter(lambda x: not inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
-                                                                                       agent_rs)))
+        conditional_agent = list(
+            filter(
+                lambda x: inside_fov(
+                    center=area_center, 
+                    initialize_fov=initialize_fov, 
+                    point=x[0].center
+                ), 
+                zip(
+                    agent_states, 
+                    agent_attributes, 
+                    agent_rs
+                )
+            )
+        )
+        remaining_agents = list(
+            filter(
+                lambda x: not inside_fov(
+                    center=area_center, 
+                    initialize_fov=initialize_fov, 
+                    point=x[0].center
+                ), 
+                zip(
+                    agent_states, 
+                    agent_attributes, 
+                    agent_rs
+                )
+            )
+        )
 
         con_agent_state = [x[0] for x in conditional_agent]
         con_agent_attrs = [x[1] for x in conditional_agent]
@@ -522,10 +565,42 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
         for _ in range(1):
             try:
                 # Initialize simulation with an API cal
+                
+                agent_attributes_request = []
+                existing_agent_type_dict = {}
+                for attr in con_agent_attrs:
+                    agent_attributes_request.append(attr)
+
+                    agent_type = attr.agent_type
+                    if agent_type in existing_agent_type_dict:
+                        existing_agent_type_dict[agent_type] += 1
+                    else:
+                        existing_agent_type_dict[agent_type] = 1
+                
+                num_agents_to_add = agent_density-len(agent_attributes_request)
+                if num_agents_to_add > 0:
+                    if isinstance(agent_type_dict, dict):
+                        
+                        agents_to_add_types = [k for k in agent_type_dict.keys()]
+                        agents_to_add_numbers = [v for k, v in agent_type_dict.items()]
+                        for k, v in existing_agent_type_dict.items():
+                            if k in agents_to_add_types:
+                                agents_to_add_numbers[agents_to_add_types.index(k)] -= v
+                        for _ in range(num_agents_to_add):
+                            next_agent_type_index = max(agents_to_add_numbers)
+                            agents_to_add_numbers[next_agent_type_index] -= 1
+                            agent_attributes_request.append(AgentAttributes.fromlist([agents_to_add_numbers[agents_to_add_types]]))
+                    else:
+                        for _ in range(num_agents_to_add):
+                            agent_attributes_request.append(AgentAttributes.fromlist(["car"]))
+
+                if len(agent_attributes_request) == 0:
+                    agent_attributes_request = None
+
                 response = iai.initialize(
                     location=location,
                     states_history=[con_agent_state] if len(con_agent_state) > 0 else None,
-                    agent_attributes=con_agent_attrs if len(con_agent_attrs) > 0 else None,
+                    agent_attributes=agent_attributes_request,
                     agent_count=agent_density,
                     get_infractions=False,
                     traffic_light_state_history=traffic_lights_states,
@@ -541,9 +616,20 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
         # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
-        valid_agents = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
-            zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+        valid_agents = list(
+            filter(
+                lambda x: inside_fov(
+                    center=area_center, 
+                    initialize_fov=initialize_fov - SLACK, 
+                    point=x[0].center
+                ),
+                zip(
+                    response.agent_states, 
+                    response.agent_attributes, 
+                    response.recurrent_states
+                )
+            )
+        )
 
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]
