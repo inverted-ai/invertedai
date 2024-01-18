@@ -132,6 +132,10 @@ void DriveRequest::update(const DriveResponse &drive_res) {
   this->recurrent_states_ = drive_res.recurrent_states();
 }
 
+void DriveRequest::update_attribute(int idx, AgentAttributes &agent_attributes) {
+  this->agent_attributes_[idx] = agent_attributes;
+}
+
 std::string DriveRequest::body_str() {
   this->refresh_body_json_();
   return this->body_json_.dump();
