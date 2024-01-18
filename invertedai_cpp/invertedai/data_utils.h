@@ -69,6 +69,11 @@ struct AgentAttributes {
    */
   std::optional<Point2d> waypoints;
 
+  void setWaypoints(double x, double y)
+  {
+    waypoints = Point2d{x, y};
+  }
+
   void printFields() const {
     std::cout << "checking fields of current agent..." << std::endl;
     if (length.has_value()) {
@@ -102,9 +107,9 @@ struct AgentAttributes {
     if (agent_type.has_value()) {
         attr_vector.push_back(agent_type.value());
     }
-    if (waypoints.has_value()) {
-        attr_vector.push_back(waypoints.value().x);
-        attr_vector.push_back(waypoints.value().y);
+    std::vector<std::vector<double>> waypoint_vector;
+    if (waypoints.has_value()) {  
+        waypoint_vector.push_back({waypoints.value().x, waypoints.value().y});
     }
     json jsonArray = json::array();
     for (const auto &element : attr_vector) {
@@ -112,6 +117,10 @@ struct AgentAttributes {
             jsonArray.push_back(value);
         }, element);
     }
+    for (const auto &element : waypoint_vector) {
+        jsonArray.push_back(element);
+    }
+
     return jsonArray;
   }
 
@@ -175,9 +184,7 @@ struct AgentAttributes {
         agent_type = element[3];
         waypoints = {element[4][0], element[4][1]};
     }
-    else {
-        std::cout << "Error: invalid agent attributes" << std::endl;
-    }
+  std::cout << "agent attributes: " << toJson() << std::endl;
   }
 };
 
