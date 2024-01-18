@@ -180,8 +180,17 @@ struct AgentAttributes {
     else if(size == 5) {
         length = element[0];
         width = element[1];
-        rear_axis_offset = element[2];
-        agent_type = element[3];
+        if (element[2].is_number())
+        {
+          rear_axis_offset = element[2];
+        }
+        else
+        {
+          rear_axis_offset = 0.0;
+        }
+        if (element[3].is_string()) {
+            agent_type = element[3];
+        }
         waypoints = {element[4][0], element[4][1]};
     }
   }
