@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
         cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
         int frame_width = image.rows;
         int frame_height = image.cols;
-        std::string drive_video_name = "drive_test_" + std::to_string(i) + ".avi";
+        std::string drive_video_name = "drive_test_" + std::to_string(i) + ".mp4";
         cv::VideoWriter video(
             drive_video_name,
             cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
