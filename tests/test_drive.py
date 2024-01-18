@@ -129,17 +129,13 @@ negative_tests = [
 def run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count,
                               simulation_length: int = 20):
     location_info_response = location_info(location=location, rendering_fov=200)
-    if any(actor.agent_type == "traffic-light" for actor in location_info_response.static_actors):
-        scene_has_lights = True
-        light_response = light(location=location)
-    else:
-        light_response = None
-        scene_has_lights = False
+    scene_has_lights = any(actor.agent_type == "traffic-light" for actor in location_info_response.static_actors)
+    
     initialize_response = initialize(
         location,
         agent_attributes=agent_attributes,
         states_history=states_history,
-        traffic_light_state_history=[light_response.traffic_lights_states] if scene_has_lights else None,
+        traffic_light_state_history=None,
         get_birdview=False,
         get_infractions=get_infractions,
         agent_count=agent_count,
@@ -151,14 +147,16 @@ def run_initialize_drive_flow(location, states_history, agent_attributes, get_in
             agent_attributes=agent_attributes,
             agent_states=updated_state.agent_states,
             recurrent_states=updated_state.recurrent_states,
-            traffic_lights_states=light_response.traffic_lights_states if light_response is not None else None,
+            light_recurrent_states=updated_state.light_recurrent_states if scene_has_lights else None,
             get_birdview=False,
             location=location,
             get_infractions=get_infractions,
         )
         assert isinstance(updated_state,
                           DriveResponse) and updated_state.agent_states is not None and updated_state.recurrent_states is not None
-
+        if scene_has_lights:
+            assert updated_state.traffic_lights_states is not None
+            assert updated_state.light_recurrent_states is not None
 
 def run_direct_drive(location, agent_states, agent_attributes, recurrent_states, get_infractions):
     drive_response = drive(
