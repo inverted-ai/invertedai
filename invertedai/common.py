@@ -172,7 +172,7 @@ class AgentAttributes(BaseModel):
         if len(l) == 5:
             length, width, rear_axis_offset, agent_type, waypoint = l
             return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoints=Point(x=waypoint[0], y=waypoint[1]))
-        if len(l) == 4:
+        elif len(l) == 4:
             if type(l[3]) == list:
                 if type(l[2]) == str:
                     length, width, agent_type, waypoint = l
@@ -194,7 +194,7 @@ class AgentAttributes(BaseModel):
                 length, width, rear_axis_offset = l
                 return cls(length=length, width=width, rear_axis_offset=rear_axis_offset)
         else:
-            assert len(l) == 1
+            assert len(l) == 1, "Only a single item (agent_type) is allowed when the size of the provided list is neither 3, 4 nor 5."
             agent_type, = l
             return cls(agent_type=agent_type)
 
