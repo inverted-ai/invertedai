@@ -84,7 +84,7 @@ struct AgentAttributes {
       std::cout << "Agent type: " << agent_type.value() << std::endl;
     }
     if (waypoint.has_value()) {
-      std::cout << "Waypoints: (" << waypoint.value().x << "," << waypoint.value().y << ")"<< std::endl;
+      std::cout << "Waypoint: (" << waypoint.value().x << "," << waypoint.value().y << ")"<< std::endl;
     }
   }
 

@@ -171,15 +171,15 @@ class AgentAttributes(BaseModel):
     def fromlist(cls, l):
         if len(l) == 5:
             length, width, rear_axis_offset, agent_type, waypoint = l
-            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoints=Point(x=waypoint[0], y=waypoint[1]))
+            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoint=Point(x=waypoint[0], y=waypoint[1]))
         elif len(l) == 4:
             if type(l[3]) == list:
                 if type(l[2]) == str:
                     length, width, agent_type, waypoint = l
-                    return cls(length=length, width=width, agent_type=agent_type, waypoints=Point(x=waypoint[0], y=waypoint[1]))
+                    return cls(length=length, width=width, agent_type=agent_type, waypoint=Point(x=waypoint[0], y=waypoint[1]))
                 else:
                     length, width, rear_axis_offset, waypoint = l
-                    return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, waypoints=Point(x=waypoint[0], y=waypoint[1]))
+                    return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, waypoint=Point(x=waypoint[0], y=waypoint[1]))
             else:
                 length, width, rear_axis_offset, agent_type = l
                 return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
