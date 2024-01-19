@@ -87,6 +87,7 @@ def initialize(
     agent_attributes:
         Static attributes for all agents.
         The pre-defined agents should be specified first, followed by the sampled agents.
+        The optional waypoint passed will be ignored for Initialize.
 
     states_history:
         History of pre-defined agent states - the outer list is over time and the inner over agents,
