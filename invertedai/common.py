@@ -171,22 +171,22 @@ class AgentAttributes(BaseModel):
     def fromlist(cls, l):
         if len(l) == 5:
             length, width, rear_axis_offset, agent_type, waypoints = l
-            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoints=waypoints)
+            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoints=Point(x=waypoints[0], y=waypoints[1]))
         if len(l) == 4:
             if type(l[3]) == list:
                 if type(l[2]) == str:
                     length, width, agent_type, waypoints = l
-                    return cls(length=length, width=width, agent_type=agent_type, waypoints=waypoints)
+                    return cls(length=length, width=width, agent_type=agent_type, waypoints=Point(x=waypoints[0], y=waypoints[1]))
                 else:
                     length, width, rear_axis_offset, waypoints = l
-                    return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, waypoints=waypoints)
+                    return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, waypoints=Point(x=waypoints[0], y=waypoints[1]))
             else:
                 length, width, rear_axis_offset, agent_type = l
                 return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
         elif len(l) == 3:
             if type(l[2]) == list:
                 length, width, waypoints = l
-                return cls(length=length, width=width, waypoints=waypoints)
+                return cls(length=length, width=width, waypoints=Point(x=waypoints[0], y=waypoints[1]))
             elif type(l[2]) == str:
                 length, width, agent_type = l
                 return cls(length=length, width=width, agent_type=agent_type)
