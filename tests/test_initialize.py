@@ -92,7 +92,7 @@ positive_tests = [
        dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
        dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)]],
      [dict(length=1.39, width=1.78, agent_type='pedestrian', waypoints=Point(x=1, y=2)),
-      dict(length=1.37, width=1.98, waypoints=Point(x=1, y=2)),
+      dict(length=1.37, width=1.98, rear_axis_offset=None, agent_type="pedestrian",  waypoints=Point(x=1, y=2)),
       dict(length=4.55, width=1.94, rear_axis_offset=1.4, agent_type='car', waypoints=Point(x=1, y=2)),
       dict(agent_type='pedestrian'),
       dict(agent_type='car')],
