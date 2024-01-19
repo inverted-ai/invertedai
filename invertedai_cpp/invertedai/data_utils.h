@@ -67,12 +67,7 @@ struct AgentAttributes {
   /**
    *  Target waypoint of the agent. If provided the agent will attempt to reach it.
    */
-  std::optional<Point2d> waypoints;
-
-  void setWaypoints(double x, double y)
-  {
-    waypoints = Point2d{x, y};
-  }
+  std::optional<Point2d> waypoint;
 
   void printFields() const {
     std::cout << "checking fields of current agent..." << std::endl;
@@ -88,8 +83,8 @@ struct AgentAttributes {
     if (agent_type.has_value()) {
       std::cout << "Agent type: " << agent_type.value() << std::endl;
     }
-    if (waypoints.has_value()) {
-      std::cout << "Waypoints: (" << waypoints.value().x << "," << waypoints.value().y << ")"<< std::endl;
+    if (waypoint.has_value()) {
+      std::cout << "Waypoints: (" << waypoint.value().x << "," << waypoint.value().y << ")"<< std::endl;
     }
   }
 
@@ -108,8 +103,8 @@ struct AgentAttributes {
         attr_vector.push_back(agent_type.value());
     }
     std::vector<std::vector<double>> waypoint_vector;
-    if (waypoints.has_value()) {  
-        waypoint_vector.push_back({waypoints.value().x, waypoints.value().y});
+    if (waypoint.has_value()) {  
+        waypoint_vector.push_back({waypoint.value().x, waypoint.value().y});
     }
     json jsonArray = json::array();
     for (const auto &element : attr_vector) {
@@ -137,7 +132,7 @@ struct AgentAttributes {
             rear_axis_offset = element[2];
         }
         else if (element[2].is_array()) {
-            waypoints = {element[2][0], element[2][1]};
+            waypoint = {element[2][0], element[2][1]};
         }
         length = element[0];
         width = element[1];
@@ -148,7 +143,7 @@ struct AgentAttributes {
       width = element[1];
       if (element[3].is_array())
       {
-        waypoints = {element[3][0], element[3][1]};
+        waypoint = {element[3][0], element[3][1]};
         if (element[2].is_string())
         {
           agent_type = element[2];
@@ -191,7 +186,7 @@ struct AgentAttributes {
         if (element[3].is_string()) {
             agent_type = element[3];
         }
-        waypoints = {element[4][0], element[4][1]};
+        waypoint = {element[4][0], element[4][1]};
     }
   }
 };
