@@ -121,8 +121,32 @@ struct AgentAttributes {
 
   AgentAttributes(const json &element) {
     int size = element.size();
-    if (size == 1 && element[0].is_string()) {
+    if (size == 1) {
+      if (element[0].is_string()){
         agent_type = element[0];
+
+      }
+      else if (element[0].is_array()) {
+            waypoint = {element[0][0], element[0][1]};
+        }
+      else {
+        throw std::invalid_argument("Invalid data type at position 0.");
+      }
+    }
+    else if(size == 2) {
+        if (element[0].is_string()) {
+            agent_type = element[0];
+        }
+        else {
+          throw std::invalid_argument("agent_type must be a string");
+        }
+        if (element[1].is_array()) {
+            waypoint = {element[1][0], element[1][1]};
+        }
+        else {
+          throw std::invalid_argument("Waypoint must be an array of two numbers");
+        }
+
     }
     else if(size == 3) {
         if (element[2].is_string()) {
@@ -133,6 +157,10 @@ struct AgentAttributes {
         }
         else if (element[2].is_array()) {
             waypoint = {element[2][0], element[2][1]};
+        }
+        else
+        {
+          throw std::invalid_argument("Invalid data type at position 2.");
         }
         length = element[0];
         width = element[1];
@@ -152,6 +180,10 @@ struct AgentAttributes {
         {
           rear_axis_offset = element[2];
         }
+        else
+        {
+          throw std::invalid_argument("Invalid data type at position 2.");
+        }
       }
       else if (element[3].is_string()){
       {
@@ -168,7 +200,7 @@ struct AgentAttributes {
     }
     else
         {
-          throw std::runtime_error("agent_type must be a string");
+          throw std::invalid_argument("Invalid data type at position 3.");
         }
         
     }
