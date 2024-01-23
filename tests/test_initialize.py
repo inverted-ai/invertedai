@@ -165,18 +165,11 @@ negative_tests = [
 ]
 
 def run_initialize(location, states_history, agent_attributes, get_infractions, agent_count):
-    location_info_response = location_info(location=location, rendering_fov=200)
-    if any(actor.agent_type == "traffic-light" for actor in location_info_response.static_actors):
-        scene_has_lights = True
-        light_response = light(location=location)
-    else:
-        light_response = None
-        scene_has_lights = False
     response = initialize(
         location,
         agent_attributes=agent_attributes,
         states_history=states_history,
-        traffic_light_state_history=[light_response.traffic_lights_states] if scene_has_lights else None,
+        traffic_light_state_history=None,
         get_birdview=False,
         get_infractions=get_infractions,
         agent_count=agent_count,
