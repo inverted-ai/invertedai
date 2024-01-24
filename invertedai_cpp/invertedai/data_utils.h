@@ -1,6 +1,6 @@
 #ifndef DATA_UTILS_H
 #define DATA_UTILS_H
-
+#include <cmath>
 #include <map>
 #include <optional>
 #include <string>
@@ -23,6 +23,12 @@ const std::map<std::string, int> kControlType = {
  */
 struct Point2d {
   double x, y;
+  bool isCloseTo(const Point2d& other, double threshold = 1) const {
+        double dx = x - other.x;
+        double dy = y - other.y;
+        double distance = std::sqrt(dx * dx + dy * dy);
+        return distance <= threshold;
+    }
 };
 
 /**
