@@ -82,6 +82,10 @@
 #include "../invertedai/api.h"
 #include "../invertedai/data_utils.h"
 
+using AgentAttributes = invertedai::AgentAttributes;
+using Point2d = invertedai::Point2d;
+
+
 int processScenario(const char *bodyPath, const std::string api_key, int timestep);
 
 int main(int argc, char **argv) {
@@ -142,11 +146,21 @@ int processScenario(const char *bodyPath, const std::string api_key, int timeste
     invertedai::DriveRequest drive_req(invertedai::read_file("examples/drive_body.json"));
     drive_req.set_location(init_req.location());
     drive_req.update(init_res);
-    drive_req.set_rendering_center(std::make_pair(313, -194));
+    drive_req.set_rendering_center(std::make_pair(313, -194)); // Render the optional birdview in a reasnable area
     drive_req.set_rendering_fov(300);
+    std::vector<AgentAttributes> agent_attributes = drive_req.agent_attributes();
 
     for (int t = 0; t < timestep; t++) {
         invertedai::DriveResponse drive_res = invertedai::drive(drive_req, &session);
+        int agent_idx = 0;
+        for (AgentAttributes attr : agent_attributes){
+          if (attr.waypoint.has_value() &&  attr.waypoint.value().isCloseTo({drive_res.agent_states()[agent_idx].x, drive_res.agent_states()[agent_idx].y}, 2))  {
+            attr.waypoint = std::nullopt;
+            drive_req.update_attribute(agent_idx, attr);
+            std::cout << "Agent " << agent_idx << " reached waypoint" << std::endl;
+          }
+          agent_idx ++;
+        }
         auto image = cv::imdecode(drive_res.birdview(), cv::IMREAD_COLOR);
         cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
         video.write(image);
