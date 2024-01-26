@@ -79,6 +79,7 @@ def drive(
         List of agent attributes. Each agent requires, length: [float]
         width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
         currently supports 'car' and 'pedestrian'.
+        waypoint: optional [Point], the target waypoint of the agent.
 
     recurrent_states:
         Recurrent states for all agents, obtained from the previous call to

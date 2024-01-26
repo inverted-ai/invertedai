@@ -2,6 +2,7 @@ import sys
 import pytest
 
 sys.path.insert(0, "../../")
+from invertedai.common import Point
 from invertedai.api.initialize import initialize, InitializeResponse
 from invertedai.api.location import location_info
 from invertedai.api.light import light
@@ -83,6 +84,48 @@ positive_tests = [
       dict(agent_type='pedestrian'),
       dict(agent_type='car')],
      False, 6),
+     ("canada:drake_street_and_pacific_blvd",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)]],
+     [dict(length=1.39, width=1.78, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(length=1.37, width=1.98, rear_axis_offset=None, agent_type="pedestrian",  waypoint=Point(x=1, y=2)),
+      dict(length=4.55, width=1.94, rear_axis_offset=1.4, agent_type='car', waypoint=Point(x=1, y=2)),
+      dict(agent_type='pedestrian'),
+      dict(agent_type='car')],
+     False, 6),
+     ("canada:drake_street_and_pacific_blvd",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)]],
+     [dict(length=1.39, width=1.78, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(length=1.37, width=1.98, rear_axis_offset=None, agent_type="pedestrian",  waypoint=Point(x=1, y=2)),
+      dict(length=4.55, width=1.94, rear_axis_offset=1.4, agent_type='car', waypoint=Point(x=1, y=2)),
+      dict(agent_type='pedestrian'),
+      dict(waypoint=Point(x=1, y=2))],
+     False, 6),
+     ("canada:drake_street_and_pacific_blvd",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)],
+       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)]],
+     [dict(length=1.39, width=1.78, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(length=1.37, width=1.98, rear_axis_offset=None, agent_type="pedestrian",  waypoint=Point(x=1, y=2)),
+      dict(length=4.55, width=1.94, rear_axis_offset=1.4, agent_type='car', waypoint=Point(x=1, y=2)),
+      dict(agent_type='pedestrian'),
+      dict(waypoint=Point(x=1, y=2))],
+     False, 6),
     ("carla:Town04",
      None,
      None,
@@ -125,21 +168,24 @@ negative_tests = [
       dict(width=1.15, agent_type='pedestrian'),
       dict(agent_type='car')],
      False, None),
+     ("canada:ubc_roundabout",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [dict(length=1.39, width=1.26, rear_axis_offset=0.0, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(length=1.37, width=1.98, rear_axis_offset=0.0, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(width=1.15, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(agent_type='car')],
+     False, None),
 ]
 
 def run_initialize(location, states_history, agent_attributes, get_infractions, agent_count):
-    location_info_response = location_info(location=location, rendering_fov=200)
-    if any(actor.agent_type == "traffic-light" for actor in location_info_response.static_actors):
-        scene_has_lights = True
-        light_response = light(location=location)
-    else:
-        light_response = None
-        scene_has_lights = False
     response = initialize(
         location,
         agent_attributes=agent_attributes,
         states_history=states_history,
-        traffic_light_state_history=[light_response.traffic_lights_states] if scene_has_lights else None,
+        traffic_light_state_history=None,
         get_birdview=False,
         get_infractions=get_infractions,
         agent_count=agent_count,

@@ -76,3 +76,17 @@ cc_binary(
         "@opencv",
     ],
 )
+
+cc_binary(
+    name = "waypoint_example",
+    srcs = ["waypoint_example.cc"],
+    data = [
+        "drive_body.json",
+        "initialize_body_waypoint_car_example.json",
+    ],
+    deps = [
+        "//invertedai:api",
+        "@boost//:beast",
+        "@opencv",
+    ],
+)

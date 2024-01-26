@@ -30,6 +30,8 @@ def light(
     random_seed: Optional[int] = None,
 ) -> LightResponse:
     """
+    DEPRECATED! 
+    For maps with traffic lights, use :func:`iai.initialize` to get traffic light states instead.
     Parameters
     ----------
     location:

@@ -54,7 +54,10 @@ public:
    * recurrent_states) in the drive response.
    */
   void update(const DriveResponse &drive_res);
-
+    /**
+   * Update the agent attributes of drive request.
+   */
+  void update_attribute(int idx, AgentAttributes &agent_attributes);
   // getters
   /**
    * Get location string in IAI format.

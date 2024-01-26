@@ -1,6 +1,6 @@
 #ifndef DATA_UTILS_H
 #define DATA_UTILS_H
-
+#include <cmath>
 #include <map>
 #include <optional>
 #include <string>
@@ -23,6 +23,12 @@ const std::map<std::string, int> kControlType = {
  */
 struct Point2d {
   double x, y;
+  bool isCloseTo(const Point2d& other, double threshold = 1) const {
+        double dx = x - other.x;
+        double dy = y - other.y;
+        double distance = std::sqrt(dx * dx + dy * dy);
+        return distance <= threshold;
+    }
 };
 
 /**
@@ -64,20 +70,27 @@ struct AgentAttributes {
    * Currently "car" and "pedestrian" are supported.
    */
   std::optional<std::string> agent_type;
+  /**
+   *  Target waypoint of the agent. If provided the agent will attempt to reach it.
+   */
+  std::optional<Point2d> waypoint;
 
   void printFields() const {
     std::cout << "checking fields of current agent..." << std::endl;
     if (length.has_value()) {
-        std::cout << "Length: " << length.value() << std::endl;
+      std::cout << "Length: " << length.value() << std::endl;
     }
     if (width.has_value()) {
-        std::cout << "Width: " << width.value() << std::endl;
+      std::cout << "Width: " << width.value() << std::endl;
     }
     if (rear_axis_offset.has_value()) {
-        std::cout << "rear_axis_offset: " << rear_axis_offset.value() << std::endl;
+      std::cout << "rear_axis_offset: " << rear_axis_offset.value() << std::endl;
     }
     if (agent_type.has_value()) {
-        std::cout << "Agent type: " << agent_type.value() << std::endl;
+      std::cout << "Agent type: " << agent_type.value() << std::endl;
+    }
+    if (waypoint.has_value()) {
+      std::cout << "Waypoint: (" << waypoint.value().x << "," << waypoint.value().y << ")"<< std::endl;
     }
   }
 
@@ -95,19 +108,51 @@ struct AgentAttributes {
     if (agent_type.has_value()) {
         attr_vector.push_back(agent_type.value());
     }
+    std::vector<std::vector<double>> waypoint_vector;
+    if (waypoint.has_value()) {  
+        waypoint_vector.push_back({waypoint.value().x, waypoint.value().y});
+    }
     json jsonArray = json::array();
     for (const auto &element : attr_vector) {
         std::visit([&jsonArray](const auto& value) {
             jsonArray.push_back(value);
         }, element);
     }
+    for (const auto &element : waypoint_vector) {
+        jsonArray.push_back(element);
+    }
+
     return jsonArray;
   }
 
   AgentAttributes(const json &element) {
     int size = element.size();
-    if (size == 1 && element[0].is_string()) {
+    if (size == 1) {
+      if (element[0].is_string()){
         agent_type = element[0];
+
+      }
+      else if (element[0].is_array()) {
+            waypoint = {element[0][0], element[0][1]};
+        }
+      else {
+        throw std::invalid_argument("Invalid data type at position 0.");
+      }
+    }
+    else if(size == 2) {
+        if (element[0].is_string()) {
+            agent_type = element[0];
+        }
+        else {
+          throw std::invalid_argument("agent_type must be a string");
+        }
+        if (element[1].is_array()) {
+            waypoint = {element[1][0], element[1][1]};
+        }
+        else {
+          throw std::invalid_argument("Waypoint must be an array of two numbers");
+        }
+
     }
     else if(size == 3) {
         if (element[2].is_string()) {
@@ -116,18 +161,70 @@ struct AgentAttributes {
         else if (element[2].is_number()) {
             rear_axis_offset = element[2];
         }
+        else if (element[2].is_array()) {
+            waypoint = {element[2][0], element[2][1]};
+        }
+        else
+        {
+          throw std::invalid_argument("Invalid data type at position 2.");
+        }
         length = element[0];
         width = element[1];
     }
-    else if(size == 4) {
+    else if (size == 4)
+    {
+      length = element[0];
+      width = element[1];
+      if (element[3].is_array())
+      {
+        waypoint = {element[3][0], element[3][1]};
+        if (element[2].is_string())
+        {
+          agent_type = element[2];
+        }
+        else if (element[2].is_number())
+        {
+          rear_axis_offset = element[2];
+        }
+        else
+        {
+          throw std::invalid_argument("Invalid data type at position 2.");
+        }
+      }
+      else if (element[3].is_string()){
+      {
+        agent_type = element[3];
+        if (element[2].is_number())
+        {
+          rear_axis_offset = element[2];
+        }
+        else
+        {
+          rear_axis_offset = 0.0;
+        }
+      }
+    }
+    else
+        {
+          throw std::invalid_argument("Invalid data type at position 3.");
+        }
+        
+    }
+    else if(size == 5) {
         length = element[0];
         width = element[1];
-        if (element[2].is_number()) {
-            rear_axis_offset = element[2];
-        } else {
-            rear_axis_offset = 0.0;
+        if (element[2].is_number())
+        {
+          rear_axis_offset = element[2];
         }
-        agent_type = element[3];
+        else
+        {
+          rear_axis_offset = 0.0;
+        }
+        if (element[3].is_string()) {
+            agent_type = element[3];
+        }
+        waypoint = {element[4][0], element[4][1]};
     }
   }
 };
