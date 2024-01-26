@@ -361,7 +361,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-        return valid_agent_state, valid_agent_attrs, valid_agent_rs, response.model_version
+        return valid_agent_state, valid_agent_attrs, valid_agent_rs, response.api_model_version
 
     stride = initialize_fov / 2
 
@@ -404,7 +404,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
         recurrent_states=new_recurrent_states,
         agent_states=new_agent_state,
         agent_attributes=new_attributes,
-        model_version=model_version
+        api_model_version=model_version
     )
 
 
