@@ -45,6 +45,7 @@ class DriveResponse(BaseModel):
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
     traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group.
+    api_model_version: str  # Model version used for this API call
 
 
 @validate_arguments
@@ -60,7 +61,7 @@ def drive(
         rendering_fov: Optional[float] = None,
         get_infractions: bool = False,
         random_seed: Optional[int] = None,
-        model_version: Optional[str] = None
+        api_model_version: Optional[str] = None
 ) -> DriveResponse:
     """
     Parameters
@@ -114,7 +115,7 @@ def drive(
     random_seed:
         Controls the stochastic aspects of agent behavior for reproducibility.
 
-    model_version:
+    api_model_version:
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
     See Also
     --------
@@ -160,7 +161,7 @@ def drive(
         random_seed=random_seed,
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
-        model_version=model_version
+        model_version=api_model_version
     )
     start = time.time()
     timeout = TIMEOUT
@@ -186,7 +187,7 @@ def drive(
                 if response["infraction_indicators"]
                 else [],
                 is_inside_supported_area=response["is_inside_supported_area"],
-                model_version=response["model_version"],
+                api_model_version=response["model_version"],
                 traffic_lights_states=response["traffic_lights_states"]
                 if response["traffic_lights_states"] is not None 
                 else None,
@@ -219,7 +220,7 @@ async def async_drive(
         rendering_fov: Optional[float] = None,
         get_infractions: bool = False,
         random_seed: Optional[int] = None,
-        model_version: Optional[str] = None
+        api_model_versioin: Optional[str] = None
 ) -> DriveResponse:
     """
     A light async version of :func:`drive`
@@ -245,7 +246,7 @@ async def async_drive(
         random_seed=random_seed,
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
-        model_version=model_version,
+        model_version=api_model_versioin,
     )
     response = await iai.session.async_request(model="drive", data=model_inputs)
 
@@ -266,7 +267,7 @@ async def async_drive(
         if response["infraction_indicators"]
         else [],
         is_inside_supported_area=response["is_inside_supported_area"],
-        model_version=response["model_version"],
+        api_model_version=response["model_version"],
         traffic_lights_states=response["traffic_lights_states"] 
         if response["traffic_lights_states"] is not None 
         else None,

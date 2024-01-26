@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict
 from enum import Enum
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, model_validator
 import math
 
 import invertedai as iai
@@ -20,7 +20,7 @@ class RecurrentState(BaseModel):
 
     #: Internal representation of the recurrent state.
 
-    @root_validator
+    @model_validator(mode='before')
     @classmethod
     def check_recurrentstate(cls, values):
         if len(values.get("packed")) == RECURRENT_SIZE:
