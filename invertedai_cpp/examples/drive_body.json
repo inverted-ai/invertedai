@@ -14,10 +14,23 @@
             7.58
         ]
     ],
+    "agent_attributes": [
+        [
+            5.10,
+            4.65,
+            1.23
+        ],
+        [
+            4.79,
+            4.58,
+            1.17
+        ]
+    ],
     "recurrent_states": null,
     "get_birdview": true,
     "get_infractions": true,
     "traffic_lights_states": null,
+    "light_recurrent_states": null,
     "random_seed": null,
     "rendering_fov": null,
     "rendering_center": null

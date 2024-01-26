@@ -131,6 +131,20 @@ class TrafficLightState(str, Enum):
     red = "red"
 
 
+class LightRecurrentState(BaseModel):
+    """
+    Recurrent state of all the traffic lights in one light group (one intersection).
+    """
+    state: float
+    time_remaining: float
+    
+    def tolist(self):
+        """
+        Convert LightRecurrentState to a list in this order: [state, time_remaining]
+        """
+        return [self.state, self.time_remaining]
+    
+    
 class AgentType(str, Enum):
     car = "car"
     pedestrian = "pedestrian"
@@ -151,23 +165,38 @@ class AgentAttributes(BaseModel):
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
     rear_axis_offset: Optional[float] = None
     agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
+    waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it.
 
     @classmethod
     def fromlist(cls, l):
-        if len(l) == 4:
-            length, width, rear_axis_offset, agent_type = l
-            return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type)
-        elif len(l) == 3:
-            if type(l[-1]) is not str:
-                length, width, rear_axis_offset, = l
-                return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=AgentType.car.value)
+        length, width, rear_axis_offset, agent_type, waypoint = None, None, None, None, None    
+        if len(l) == 5:
+            length, width, rear_axis_offset, agent_type, waypoint = l
+        elif len(l) == 4:
+            if type(l[3]) == list:
+                if type(l[2]) == str:
+                    length, width, agent_type, waypoint = l
+                else:
+                    length, width, rear_axis_offset, waypoint = l
             else:
+                length, width, rear_axis_offset, agent_type = l
+        elif len(l) == 3:
+            if type(l[2]) == list:
+                length, width, waypoint = l
+            elif type(l[2]) == str:
                 length, width, agent_type = l
-                return cls(length=length, width=width, rear_axis_offset=None, agent_type=agent_type)
+            else:
+                length, width, rear_axis_offset = l
+        elif len(l) == 2:
+            agent_type, waypoint = l
         else:
-            assert len(l) == 1
-            agent_type, = l
-            return cls(agent_type=agent_type)
+            assert len(l) == 1, "Only a single item (agent_type or waypoint) is allowed when the size of the provided list is neither 3, 4 nor 5."
+            if type(l[0]) == list:
+                waypoint, = l
+            else:
+                agent_type, = l        
+        assert type(waypoint) is list if waypoint is not None else True, "waypoint must be a list of two floats"
+        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoint=Point(x=waypoint[0], y=waypoint[1]) if waypoint is not None else None)
 
     def tolist(self):
         """
@@ -183,6 +212,8 @@ class AgentAttributes(BaseModel):
             attr_list.append(self.rear_axis_offset)
         if self.agent_type is not None:
             attr_list.append(self.agent_type)
+        if self.waypoint is not None:
+            attr_list.append([self.waypoint.x, self.waypoint.y])
         return attr_list
 
 
@@ -262,3 +293,4 @@ class StaticMapActor(BaseModel):
 
 
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
+LightRecurrentStates = List[LightRecurrentState]

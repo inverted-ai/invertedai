@@ -1,13 +1,17 @@
 {
-    "location": "iai:ubc_roundabout",
-    "num_agents_to_spawn": 10,
+    "location": "iai:terminal_and_quebec",
+    "num_agents_to_spawn": 20,
     "states_history": null,
-    "agent_attributes": null,
+    "agent_attributes": [
+        ["car"],
+        ["pedestrian"],
+        ["pedestrian"],
+        ["pedestrian"],
+        ["pedestrian"]
+    ],
     "traffic_light_state_history": null,
-    "get_birdview": false,
-    "get_infractions": false,
+    "get_birdview": true,
+    "get_infractions": true,
     "random_seed": null,
-    "location_of_interest": null,
-    "conditional_agent_states": null,
-    "conditional_agent_attributes": null
+    "location_of_interest": null
 }

@@ -20,6 +20,8 @@ from invertedai.common import (
     TrafficLightStatesDict,
     Image,
     InfractionIndicators,
+    LightRecurrentStates,
+    LightRecurrentState,
 )
 
 
@@ -41,6 +43,8 @@ class InitializeResponse(BaseModel):
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
+    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
+    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group.
     model_version: str # Model version used for this API call
 
 
@@ -83,6 +87,7 @@ def initialize(
     agent_attributes:
         Static attributes for all agents.
         The pre-defined agents should be specified first, followed by the sampled agents.
+        The optional waypoint passed will be ignored for Initialize.
 
     states_history:
         History of pre-defined agent states - the outer list is over time and the inner over agents,
@@ -92,8 +97,8 @@ def initialize(
 
     traffic_light_state_history:
        History of traffic light states - the list is over time, in chronological order, i.e.
-       the last element is the current state. Not specifying traffic light state is equivalent
-       to disabling traffic lights.
+       the last element is the current state. If there are traffic lights in the map, 
+       not specifying traffic light state is equivalent to using iai generated light states.
 
     location_of_interest:
         Optional coordinates for spawning agents with the given location as center instead of the default map center
@@ -181,7 +186,16 @@ def initialize(
                 ]
                 if response["infraction_indicators"]
                 else [],
-                model_version=response["model_version"]
+                model_version=response["model_version"],
+                traffic_lights_states=response["traffic_lights_states"] 
+                if response["traffic_lights_states"] is not None 
+                else None,
+                light_recurrent_states=[
+                    LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
+                    for state_arr in response["light_recurrent_states"]
+                ] 
+                if response["light_recurrent_states"] is not None 
+                else None
             )
             return response
         except TryAgain as e:
@@ -251,6 +265,15 @@ async def async_initialize(
         ]
         if response["infraction_indicators"]
         else [],
-        model_version=response["model_version"]
+        model_version=response["model_version"],
+        traffic_lights_states=response["traffic_lights_states"]
+        if response["traffic_lights_states"] is not None 
+        else None,
+        light_recurrent_states=[
+            LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
+            for state_arr in response["light_recurrent_states"]
+            ] 
+        if response["light_recurrent_states"] is not None 
+        else None
     )
     return response
