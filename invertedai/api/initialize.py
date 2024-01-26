@@ -45,7 +45,7 @@ class InitializeResponse(BaseModel):
     ]  #: If `get_infractions` was set, they are returned here.
     traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group.
-    model_version: str # Model version used for this API call
+    api_model_version: str # Model version used for this API call
 
 
 @validate_arguments
@@ -61,7 +61,7 @@ def initialize(
         get_infractions: bool = False,
         agent_count: Optional[int] = None,
         random_seed: Optional[int] = None,
-        model_version: Optional[str] = None  # Model version used for this API call
+        api_model_version: Optional[str] = None  # Model version used for this API call
 ) -> InitializeResponse:
     """
     Initializes a simulation in a given location, using a combination of **user-defined** and **sampled** agents.
@@ -116,7 +116,7 @@ def initialize(
     random_seed:
         Controls the stochastic aspects of initialization for reproducibility.
 
-    model_version:
+    api_model_version:
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
 
     See Also
@@ -160,7 +160,7 @@ def initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
-        model_version=model_version
+        model_version=api_model_version
     )
     start = time.time()
     timeout = TIMEOUT
@@ -186,7 +186,7 @@ def initialize(
                 ]
                 if response["infraction_indicators"]
                 else [],
-                model_version=response["model_version"],
+                api_model_version=response["model_version"],
                 traffic_lights_states=response["traffic_lights_states"] 
                 if response["traffic_lights_states"] is not None 
                 else None,
@@ -217,7 +217,7 @@ async def async_initialize(
         get_infractions: bool = False,
         agent_count: Optional[int] = None,
         random_seed: Optional[int] = None,
-        model_version: Optional[str] = None
+        api_model_version: Optional[str] = None
 ) -> InitializeResponse:
     """
     The async version of :func:`initialize`
@@ -237,7 +237,7 @@ async def async_initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
-        model_version=model_version
+        model_version=api_model_version
     )
 
     response = await iai.session.async_request(model="initialize", data=model_inputs)
@@ -265,7 +265,7 @@ async def async_initialize(
         ]
         if response["infraction_indicators"]
         else [],
-        model_version=response["model_version"],
+        api_model_version=response["model_version"],
         traffic_lights_states=response["traffic_lights_states"]
         if response["traffic_lights_states"] is not None 
         else None,
