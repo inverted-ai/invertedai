@@ -1,5 +1,5 @@
 import time
-from pydantic import BaseModel, validate_arguments, root_validator
+from pydantic import BaseModel, validate_arguments
 from typing import List, Optional, Dict, Tuple
 import asyncio
 
