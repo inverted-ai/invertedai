@@ -4,8 +4,10 @@
 #include "data_utils.h"
 #include "externals/json.hpp"
 
+#include <map>
 #include <string>
 #include <vector>
+#include <optional>
 
 using json = nlohmann::json;
 
@@ -16,8 +18,11 @@ private:
   std::vector<AgentState> agent_states_;
   std::vector<bool> is_inside_supported_area_;
   std::vector<std::vector<double>> recurrent_states_;
+  std::optional<std::map<std::string, std::string>> traffic_lights_states_;
+  std::optional<std::vector<LightRecurrentState>> light_recurrent_states_;
   std::vector<unsigned char> birdview_;
   std::vector<InfractionIndicator> infraction_indicators_;
+  std::string model_version_;
   json body_json_;
 
   void refresh_body_json_();
@@ -47,6 +52,14 @@ public:
    */
   std::vector<std::vector<double>> recurrent_states() const;
   /**
+   * Get the states of traffic lights.
+   */
+  std::optional<std::map<std::string, std::string>> traffic_lights_states() const;
+  /**
+   * Get light recurrent states for all light groups in location.
+   */
+  std::optional<std::vector<LightRecurrentState>> light_recurrent_states() const;
+  /**
    * If get_birdview was set, this contains the resulting image.
    */
   std::vector<unsigned char> birdview() const;
@@ -54,6 +67,10 @@ public:
    * If get_infractions was set, they are returned here.
    */
   std::vector<InfractionIndicator> infraction_indicators() const;
+  /**
+   * Get model version.
+   */
+  std::string model_version() const;
 
   // setters
   /**
@@ -73,6 +90,16 @@ public:
    */
   void set_recurrent_states(
       const std::vector<std::vector<double>> &recurrent_states);
+  /**
+   * Set the states of traffic lights.
+   */
+  void set_traffic_lights_states(
+      const std::map<std::string, std::string> &traffic_lights_states);
+  /**
+   * Set light recurrent states for all light groups in location.
+   */
+  void set_light_recurrent_states(
+      const std::vector<LightRecurrentState> &light_recurrent_states);
   /**
    * Set birdview.
    */

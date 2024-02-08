@@ -20,6 +20,9 @@ private:
   void refresh_body_json_();
 
 public:
+  /**
+   * A request sent to receive an LocationInfoResponse from the API.
+   */
   LocationInfoRequest(const std::string &body_str);
   /**
    * Serialize all the fields into a string.
@@ -63,8 +66,7 @@ public:
   /**
    * Set the center coordinates for the rendered birdview.
    */
-  void set_rendering_center(
-      const std::optional<std::pair<double, double>> &rendering_center);
+  void set_rendering_center(const std::optional<std::pair<double, double>> &rendering_center);
 };
 
 } // namespace invertedai

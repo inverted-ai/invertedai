@@ -1,4 +1,4 @@
-FROM ubuntu:22.10
+FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && apt-get install -y \
     && apt-get install -y build-essential \
@@ -15,5 +15,7 @@ RUN curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor >bazel-
 
 COPY . /usr/src/myapp
 WORKDIR /usr/src/myapp
+
+RUN chmod 755 ./run_all_tests.sh
 
 CMD ["/bin/bash"]

@@ -1,5 +1,7 @@
 [pypi-badge]: https://badge.fury.io/py/invertedai.svg
 [pypi-link]: https://pypi.org/project/invertedai/
+[python-badge]: https://img.shields.io/pypi/pyversions/invertedai.svg?color=%2334D058
+[ci-badge]: https://github.com/inverted-ai/invertedai/actions/workflows/CI.yml/badge.svg?branch=master
 [colab-badge]: https://colab.research.google.com/assets/colab-badge.svg
 [colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai/blob/develop/examples/IAI_full_demo.ipynb
 [rest-link]: https://app.swaggerhub.com/apis-docs/InvertedAI/InvertedAI
@@ -7,6 +9,8 @@
 
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
 [![PyPI][pypi-badge]][pypi-link]
+[![python-badge]][pypi-link]
+[![ci-badge]](https://github.com/inverted-ai/invertedai/actions/workflows/CI.yml)
 [![Open In Colab][colab-badge]][colab-link]
 
 # InvertedAI
@@ -15,7 +19,7 @@
 <!-- start elevator-pitch -->
 Inverted AI provides an API for controlling non-playable characters (NPCs) in autonomous driving simulations,
 available as either a [REST API][rest-link] or a [Python SDK](https://docs.inverted.ai/en/latest/pythonapi/index.html), (and [C++ SDK](https://docs.inverted.ai/en/latest/cppapi/index.html)) built on top of it. Using the API requires an access key -
-[contact us](mailto:sales@inverted.ai) to get yours. This page describes how to get started quickly. For more in-depth understanding,
+create an account on our [user portal](https://www.inverted.ai/portal/login) to get one.  New users are given keys preloaded with an API access budget; researcher users affiliated to academic institutions generally receive a sufficient amount of credits to conduct their research for free.  This page describes how to get started quickly. For more in-depth understanding,
 see the [API usage guide](https://docs.inverted.ai/en/latest/userguide.html), and detailed documentation for the [REST API][rest-link],
 the [Python SDK](https://docs.inverted.ai/en/latest/pythonapi/index.html), and the [C++ SDK](https://docs.inverted.ai/en/latest/cppapi/index.html).
 To understand the underlying technology and why it's necessary for autonomous driving simulations, visit the
@@ -53,15 +57,12 @@ print("Begin initialization.")
 # format and list traffic lights with their IDs and locations.
 location_info_response = iai.location_info(location=location)
 
-# get traffic light states
-light_response = iai.light(location=location)
-
 # initialize the simulation by spawning NPCs
 response = iai.initialize(
     location=location,  # select one of available locations
     agent_count=10,    # number of NPCs to spawn
     get_birdview=True,  # provides simple visualization - don't use in production
-    traffic_light_state_history=[light_response.traffic_lights_states],  # provide traffic light states
+    traffic_light_state_history=None
 )
 agent_attributes = response.agent_attributes  # get dimension and other attributes of NPCs
 
@@ -79,9 +80,6 @@ scene_plotter.initialize_recording(
 print("Begin stepping through simulation.")
 for _ in range(100):  # how many simulation steps to execute (10 steps is 1 second)
 
-    # get next traffic light state
-    light_response = iai.light(location=location, recurrent_states=light_response.recurrent_states)
-
     # query the API for subsequent NPC predictions
     response = iai.drive(
         location=location,
@@ -89,11 +87,11 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
         get_birdview=True,
-        traffic_lights_states=light_response.traffic_lights_states,
+        light_recurrent_states=response.light_recurrent_states,
     )
 
     # save the visualization
-    scene_plotter.record_step(response.agent_states,light_response.traffic_lights_states)
+    scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
 
 print("Simulation finished, save visualization.")
 # save the visualization to disk

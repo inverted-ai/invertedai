@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "externals/json.hpp"
 
@@ -20,18 +21,23 @@ private:
   std::string location_;
   std::vector<AgentState> agent_states_;
   std::vector<AgentAttributes> agent_attributes_;
-  std::vector<TrafficLightState> traffic_lights_states_;
+  std::optional<std::map<std::string, std::string>> traffic_lights_states_;
+  std::optional<std::vector<LightRecurrentState>> light_recurrent_states_;
   std::vector<std::vector<double>> recurrent_states_;
   bool get_birdview_;
   bool get_infractions_;
   std::optional<int> random_seed_;
   std::optional<double> rendering_fov_;
   std::optional<std::pair<double, double>> rendering_center_;
+  std::optional<std::string> model_version_;
   json body_json_;
 
   void refresh_body_json_();
 
 public:
+  /**
+   * A request sent to receive an DriveResponse from the API.
+   */
   DriveRequest(const std::string &body_str);
   /**
    * Serialize all the fields into a string.
@@ -48,7 +54,10 @@ public:
    * recurrent_states) in the drive response.
    */
   void update(const DriveResponse &drive_res);
-
+    /**
+   * Update the agent attributes of drive request.
+   */
+  void update_attribute(int idx, AgentAttributes &agent_attributes);
   // getters
   /**
    * Get location string in IAI format.
@@ -69,11 +78,15 @@ public:
   /**
    * Get the states of traffic lights.
    */
-  std::vector<TrafficLightState> traffic_lights_states() const;
+  std::optional<std::map<std::string, std::string>> traffic_lights_states() const;
   /**
    * Get the recurrent states for all agents.
    */
   std::vector<std::vector<double>> recurrent_states() const;
+  /**
+   * Get the recurrent states for all light groups in location.
+   */
+  std::optional<std::vector<LightRecurrentState>> light_recurrent_states() const;
   /**
    * Check whether to return an image visualizing the simulation state.
    */
@@ -94,6 +107,10 @@ public:
    * Get random_seed.
    */
   std::optional<int> random_seed() const;
+  /**
+   * Get model version.
+   */
+  std::optional<std::string> model_version() const;
 
   // setters
   /**
@@ -118,13 +135,18 @@ public:
    * traffic light for which no state is provided will be ignored by the agents.
    */
   void set_traffic_lights_states(
-      const std::vector<TrafficLightState> &traffic_lights_states);
+      const std::map<std::string, std::string> &traffic_lights_states);
   /**
    * Set the recurrent states for all agents, obtained from the
    * previous call to drive() or initialize().
    */
   void set_recurrent_states(
       const std::vector<std::vector<double>> &recurrent_states);
+  /**
+   * Set light recurrent states for all light groups in location.
+   */
+  void set_light_recurrent_states(
+      const std::vector<LightRecurrentState> &light_recurrent_states);
   /**
    * Set whether to return an image visualizing the simulation state.
    * This is very slow and should only be used for debugging.
@@ -149,6 +171,10 @@ public:
    * for reproducibility.
    */
   void set_random_seed(std::optional<int> random_seed);
+  /**
+   * Set model version. If None is passed which is by default, the best model will be used.
+   */
+  void set_model_version(std::optional<std::string> model_version);
 };
 
 } // namespace invertedai

@@ -36,19 +36,45 @@ void Session::set_api_key(const std::string &api_key) {
 }
 
 void Session::connect() {
-  if (!SSL_set_tlsext_host_name(this->stream_.native_handle(), this->host_)) {
-    beast::error_code ec{static_cast<int>(::ERR_get_error()),
-                         net::error::get_ssl_category()};
+  auto const results = this->resolver_.resolve(this->host_, this->port_);
+  if (!local_mode){
+    if (!SSL_set_tlsext_host_name(this->ssl_stream_.native_handle(), this->host_)) {
+    beast::error_code ec{static_cast<int>(::ERR_get_error()),net::error::get_ssl_category()};
     throw beast::system_error{ec};
   }
-  auto const results = this->resolver_.resolve(this->host_, this->port_);
-  beast::get_lowest_layer(this->stream_).connect(results);
-  this->stream_.handshake(ssl::stream_base::client);
+  beast::get_lowest_layer(this->ssl_stream_).connect(results);
+  this->ssl_stream_.handshake(ssl::stream_base::client);
+  }
+  else{
+    this->tcp_stream_.connect(results);
+  }
 }
 
 void Session::shutdown() {
   beast::error_code ec;
-  this->stream_.shutdown(ec);
+  if (local_mode){
+    // Shutdown the connection
+    this->tcp_stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+    if(ec) {
+        std::cerr << "Shutdown error: " << ec.message() << "\n";
+        throw beast::system_error{ec};
+    }
+
+    // Close the socket
+    this->tcp_stream_.socket().close(ec);
+    if(ec) {
+        std::cerr << "Close error: " << ec.message() << "\n";
+        throw beast::system_error{ec};
+    }
+  }
+  else{
+    this->ssl_stream_.shutdown(ec);
+    if(ec) {
+        std::cerr << "Shutdown error: " << ec.message() << "\n";
+        throw beast::system_error{ec};
+    }
+
+  }
   if (ec == net::error::eof) {
     ec = {};
   }
@@ -57,14 +83,16 @@ void Session::shutdown() {
   }
 }
 
-const std::string Session::request(const std::string &mode,
-                                   const std::string &body_str,
-                                   const std::string &url_query_string) {
-  std::string target = "/v0/aws/m1/" + mode + url_query_string;
+const std::string Session::request(
+  const std::string &mode,
+  const std::string &body_str,
+  const std::string &url_query_string) {
+  std::string target = subdomain + mode + url_query_string;
 
   http::request<http::string_body> req{
       mode == "location_info" ? http::verb::get : http::verb::post,
-      target.c_str(), this->version_};
+      target.c_str(), 
+      this->version_};
   req.set(http::field::host, this->host_);
   req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
   req.set("Accept-Encoding", "gzip");
@@ -77,15 +105,28 @@ const std::string Session::request(const std::string &mode,
   req.body() = body_str;
   req.prepare_payload();
 
-  http::write(this->stream_, req);
+  if (local_mode){
+    http::write(this->tcp_stream_, req);
+
+  }
+  else {
+    http::write(this->ssl_stream_, req);
+  }
+
   beast::flat_buffer buffer;
   http::response<http::string_body> res;
   beast::error_code ec;
-  http::read(this->stream_, buffer, res, ec);
+  if (local_mode){
+    http::read(this->tcp_stream_, buffer, res, ec);
+
+  }
+  else{
+    http::read(this->ssl_stream_, buffer, res, ec);
+
+  }
   if (!(res.result() == http::status::ok)) {
     throw std::runtime_error(
-        "response status: " + std::to_string(res.result_int()) + "\nbody:\n" +
-        res.body());
+        "response status: " + std::to_string(res.result_int()) + "\nbody:\n" + res.body());
   }
   if (debug_mode) {
     std::cout << "res body content:\n";

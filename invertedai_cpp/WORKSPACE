@@ -1,6 +1,6 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-_RULES_BOOST_COMMIT = "a96f8482a80c875a020cd9ed590b30b44e67785d"
+_RULES_BOOST_COMMIT = "ce2b65fd6d1494aadb2d8c99ce26aa222ab72486"
 
 http_archive(
     name = "com_github_nelhage_rules_boost",
@@ -16,6 +16,6 @@ boost_deps()
 
 new_local_repository(
     name = "opencv",
-    build_file = "examples/externals/opencv.BUILD",
+    build_file = "//examples/externals:BUILD",
     path = "/usr/include",
 )
