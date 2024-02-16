@@ -23,7 +23,7 @@ class RecurrentState(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def check_recurrentstate(cls, values):
-        if len(values.get("packed")) == RECURRENT_SIZE:
+        if len(values.get("packed")) >= RECURRENT_SIZE:
             return values
         else:
             raise InvalidInput("Incorrect Recurrentstate Size.")
