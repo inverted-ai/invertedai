@@ -101,6 +101,7 @@ cc_library(
     deps = [
         "//invertedai/externals:root-certificates",
         "@boost//:beast",
+        ":version",
     ],
 )
 
@@ -120,4 +121,10 @@ cc_library(
         ":location_info_response",
         ":session",
     ],
+)
+
+cc_library(
+    name = "version",
+    hdrs = ["version.h"],
+    visibility = ["//visibility:public"],
 )
