@@ -1,5 +1,5 @@
 import time
-from pydantic import BaseModel, validate_arguments
+from pydantic import BaseModel, validate_call
 from typing import Optional, List, Tuple
 
 import invertedai as iai
@@ -26,7 +26,7 @@ class LocationResponse(BaseModel):
     static_actors: List[StaticMapActor]  #: Lists traffic lights with their IDs and locations.
 
 
-@validate_arguments
+@validate_call
 def location_info(
     location: str,
     include_map_source: bool = False,

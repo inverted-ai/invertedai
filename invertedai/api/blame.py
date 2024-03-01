@@ -1,6 +1,6 @@
 import time
 from typing import List, Optional, Tuple, Dict
-from pydantic import BaseModel, validate_arguments
+from pydantic import BaseModel, validate_call
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -27,7 +27,7 @@ class BlameResponse(BaseModel):
     confidence_score: Optional[float] #: Float value between [0,1] indicating BLAME's confidence in the response where 0.0 represents the minimum confidence and 1.0 represents maximum.
     birdviews: Optional[List[Image]]  #: If `get_birdviews` was set, this contains the resulting image.
 
-@validate_arguments
+@validate_call
 def blame(
     location: str,
     colliding_agents: Tuple[int, int],
@@ -136,7 +136,7 @@ def blame(
                 raise e
 
 
-@validate_arguments
+@validate_call
 async def async_blame(
     location: str,
     colliding_agents: Tuple[int, int],

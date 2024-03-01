@@ -1,5 +1,5 @@
 import time
-from pydantic import BaseModel, validate_arguments
+from pydantic import BaseModel, validate_call
 from typing import List, Optional, Dict, Tuple
 import asyncio
 
@@ -48,7 +48,7 @@ class InitializeResponse(BaseModel):
     api_model_version: str # Model version used for this API call
 
 
-@validate_arguments
+@validate_call
 def initialize(
         location: str,
         agent_attributes: Optional[List[AgentAttributes]] = None,
@@ -204,7 +204,7 @@ def initialize(
             iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
 
 
-@validate_arguments
+@validate_call
 async def async_initialize(
         location: str,
         agent_attributes: Optional[List[AgentAttributes]] = None,
