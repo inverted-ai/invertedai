@@ -6,7 +6,7 @@ import math
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
-RECURRENT_SIZE = 132
+RECURRENT_SIZE = 152
 TrafficLightId = int
 
 
