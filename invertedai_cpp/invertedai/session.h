@@ -28,7 +28,7 @@ private:
 public:
   const char* host_ = local_mode ? "localhost" : "api.inverted.ai";
   const char* port_ = local_mode ? "8000" : "443";
-  const char *subdomain = local_mode ? "/" : "/staging/aws/m1/";;
+  const char *subdomain = local_mode ? "/" : "/v0/aws/m1/";;
   const int version_ = 11;
 
   explicit Session(net::io_context &ioc, ssl::context &ctx)
