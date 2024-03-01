@@ -1,6 +1,6 @@
 import time
 from typing import List, Optional, Dict
-from pydantic import BaseModel, Field, validate_arguments
+from pydantic import BaseModel, Field, validate_call
 import invertedai as iai
 
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -23,7 +23,7 @@ class LightResponse(BaseModel):
                                   "`LIGHT`.",)
 
 
-@validate_arguments
+@validate_call
 def light(
     location: str,
     recurrent_states: Optional[str] = None,
