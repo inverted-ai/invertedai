@@ -1,6 +1,6 @@
 import time
 from typing import List, Optional, Tuple
-from pydantic import BaseModel, validate_arguments
+from pydantic import BaseModel, validate_call
 import asyncio
 
 import invertedai as iai
@@ -48,7 +48,7 @@ class DriveResponse(BaseModel):
     api_model_version: str  # Model version used for this API call
 
 
-@validate_arguments
+@validate_call
 def drive(
         location: str,
         agent_states: List[AgentState],
@@ -208,7 +208,7 @@ def drive(
                 raise e
 
 
-@validate_arguments
+@validate_call
 async def async_drive(
         location: str,
         agent_states: List[AgentState],

@@ -2,7 +2,6 @@ from typing import List, Tuple, Optional, Union
 import random
 from collections import deque
 from queue import Queue
-from pydantic import BaseModel, validate_arguments
 from itertools import product
 import numpy as np
 import asyncio
