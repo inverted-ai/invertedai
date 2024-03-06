@@ -6,7 +6,7 @@ import math
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
-RECURRENT_SIZE = 132
+RECURRENT_SIZE = 152
 TrafficLightId = int
 
 
@@ -17,16 +17,6 @@ class RecurrentState(BaseModel):
     """
 
     packed: List[float] = [0.0] * RECURRENT_SIZE
-
-    #: Internal representation of the recurrent state.
-
-    @model_validator(mode='before')
-    @classmethod
-    def check_recurrentstate(cls, values):
-        if len(values.get("packed")) == RECURRENT_SIZE:
-            return values
-        else:
-            raise InvalidInput("Incorrect Recurrentstate Size.")
 
     @classmethod
     def fromval(cls, val):

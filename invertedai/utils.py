@@ -55,6 +55,7 @@ class Session:
                 "Content-Type": "application/json",
                 "Accept-Encoding": "gzip, deflate, br",
                 "Connection": "keep-alive",
+                "x-client-version": iai.__version__
             }
         )
         self._base_url = self._get_base_url()
