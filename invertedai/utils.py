@@ -174,29 +174,34 @@ class Session:
             )
             result.raise_for_status()
         except requests.exceptions.ConnectionError as e:
-            raise error.APIConnectionError("Error communicating with IAI", should_retry=True)
+            raise error.APIConnectionError("Error communicating with IAI", should_retry=True) from None
         except requests.exceptions.Timeout as e:
-            raise error.APIConnectionError("Error communicating with IAI")
+            raise error.APIConnectionError("Error communicating with IAI") from None
         except requests.exceptions.RequestException as e:
             if e.response.status_code == 403:
                 raise error.AuthenticationError(
                     "Access denied. Please check the provided API key."
-                )
+                ) from None
             elif e.response.status_code in [400, 422]:
-                raise error.InvalidRequestError(e.response.text, param="")
+                raise error.InvalidRequestError(e.response.text, param="") from None
             elif e.response.status_code == 404:
-                raise error.ResourceNotFoundError(e.response.text)
+                raise error.ResourceNotFoundError(e.response.text) from None
+            elif e.response.status_code == 408:
+                raise error.RequestTimeoutError(e.response.text) from None
             elif e.response.status_code == 413:
-                raise error.LargeRequestTimeout(e.response.text)
+                raise error.RequestTooLarge(e.response.text) from None
             elif e.response.status_code == 429:
-                raise error.RateLimitError("Throttled")
+                raise error.RateLimitError("Throttled") from None
+            elif e.response.status_code == 502:
+                raise error.APIError("The server is having trouble communicating. This is usually a temporary issue. Please try again later.") from None
             elif e.response.status_code == 503:
-                raise error.ServiceUnavailableError("Service Unavailable")
+                raise error.RequestTimeoutError(e.response.text) from None
+            elif e.response.status_code == 504:
+                raise error.ServiceUnavailableError("The server took too long to respond. Please try again later.") from None
             elif 400 <= e.response.status_code < 500:
-                raise error.APIError("Invalid request. Please check the sent data again.")
+                raise error.APIError(f"Invalid request. Please check the sent data again. \n {e.response.text}") from None
             else:
-                raise error.APIError("The server is aware that it has erred or is incapable of performing the requested"
-                                     " method.")
+                raise error.APIError("The server encountered an unexpected issue. We're working to resolve this. Please try again later.") from None
         iai.logger.info(
             iai.logger.logfmt(
                 "IAI API response",
