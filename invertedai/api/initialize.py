@@ -1,5 +1,5 @@
 import time
-from pydantic import BaseModel, validate_arguments, root_validator
+from pydantic import BaseModel, validate_call
 from typing import List, Optional, Dict, Tuple
 import asyncio
 
@@ -20,6 +20,8 @@ from invertedai.common import (
     TrafficLightStatesDict,
     Image,
     InfractionIndicators,
+    LightRecurrentStates,
+    LightRecurrentState,
 )
 
 
@@ -41,36 +43,41 @@ class InitializeResponse(BaseModel):
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
-    model_version: str # Model version used for this API call
+    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
+    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group.
+    api_model_version: str # Model version used for this API call
 
 
-@validate_arguments
+@validate_call
 def initialize(
-    location: str,
-    agent_attributes: Optional[List[AgentAttributes]] = None,
-    states_history: Optional[List[List[AgentState]]] = None,
-    traffic_light_state_history: Optional[
-        List[TrafficLightStatesDict]
-    ] = None,
-    get_birdview: bool = False,
-    location_of_interest: Optional[Tuple[float, float]] = None,
-    get_infractions: bool = False,
-    agent_count: Optional[int] = None,
-    random_seed: Optional[int] = None,
-    model_version: Optional[str] = None  # Model version used for this API call
+        location: str,
+        agent_attributes: Optional[List[AgentAttributes]] = None,
+        states_history: Optional[List[List[AgentState]]] = None,
+        traffic_light_state_history: Optional[
+            List[TrafficLightStatesDict]
+        ] = None,
+        get_birdview: bool = False,
+        location_of_interest: Optional[Tuple[float, float]] = None,
+        get_infractions: bool = False,
+        agent_count: Optional[int] = None,
+        random_seed: Optional[int] = None,
+        api_model_version: Optional[str] = None  # Model version used for this API call
 ) -> InitializeResponse:
     """
-    Initializes a simulation in a given location.
-    Either `agent_count` or both `agent_attributes` and `states_history` need to be provided.
-    In the latter case, the simulation is initialized with the specific history,
-    and if traffic lights are present then `traffic_light_state_history` should also be provided.
-    If only `agent_count` is specified, a new initial state is generated with the requested
-    total number of agents, i.e. when an empty list or None is passed for 'states_history'.
-    Otherwise, if the `agent_count` is higher than the number of agents in `states_history` the remaining agents will be spawned
-    conditionally on the provided agents. If `agent_count` is equal to the number of agents in `states_history`,
-    the simulation will be initialized only with the agents provided.
-    Finally, 'agent_count' cannot be less than he number of agents in `states_history`.
-    Every simulation needs to start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
+    Initializes a simulation in a given location, using a combination of **user-defined** and **sampled** agents.
+    **User-defined** agents are placed in a scene first, after which a number of agents are sampled conditionally 
+    inferred from the `agent_count` argument.
+    If **user-defined** agents are desired, `states_history` must contain a list of `AgentState's` of all **user-defined** 
+    agents per historical time step.
+    Any **user-defined** agent must have a corresponding fully specified static `AgentAttribute` in `agent_attributes`. 
+    Any **sampled** agents not specified in `agent_attributes` will be generated with default static attribute values however **sampled** 
+    agents may be defined by specifying `agent_type` only. 
+    Agents are identified by their list index, so ensure the indices of each agent match in `states_history` and
+    `agent_attributes` when applicable. 
+    If traffic lights are present in the scene, for best results their state should be specified for the current time in a 
+    `TrafficLightStatesDict`, and all historical time steps for which `states_history` is provided. It is legal to omit
+    the traffic light state specification, but the scene will be initialized as if the traffic lights were disabled.
+    Every simulation must start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
     Parameters
     ----------
@@ -79,15 +86,19 @@ def initialize(
 
     agent_attributes:
         Static attributes for all agents.
+        The pre-defined agents should be specified first, followed by the sampled agents.
+        The optional waypoint passed will be ignored for Initialize.
 
     states_history:
-        History of agent states - the outer list is over time and the inner over agents,
+        History of pre-defined agent states - the outer list is over time and the inner over agents,
         in chronological order, i.e., index 0 is the oldest state and index -1 is the current state.
+        The order of agents should be the same as in `agent_attributes`.
         For best results, provide at least 10 historical states for each agent.
 
     traffic_light_state_history:
-       History of traffic light states - the list is over time, in chronological order.
-       Traffic light states should be provided for all time steps where agent states are specified.
+       History of traffic light states - the list is over time, in chronological order, i.e.
+       the last element is the current state. If there are traffic lights in the map, 
+       not specifying traffic light state is equivalent to using iai generated light states.
 
     location_of_interest:
         Optional coordinates for spawning agents with the given location as center instead of the default map center
@@ -100,13 +111,12 @@ def initialize(
         If True, infraction metrics will be returned for each agent.
 
     agent_count:
-        If `states_history` is not specified, this needs to be provided and dictates how many
-        agents will be spawned.
+        Deprecated. Equivalent to padding the `agent_attributes` list to this length with default `AgentAttributes`.
 
     random_seed:
         Controls the stochastic aspects of initialization for reproducibility.
 
-    model_version:
+    api_model_version:
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
 
     See Also
@@ -116,13 +126,6 @@ def initialize(
     :func:`light`
     :func:`blame`
     """
-
-    if (states_history is not None) or (agent_attributes is not None):
-        if (agent_attributes is None) or (states_history is None):
-            raise InvalidInput("'agent_attributes' or 'states_history' are not provided.")
-        for agent_states in states_history:
-            if len(agent_states) != len(agent_attributes):
-                raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
 
     if should_use_mock_api():
         if agent_attributes is None:
@@ -157,18 +160,13 @@ def initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
-        model_version=model_version
+        model_version=api_model_version
     )
     start = time.time()
     timeout = TIMEOUT
     while True:
         try:
             response = iai.session.request(model="initialize", data=model_inputs)
-            agents_spawned = len(response["agent_states"])
-            if agents_spawned != agent_count:
-                iai.logger.warning(
-                    f"Unable to spawn a scenario for {agent_count} agents,  {agents_spawned} spawned instead."
-                )
             response = InitializeResponse(
                 agent_states=[
                     AgentState.fromlist(state) for state in response["agent_states"]
@@ -188,7 +186,16 @@ def initialize(
                 ]
                 if response["infraction_indicators"]
                 else [],
-                model_version=response["model_version"]
+                api_model_version=response["model_version"],
+                traffic_lights_states=response["traffic_lights_states"] 
+                if response["traffic_lights_states"] is not None 
+                else None,
+                light_recurrent_states=[
+                    LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
+                    for state_arr in response["light_recurrent_states"]
+                ] 
+                if response["light_recurrent_states"] is not None 
+                else None
             )
             return response
         except TryAgain as e:
@@ -197,30 +204,24 @@ def initialize(
             iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
 
 
-@validate_arguments
+@validate_call
 async def async_initialize(
-    location: str,
-    agent_attributes: Optional[List[AgentAttributes]] = None,
-    states_history: Optional[List[List[AgentState]]] = None,
-    traffic_light_state_history: Optional[
-        List[TrafficLightStatesDict]
-    ] = None,
-    get_birdview: bool = False,
-    location_of_interest: Optional[Tuple[float, float]] = None,
-    get_infractions: bool = False,
-    agent_count: Optional[int] = None,
-    random_seed: Optional[int] = None,
-    model_version: Optional[str] = None
+        location: str,
+        agent_attributes: Optional[List[AgentAttributes]] = None,
+        states_history: Optional[List[List[AgentState]]] = None,
+        traffic_light_state_history: Optional[
+            List[TrafficLightStatesDict]
+        ] = None,
+        get_birdview: bool = False,
+        location_of_interest: Optional[Tuple[float, float]] = None,
+        get_infractions: bool = False,
+        agent_count: Optional[int] = None,
+        random_seed: Optional[int] = None,
+        api_model_version: Optional[str] = None
 ) -> InitializeResponse:
     """
     The async version of :func:`initialize`
     """
-    if (states_history is not None) or (agent_attributes is not None):
-        if (agent_attributes is None) or (states_history is None):
-            raise InvalidInput("'agent_attributes' or 'states_history' are not provided.")
-        for agent_states in states_history:
-            if len(agent_states) != len(agent_attributes):
-                raise InvalidInput("Incompatible Number of Agents in either 'agent_states' or 'agent_attributes'.")
 
     model_inputs = dict(
         location=location,
@@ -236,7 +237,7 @@ async def async_initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
-        model_version=model_version
+        model_version=api_model_version
     )
 
     response = await iai.session.async_request(model="initialize", data=model_inputs)
@@ -264,6 +265,15 @@ async def async_initialize(
         ]
         if response["infraction_indicators"]
         else [],
-        model_version=response["model_version"]
+        api_model_version=response["model_version"],
+        traffic_lights_states=response["traffic_lights_states"]
+        if response["traffic_lights_states"] is not None 
+        else None,
+        light_recurrent_states=[
+            LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
+            for state_arr in response["light_recurrent_states"]
+            ] 
+        if response["light_recurrent_states"] is not None 
+        else None
     )
     return response

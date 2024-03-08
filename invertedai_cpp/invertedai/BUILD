@@ -4,6 +4,9 @@ cc_library(
     name = "data_utils",
     srcs = ["data_utils.cc"],
     hdrs = ["data_utils.h"],
+    deps = [
+    "//invertedai/externals:json",
+    ],
 )
 
 cc_library(
@@ -98,6 +101,7 @@ cc_library(
     deps = [
         "//invertedai/externals:root-certificates",
         "@boost//:beast",
+        ":version",
     ],
 )
 
@@ -117,4 +121,10 @@ cc_library(
         ":location_info_response",
         ":session",
     ],
+)
+
+cc_library(
+    name = "version",
+    hdrs = ["version.h"],
+    visibility = ["//visibility:public"],
 )

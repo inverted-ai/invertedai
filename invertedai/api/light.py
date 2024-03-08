@@ -1,6 +1,6 @@
 import time
 from typing import List, Optional, Dict
-from pydantic import BaseModel, Field, validate_arguments
+from pydantic import BaseModel, Field, validate_call
 import invertedai as iai
 
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -23,13 +23,15 @@ class LightResponse(BaseModel):
                                   "`LIGHT`.",)
 
 
-@validate_arguments
+@validate_call
 def light(
     location: str,
     recurrent_states: Optional[str] = None,
     random_seed: Optional[int] = None,
 ) -> LightResponse:
     """
+    DEPRECATED! 
+    For maps with traffic lights, use :func:`iai.initialize` to get traffic light states instead.
     Parameters
     ----------
     location:

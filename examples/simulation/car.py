@@ -1,7 +1,7 @@
 from typing import Optional
 import pygame
 from pygame.math import Vector2
-from pydantic import validate_arguments
+from pydantic import validate_call
 from invertedai.common import AgentState, AgentAttributes, RecurrentState
 from collections import deque
 from simulation.utils import MAX_HISTORY_LEN, AGENT_FOV, Rectangle
@@ -9,7 +9,7 @@ from uuid import uuid1 as UUID
 
 
 class Car:
-    @validate_arguments
+    @validate_call
     def __init__(self,
                  agent_attributes: Optional[AgentAttributes],
                  agent_states: Optional[AgentState],

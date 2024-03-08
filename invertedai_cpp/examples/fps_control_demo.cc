@@ -47,6 +47,7 @@ EgoAgentInput get_ego_agents(const json& example_ego_agent_log){
   ego_attributes.length = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][0];
   ego_attributes.width = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][1];
   ego_attributes.rear_axis_offset = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][2];
+  ego_attributes.agent_type = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][3];
   output_struct.ego_attributes = {ego_attributes};
 
   return output_struct;
@@ -213,6 +214,7 @@ int main(int argc, char **argv) {
         invertedai::initialize(init_req, &session);
     std::vector<invertedai::AgentState> current_agent_states = init_res.agent_states(); //Should be NPC states only
     split_npc_and_ego_states(current_agent_states,NUMBER_EGO_AGENTS);
+
 
     // construct request for stepping the simulation (driving the NPCs)
     invertedai::DriveRequest drive_req(

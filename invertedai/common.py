@@ -1,13 +1,12 @@
 from typing import List, Optional, Dict
 from enum import Enum
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, model_validator
 import math
 
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
-
-RECURRENT_SIZE = 132
+RECURRENT_SIZE = 152
 TrafficLightId = int
 
 
@@ -18,15 +17,6 @@ class RecurrentState(BaseModel):
     """
 
     packed: List[float] = [0.0] * RECURRENT_SIZE
-    #: Internal representation of the recurrent state.
-
-    @root_validator
-    @classmethod
-    def check_recurrentstate(cls, values):
-        if len(values.get("packed")) == RECURRENT_SIZE:
-            return values
-        else:
-            raise InvalidInput("Incorrect Recurrentstate Size.")
 
     @classmethod
     def fromval(cls, val):
@@ -49,7 +39,7 @@ class Point(BaseModel):
         return cls(x=x, y=y)
 
     def __sub__(self, other):
-        return math.sqrt((abs(self.x - other.x)**2) + (abs(self.y - other.y)**2))
+        return math.sqrt(((self.x - other.x) ** 2) + ((self.y - other.y) ** 2))
 
 
 class Origin(Point):
@@ -131,6 +121,25 @@ class TrafficLightState(str, Enum):
     red = "red"
 
 
+class LightRecurrentState(BaseModel):
+    """
+    Recurrent state of all the traffic lights in one light group (one intersection).
+    """
+    state: float
+    time_remaining: float
+    
+    def tolist(self):
+        """
+        Convert LightRecurrentState to a list in this order: [state, time_remaining]
+        """
+        return [self.state, self.time_remaining]
+    
+    
+class AgentType(str, Enum):
+    car = "car"
+    pedestrian = "pedestrian"
+
+
 class AgentAttributes(BaseModel):
     """
     Static attributes of the agent, which don't change over the course of a simulation.
@@ -141,22 +150,61 @@ class AgentAttributes(BaseModel):
     AgentState
     """
 
-    length: float  #: Longitudinal extent of the agent, in meters.
-    width: float  #: Lateral extent of the agent, in meters.
+    length: Optional[float] = None  #: Longitudinal extent of the agent, in meters.
+    width: Optional[float] = None  #: Lateral extent of the agent, in meters.
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
-    rear_axis_offset: float
+    rear_axis_offset: Optional[float] = None
+    agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
+    waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it.
 
     @classmethod
     def fromlist(cls, l):
-        length, width, rear_axis_offset = l
-        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset)
+        length, width, rear_axis_offset, agent_type, waypoint = None, None, None, None, None    
+        if len(l) == 5:
+            length, width, rear_axis_offset, agent_type, waypoint = l
+        elif len(l) == 4:
+            if type(l[3]) == list:
+                if type(l[2]) == str:
+                    length, width, agent_type, waypoint = l
+                else:
+                    length, width, rear_axis_offset, waypoint = l
+            else:
+                length, width, rear_axis_offset, agent_type = l
+        elif len(l) == 3:
+            if type(l[2]) == list:
+                length, width, waypoint = l
+            elif type(l[2]) == str:
+                length, width, agent_type = l
+            else:
+                length, width, rear_axis_offset = l
+        elif len(l) == 2:
+            agent_type, waypoint = l
+        else:
+            assert len(l) == 1, "Only a single item (agent_type or waypoint) is allowed when the size of the provided list is neither 3, 4 nor 5."
+            if type(l[0]) == list:
+                waypoint, = l
+            else:
+                agent_type, = l        
+        assert type(waypoint) is list if waypoint is not None else True, "waypoint must be a list of two floats"
+        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoint=Point(x=waypoint[0], y=waypoint[1]) if waypoint is not None else None)
 
     def tolist(self):
         """
         Convert AgentAttributes to a flattened list of agent attributes
-        in this order: [length, width, rear_axis_offset]
+        in this order: [length, width, rear_axis_offset, agent_type]
         """
-        return [self.length, self.width, self.rear_axis_offset]
+        attr_list = []
+        if self.length is not None:
+            attr_list.append(self.length)
+        if self.width is not None:
+            attr_list.append(self.width)
+        if self.rear_axis_offset is not None:
+            attr_list.append(self.rear_axis_offset)
+        if self.agent_type is not None:
+            attr_list.append(self.agent_type)
+        if self.waypoint is not None:
+            attr_list.append([self.waypoint.x, self.waypoint.y])
+        return attr_list
 
 
 class AgentState(BaseModel):
@@ -235,3 +283,4 @@ class StaticMapActor(BaseModel):
 
 
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
+LightRecurrentStates = List[LightRecurrentState]
