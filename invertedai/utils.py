@@ -60,6 +60,7 @@ class Session:
                 "Content-Type": "application/json",
                 "Accept-Encoding": "gzip, deflate, br",
                 "Connection": "keep-alive",
+                "x-client-version": iai.__version__
             }
         )
         self._base_url = self._get_base_url()
@@ -366,7 +367,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-        return valid_agent_state, valid_agent_attrs, valid_agent_rs, response.model_version
+        return valid_agent_state, valid_agent_attrs, valid_agent_rs, response.api_model_version
 
     stride = initialize_fov / 2
 
@@ -409,7 +410,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
         recurrent_states=new_recurrent_states,
         agent_states=new_agent_state,
         agent_attributes=new_attributes,
-        model_version=model_version
+        api_model_version=model_version
     )
 
 
@@ -699,7 +700,11 @@ class ScenePlotter():
     @validate_arguments
     def __init__(
         self,
-        location_response: Optional[LocationResponse] = None,
+        # location_response: Optional[LocationResponse] = None,
+        map_image: Optional[np.array] = None,
+        fov: Optional[float] = None,
+        xy_offset: Optional[Tuple[float,float]] = None,
+        static_actors: Optional[List[StaticMapActor]] = None,
         open_drive: Optional[str] = None, 
         resolution: Tuple[int,int] = (640, 480), 
         dpi: float = 100,
@@ -747,16 +752,10 @@ class ScenePlotter():
         self._dpi = dpi
         self._resolution = resolution
         
-        if self._open_drive is None:
-            self.map_image = location_response.birdview_image.decode()
-            self.fov = location_response.map_fov
-            self.xy_offset = (location_response.map_center.x, location_response.map_center.y)
-            self.static_actors = location_response.static_actors
-        else:
-            self._validate_kwargs("map_image",kwargs)
-            self._validate_kwargs("fov",kwargs)
-            self._validate_kwargs("xy_offset",kwargs)
-            self._validate_kwargs("static_actors",kwargs)
+        self.map_image = map_image
+        self.fov = fov
+        self.xy_offset = xy_offset
+        self.static_actors = static_actors
 
         self.traffic_lights = {static_actor.actor_id: static_actor for static_actor in self.static_actors if static_actor.agent_type == 'traffic-light'}
 
@@ -971,13 +970,6 @@ class ScenePlotter():
             t_orientation = -orientation - math.pi
 
         return t_x, t_orientation
-
-    def _validate_kwargs(self,arg_name,kwargs):
-        if arg_name in kwargs: 
-            setattr(self,arg_name,kwargs[arg_name])
-        else: 
-            raise Exception(f"Expected keyword argument '{arg_name}' but none was given.")
-
 
     def _plot_frame(self, idx, ax=None, numbers=None, direction_vec=False,
                    velocity_vec=False, plot_frame_number=False):

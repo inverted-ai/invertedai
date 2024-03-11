@@ -1,5 +1,7 @@
 [pypi-badge]: https://badge.fury.io/py/invertedai.svg
 [pypi-link]: https://pypi.org/project/invertedai/
+[python-badge]: https://img.shields.io/pypi/pyversions/invertedai.svg?color=%2334D058
+[ci-badge]: https://github.com/inverted-ai/invertedai/actions/workflows/CI.yml/badge.svg?branch=master
 [colab-badge]: https://colab.research.google.com/assets/colab-badge.svg
 [colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai/blob/develop/examples/IAI_full_demo.ipynb
 [rest-link]: https://app.swaggerhub.com/apis-docs/InvertedAI/InvertedAI
@@ -7,6 +9,8 @@
 
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
 [![PyPI][pypi-badge]][pypi-link]
+[![python-badge]][pypi-link]
+[![ci-badge]](https://github.com/inverted-ai/invertedai/actions/workflows/CI.yml)
 [![Open In Colab][colab-badge]][colab-link]
 
 # InvertedAI
@@ -53,21 +57,23 @@ print("Begin initialization.")
 # format and list traffic lights with their IDs and locations.
 location_info_response = iai.location_info(location=location)
 
-# get traffic light states
-light_response = iai.light(location=location)
-
 # initialize the simulation by spawning NPCs
 response = iai.initialize(
     location=location,  # select one of available locations
     agent_count=10,    # number of NPCs to spawn
     get_birdview=True,  # provides simple visualization - don't use in production
-    traffic_light_state_history=[light_response.traffic_lights_states],  # provide traffic light states
+    traffic_light_state_history=None
 )
 agent_attributes = response.agent_attributes  # get dimension and other attributes of NPCs
 
 location_info_response = iai.location_info(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(location_info_response)
+scene_plotter = iai.utils.ScenePlotter(
+    rendered_static_map,
+    location_info_response.map_fov,
+    (location_info_response.map_center.x, location_info_response.map_center.y),
+    location_info_response.static_actors
+)
 scene_plotter.initialize_recording(
     agent_states=response.agent_states,
     agent_attributes=agent_attributes,
@@ -76,9 +82,6 @@ scene_plotter.initialize_recording(
 print("Begin stepping through simulation.")
 for _ in range(100):  # how many simulation steps to execute (10 steps is 1 second)
 
-    # get next traffic light state
-    light_response = iai.light(location=location, recurrent_states=light_response.recurrent_states)
-
     # query the API for subsequent NPC predictions
     response = iai.drive(
         location=location,
@@ -86,11 +89,11 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
         get_birdview=True,
-        traffic_lights_states=light_response.traffic_lights_states,
+        light_recurrent_states=response.light_recurrent_states,
     )
 
     # save the visualization
-    scene_plotter.record_step(response.agent_states,light_response.traffic_lights_states)
+    scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
 
 print("Simulation finished, save visualization.")
 # save the visualization to disk
@@ -162,7 +165,12 @@ iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for In
 
 location_info_response = iai.location_info(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(location_info_response)
+scene_plotter = iai.utils.ScenePlotter(
+    rendered_static_map,
+    location_info_response.map_fov,
+    (location_info_response.map_center.x, location_info_response.map_center.y),
+    location_info_response.static_actors
+)
 scene_plotter.initialize_recording(
     agent_states=iai_simulation.agent_states,
     agent_attributes=iai_simulation.agent_attributes,

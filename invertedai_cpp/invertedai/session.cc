@@ -22,6 +22,8 @@
 #include <boost/iostreams/filtering_stream.hpp>
 
 #include "externals/root_certificates.hpp"
+#include "version.h"
+
 
 namespace beast = boost::beast; // from <boost/beast.hpp>
 namespace http = beast::http;   // from <boost/beast/http.hpp>
@@ -98,6 +100,7 @@ const std::string Session::request(
   req.set("Accept-Encoding", "gzip");
   req.set("accept", "application/json");
   req.set("x-api-key", this->api_key_);
+  req.set("x-client-version", INVERTEDAI_VERSION);
   if (debug_mode) {
     std::cout << "req body content:\n";
     std::cout << body_str << std::endl;

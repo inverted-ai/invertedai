@@ -9,6 +9,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "../invertedai/api.h"
+#include "../invertedai/data_utils.h"
 
 using tcp = net::ip::tcp;    // from <boost/asio/ip/tcp.hpp>
 using json = nlohmann::json; // from <json.hpp>
@@ -19,7 +20,8 @@ int main(int argc, char **argv) {
   {
     "examples/initialize_body.json",
     "examples/initialize_with_states_and_attributes.json",
-    "examples/initialize_sampling_with_types.json"
+    "examples/initialize_sampling_with_types.json",
+    "examples/initialize_body_with_multi_agents_waypoint.json"
   };
 
    try {
@@ -40,7 +42,7 @@ int main(int argc, char **argv) {
         cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
         int frame_width = image.rows;
         int frame_height = image.cols;
-        std::string drive_video_name = "drive_test_" + std::to_string(i) + ".avi";
+        std::string drive_video_name = "drive_test_" + std::to_string(i) + ".mp4";
         cv::VideoWriter video(
             drive_video_name,
             cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
@@ -51,7 +53,6 @@ int main(int argc, char **argv) {
         invertedai::DriveRequest drive_req(invertedai::read_file("examples/drive_body.json"));
         drive_req.set_location(init_req.location());
         drive_req.update(init_res);
-
         for (int t = 0; t < timestep; t++) {
           // step the simulation by driving the agents
           invertedai::DriveResponse drive_res = invertedai::drive(drive_req, &session);

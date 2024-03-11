@@ -27,18 +27,15 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
     this->agent_attributes_.push_back(agent_attribute);
   }
   this->traffic_light_state_history_.clear();
-  for (const auto &elements : this->body_json_["traffic_light_state_history"]) {
-    std::vector<TrafficLightState> traffic_light_states;
-    traffic_light_states.clear();
-    for (const auto &element : elements) {
-      TrafficLightState traffic_light_state = {
-        element[0], 
-        element[1]
-      };
-      traffic_light_states.push_back(traffic_light_state);
+  std::vector<std::map<std::string, std::string>> traffic_light_states;
+  for (const auto &element : this->body_json_["traffic_light_state_history"]) {
+    std::map<std::string, std::string> light_states;
+    for (const auto &pair : element.items()) {
+      light_states[pair.key()] = pair.value();
     }
-    this->traffic_light_state_history_.push_back(traffic_light_states);
+    traffic_light_states.push_back(light_states);
   }
+  this->traffic_light_state_history_ = traffic_light_states;
   this->location_of_interest_ = this->body_json_["location_of_interest"].is_null()
     ? std::nullopt
     : std::optional<std::pair<double, double>>{this->body_json_["location_of_interest"]};
@@ -82,15 +79,11 @@ void InitializeRequest::refresh_body_json_() {
     this->body_json_["agent_attributes"].push_back(element);
   }
   this->body_json_["traffic_light_state_history"].clear();
-  for (const std::vector<TrafficLightState> &traffic_light_states : this->traffic_light_state_history_) {
+  for (const std::map<std::string, std::string> &traffic_light_states : this->traffic_light_state_history_) {
     json elements;
     elements.clear();
-    for (const TrafficLightState &traffic_light_state : traffic_light_states) {
-      json element = {
-        traffic_light_state.id, 
-        traffic_light_state.value
-      };
-      elements.push_back(element);
+    for (const auto &pair : traffic_light_states) {
+      elements[pair.first] = pair.second;
     }
     this->body_json_["traffic_light_state_history"].push_back(elements);
   }
@@ -138,7 +131,7 @@ std::vector<AgentAttributes> InitializeRequest::agent_attributes() const {
   return this->agent_attributes_;
 }
 
-std::vector<std::vector<TrafficLightState>> InitializeRequest::traffic_light_state_history() const {
+std::vector<std::map<std::string, std::string>> InitializeRequest::traffic_light_state_history() const {
   return this->traffic_light_state_history_;
 }
 
@@ -178,7 +171,7 @@ void InitializeRequest::set_agent_attributes(const std::vector<AgentAttributes> 
   this->agent_attributes_ = agent_attributes;
 }
 
-void InitializeRequest::set_traffic_light_state_history(const std::vector<std::vector<TrafficLightState>>&traffic_light_state_history) {
+void InitializeRequest::set_traffic_light_state_history(const std::vector<std::map<std::string, std::string>>&traffic_light_state_history) {
   this->traffic_light_state_history_ = traffic_light_state_history;
 }
 

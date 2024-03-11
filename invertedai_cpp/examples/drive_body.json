@@ -30,6 +30,7 @@
     "get_birdview": true,
     "get_infractions": true,
     "traffic_lights_states": null,
+    "light_recurrent_states": null,
     "random_seed": null,
     "rendering_fov": null,
     "rendering_center": null

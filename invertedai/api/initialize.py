@@ -1,5 +1,5 @@
 import time
-from pydantic import BaseModel, validate_arguments, root_validator
+from pydantic import BaseModel, validate_call
 from typing import List, Optional, Dict, Tuple
 import asyncio
 
@@ -20,6 +20,8 @@ from invertedai.common import (
     TrafficLightStatesDict,
     Image,
     InfractionIndicators,
+    LightRecurrentStates,
+    LightRecurrentState,
 )
 
 
@@ -41,10 +43,12 @@ class InitializeResponse(BaseModel):
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
-    model_version: str # Model version used for this API call
+    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
+    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group.
+    api_model_version: str # Model version used for this API call
 
 
-@validate_arguments
+@validate_call
 def initialize(
         location: str,
         agent_attributes: Optional[List[AgentAttributes]] = None,
@@ -57,7 +61,7 @@ def initialize(
         get_infractions: bool = False,
         agent_count: Optional[int] = None,
         random_seed: Optional[int] = None,
-        model_version: Optional[str] = None  # Model version used for this API call
+        api_model_version: Optional[str] = None  # Model version used for this API call
 ) -> InitializeResponse:
     """
     Initializes a simulation in a given location, using a combination of **user-defined** and **sampled** agents.
@@ -83,6 +87,7 @@ def initialize(
     agent_attributes:
         Static attributes for all agents.
         The pre-defined agents should be specified first, followed by the sampled agents.
+        The optional waypoint passed will be ignored for Initialize.
 
     states_history:
         History of pre-defined agent states - the outer list is over time and the inner over agents,
@@ -92,8 +97,8 @@ def initialize(
 
     traffic_light_state_history:
        History of traffic light states - the list is over time, in chronological order, i.e.
-       the last element is the current state. Not specifying traffic light state is equivalent
-       to disabling traffic lights.
+       the last element is the current state. If there are traffic lights in the map, 
+       not specifying traffic light state is equivalent to using iai generated light states.
 
     location_of_interest:
         Optional coordinates for spawning agents with the given location as center instead of the default map center
@@ -111,7 +116,7 @@ def initialize(
     random_seed:
         Controls the stochastic aspects of initialization for reproducibility.
 
-    model_version:
+    api_model_version:
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
 
     See Also
@@ -155,7 +160,7 @@ def initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
-        model_version=model_version
+        model_version=api_model_version
     )
     start = time.time()
     timeout = TIMEOUT
@@ -181,7 +186,16 @@ def initialize(
                 ]
                 if response["infraction_indicators"]
                 else [],
-                model_version=response["model_version"]
+                api_model_version=response["model_version"],
+                traffic_lights_states=response["traffic_lights_states"] 
+                if response["traffic_lights_states"] is not None 
+                else None,
+                light_recurrent_states=[
+                    LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
+                    for state_arr in response["light_recurrent_states"]
+                ] 
+                if response["light_recurrent_states"] is not None 
+                else None
             )
             return response
         except TryAgain as e:
@@ -190,7 +204,7 @@ def initialize(
             iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
 
 
-@validate_arguments
+@validate_call
 async def async_initialize(
         location: str,
         agent_attributes: Optional[List[AgentAttributes]] = None,
@@ -203,7 +217,7 @@ async def async_initialize(
         get_infractions: bool = False,
         agent_count: Optional[int] = None,
         random_seed: Optional[int] = None,
-        model_version: Optional[str] = None
+        api_model_version: Optional[str] = None
 ) -> InitializeResponse:
     """
     The async version of :func:`initialize`
@@ -223,7 +237,7 @@ async def async_initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
-        model_version=model_version
+        model_version=api_model_version
     )
 
     response = await iai.session.async_request(model="initialize", data=model_inputs)
@@ -251,6 +265,15 @@ async def async_initialize(
         ]
         if response["infraction_indicators"]
         else [],
-        model_version=response["model_version"]
+        api_model_version=response["model_version"],
+        traffic_lights_states=response["traffic_lights_states"]
+        if response["traffic_lights_states"] is not None 
+        else None,
+        light_recurrent_states=[
+            LightRecurrentState(state=state_arr[0], time_remaining=state_arr[1]) 
+            for state_arr in response["light_recurrent_states"]
+            ] 
+        if response["light_recurrent_states"] is not None 
+        else None
     )
     return response
