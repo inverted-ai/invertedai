@@ -25,7 +25,12 @@ agent_attributes = response.agent_attributes  # get dimension and other attribut
 
 location_info_response = iai.location_info(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(location_info_response)
+scene_plotter = iai.utils.ScenePlotter(
+    rendered_static_map,
+    location_info_response.map_fov,
+    (location_info_response.map_center.x, location_info_response.map_center.y),
+    location_info_response.static_actors
+)
 scene_plotter.initialize_recording(
     agent_states=response.agent_states,
     agent_attributes=agent_attributes,

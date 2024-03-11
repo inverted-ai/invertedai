@@ -700,7 +700,6 @@ class ScenePlotter():
     @validate_arguments
     def __init__(
         self,
-        # location_response: Optional[LocationResponse] = None,
         map_image: Optional[np.array] = None,
         fov: Optional[float] = None,
         xy_offset: Optional[Tuple[float,float]] = None,
@@ -714,8 +713,14 @@ class ScenePlotter():
         """
         Arguments
         ----------
-        location_response:
-            A LocationResponse object taken from calling iai.location_info() containing relevant data regarding the location of the scene including the map image.
+        map_image:
+            An image used as the background for the visualization decoded from the birdview map taken from location info.
+        fov:
+            A single float value representing the field of view of the visualization that can be taken from location info.
+        xy_offset:
+            A tuple coordinate of the center of the map in metres that can be taken from location info.
+        static_actors:
+            A list of StaticMapActor objects representing objects such as traffic lights that can be taken from location info.
         open_drive: 
             If using an ASAM OpenDRIVE format map for visualization, this string parameter is used to indicate the path to the corresponding CSV file.
         resolution: 
