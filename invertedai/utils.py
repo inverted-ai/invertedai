@@ -1,30 +1,38 @@
-import requests
 import asyncio
 import json
 import logging
 import os
 import re
+import logging
+import numpy as np
+import csv
+import math
+
 from typing import Dict, Optional
+from tqdm.contrib import tmap
+from itertools import product
+from copy import deepcopy
+from cv2 import (
+    cvtColor,
+    threshold,
+    COLOR_BGR2GRAY
+)
+
+import requests
 from requests import Response
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter, Retry
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib import animation
+from matplotlib import transforms
+
 import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import Point
-import logging
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from matplotlib import animation
-import numpy as np
-import csv
-import math
-from tqdm.contrib import tmap
-from itertools import product
-from invertedai.common import AgentState, StaticMapActor
-from matplotlib import transforms
-from copy import deepcopy
+from invertedai.common import AgentState, StaticMapActor, Point
 from invertedai.future import to_thread
 
 H_SCALE = 10
@@ -487,10 +495,19 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
     response.agent_attributes = new_attributes
     return response
 
-
-def area_initialization(location, agent_density, traffic_lights_states=None, random_seed=None, map_center=(0, 0),
-                        width=100, height=100, stride=100, initialize_fov=INITIALIZE_FOV, get_birdview=False,
-                        birdview_path=None):
+def area_initialization(
+    location, 
+    agent_density, 
+    traffic_lights_states=None, 
+    random_seed=None, 
+    map_center=(0, 0),
+    width=100, 
+    height=100, 
+    stride=50, 
+    initialize_fov=INITIALIZE_FOV, 
+    get_birdview=False,
+    birdview_path=None
+):
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
                 (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
@@ -562,6 +579,189 @@ def area_initialization(location, agent_density, traffic_lights_states=None, ran
     response.agent_states=agent_states
     response.agent_attributes = agent_attributes
     return response
+
+def _get_drivable_area_ratio(centers,location,agent_density,scaling_factor):
+    #Get fraction of image that is a drivable surface (assume all non-black is drivable)
+    center_road_area_dict = {}
+    max_drivable_area_ratio = 0
+    for area_center in tmap(
+        Point.fromlist, 
+        centers, 
+        total=len(centers),
+        desc=f"Calculating drivable surface areas"
+    ):
+        #Naively check every square within requested area
+        #TODO: Use heuristics or other methods to (e.g. map polygon, high FOV image, quadtree) to reduce computation time
+        center_tuple = (area_center.x, area_center.y)
+        birdview = iai.location_info(
+            location=location,
+            rendering_fov=100,
+            rendering_center=center_tuple
+        ).birdview_image.decode()
+
+        birdview = cvtColor(birdview,COLOR_BGR2GRAY)
+        number_of_black_pix = np.sum(birdview == 0)
+        h, w = birdview.shape
+        total_num_pixels = h*w
+
+        drivable_area_ratio = (total_num_pixels-number_of_black_pix)/total_num_pixels 
+        center_road_area_dict[center_tuple] = drivable_area_ratio
+
+        if drivable_area_ratio > max_drivable_area_ratio:
+            max_drivable_area_ratio = drivable_area_ratio
+
+    agent_density_list = []
+    for area_center, drivable_ratio in center_road_area_dict.items():
+        agent_density_list.append(_calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio))
+
+    return agent_density_list
+
+def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio):
+
+    return int(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio))
+
+def fill_initialization(
+    location, 
+    agent_density, 
+    traffic_lights_states=None, 
+    random_seed=None, 
+    map_center=(0, 0),
+    width=100, 
+    height=100, 
+    stride=50, 
+    initialize_fov=INITIALIZE_FOV, 
+    get_birdview=False,
+    birdview_path=None,
+    specified_agent_attributes=[],
+    specified_agent_states=[[]],
+    scaling_factor = 1.0,
+):
+
+    agent_states = []
+    agent_attributes = []
+    agent_rs = []
+
+    def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
+        return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
+                (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
+
+    centers = get_centers(
+        map_center, 
+        height, 
+        width, 
+        stride
+    )
+
+    agent_density_list = _get_drivable_area_ratio(centers,location,agent_density,scaling_factor)
+
+    response_full = iai.initialize(
+        location=location,
+        states_history=specified_agent_states if len(specified_agent_states[-1]) > 0 else None,
+        agent_attributes=specified_agent_attributes if len(specified_agent_attributes) > 0 else None,
+        agent_count=len(specified_agent_attributes),
+        get_infractions=False,
+        traffic_light_state_history=traffic_lights_states,
+        location_of_interest=map_center,
+        random_seed=random_seed,
+        get_birdview=get_birdview,
+    )
+
+    for i, area_center in enumerate(tmap(
+        Point.fromlist, 
+        centers, 
+        total=len(centers),
+        desc=f"Initializing {location.split(':')[1]}"
+    )):
+
+        conditional_agent = list(filter(
+            lambda x: inside_fov(center=area_center, initialize_fov=initialize_fov, point=x[0].center), 
+            zip(agent_states,agent_attributes,agent_rs)
+        ))
+
+        remaining_agents = list(filter(
+            lambda x: not inside_fov(center=area_center, initialize_fov=initialize_fov, point=x[0].center), 
+            zip(agent_states,agent_attributes,agent_rs)
+        ))
+
+        conditional_agent_specified = list(filter(
+            lambda x: inside_fov(center=area_center, initialize_fov=initialize_fov, point=x[0].center), 
+            zip(specified_agent_states[-1],specified_agent_attributes)
+        ))
+
+        con_agent_state = [x[0] for x in conditional_agent]
+        con_agent_attrs = [x[1] for x in conditional_agent]
+        con_agent_rs = [x[2] for x in conditional_agent]
+        remaining_agents_states = [x[0] for x in remaining_agents]
+        remaining_agents_attrs = [x[1] for x in remaining_agents]
+        remaining_agents_rs = [x[2] for x in remaining_agents]
+
+        agent_density_area_center = agent_density_list[i]
+
+        if agent_density_area_center <= 0:
+            continue
+        elif len(con_agent_state) > agent_density_area_center:
+            continue
+
+        states_history_specified_area = [x[0] for x in conditional_agent_specified]
+        states_history = states_history_specified_area + con_agent_state
+        states_history = [states_history] if len(states_history) > 0 else None
+
+        agent_attributes_specified_area = [x[1] for x in conditional_agent_specified]
+        agent_attributes_con = agent_attributes_specified_area + con_agent_attrs
+        agent_attributes_con = agent_attributes_con if len(agent_attributes_con) > 0 else None
+
+        for _ in range(1):
+            try:
+                # Initialize simulation with an API cal
+                # print(f"Location: {location}, states_history {states_history}, location_of_interest {(area_center.x, area_center.y)}")
+                # print(f"agent_attributes_con {agent_attributes_con}, agent_density_area_center {agent_density_area_center}")
+                response = iai.initialize(
+                    location=location,
+                    states_history=states_history,
+                    agent_attributes=agent_attributes_con,
+                    agent_count=agent_density_area_center,
+                    get_infractions=False,
+                    traffic_light_state_history=[response_full.traffic_lights_states],
+                    location_of_interest=(area_center.x, area_center.y),
+                    random_seed=random_seed,
+                    get_birdview=get_birdview,
+                )
+                break
+            except BaseException as e:
+                print(e)
+        else:
+            continue
+        # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
+        # SLACK is for removing the agents that are very close to the boundary and
+        # they may collide agents not filtered as conditional
+        non_specified_agent_states = response.agent_states[len(states_history_specified_area):]
+        non_specified_agent_attributes = response.agent_attributes[len(agent_attributes_specified_area):]
+        non_specified_recurrent_states = response.recurrent_states[len(states_history_specified_area):]
+
+        valid_agents = list(filter(
+            lambda x: inside_fov(center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
+            zip(non_specified_agent_states, non_specified_agent_attributes, non_specified_recurrent_states)
+        ))
+
+        valid_agent_state = [x[0] for x in valid_agents]
+        valid_agent_attrs = [x[1] for x in valid_agents]
+        valid_agent_rs = [x[2] for x in valid_agents]
+
+        agent_states = remaining_agents_states + valid_agent_state
+        agent_attributes = remaining_agents_attrs + valid_agent_attrs
+        agent_rs = remaining_agents_rs + valid_agent_rs
+
+        if get_birdview:
+            file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
+            response.birdview.decode_and_save(file_path)
+
+    response_full.agent_states += agent_states
+    response_full.recurrent_states += agent_rs
+    response_full.agent_attributes += agent_attributes
+
+    return response_full
+
+
 
 class APITokenAuth(AuthBase):
     def __init__(self, api_token):
