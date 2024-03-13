@@ -12,11 +12,6 @@ from typing import Dict, Optional
 from tqdm.contrib import tmap
 from itertools import product
 from copy import deepcopy
-from cv2 import (
-    cvtColor,
-    threshold,
-    COLOR_BGR2GRAY
-)
 
 import requests
 from requests import Response
