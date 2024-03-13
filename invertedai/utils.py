@@ -576,6 +576,18 @@ def area_initialization(
     return response
 
 def _get_drivable_area_ratio(centers,location,agent_density,scaling_factor):
+    try:
+        from cv2 import (
+            cvtColor,
+            COLOR_BGR2GRAY
+        )
+
+    except ImportError as e:
+        iai.logger.error(
+            "Calculating drivable area requires cv2, which was not found."
+        )
+        raise e
+
     #Get fraction of image that is a drivable surface (assume all non-black is drivable)
     center_road_area_dict = {}
     max_drivable_area_ratio = 0
