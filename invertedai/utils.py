@@ -618,7 +618,7 @@ def _get_drivable_area_ratio(centers,location,agent_density,scaling_factor):
 
 def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio):
 
-    return int(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio))
+    return round(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio)) if drivable_ratio > 0.0 else 0
 
 def fill_initialization(
     location, 
@@ -632,8 +632,8 @@ def fill_initialization(
     initialize_fov=INITIALIZE_FOV, 
     get_birdview=False,
     birdview_path=None,
-    specified_agent_attributes=[],
-    specified_agent_states=[[]],
+    conditional_agent_attributes=[],
+    conditional_agent_states=[[]],
     scaling_factor = 1.0,
 ):
 
@@ -654,17 +654,18 @@ def fill_initialization(
 
     agent_density_list = _get_drivable_area_ratio(centers,location,agent_density,scaling_factor)
 
-    response_full = iai.initialize(
-        location=location,
-        states_history=specified_agent_states if len(specified_agent_states[-1]) > 0 else None,
-        agent_attributes=specified_agent_attributes if len(specified_agent_attributes) > 0 else None,
-        agent_count=len(specified_agent_attributes),
-        get_infractions=False,
-        traffic_light_state_history=traffic_lights_states,
-        location_of_interest=map_center,
-        random_seed=random_seed,
-        get_birdview=get_birdview,
-    )
+    if traffic_lights_states is None:
+        # If not traffic light states are given, generate traffic light states to be passed to all initialize calls
+        response_tl = iai.initialize(
+            location=location,
+            agent_count = 1,
+            location_of_interest=map_center
+        )
+        traffic_lights_states = [response_tl.traffic_lights_states]
+
+    conditional_agent_recurrent_state_dict = {}
+    for agent in conditional_agent_states[-1]:
+        conditional_agent_recurrent_state_dict[(agent.center.x,agent.center.y)] = None
 
     for i, area_center in enumerate(tmap(
         Point.fromlist, 
@@ -685,7 +686,7 @@ def fill_initialization(
 
         conditional_agent_specified = list(filter(
             lambda x: inside_fov(center=area_center, initialize_fov=initialize_fov, point=x[0].center), 
-            zip(specified_agent_states[-1],specified_agent_attributes)
+            zip(conditional_agent_states[-1],conditional_agent_attributes)
         ))
 
         con_agent_state = [x[0] for x in conditional_agent]
@@ -695,13 +696,6 @@ def fill_initialization(
         remaining_agents_attrs = [x[1] for x in remaining_agents]
         remaining_agents_rs = [x[2] for x in remaining_agents]
 
-        agent_density_area_center = agent_density_list[i]
-
-        if agent_density_area_center <= 0:
-            continue
-        elif len(con_agent_state) > agent_density_area_center:
-            continue
-
         states_history_specified_area = [x[0] for x in conditional_agent_specified]
         states_history = states_history_specified_area + con_agent_state
         states_history = [states_history] if len(states_history) > 0 else None
@@ -710,18 +704,28 @@ def fill_initialization(
         agent_attributes_con = agent_attributes_specified_area + con_agent_attrs
         agent_attributes_con = agent_attributes_con if len(agent_attributes_con) > 0 else None
 
+        agent_density_area_center = agent_density_list[i]
+
+        # Check if this initialization call can be skipped
+        if len(agent_attributes_specified_area) < 1:
+            # Only if there are no conditional agents in the area can it be skipped.
+            if agent_density_area_center < 1:
+                #Skip if no agents are requested (e.g. in areas with no drivable surfaces)
+                continue
+            elif len(con_agent_state) >= agent_density_area_center:
+                #Skip if the calculated number of agents has been satisfied or surpassed
+                continue
+
         for _ in range(1):
             try:
-                # Initialize simulation with an API cal
-                # print(f"Location: {location}, states_history {states_history}, location_of_interest {(area_center.x, area_center.y)}")
-                # print(f"agent_attributes_con {agent_attributes_con}, agent_density_area_center {agent_density_area_center}")
+                # Initialize simulation with an API call
                 response = iai.initialize(
                     location=location,
                     states_history=states_history,
                     agent_attributes=agent_attributes_con,
                     agent_count=agent_density_area_center,
                     get_infractions=False,
-                    traffic_light_state_history=[response_full.traffic_lights_states],
+                    traffic_light_state_history=traffic_lights_states,
                     location_of_interest=(area_center.x, area_center.y),
                     random_seed=random_seed,
                     get_birdview=get_birdview,
@@ -731,16 +735,22 @@ def fill_initialization(
                 print(e)
         else:
             continue
+
+        # Get the recurrent state for any conditional agents in this region
+        for s, rs in zip(response.agent_states[:len(states_history_specified_area)],response.recurrent_states[:len(states_history_specified_area)]):
+            conditional_agent_recurrent_state_dict[(s.center.x,s.center.y)] = rs
+
+        # Remove all conditional agents before filtering at the edges
+        non_conditional_agent_states = response.agent_states[len(states_history_specified_area):]
+        non_conditional_agent_attributes = response.agent_attributes[len(agent_attributes_specified_area):]
+        non_conditional_recurrent_states = response.recurrent_states[len(states_history_specified_area):]
+
         # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
-        non_specified_agent_states = response.agent_states[len(states_history_specified_area):]
-        non_specified_agent_attributes = response.agent_attributes[len(agent_attributes_specified_area):]
-        non_specified_recurrent_states = response.recurrent_states[len(states_history_specified_area):]
-
         valid_agents = list(filter(
             lambda x: inside_fov(center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
-            zip(non_specified_agent_states, non_specified_agent_attributes, non_specified_recurrent_states)
+            zip(non_conditional_agent_states, non_conditional_agent_attributes, non_conditional_recurrent_states)
         ))
 
         valid_agent_state = [x[0] for x in valid_agents]
@@ -755,11 +765,15 @@ def fill_initialization(
             file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-    response_full.agent_states += agent_states
-    response_full.recurrent_states += agent_rs
-    response_full.agent_attributes += agent_attributes
+    conditional_agent_recurrent_states = []
+    for s in conditional_agent_states[-1]:
+        conditional_agent_recurrent_states.append(conditional_agent_recurrent_state_dict[(s.center.x,s.center.y)])
 
-    return response_full
+    response.agent_states = conditional_agent_states[-1] + agent_states
+    response.recurrent_states = conditional_agent_recurrent_states + agent_rs
+    response.agent_attributes = conditional_agent_attributes + agent_attributes
+
+    return response
 
 
 
