@@ -37,6 +37,12 @@ void Session::set_api_key(const std::string &api_key) {
   this->api_key_ = api_key;
 }
 
+void Session::set_url(const std::string &host,const std::string &port,const std::string &subdomain) {
+  this->host_ = host;
+  this->port_ = port;
+  this->subdomain = subdomain;
+}
+
 void Session::connect() {
   auto const results = this->resolver_.resolve(this->host_, this->port_);
   if (!local_mode){
