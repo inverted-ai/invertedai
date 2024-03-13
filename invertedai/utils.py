@@ -654,15 +654,6 @@ def fill_initialization(
 
     agent_density_list = _get_drivable_area_ratio(centers,location,agent_density,scaling_factor)
 
-    if traffic_lights_states is None:
-        # If not traffic light states are given, generate traffic light states to be passed to all initialize calls
-        response_tl = iai.initialize(
-            location=location,
-            agent_count = 1,
-            location_of_interest=map_center
-        )
-        traffic_lights_states = [response_tl.traffic_lights_states]
-
     conditional_agent_recurrent_state_dict = {}
     for agent in conditional_agent_states[-1]:
         conditional_agent_recurrent_state_dict[(agent.center.x,agent.center.y)] = None
@@ -730,6 +721,11 @@ def fill_initialization(
                     random_seed=random_seed,
                     get_birdview=get_birdview,
                 )
+
+                if traffic_lights_states is None:
+                    # If no traffic light states are given, take the first non-None traffic light states output as the consistent traffic light states across all areas
+                    traffic_lights_states = [response.traffic_lights_states]
+
                 break
             except BaseException as e:
                 print(e)
