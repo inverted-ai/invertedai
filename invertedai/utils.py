@@ -42,12 +42,16 @@ logger = logging.getLogger(__name__)
 class Session:
     def __init__(self):
         self.session = requests.Session()
-        retries = Retry(total=5,
-                        backoff_factor=0.1,
-                        status_forcelist=[500, 502, 503, 504],
+        retries = Retry(total=float("inf"),
+                        backoff_factor=1,
+                        status_forcelist=[408, 429, 500, 502, 503, 504],
                         raise_on_status=False)
         self.session.mount(
             "https://",
+            requests.adapters.HTTPAdapter(max_retries=retries),
+        )
+        self.session.mount(
+            "http://",
             requests.adapters.HTTPAdapter(max_retries=retries),
         )
         self.session.headers.update(
