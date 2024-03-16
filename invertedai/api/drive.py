@@ -53,7 +53,7 @@ def drive(
         location: str,
         agent_states: List[AgentState],
         agent_attributes: List[AgentAttributes],
-        recurrent_states: List[RecurrentState],
+        recurrent_states: Optional[List[RecurrentState]] = None,
         traffic_lights_states: Optional[TrafficLightStatesDict] = None,
         light_recurrent_states: Optional[LightRecurrentStates] = None,
         get_birdview: bool = False,
@@ -145,14 +145,12 @@ def drive(
         else:
             return input_data
 
-    recurrent_states = (
-        _tolist(recurrent_states) if recurrent_states is not None else None
-    )  # AxTx2x64
+    recurrent_states = _tolist(recurrent_states) if recurrent_states is not None else None
     model_inputs = dict(
         location=location,
         agent_states=[state.tolist() for state in agent_states],
         agent_attributes=[state.tolist() for state in agent_attributes],
-        recurrent_states=[r.packed for r in recurrent_states],
+        recurrent_states=[r.packed for r in recurrent_states] if recurrent_states is not None else None,
         traffic_lights_states=traffic_lights_states,
         light_recurrent_states=[light_recurrent_state.tolist() for light_recurrent_state in light_recurrent_states] 
         if light_recurrent_states is not None else None,
@@ -213,7 +211,7 @@ async def async_drive(
         location: str,
         agent_states: List[AgentState],
         agent_attributes: List[AgentAttributes],
-        recurrent_states: List[RecurrentState],
+        recurrent_states: Optional[List[RecurrentState]] = None,
         traffic_lights_states: Optional[TrafficLightStatesDict] = None,
         get_birdview: bool = False,
         rendering_center: Optional[Tuple[float, float]] = None,
@@ -232,14 +230,12 @@ async def async_drive(
         else:
             return input_data
 
-    recurrent_states = (
-        _tolist(recurrent_states) if recurrent_states is not None else None
-    )  # AxTx2x64
+    recurrent_states = _tolist(recurrent_states) if recurrent_states is not None else None
     model_inputs = dict(
         location=location,
         agent_states=[state.tolist() for state in agent_states],
         agent_attributes=[state.tolist() for state in agent_attributes],
-        recurrent_states=[r.packed for r in recurrent_states],
+        recurrent_states=[r.packed for r in recurrent_states] if recurrent_states is not None else None,
         traffic_lights_states=traffic_lights_states,
         get_birdview=get_birdview,
         get_infractions=get_infractions,
