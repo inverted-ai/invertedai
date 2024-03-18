@@ -248,6 +248,7 @@ class Session:
                     self.current_backoff = max(
                         self.base_backoff, self.current_backoff / self.backoff_factor
                     )
+                    response.raise_for_status()
                     break
                 else:
                     if self.should_log(retries):
