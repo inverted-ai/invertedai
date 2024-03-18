@@ -68,6 +68,7 @@ class Session:
         self._base_backoff = 1  # Base backoff time in seconds
         self._backoff_factor = 2
         self._current_backoff = self._base_backoff
+        self._max_backoff = None
 
     @property
     def base_url(self):
@@ -116,6 +117,14 @@ class Session:
     @current_backoff.setter
     def current_backoff(self, value):
         self._current_backoff = value
+
+    @property
+    def max_backoff(self):
+        return self._max_backoff
+    
+    @max_backoff.setter
+    def max_backoff(self, value):
+        self._max_backoff = value
 
     def should_log(self, retry_count):
         return retry_count == 0 or math.log2(retry_count).is_integer()
@@ -247,6 +256,10 @@ class Session:
                         )
                     time.sleep(self.current_backoff)
                     self.current_backoff *= self.backoff_factor
+                    if self.max_backoff is not None:
+                        self.current_backoff = min(
+                            self.current_backoff, self.max_backoff
+                        )
                     retries += 1
             else:
                 response.raise_for_status()
