@@ -412,7 +412,6 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
         api_model_version=model_version
     )
 
-
 def area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None, random_seed=None,
                            map_center=(0, 0), width=100, height=100, initialize_fov=AGENT_SCOPE_FOV, get_birdview=False,
                            birdview_path=None):
@@ -491,94 +490,7 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
     response.agent_attributes = new_attributes
     return response
 
-def area_initialization(
-    location, 
-    agent_density, 
-    traffic_lights_states=None, 
-    random_seed=None, 
-    map_center=(0, 0),
-    width=100, 
-    height=100, 
-    stride=50, 
-    get_birdview=False,
-    birdview_path=None
-):
-    def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
-        return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
-                (center.y - (agent_scope_fov / 2) < point.y < center.y + (agent_scope_fov / 2)))
-
-    agent_states = []
-    agent_attributes = []
-    agent_rs = []
-    first = True
-    centers = get_centers(map_center, height, width, stride)
-    for area_center in tmap(Point.fromlist, centers, total=len(centers),
-                            desc=f"Initializing {location.split(':')[1]}"):
-
-        conditional_agent = list(filter(
-            lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
-            zip(agent_states, agent_attributes,agent_rs)
-        ))
-        remaining_agents = list(filter(
-            lambda x: not inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
-            zip(agent_states, agent_attributes,agent_rs)
-        ))
-
-        con_agent_state = [x[0] for x in conditional_agent]
-        con_agent_attrs = [x[1] for x in conditional_agent]
-        con_agent_rs = [x[2] for x in conditional_agent]
-        remaining_agents_states = [x[0] for x in remaining_agents]
-        remaining_agents_attrs = [x[1] for x in remaining_agents]
-        remaining_agents_rs = [x[2] for x in remaining_agents]
-
-        if len(con_agent_state) > agent_density:
-            continue
-
-        for _ in range(1):
-            try:
-                # Initialize simulation with an API cal
-                response = iai.initialize(
-                    location=location,
-                    states_history=[con_agent_state] if len(con_agent_state) > 0 else None,
-                    agent_attributes=con_agent_attrs if len(con_agent_attrs) > 0 else None,
-                    agent_count=agent_density,
-                    get_infractions=False,
-                    traffic_light_state_history=traffic_lights_states,
-                    location_of_interest=(area_center.x, area_center.y),
-                    random_seed=random_seed,
-                    get_birdview=get_birdview,
-                )
-                break
-            except BaseException as e:
-                print(e)
-        else:
-            continue
-        # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
-        # SLACK is for removing the agents that are very close to the boundary and
-        # they may collide agents not filtered as conditional
-        valid_agents = list(
-            filter(lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV - SLACK, point=x[0].center),
-            zip(response.agent_states, response.agent_attributes, response.recurrent_states)
-        ))
-
-        valid_agent_state = [x[0] for x in valid_agents]
-        valid_agent_attrs = [x[1] for x in valid_agents]
-        valid_agent_rs = [x[2] for x in valid_agents]
-
-        agent_states = remaining_agents_states + valid_agent_state
-        agent_attributes = remaining_agents_attrs + valid_agent_attrs
-        agent_rs = remaining_agents_rs + valid_agent_rs
-
-        if get_birdview:
-            file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
-            response.birdview.decode_and_save(file_path)
-
-    response.recurrent_states=agent_rs
-    response.agent_states=agent_states
-    response.agent_attributes = agent_attributes
-    return response
-
-def _get_drivable_area_ratio(centers,location,agent_density,scaling_factor):
+def _get_agent_density_per_region(centers,location,agent_density,scaling_factor,display_progress_bar):
     try:
         from cv2 import (
             cvtColor,
@@ -594,12 +506,19 @@ def _get_drivable_area_ratio(centers,location,agent_density,scaling_factor):
     #Get fraction of image that is a drivable surface (assume all non-black is drivable)
     center_road_area_dict = {}
     max_drivable_area_ratio = 0
-    for area_center in tmap(
-        Point.fromlist, 
-        centers, 
-        total=len(centers),
-        desc=f"Calculating drivable surface areas"
-    ):
+    
+    iterable_regions = None
+    if display_progress_bar:
+        iterable_regions = tmap(
+            Point.fromlist, 
+            centers, 
+            total=len(centers),
+            desc=f"Calculating drivable surface areas"
+        )
+    else:
+        iterable_regions = [Point.fromlist(list(center)) for center in centers]
+
+    for area_center in iterable_regions:
         #Naively check every square within requested area
         #TODO: Use heuristics or other methods to (e.g. map polygon, high FOV image, quadtree) to reduce computation time
         center_tuple = (area_center.x, area_center.y)
@@ -631,7 +550,7 @@ def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ra
     return round(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio)) if drivable_ratio > 0.0 else 0
 
 @validate_call
-def fill_initialization(
+def area_initialization(
     location: str, 
     agent_density: int, 
     conditional_agent_attributes: Optional[List[AgentAttributes]] = None,
@@ -645,6 +564,7 @@ def fill_initialization(
     scaling_factor: Optional[float] = 1.0, 
     get_birdview: Optional[bool] = False,
     birdview_path: Optional[str] = None,
+    display_progress_bar: Optional[bool] = True
 ):
     """
     A utility function to initialize an area larger than 100x100m. This function breaks up an 
@@ -693,6 +613,8 @@ def fill_initialization(
         returned representing the current world. Note this will significantly impact on the latency.
     birdview_path:
         If birdview_path is set to True, the birdview images will be saved to this path.
+    display_progress_bar:
+        If True, a bar is displayed showing the progress of all relevant processes.
     
     See Also
     --------
@@ -714,7 +636,7 @@ def fill_initialization(
         stride
     )
 
-    agent_density_list = _get_drivable_area_ratio(centers,location,agent_density,scaling_factor)
+    agent_density_list = _get_agent_density_per_region(centers,location,agent_density,scaling_factor,display_progress_bar)
 
     conditional_agent_recurrent_state_dict = {}
     if conditional_agent_states_history is None: conditional_agent_states_history = [[]]
@@ -722,25 +644,31 @@ def fill_initialization(
     for agent in conditional_agent_states_history[-1]:
         conditional_agent_recurrent_state_dict[(agent.center.x,agent.center.y)] = None
 
-    for i, area_center in enumerate(tmap(
-        Point.fromlist, 
-        centers, 
-        total=len(centers),
-        desc=f"Initializing {location.split(':')[1]}"
-    )):
+    iterable_regions = None
+    if display_progress_bar:
+        iterable_regions = tmap(
+            Point.fromlist, 
+            centers, 
+            total=len(centers),
+            desc=f"Initializing {location.split(':')[1]}"
+        )
+    else:
+        iterable_regions = [Point.fromlist(list(center)) for center in centers]
+
+    for i, region_center in enumerate(iterable_regions):
 
         conditional_agent = list(filter(
-            lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
+            lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
             zip(agent_states,agent_attributes,agent_rs)
         ))
 
         remaining_agents = list(filter(
-            lambda x: not inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
+            lambda x: not inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
             zip(agent_states,agent_attributes,agent_rs)
         ))
 
         conditional_agent_specified = list(filter(
-            lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
+            lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
             zip(conditional_agent_states_history[-1],conditional_agent_attributes)
         ))
 
@@ -787,7 +715,7 @@ def fill_initialization(
                 agent_count=agent_density_area_center,
                 get_infractions=False,
                 traffic_light_state_history=traffic_light_state_history,
-                location_of_interest=(area_center.x, area_center.y),
+                location_of_interest=(region_center.x, region_center.y),
                 random_seed=random_seed,
                 get_birdview=get_birdview,
             )
@@ -814,7 +742,7 @@ def fill_initialization(
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
         valid_agents = list(filter(
-            lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV - SLACK, point=x[0].center),
+            lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV - SLACK, point=x[0].center),
             zip(non_conditional_agent_states, non_conditional_agent_attributes, non_conditional_recurrent_states)
         ))
 
@@ -827,7 +755,7 @@ def fill_initialization(
         agent_rs = remaining_agents_rs + valid_agent_rs
 
         if get_birdview:
-            file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
+            file_path = f"{birdview_path}-{(region_center.x, region_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
     conditional_agent_recurrent_states = []
