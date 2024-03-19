@@ -553,8 +553,8 @@ def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ra
 def area_initialization(
     location: str, 
     agent_density: int, 
-    conditional_agent_attributes: Optional[List[AgentAttributes]] = None,
-    conditional_agent_states_history: Optional[List[List[AgentState]]] = None,
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None, 
     random_seed: Optional[int] = None, 
     map_center: Optional[Tuple[float,float]] = (0.0,0.0),
@@ -580,10 +580,10 @@ def area_initialization(
         Location name in IAI format.
     agent_density:
         Maximum agents per 100x100m region to be scaled based on heuristic.
-    conditional_agent_attributes:
+    agent_attributes:
         Static attributes for all pre-defined agents ONLY. Use the agent_density argument to 
         specify the number of agents to be sampled. 
-    conditional_agent_states_history:
+    states_history:
         History of pre-defined agent states - the outer list is over time and the inner over agents,
         in chronological order, i.e., index 0 is the oldest state and index -1 is the current state.
         The order of agents should be the same as in `agent_attributes`.
@@ -621,9 +621,9 @@ def area_initialization(
     :func:`initialize`
     """
 
-    agent_states = []
-    agent_attributes = []
-    agent_rs = []
+    agent_states_sampled = []
+    agent_attributes_sampled = []
+    agent_rs_sampled = []
 
     def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
         return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
@@ -638,11 +638,11 @@ def area_initialization(
 
     agent_density_list = _get_agent_density_per_region(centers,location,agent_density,scaling_factor,display_progress_bar)
 
-    conditional_agent_recurrent_state_dict = {}
-    if conditional_agent_states_history is None: conditional_agent_states_history = [[]]
-    if conditional_agent_attributes is None: conditional_agent_attributes = []
-    for agent in conditional_agent_states_history[-1]:
-        conditional_agent_recurrent_state_dict[(agent.center.x,agent.center.y)] = None
+    predefined_agent_recurrent_state_dict = {}
+    if states_history is None: states_history = [[]]
+    if agent_attributes is None: agent_attributes = []
+    for agent in states_history[-1]:
+        predefined_agent_recurrent_state_dict[(agent.center.x,agent.center.y)] = None
 
     iterable_regions = None
     if display_progress_bar:
@@ -657,44 +657,44 @@ def area_initialization(
 
     for i, region_center in enumerate(iterable_regions):
 
-        conditional_agent = list(filter(
+        conditional_agents_sampled = list(filter(
             lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
-            zip(agent_states,agent_attributes,agent_rs)
+            zip(agent_states_sampled,agent_attributes_sampled,agent_rs_sampled)
         ))
 
         remaining_agents = list(filter(
             lambda x: not inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
-            zip(agent_states,agent_attributes,agent_rs)
+            zip(agent_states_sampled,agent_attributes_sampled,agent_rs_sampled)
         ))
 
-        conditional_agent_specified = list(filter(
+        conditional_agents_predefined = list(filter(
             lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
-            zip(conditional_agent_states_history[-1],conditional_agent_attributes)
+            zip(states_history[-1],agent_attributes)
         ))
 
-        con_agent_state = [x[0] for x in conditional_agent]
-        con_agent_attrs = [x[1] for x in conditional_agent]
-        con_agent_rs = [x[2] for x in conditional_agent]
+        states_history_sampled = [x[0] for x in conditional_agents_sampled]
+        agent_attributes_sampled_conditional = [x[1] for x in conditional_agents_sampled]
+        agent_recurrent_states_sampled = [x[2] for x in conditional_agents_sampled]
         remaining_agents_states = [x[0] for x in remaining_agents]
         remaining_agents_attrs = [x[1] for x in remaining_agents]
         remaining_agents_rs = [x[2] for x in remaining_agents]
 
-        states_history_specified_area = [x[0] for x in conditional_agent_specified]
-        states_history = states_history_specified_area + con_agent_state
-        states_history = [states_history] if len(states_history) > 0 else None
+        states_history_predefined = [x[0] for x in conditional_agents_predefined]
+        states_history_region_conditional = states_history_predefined + states_history_sampled
+        states_history_region_conditional = [states_history_region_conditional] if len(states_history_region_conditional) > 0 else None
 
-        agent_attributes_specified_area = [x[1] for x in conditional_agent_specified]
-        agent_attributes_con = agent_attributes_specified_area + con_agent_attrs
-        num_predefined_agents = len(agent_attributes_con)
-        agent_attributes_con = agent_attributes_con if num_predefined_agents > 0 else None
+        agent_attributes_predefined_conditional = [x[1] for x in conditional_agents_predefined]
+        agent_attributes_region_conditional = agent_attributes_predefined_conditional + agent_attributes_sampled_conditional
+        num_predefined_agents = len(agent_attributes_region_conditional)
+        agent_attributes_region_conditional = agent_attributes_region_conditional if num_predefined_agents > 0 else None
 
-        agent_density_area_center = agent_density_list[i]
-        num_agents_to_spawn = agent_density_area_center - num_predefined_agents
+        agent_density_region = agent_density_list[i]
+        num_agents_to_spawn = agent_density_region - num_predefined_agents
 
         # Check if this initialization call can be skipped
-        if len(agent_attributes_specified_area) <= 0:
+        if len(agent_attributes_predefined_conditional) <= 0:
             # Only if there are no conditional agents in the area can it be skipped.
-            if agent_density_area_center <= 0:
+            if agent_density_region <= 0:
                 #Skip if no agents are requested (e.g. in areas with no drivable surfaces)
                 continue
             elif num_agents_to_spawn <= 0:
@@ -702,17 +702,17 @@ def area_initialization(
                 continue
 
         try:
-            spawning_agents_attributes = deepcopy(agent_attributes_con) if agent_attributes_con is not None else []
+            all_agents_attributes_in_region = deepcopy(agent_attributes_region_conditional) if agent_attributes_region_conditional is not None else []
             if num_agents_to_spawn > 0:
                 for _ in range(num_agents_to_spawn):
-                    spawning_agents_attributes.append(AgentAttributes.fromlist(["car"]))
+                    all_agents_attributes_in_region.append(AgentAttributes.fromlist(["car"]))
 
             # Initialize simulation with an API call
             response = iai.initialize(
                 location=location,
-                states_history=states_history,
-                agent_attributes=agent_attributes_con,
-                agent_count=agent_density_area_center,
+                states_history=states_history_region_conditional,
+                agent_attributes=all_agents_attributes_in_region,
+                agent_count=agent_density_region,
                 get_infractions=False,
                 traffic_light_state_history=traffic_light_state_history,
                 location_of_interest=(region_center.x, region_center.y),
@@ -727,44 +727,42 @@ def area_initialization(
         except InvertedAIError as e:
             logging.warning(e)
 
-
-
         # Get the recurrent state for any conditional agents in this region
-        for s, rs in zip(response.agent_states[:len(states_history_specified_area)],response.recurrent_states[:len(states_history_specified_area)]):
-            conditional_agent_recurrent_state_dict[(s.center.x,s.center.y)] = rs
+        for s, rs in zip(response.agent_states[:len(states_history_predefined)],response.recurrent_states[:len(states_history_predefined)]):
+            predefined_agent_recurrent_state_dict[(s.center.x,s.center.y)] = rs
 
         # Remove all conditional agents before filtering at the edges
-        non_conditional_agent_states = response.agent_states[len(states_history_specified_area):]
-        non_conditional_agent_attributes = response.agent_attributes[len(agent_attributes_specified_area):]
-        non_conditional_recurrent_states = response.recurrent_states[len(states_history_specified_area):]
+        response_agent_states_sampled = response.agent_states[len(states_history_predefined):]
+        response_agent_attributes_sampled = response.agent_attributes[len(states_history_predefined):]
+        response_recurrent_states_sampled = response.recurrent_states[len(states_history_predefined):]
 
         # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
         valid_agents = list(filter(
             lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV - SLACK, point=x[0].center),
-            zip(non_conditional_agent_states, non_conditional_agent_attributes, non_conditional_recurrent_states)
+            zip(response_agent_states_sampled, response_agent_attributes_sampled, response_recurrent_states_sampled)
         ))
 
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]
         valid_agent_rs = [x[2] for x in valid_agents]
 
-        agent_states = remaining_agents_states + valid_agent_state
-        agent_attributes = remaining_agents_attrs + valid_agent_attrs
-        agent_rs = remaining_agents_rs + valid_agent_rs
+        agent_states_sampled = remaining_agents_states + valid_agent_state
+        agent_attributes_sampled = remaining_agents_attrs + valid_agent_attrs
+        agent_rs_sampled = remaining_agents_rs + valid_agent_rs
 
         if get_birdview:
             file_path = f"{birdview_path}-{(region_center.x, region_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
     conditional_agent_recurrent_states = []
-    for s in conditional_agent_states_history[-1]:
-        conditional_agent_recurrent_states.append(conditional_agent_recurrent_state_dict[(s.center.x,s.center.y)])
+    for s in states_history[-1]:
+        conditional_agent_recurrent_states.append(predefined_agent_recurrent_state_dict[(s.center.x,s.center.y)])
 
-    response.agent_states = conditional_agent_states_history[-1] + agent_states
-    response.recurrent_states = conditional_agent_recurrent_states + agent_rs
-    response.agent_attributes = conditional_agent_attributes + agent_attributes
+    response.agent_states = states_history[-1] + agent_states_sampled
+    response.recurrent_states = conditional_agent_recurrent_states + agent_rs_sampled
+    response.agent_attributes = agent_attributes + agent_attributes_sampled
 
     return response
 
