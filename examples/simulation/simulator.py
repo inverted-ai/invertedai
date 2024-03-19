@@ -138,14 +138,17 @@ class Simulation:
 
             else:
                 traffic_lights_states = None
-            initialize_response = iai.utils.area_initialization(self.location, self.agent_per_region,
-                                                                traffic_lights_states=traffic_lights_states,
-                                                                random_seed=self.random_seed,
-                                                                map_center=(self.initialize_center.x,
-                                                                            self.initialize_center.y),
-                                                                width=self.width, height=self.height, stride=self.initialize_stride,
-                                                                get_birdview=DEBUG,
-                                                                birdview_path=birdview_path)
+            initialize_response = iai.utils.area_initialization(
+                self.location, 
+                self.agent_per_region,
+                traffic_lights_states=traffic_lights_states,
+                random_seed=self.random_seed,
+                map_center=(self.initialize_center.x,self.initialize_center.y),
+                width=self.width, 
+                height=self.height, 
+                stride=self.initialize_stride,
+                birdview_path=birdview_path
+            )
 
             npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen,
                         convertor=self.cfg.convert_to_pygame_coords, cfg=self.cfg) for attr, state,
