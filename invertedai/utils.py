@@ -1,17 +1,17 @@
 import asyncio
 import json
-import logging
 import os
 import re
-import logging
 import numpy as np
 import csv
 import math
+import logging
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Tuple
 from tqdm.contrib import tmap
 from itertools import product
 from copy import deepcopy
+from pydantic import validate_call
 
 import requests
 from requests import Response
@@ -27,8 +27,9 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import AgentState, StaticMapActor, Point
+from invertedai.common import AgentState, AgentAttributes, StaticMapActor, TrafficLightStatesDict, Point
 from invertedai.future import to_thread
+from invertedai.error import InvertedAIError
 
 H_SCALE = 10
 text_x_offset = 0
@@ -37,7 +38,7 @@ text_size = 7
 TIMEOUT_SECS = 600
 MAX_RETRIES = 10
 SLACK = 2
-INITIALIZE_FOV = 120
+AGENT_SCOPE_FOV = 120
 AGENT_FOV = 35
 
 logger = logging.getLogger(__name__)
@@ -332,7 +333,7 @@ def get_centers(map_center, height, width, stride):
 
 async def async_area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None,
                                        random_seed=None, map_center=(0, 0), width=100, height=100,
-                                       initialize_fov=INITIALIZE_FOV, get_birdview=False, birdview_path=None):
+                                       initialize_fov=AGENT_SCOPE_FOV, get_birdview=False, birdview_path=None):
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
                 (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
@@ -413,7 +414,7 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
 
 
 def area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None, random_seed=None,
-                           map_center=(0, 0), width=100, height=100, initialize_fov=INITIALIZE_FOV, get_birdview=False,
+                           map_center=(0, 0), width=100, height=100, initialize_fov=AGENT_SCOPE_FOV, get_birdview=False,
                            birdview_path=None):
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
         return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
@@ -499,13 +500,12 @@ def area_initialization(
     width=100, 
     height=100, 
     stride=50, 
-    initialize_fov=INITIALIZE_FOV, 
     get_birdview=False,
     birdview_path=None
 ):
-    def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
-        return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
-                (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
+    def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
+        return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
+                (center.y - (agent_scope_fov / 2) < point.y < center.y + (agent_scope_fov / 2)))
 
     agent_states = []
     agent_attributes = []
@@ -515,12 +515,14 @@ def area_initialization(
     for area_center in tmap(Point.fromlist, centers, total=len(centers),
                             desc=f"Initializing {location.split(':')[1]}"):
 
-        conditional_agent = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
-                                                                                       agent_rs)))
-        remaining_agents = list(filter(lambda x: not inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0].center), zip(agent_states, agent_attributes,
-                                                                                       agent_rs)))
+        conditional_agent = list(filter(
+            lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
+            zip(agent_states, agent_attributes,agent_rs)
+        ))
+        remaining_agents = list(filter(
+            lambda x: not inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
+            zip(agent_states, agent_attributes,agent_rs)
+        ))
 
         con_agent_state = [x[0] for x in conditional_agent]
         con_agent_attrs = [x[1] for x in conditional_agent]
@@ -554,9 +556,10 @@ def area_initialization(
         # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
-        valid_agents = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
-            zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+        valid_agents = list(
+            filter(lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV - SLACK, point=x[0].center),
+            zip(response.agent_states, response.agent_attributes, response.recurrent_states)
+        ))
 
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]
@@ -627,30 +630,82 @@ def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ra
 
     return round(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio)) if drivable_ratio > 0.0 else 0
 
+@validate_call
 def fill_initialization(
-    location, 
-    agent_density, 
-    traffic_lights_states=None, 
-    random_seed=None, 
-    map_center=(0, 0),
-    width=100, 
-    height=100, 
-    stride=50, 
-    initialize_fov=INITIALIZE_FOV, 
-    get_birdview=False,
-    birdview_path=None,
-    conditional_agent_attributes=[],
-    conditional_agent_states=[[]],
-    scaling_factor = 1.0,
+    location: str, 
+    agent_density: int, 
+    conditional_agent_attributes: Optional[List[AgentAttributes]] = None,
+    conditional_agent_states_history: Optional[List[List[AgentState]]] = None,
+    traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None, 
+    random_seed: Optional[int] = None, 
+    map_center: Optional[Tuple[float,float]] = (0.0,0.0),
+    width: Optional[float] = 100.0, 
+    height: Optional[float] = 100.0, 
+    stride: Optional[float] = 50.0, 
+    scaling_factor: Optional[float] = 1.0, 
+    get_birdview: Optional[bool] = False,
+    birdview_path: Optional[str] = None,
 ):
+    """
+    A utility function to initialize an area larger than 100x100m. This function breaks up an 
+    area into a grid of 100x100m regions and runs initialize on them all. For the current 
+    region of interest, existing agents in overlapping, neighbouring regions are passed as 
+    conditional agents to :func:`initialize`. Regions will be rejected and :func:`initialize` 
+    will not be called if it is not possible for agents to exist there (e.g. there are no 
+    drivable surfaces present) or if the agent density criterion is already satisfied. 
+
+    Arguments
+    ----------
+    location:
+        Location name in IAI format.
+    agent_density:
+        Maximum agents per 100x100m region to be scaled based on heuristic.
+    conditional_agent_attributes:
+        Static attributes for all pre-defined agents ONLY. Use the agent_density argument to 
+        specify the number of agents to be sampled. 
+    conditional_agent_states_history:
+        History of pre-defined agent states - the outer list is over time and the inner over agents,
+        in chronological order, i.e., index 0 is the oldest state and index -1 is the current state.
+        The order of agents should be the same as in `agent_attributes`.
+        For best results, provide at least 10 historical states for each agent.
+    traffic_light_state_history:
+        History of traffic light states - the list is over time, in chronological order, i.e.
+        the last element is the current state. If there are traffic lights in the map, 
+        not specifying traffic light state is equivalent to using iai generated light states.
+    random_seed:
+        Controls the stochastic aspects of initialization for reproducibility.
+    map_center:
+        The x,y coordinate of the center of the area to be initialized.
+    width:
+        Distance along the x-axis from the area center to edge of the rectangular area (total 
+        width of the region is 2X the value of this parameter).
+    height:
+        Distance along the y-axis from the area center to edge of the rectangular area (total 
+        height of the region is 2X the value of this parameter).
+    stride:
+        Distance between the centers of the 100x100m regions.
+    scaling_factor:
+        A factor between [0,1] weighting the heuristic for number of agents to spawn in a region. 
+        For example, a value of 0 ignores the heuristic and results in requesting the same number 
+        of agents for all regions.
+    birdview_path:
+        If True, a birdview image for every region in which :func:`initialize` is called will be 
+        returned representing the current world. Note this will significantly impact on the latency.
+    birdview_path:
+        If birdview_path is set to True, the birdview images will be saved to this path.
+    
+    See Also
+    --------
+    :func:`initialize`
+    """
 
     agent_states = []
     agent_attributes = []
     agent_rs = []
 
-    def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
-        return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
-                (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
+    def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
+        return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
+                (center.y - (agent_scope_fov / 2) < point.y < center.y + (agent_scope_fov / 2)))
 
     centers = get_centers(
         map_center, 
@@ -662,7 +717,9 @@ def fill_initialization(
     agent_density_list = _get_drivable_area_ratio(centers,location,agent_density,scaling_factor)
 
     conditional_agent_recurrent_state_dict = {}
-    for agent in conditional_agent_states[-1]:
+    if conditional_agent_states_history is None: conditional_agent_states_history = [[]]
+    if conditional_agent_attributes is None: conditional_agent_attributes = []
+    for agent in conditional_agent_states_history[-1]:
         conditional_agent_recurrent_state_dict[(agent.center.x,agent.center.y)] = None
 
     for i, area_center in enumerate(tmap(
@@ -673,18 +730,18 @@ def fill_initialization(
     )):
 
         conditional_agent = list(filter(
-            lambda x: inside_fov(center=area_center, initialize_fov=initialize_fov, point=x[0].center), 
+            lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
             zip(agent_states,agent_attributes,agent_rs)
         ))
 
         remaining_agents = list(filter(
-            lambda x: not inside_fov(center=area_center, initialize_fov=initialize_fov, point=x[0].center), 
+            lambda x: not inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
             zip(agent_states,agent_attributes,agent_rs)
         ))
 
         conditional_agent_specified = list(filter(
-            lambda x: inside_fov(center=area_center, initialize_fov=initialize_fov, point=x[0].center), 
-            zip(conditional_agent_states[-1],conditional_agent_attributes)
+            lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
+            zip(conditional_agent_states_history[-1],conditional_agent_attributes)
         ))
 
         con_agent_state = [x[0] for x in conditional_agent]
@@ -700,44 +757,49 @@ def fill_initialization(
 
         agent_attributes_specified_area = [x[1] for x in conditional_agent_specified]
         agent_attributes_con = agent_attributes_specified_area + con_agent_attrs
-        agent_attributes_con = agent_attributes_con if len(agent_attributes_con) > 0 else None
+        num_predefined_agents = len(agent_attributes_con)
+        agent_attributes_con = agent_attributes_con if num_predefined_agents > 0 else None
 
         agent_density_area_center = agent_density_list[i]
+        num_agents_to_spawn = agent_density_area_center - num_predefined_agents
 
         # Check if this initialization call can be skipped
-        if len(agent_attributes_specified_area) < 1:
+        if len(agent_attributes_specified_area) <= 0:
             # Only if there are no conditional agents in the area can it be skipped.
-            if agent_density_area_center < 1:
+            if agent_density_area_center <= 0:
                 #Skip if no agents are requested (e.g. in areas with no drivable surfaces)
                 continue
-            elif len(con_agent_state) >= agent_density_area_center:
+            elif num_agents_to_spawn <= 0:
                 #Skip if the calculated number of agents has been satisfied or surpassed
                 continue
 
-        for _ in range(1):
-            try:
-                # Initialize simulation with an API call
-                response = iai.initialize(
-                    location=location,
-                    states_history=states_history,
-                    agent_attributes=agent_attributes_con,
-                    agent_count=agent_density_area_center,
-                    get_infractions=False,
-                    traffic_light_state_history=traffic_lights_states,
-                    location_of_interest=(area_center.x, area_center.y),
-                    random_seed=random_seed,
-                    get_birdview=get_birdview,
-                )
+        try:
+            spawning_agents_attributes = deepcopy(agent_attributes_con) if agent_attributes_con is not None else []
+            if num_agents_to_spawn > 0:
+                for _ in range(num_agents_to_spawn):
+                    spawning_agents_attributes.append(AgentAttributes.fromlist(["car"]))
 
-                if traffic_lights_states is None:
-                    # If no traffic light states are given, take the first non-None traffic light states output as the consistent traffic light states across all areas
-                    traffic_lights_states = [response.traffic_lights_states]
+            # Initialize simulation with an API call
+            response = iai.initialize(
+                location=location,
+                states_history=states_history,
+                agent_attributes=agent_attributes_con,
+                agent_count=agent_density_area_center,
+                get_infractions=False,
+                traffic_light_state_history=traffic_light_state_history,
+                location_of_interest=(area_center.x, area_center.y),
+                random_seed=random_seed,
+                get_birdview=get_birdview,
+            )
 
-                break
-            except BaseException as e:
-                print(e)
-        else:
-            continue
+            if traffic_light_state_history is None:
+                # If no traffic light states are given, take the first non-None traffic light states output as the consistent traffic light states across all areas
+                traffic_light_state_history = [response.traffic_lights_states]
+
+        except InvertedAIError as e:
+            logging.warning(e)
+
+
 
         # Get the recurrent state for any conditional agents in this region
         for s, rs in zip(response.agent_states[:len(states_history_specified_area)],response.recurrent_states[:len(states_history_specified_area)]):
@@ -752,7 +814,7 @@ def fill_initialization(
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
         valid_agents = list(filter(
-            lambda x: inside_fov(center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
+            lambda x: inside_fov(center=area_center, agent_scope_fov=AGENT_SCOPE_FOV - SLACK, point=x[0].center),
             zip(non_conditional_agent_states, non_conditional_agent_attributes, non_conditional_recurrent_states)
         ))
 
@@ -769,10 +831,10 @@ def fill_initialization(
             response.birdview.decode_and_save(file_path)
 
     conditional_agent_recurrent_states = []
-    for s in conditional_agent_states[-1]:
+    for s in conditional_agent_states_history[-1]:
         conditional_agent_recurrent_states.append(conditional_agent_recurrent_state_dict[(s.center.x,s.center.y)])
 
-    response.agent_states = conditional_agent_states[-1] + agent_states
+    response.agent_states = conditional_agent_states_history[-1] + agent_states
     response.recurrent_states = conditional_agent_recurrent_states + agent_rs
     response.agent_attributes = conditional_agent_attributes + agent_attributes
 
