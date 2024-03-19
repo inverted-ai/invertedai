@@ -21,7 +21,6 @@ from requests.adapters import HTTPAdapter, Retry
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib import animation
-from matplotlib import transforms
 
 import invertedai as iai
 import invertedai.api
@@ -43,35 +42,104 @@ AGENT_FOV = 35
 
 logger = logging.getLogger(__name__)
 
+STATUS_MESSAGE = {
+    403: "Access denied. Please check the provided API key.",
+    429: "Throttled",
+    502: "The server is having trouble communicating. This is usually a temporary issue. Please try again later.",
+    504: "The server took too long to respond. Please try again later.",
+    500: "The server encountered an unexpected issue. We're working to resolve this. Please try again later.",
+}
+
+
 class Session:
     def __init__(self):
         self.session = requests.Session()
-        retries = Retry(total=5,
-                        backoff_factor=0.1,
-                        status_forcelist=[500, 502, 503, 504],
-                        raise_on_status=False)
         self.session.mount(
             "https://",
-            requests.adapters.HTTPAdapter(max_retries=retries),
+            requests.adapters.HTTPAdapter(),
+        )
+        self.session.mount(
+            "http://",
+            requests.adapters.HTTPAdapter(),
         )
         self.session.headers.update(
             {
                 "Content-Type": "application/json",
                 "Accept-Encoding": "gzip, deflate, br",
                 "Connection": "keep-alive",
-                "x-client-version": iai.__version__
+                "x-client-version": iai.__version__,
             }
         )
         self._base_url = self._get_base_url()
+        self._max_retries = float("inf")
+        self._status_force_list = [408, 429, 500, 502, 503, 504]
+        self._base_backoff = 1  # Base backoff time in seconds
+        self._backoff_factor = 2
+        self._current_backoff = self._base_backoff
+        self._max_backoff = None
 
     @property
     def base_url(self):
         return self._base_url
 
+    @property
+    def max_retries(self):
+        return self._max_retries
+
+    @max_retries.setter
+    def max_retries(self, value):
+        self._max_retries = value
+
+    @property
+    def status_force_list(self):
+        return self._status_force_list
+
+    @status_force_list.setter
+    def status_force_list(self, value):
+        self._status_force_list = value.copy()
+
+    @property
+    def base_backoff(self):
+        return self._base_backoff
+
+    @base_backoff.setter
+    def base_backoff(self, value):
+        self._base_backoff = value
+        self.current_backoff = (
+            self._base_backoff
+        )  # Reset current_backoff when base_backoff changes
+
+    @property
+    def backoff_factor(self):
+        return self._backoff_factor
+
+    @backoff_factor.setter
+    def backoff_factor(self, value):
+        self._backoff_factor = value
+
+    
+    @property
+    def current_backoff(self):
+        return self._current_backoff
+    
+    @current_backoff.setter
+    def current_backoff(self, value):
+        self._current_backoff = value
+
+    @property
+    def max_backoff(self):
+        return self._max_backoff
+    
+    @max_backoff.setter
+    def max_backoff(self, value):
+        self._max_backoff = value
+
+    def should_log(self, retry_count):
+        return retry_count == 0 or math.log2(retry_count).is_integer()
+
     @base_url.setter
     def base_url(self, value):
         self._base_url = value
-
 
     def _verify_api_key(self, api_token: str, verifying_url: str):
         """
@@ -91,7 +159,9 @@ class Session:
         response = self.session.request(method="get", url=verifying_url)
         if verifying_url == iai.commercial_url and response.status_code != 200:
             # Check for academic access in case the previous call to the commercial server fails.
-            logger.warning("Commercial access denied and fallback to check for academic access.")
+            logger.warning(
+                "Commercial access denied and fallback to check for academic access."
+            )
             verifying_url = iai.academic_url
             response_acd = self.session.request(method="get", url=verifying_url)
             if response_acd.status_code == 200:
@@ -105,8 +175,12 @@ class Session:
             )
         return verifying_url
 
-
-    def add_apikey(self, api_token: str = "", key_type: Optional[str] = None, url: Optional[str] = None):
+    def add_apikey(
+        self,
+        api_token: str = "",
+        key_type: Optional[str] = None,
+        url: Optional[str] = None,
+    ):
         """
         Bind an API key to the session for authentication.
 
@@ -139,7 +213,7 @@ class Session:
         invertedai.api.config.mock_api = use_mock
         if use_mock:
             iai.logger.warning(
-                'Using mock Inverted AI API - predictions will be trivial'
+                "Using mock Inverted AI API - predictions will be trivial"
             )
 
     async def async_request(self, *args, **kwargs):
@@ -168,52 +242,82 @@ class Session:
         data=None,
     ) -> Dict:
         try:
-            result = self.session.request(
-                method=method,
-                params=params,
-                url=self.base_url + relative_path,
-                headers=headers,
-                data=data,
-                json=json_body,
-            )
-            result.raise_for_status()
+            retries = 0
+            while retries < self.max_retries:
+                response = self.session.request(
+                    method=method,
+                    params=params,
+                    url=self.base_url + relative_path,
+                    headers=headers,
+                    data=data,
+                    json=json_body,
+                )
+                if response.status_code not in self.status_force_list:
+                    self.current_backoff = max(
+                        self.base_backoff, self.current_backoff / self.backoff_factor
+                    )
+                    response.raise_for_status()
+                    break
+                else:
+                    if self.should_log(retries):
+                        logger.warning(
+                            f"Retrying {relative_path}: Status {response.status_code}, Message {STATUS_MESSAGE.get(response.status_code, response.text)} Retry #{retries + 1}, Backoff {self.current_backoff} seconds"
+                        )
+                    time.sleep(self.current_backoff)
+                    self.current_backoff *= self.backoff_factor
+                    if self.max_backoff is not None:
+                        self.current_backoff = min(
+                            self.current_backoff, self.max_backoff
+                        )
+                    retries += 1
+            else:
+                response.raise_for_status()
+
+
         except requests.exceptions.ConnectionError as e:
-            raise error.APIConnectionError("Error communicating with IAI", should_retry=True)
+            raise error.APIConnectionError(
+                "Error communicating with IAI", should_retry=True
+            ) from None
         except requests.exceptions.Timeout as e:
-            raise error.APIConnectionError("Error communicating with IAI")
+            raise error.APIConnectionError("Error communicating with IAI") from None
         except requests.exceptions.RequestException as e:
             if e.response.status_code == 403:
-                raise error.AuthenticationError(
-                    "Access denied. Please check the provided API key."
-                )
+                raise error.AuthenticationError(STATUS_MESSAGE[403]) from None
             elif e.response.status_code in [400, 422]:
-                raise error.InvalidRequestError(e.response.text, param="")
+                raise error.InvalidRequestError(e.response.text, param="") from None
             elif e.response.status_code == 404:
-                raise error.ResourceNotFoundError(e.response.text)
+                raise error.ResourceNotFoundError(e.response.text) from None
+            elif e.response.status_code == 408:
+                raise error.RequestTimeoutError(e.response.text) from None
             elif e.response.status_code == 413:
-                raise error.LargeRequestTimeout(e.response.text)
+                raise error.RequestTooLarge(e.response.text) from None
             elif e.response.status_code == 429:
-                raise error.RateLimitError("Throttled")
+                raise error.RateLimitError(STATUS_MESSAGE[429]) from None
+            elif e.response.status_code == 502:
+                raise error.APIError(STATUS_MESSAGE[502]) from None
             elif e.response.status_code == 503:
-                raise error.ServiceUnavailableError("Service Unavailable")
+                raise error.RequestTimeoutError(e.response.text) from None
+            elif e.response.status_code == 504:
+                raise error.ServiceUnavailableError(STATUS_MESSAGE[504]) from None
             elif 400 <= e.response.status_code < 500:
-                raise error.APIError("Invalid request. Please check the sent data again.")
+                raise error.APIError(e.response.text) from None
             else:
-                raise error.APIError("The server is aware that it has erred or is incapable of performing the requested"
-                                     " method.")
+                raise error.APIError(STATUS_MESSAGE[500]) from None
         iai.logger.info(
             iai.logger.logfmt(
                 "IAI API response",
                 path=self.base_url,
-                response_code=result.status_code,
+                response_code=response.status_code,
             )
         )
         try:
-            data = json.loads(result.content)
+            data = json.loads(response.content)
         except json.decoder.JSONDecodeError:
             raise error.APIError(
-                f"HTTP code {result.status_code} from API ({result.content})", result.content, result.status_code,
-                headers=result.headers
+                f"HTTP code {response.status_code} from API ({response.content})",
+                response.content,
+                response.status_code,
+                headers=response.headers,
             )
         return data
 
@@ -224,7 +328,7 @@ class Session:
         The method path should be appended to the base_url
         """
         if not iai.dev:
-            base_url = iai.commercial_url # Default to commercial when initializing.
+            base_url = iai.commercial_url  # Default to commercial when initializing.
         else:
             base_url = iai.dev_url
         # TODO: Add endpoint option and versioning to base_url
@@ -314,29 +418,60 @@ class Session:
 
 def get_centers(map_center, height, width, stride):
     def check_valid_center(center):
-        return ((map_center[0] - width) < center[0] < (map_center[0] + width) and
-                (map_center[1] - height) < center[1] < (map_center[1] + height))
+        return (map_center[0] - width) < center[0] < (map_center[0] + width) and (
+            map_center[1] - height
+        ) < center[1] < (map_center[1] + height)
 
     def get_neighbors(center):
-        return [(center[0] + (i * stride), center[1] + (j * stride)) for i, j in list(product(*[(-1, 1), ] * 2))]
+        return [
+            (center[0] + (i * stride), center[1] + (j * stride))
+            for i, j in list(
+                product(
+                    *[
+                        (-1, 1),
+                    ]
+                    * 2
+                )
+            )
+        ]
 
     queue, centers = [map_center], []
 
     while queue:
         center = queue.pop(0)
         neighbors = filter(check_valid_center, get_neighbors(center))
-        queue.extend([neighbor for neighbor in neighbors if neighbor not in queue and neighbor not in centers])
+        queue.extend(
+            [
+                neighbor
+                for neighbor in neighbors
+                if neighbor not in queue and neighbor not in centers
+            ]
+        )
         if center not in centers and check_valid_center(center):
             centers.append(center)
     return centers
 
 
-async def async_area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None,
-                                       random_seed=None, map_center=(0, 0), width=100, height=100,
-                                       initialize_fov=AGENT_SCOPE_FOV, get_birdview=False, birdview_path=None):
+async def async_area_re_initialization(
+    location, 
+    agent_attributes, 
+    states_history, 
+    traffic_lights_states=None,
+    random_seed=None, 
+    map_center=(0, 0), 
+    width=100, 
+    height=100,
+    initialize_fov=AGENT_SCOPE_FOV, 
+    save_birdviews_to=None
+):
+    get_birdview = save_birdviews_to is not None
+
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
-        return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
-                (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
+        return (
+            center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)
+        ) and (
+            center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)
+        )
 
     async def reinit(reinitialize_agent_state, reinitialize_agent_attrs, area_center):
         try:
@@ -355,18 +490,34 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
         except BaseException:
             return [], [], [], ""
         SLACK = 0
-        valid_agents = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
-            zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+        valid_agents = list(
+            filter(
+                lambda x: inside_fov(
+                    center=area_center,
+                    initialize_fov=initialize_fov - SLACK,
+                    point=x[0].center,
+                ),
+                zip(
+                    response.agent_states,
+                    response.agent_attributes,
+                    response.recurrent_states,
+                ),
+            )
+        )
 
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]
         valid_agent_rs = [x[2] for x in valid_agents]
         if get_birdview:
-            file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
+            file_path = f"{save_birdviews_to}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
-        return valid_agent_state, valid_agent_attrs, valid_agent_rs, response.api_model_version
+        return (
+            valid_agent_state,
+            valid_agent_attrs,
+            valid_agent_rs,
+            response.api_model_version,
+        )
 
     stride = initialize_fov / 2
 
@@ -378,13 +529,33 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
     # # first = True
     centers = get_centers(map_center, height, width, stride)
     initialize_payload = []
-    for area_center in tmap(Point.fromlist, centers, total=len(centers),
-                            desc=f"Renewing Recurrent States {location.split(':')[1]}"):
+    for area_center in tmap(
+        Point.fromlist,
+        centers,
+        total=len(centers),
+        desc=f"Renewing Recurrent States {location.split(':')[1]}",
+    ):
 
-        reinitialize_agent = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
-        remaining_agents = list(filter(lambda x: not inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
+        reinitialize_agent = list(
+            filter(
+                lambda x: inside_fov(
+                    center=area_center,
+                    initialize_fov=initialize_fov,
+                    point=x[0][-1].center,
+                ),
+                zip(remaining_agents_states, remaining_agents_attrs),
+            )
+        )
+        remaining_agents = list(
+            filter(
+                lambda x: not inside_fov(
+                    center=area_center,
+                    initialize_fov=initialize_fov,
+                    point=x[0][-1].center,
+                ),
+                zip(remaining_agents_states, remaining_agents_attrs),
+            )
+        )
 
         reinitialize_agent_state = [x[0] for x in reinitialize_agent]
         #: Reorder form list of agents to list of time steps
@@ -393,10 +564,20 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
         remaining_agents_states = [x[0] for x in remaining_agents]
         remaining_agents_attrs = [x[1] for x in remaining_agents]
 
-        initialize_payload.append({"center": area_center, "state": reinitialize_agent_state,
-                                  "attr": reinitialize_agent_attrs})
+        initialize_payload.append(
+            {
+                "center": area_center,
+                "state": reinitialize_agent_state,
+                "attr": reinitialize_agent_attrs,
+            }
+        )
 
-    results = await asyncio.gather(*[reinit(agnts["state"], agnts["attr"], agnts["center"]) for agnts in initialize_payload])
+    results = await asyncio.gather(
+        *[
+            reinit(agnts["state"], agnts["attr"], agnts["center"])
+            for agnts in initialize_payload
+        ]
+    )
 
     model_version = ""
     for result in results:
@@ -409,15 +590,30 @@ async def async_area_re_initialization(location, agent_attributes, states_histor
         recurrent_states=new_recurrent_states,
         agent_states=new_agent_state,
         agent_attributes=new_attributes,
-        api_model_version=model_version
+        api_model_version=model_version,
     )
 
-def area_re_initialization(location, agent_attributes, states_history, traffic_lights_states=None, random_seed=None,
-                           map_center=(0, 0), width=100, height=100, initialize_fov=AGENT_SCOPE_FOV, get_birdview=False,
-                           birdview_path=None):
+def area_re_initialization(
+    location, 
+    agent_attributes, 
+    states_history, 
+    traffic_lights_states=None, 
+    random_seed=None,
+    map_center=(0, 0), 
+    width=100, 
+    height=100, 
+    initialize_fov=AGENT_SCOPE_FOV,
+    save_birdviews_to=None
+):
+    get_birdview = save_birdviews_to is not None
+
     def inside_fov(center: Point, initialize_fov: float, point: Point) -> bool:
-        return ((center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)) and
-                (center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)))
+        return (
+            center.x - (initialize_fov / 2) < point.x < center.x + (initialize_fov / 2)
+        ) and (
+            center.y - (initialize_fov / 2) < point.y < center.y + (initialize_fov / 2)
+        )
+
     stride = initialize_fov / 2
 
     remaining_agents_states = states_history
@@ -428,13 +624,33 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
     # first = True
 
     centers = get_centers(map_center, height, width, stride)
-    for area_center in tmap(Point.fromlist, centers, total=len(centers),
-                            desc=f"Initializing {location.split(':')[1]}"):
+    for area_center in tmap(
+        Point.fromlist,
+        centers,
+        total=len(centers),
+        desc=f"Initializing {location.split(':')[1]}",
+    ):
 
-        reinitialize_agent = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
-        remaining_agents = list(filter(lambda x: not inside_fov(
-            center=area_center, initialize_fov=initialize_fov, point=x[0][-1].center), zip(remaining_agents_states, remaining_agents_attrs)))
+        reinitialize_agent = list(
+            filter(
+                lambda x: inside_fov(
+                    center=area_center,
+                    initialize_fov=initialize_fov,
+                    point=x[0][-1].center,
+                ),
+                zip(remaining_agents_states, remaining_agents_attrs),
+            )
+        )
+        remaining_agents = list(
+            filter(
+                lambda x: not inside_fov(
+                    center=area_center,
+                    initialize_fov=initialize_fov,
+                    point=x[0][-1].center,
+                ),
+                zip(remaining_agents_states, remaining_agents_attrs),
+            )
+        )
 
         reinitialize_agent_state = [x[0] for x in reinitialize_agent]
         #: Reorder form list of agents to list of time steps
@@ -470,9 +686,20 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
         SLACK = 0
-        valid_agents = list(filter(lambda x: inside_fov(
-            center=area_center, initialize_fov=initialize_fov - SLACK, point=x[0].center),
-            zip(response.agent_states, response.agent_attributes, response.recurrent_states)))
+        valid_agents = list(
+            filter(
+                lambda x: inside_fov(
+                    center=area_center,
+                    initialize_fov=initialize_fov - SLACK,
+                    point=x[0].center,
+                ),
+                zip(
+                    response.agent_states,
+                    response.agent_attributes,
+                    response.recurrent_states,
+                ),
+            )
+        )
 
         valid_agent_state = [x[0] for x in valid_agents]
         valid_agent_attrs = [x[1] for x in valid_agents]
@@ -482,7 +709,7 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
         new_attributes += valid_agent_attrs
         new_recurrent_states += valid_agent_rs
         if get_birdview:
-            file_path = f"{birdview_path}-{(area_center.x, area_center.y)}.jpg"
+            file_path = f"{save_birdviews_to}-{(area_center.x, area_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
     response.recurrent_states = new_recurrent_states
@@ -745,7 +972,7 @@ def area_initialization(
         agent_rs_sampled = remaining_agents_rs + valid_agent_rs
 
         if get_birdview:
-            file_path = f"{birdview_path}-{(region_center.x, region_center.y)}.jpg"
+            file_path = f"{save_birdviews_to}_{(region_center.x, region_center.y)}.jpg"
             response.birdview.decode_and_save(file_path)
 
     predefined_agent_recurrent_states = []
@@ -757,8 +984,6 @@ def area_initialization(
     response.agent_attributes = agent_attributes + agent_attributes_sampled
 
     return response
-
-
 
 class APITokenAuth(AuthBase):
     def __init__(self, api_token):
@@ -857,7 +1082,7 @@ class IAILogger(logging.Logger):
             file_handler = logging.FileHandler("iai.log")
             self.addHandler(file_handler)
 
-    @ staticmethod
+    @staticmethod
     def logfmt(message, **params):
         props = dict(message=message, **params)
 
@@ -880,13 +1105,20 @@ class IAILogger(logging.Logger):
 
 def rot(rot):
     """Rotate in 2d"""
-    return np.array([[np.cos(rot), -np.sin(rot)],
-                     [np.sin(rot), np.cos(rot)]])
+    return np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
 
 
 class ScenePlotter:
-    def __init__(self, map_image=None, fov=None, xy_offset=None, static_actors=None,
-                 open_drive=None, resolution=(640, 480), dpi=100):
+    def __init__(
+        self,
+        map_image=None,
+        fov=None,
+        xy_offset=None,
+        static_actors=None,
+        open_drive=None,
+        resolution=(640, 480),
+        dpi=100,
+    ):
         self.conditional_agents = None
         self.agent_attributes = None
         self.traffic_lights_history = None
@@ -897,19 +1129,23 @@ class ScenePlotter:
         self.fov = fov
         self.map_image = map_image
         if not open_drive:
-            self.extent = (- self.fov / 2 + xy_offset[0], self.fov / 2 + xy_offset[0]) + \
-                (- self.fov / 2 + xy_offset[1], self.fov / 2 + xy_offset[1])
+            self.extent = (
+                -self.fov / 2 + xy_offset[0],
+                self.fov / 2 + xy_offset[0],
+            ) + (-self.fov / 2 + xy_offset[1], self.fov / 2 + xy_offset[1])
         else:
             self.map_center = xy_offset
 
-        self.traffic_lights = {static_actor.actor_id: static_actor
-                               for static_actor in static_actors
-                               if static_actor.agent_type == 'traffic-light'}
+        self.traffic_lights = {
+            static_actor.actor_id: static_actor
+            for static_actor in static_actors
+            if static_actor.agent_type == "traffic-light"
+        }
 
         self.traffic_light_colors = {
-            'red': (1.0, 0.0, 0.0),
-            'green': (0.0, 1.0, 0.0),
-            'yellow': (1.0, 0.8, 0.0)
+            "red": (1.0, 0.0, 0.0),
+            "green": (0.0, 1.0, 0.0),
+            "yellow": (1.0, 0.8, 0.0),
         }
 
         self.agent_c = (0.2, 0.2, 0.7)
@@ -929,7 +1165,13 @@ class ScenePlotter:
 
         self.numbers = False
 
-    def initialize_recording(self, agent_states, agent_attributes, traffic_light_states=None, conditional_agents=None):
+    def initialize_recording(
+        self,
+        agent_states,
+        agent_attributes,
+        traffic_light_states=None,
+        conditional_agents=None,
+    ):
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
         self.agent_attributes = agent_attributes
@@ -948,43 +1190,95 @@ class ScenePlotter:
         self.agent_states_history.append(agent_states)
         self.traffic_lights_history.append(traffic_light_states)
 
-    def plot_scene(self, agent_states, agent_attributes, traffic_light_states=None, conditional_agents=None,
-                   ax=None, numbers=False, direction_vec=True, velocity_vec=False):
-        self.initialize_recording(agent_states, agent_attributes,
-                                  traffic_light_states=traffic_light_states,
-                                  conditional_agents=conditional_agents)
+    def plot_scene(
+        self,
+        agent_states,
+        agent_attributes,
+        traffic_light_states=None,
+        conditional_agents=None,
+        ax=None,
+        numbers=False,
+        direction_vec=True,
+        velocity_vec=False,
+    ):
+        self.initialize_recording(
+            agent_states,
+            agent_attributes,
+            traffic_light_states=traffic_light_states,
+            conditional_agents=conditional_agents,
+        )
 
-        self.plot_frame(idx=0, ax=ax, numbers=numbers, direction_vec=direction_vec,
-                        velocity_vec=velocity_vec, plot_frame_number=False)
+        self.plot_frame(
+            idx=0,
+            ax=ax,
+            numbers=numbers,
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec,
+            plot_frame_number=False,
+        )
 
         self.reset_recording()
 
-    def plot_frame(self, idx, ax=None, numbers=False, direction_vec=False,
-                   velocity_vec=False, plot_frame_number=False):
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+    def plot_frame(
+        self,
+        idx,
+        ax=None,
+        numbers=False,
+        direction_vec=False,
+        velocity_vec=False,
+        plot_frame_number=False,
+    ):
+        self._initialize_plot(
+            ax=ax,
+            numbers=numbers,
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec,
+            plot_frame_number=plot_frame_number,
+        )
         self._update_frame_to(idx)
 
-    def animate_scene(self, output_name=None, start_idx=0, end_idx=-1, ax=None,
-                      numbers=False, direction_vec=True, velocity_vec=False,
-                      plot_frame_number=False):
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+    def animate_scene(
+        self,
+        output_name=None,
+        start_idx=0,
+        end_idx=-1,
+        ax=None,
+        numbers=False,
+        direction_vec=True,
+        velocity_vec=False,
+        plot_frame_number=False,
+    ):
+        self._initialize_plot(
+            ax=ax,
+            numbers=numbers,
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec,
+            plot_frame_number=plot_frame_number,
+        )
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
-        fig.set_size_inches(self.resolution[0] / self.dpi, self.resolution[1] / self.dpi, True)
+        fig.set_size_inches(
+            self.resolution[0] / self.dpi, self.resolution[1] / self.dpi, True
+        )
 
         def animate(i):
             self._update_frame_to(i)
 
         ani = animation.FuncAnimation(
-            fig, animate, np.arange(start_idx, end_idx), interval=100)
+            fig, animate, np.arange(start_idx, end_idx), interval=100
+        )
         if output_name is not None:
-            ani.save(f'{output_name}', writer='pillow', dpi=self.dpi)
+            ani.save(f"{output_name}", writer="pillow", dpi=self.dpi)
         return ani
 
-    def _initialize_plot(self, ax=None, numbers=False, direction_vec=True,
-                         velocity_vec=False, plot_frame_number=False):
+    def _initialize_plot(
+        self,
+        ax=None,
+        numbers=False,
+        direction_vec=True,
+        velocity_vec=False,
+        plot_frame_number=False,
+    ):
         if ax is None:
             plt.clf()
             ax = plt.gca()
@@ -992,8 +1286,10 @@ class ScenePlotter:
             ax.imshow(self.map_image, extent=self.extent)
         else:
             self._draw_xord_map(ax)
-            self.extent = (self.map_center[0] - self.fov / 2, self.map_center[0] + self.fov / 2) +\
-                (self.map_center[1] - self.fov / 2, self.map_center[1] + self.fov / 2)
+            self.extent = (
+                self.map_center[0] - self.fov / 2,
+                self.map_center[0] + self.fov / 2,
+            ) + (self.map_center[1] - self.fov / 2, self.map_center[1] + self.fov / 2)
             ax.set_xlim((self.extent[0], self.extent[1]))
             ax.set_ylim((self.extent[2], self.extent[3]))
         self.current_ax = ax
@@ -1013,7 +1309,9 @@ class ScenePlotter:
         self._update_frame_to(0)
 
     def _update_frame_to(self, frame_idx):
-        for i, (agent, agent_attribute) in enumerate(zip(self.agent_states_history[frame_idx], self.agent_attributes)):
+        for i, (agent, agent_attribute) in enumerate(
+            zip(self.agent_states_history[frame_idx], self.agent_attributes)
+        ):
             self._update_agent(i, agent, agent_attribute)
 
         if self.traffic_lights_history[frame_idx] is not None:
@@ -1023,7 +1321,8 @@ class ScenePlotter:
         if self.plot_frame_number:
             if self.frame_label is None:
                 self.frame_label = self.current_ax.text(
-                    self.extent[0], self.extent[2], str(frame_idx), c='r', fontsize=18)
+                    self.extent[0], self.extent[2], str(frame_idx), c="r", fontsize=18
+                )
             else:
                 self.frame_label.set_text(str(frame_idx))
 
@@ -1036,15 +1335,22 @@ class ScenePlotter:
         x, y = agent.center.x, agent.center.y
         v = agent.speed
         psi = agent.orientation
-        box = np.array([
-            [0, 0], [l * 0.5, 0],  # direction vector
-            [0, 0], [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
-        ])
+        box = np.array(
+            [
+                [0, 0],
+                [l * 0.5, 0],  # direction vector
+                [0, 0],
+                [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
+            ]
+        )
         box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
         if self.direction_vec:
             if agent_idx not in self.dir_lines:
                 self.dir_lines[agent_idx] = self.current_ax.plot(
-                    box[0:2, 0], box[0:2, 1], lw=2.0, c=self.dir_c)[0]  # plot the direction vector
+                    box[0:2, 0], box[0:2, 1], lw=2.0, c=self.dir_c
+                )[
+                    0
+                ]  # plot the direction vector
             else:
                 self.dir_lines[agent_idx].set_xdata(box[0:2, 0])
                 self.dir_lines[agent_idx].set_ydata(box[0:2, 1])
@@ -1052,15 +1358,20 @@ class ScenePlotter:
         if self.velocity_vec:
             if agent_idx not in self.v_lines:
                 self.v_lines[agent_idx] = self.current_ax.plot(
-                    box[2:4, 0], box[2:4, 1], lw=1.5, c=self.v_c)[0]  # plot the speed
+                    box[2:4, 0], box[2:4, 1], lw=1.5, c=self.v_c
+                )[
+                    0
+                ]  # plot the speed
             else:
                 self.v_lines[agent_idx].set_xdata(box[2:4, 0])
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
-        if (type(self.numbers) == bool and self.numbers) or \
-           (type(self.numbers) == list and agent_idx in self.numbers):
+        if (type(self.numbers) == bool and self.numbers) or (
+            type(self.numbers) == list and agent_idx in self.numbers
+        ):
             if agent_idx not in self.box_labels:
                 self.box_labels[agent_idx] = self.current_ax.text(
-                    x, y, str(agent_idx), c='r', fontsize=18)
+                    x, y, str(agent_idx), c="r", fontsize=18
+                )
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
                 self.box_labels[agent_idx].set_x(x)
@@ -1071,8 +1382,15 @@ class ScenePlotter:
         else:
             c = self.agent_c
 
-        rect = Rectangle((x - l / 2, y - w / 2), l, w, angle=psi *
-                         180 / np.pi, rotation_point='center', fc=c, lw=0)
+        rect = Rectangle(
+            (x - l / 2, y - w / 2),
+            l,
+            w,
+            angle=psi * 180 / np.pi,
+            rotation_point="center",
+            fc=c,
+            lw=0,
+        )
         if agent_idx in self.actor_boxes:
             self.actor_boxes[agent_idx].remove()
         self.actor_boxes[agent_idx] = rect
@@ -1085,9 +1403,15 @@ class ScenePlotter:
         psi = light.orientation
         l, w = light.length, light.width
 
-        rect = Rectangle((x - l / 2, y - w / 2), l, w, angle=psi * 180 / np.pi,
-                         rotation_point='center',
-                         fc=self.traffic_light_colors[light_state], lw=0)
+        rect = Rectangle(
+            (x - l / 2, y - w / 2),
+            l,
+            w,
+            angle=psi * 180 / np.pi,
+            rotation_point="center",
+            fc=self.traffic_light_colors[light_state],
+            lw=0,
+        )
         if light_id in self.traffic_light_boxes:
             self.traffic_light_boxes[light_id].remove()
         self.current_ax.add_patch(rect)
@@ -1145,16 +1469,22 @@ class ScenePlotter:
                 pos = positions[i]
 
             # plot road id before going to next road
-            if i == len(positions) or (pos[0] == 'lane' and i > 0 and current_lane_id == '0'):
+            if i == len(positions) or (
+                pos[0] == "lane" and i > 0 and current_lane_id == "0"
+            ):
 
-                if current_lane_section == '0':
+                if current_lane_section == "0":
                     road_id.append(int(current_road_id))
                     index = int(len(ref_x[-1]) / 3.0)
                     h = ref_h[-1][index]
                     road_id_x.append(
-                        ref_x[-1][index] + (text_x_offset * math.cos(h) - text_y_offset * math.sin(h)))
+                        ref_x[-1][index]
+                        + (text_x_offset * math.cos(h) - text_y_offset * math.sin(h))
+                    )
                     road_id_y.append(
-                        ref_y[-1][index] + (text_x_offset * math.sin(h) + text_y_offset * math.cos(h)))
+                        ref_y[-1][index]
+                        + (text_x_offset * math.sin(h) + text_y_offset * math.cos(h))
+                    )
                     road_start_dots_x.append(ref_x[-1][0])
                     road_start_dots_y.append(ref_y[-1][0])
                     if len(ref_x) > 0:
@@ -1170,37 +1500,37 @@ class ScenePlotter:
             if i == len(positions):
                 break
 
-            if pos[0] == 'lane':
+            if pos[0] == "lane":
                 current_road_id = pos[1]
                 current_lane_section = pos[2]
                 current_lane_id = pos[3]
-                if pos[3] == '0':
-                    ltype = 'ref'
+                if pos[3] == "0":
+                    ltype = "ref"
                     ref_x.append([])
                     ref_y.append([])
                     ref_z.append([])
                     ref_h.append([])
 
-                elif pos[4] == 'no-driving':
-                    ltype = 'border'
+                elif pos[4] == "no-driving":
+                    ltype = "border"
                     border_x.append([])
                     border_y.append([])
                     border_z.append([])
                     border_h.append([])
                 else:
-                    ltype = 'lane'
+                    ltype = "lane"
                     lane_x.append([])
                     lane_y.append([])
                     lane_z.append([])
                     lane_h.append([])
             else:
-                if ltype == 'ref':
+                if ltype == "ref":
                     ref_x[-1].append(float(pos[0]))
                     ref_y[-1].append(float(pos[1]))
                     ref_z[-1].append(float(pos[2]))
                     ref_h[-1].append(float(pos[3]))
 
-                elif ltype == 'border':
+                elif ltype == "border":
                     border_x[-1].append(float(pos[0]))
                     border_y[-1].append(float(pos[1]))
                     border_z[-1].append(float(pos[2]))
@@ -1213,30 +1543,56 @@ class ScenePlotter:
 
         # plot driving lanes in blue
         for i in range(len(lane_x)):
-            ax.plot(lane_x[i], lane_y[i], linewidth=1.0, color='#222222')
+            ax.plot(lane_x[i], lane_y[i], linewidth=1.0, color="#222222")
 
         # plot road ref line segments
         for i in range(len(ref_x)):
-            ax.plot(ref_x[i], ref_y[i], linewidth=2.0, color='#BB5555')
+            ax.plot(ref_x[i], ref_y[i], linewidth=2.0, color="#BB5555")
 
         # plot border lanes in gray
         for i in range(len(border_x)):
-            ax.plot(border_x[i], border_y[i], linewidth=1.0, color='#AAAAAA')
+            ax.plot(border_x[i], border_y[i], linewidth=1.0, color="#AAAAAA")
 
         if extras:
             # plot red dots indicating lane dections
             for i in range(len(lane_section_dots_x)):
-                ax.plot(lane_section_dots_x[i], lane_section_dots_y[i], 'o', ms=4.0, color='#BB5555')
+                ax.plot(
+                    lane_section_dots_x[i],
+                    lane_section_dots_y[i],
+                    "o",
+                    ms=4.0,
+                    color="#BB5555",
+                )
 
             for i in range(len(road_start_dots_x)):
                 # plot a yellow dot at start of each road
-                ax.plot(road_start_dots_x[i], road_start_dots_y[i], 'o', ms=5.0, color='#BBBB33')
+                ax.plot(
+                    road_start_dots_x[i],
+                    road_start_dots_y[i],
+                    "o",
+                    ms=5.0,
+                    color="#BBBB33",
+                )
                 # and an arrow indicating road direction
-                ax.arrow(road_start_dots_x[i], road_start_dots_y[i], arrow_dx[i],
-                         arrow_dy[i], width=0.1, head_width=1.0, color='#BB5555')
+                ax.arrow(
+                    road_start_dots_x[i],
+                    road_start_dots_y[i],
+                    arrow_dx[i],
+                    arrow_dy[i],
+                    width=0.1,
+                    head_width=1.0,
+                    color="#BB5555",
+                )
             # plot road id numbers
             for i in range(len(road_id)):
-                ax.text(road_id_x[i], road_id_y[i], road_id[i], size=text_size,
-                        ha='center', va='center', color='#3333BB')
+                ax.text(
+                    road_id_x[i],
+                    road_id_y[i],
+                    road_id[i],
+                    size=text_size,
+                    ha="center",
+                    va="center",
+                    color="#3333BB",
+                )
 
         return None
