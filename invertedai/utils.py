@@ -491,18 +491,6 @@ def area_re_initialization(location, agent_attributes, states_history, traffic_l
     return response
 
 def _get_agent_density_per_region(centers,location,agent_density,scaling_factor,display_progress_bar):
-    try:
-        from cv2 import (
-            cvtColor,
-            COLOR_BGR2GRAY
-        )
-
-    except ImportError as e:
-        iai.logger.error(
-            "Calculating drivable area requires cv2, which was not found."
-        )
-        raise e
-
     #Get fraction of image that is a drivable surface (assume all non-black is drivable)
     center_road_area_dict = {}
     max_drivable_area_ratio = 0
@@ -528,10 +516,13 @@ def _get_agent_density_per_region(centers,location,agent_density,scaling_factor,
             rendering_center=center_tuple
         ).birdview_image.decode()
 
-        birdview = cvtColor(birdview,COLOR_BGR2GRAY)
-        number_of_black_pix = np.sum(birdview == 0)
-        h, w = birdview.shape
-        total_num_pixels = h*w
+        ## Get number of black pixels
+        birdview_arr_shape = birdview.shape
+        total_num_pixels = birdview_arr_shape[0]*birdview_arr_shape[1]
+        # Convert to grayscale using Luminosity Method gray = 0.11*B + 0.59*G + 0.3*R
+        # Image should be in BGR color pixel format
+        birdview_grayscale = np.matmul(birdview.reshape(total_num_pixels,3),np.array([[0.11],[0.59],[0.3]]))
+        number_of_black_pix = np.sum(birdview_grayscale == 0)
 
         drivable_area_ratio = (total_num_pixels-number_of_black_pix)/total_num_pixels 
         center_road_area_dict[center_tuple] = drivable_area_ratio
@@ -562,17 +553,18 @@ def area_initialization(
     height: Optional[float] = 100.0, 
     stride: Optional[float] = 50.0, 
     scaling_factor: Optional[float] = 1.0, 
-    get_birdview: Optional[bool] = False,
-    birdview_path: Optional[str] = None,
+    save_birdviews_to: Optional[str] = None,
     display_progress_bar: Optional[bool] = True
 ):
     """
     A utility function to initialize an area larger than 100x100m. This function breaks up an 
-    area into a grid of 100x100m regions and runs initialize on them all. For the current 
+    area into a grid of 100x100m regions and runs initialize on them all. For any particular 
     region of interest, existing agents in overlapping, neighbouring regions are passed as 
     conditional agents to :func:`initialize`. Regions will be rejected and :func:`initialize` 
     will not be called if it is not possible for agents to exist there (e.g. there are no 
-    drivable surfaces present) or if the agent density criterion is already satisfied. 
+    drivable surfaces present) or if the agent density criterion is already satisfied. As well,
+    predefined agents may be passed and will be considered as conditional within the 
+    appropriate region.
 
     Arguments
     ----------
@@ -608,11 +600,8 @@ def area_initialization(
         A factor between [0,1] weighting the heuristic for number of agents to spawn in a region. 
         For example, a value of 0 ignores the heuristic and results in requesting the same number 
         of agents for all regions.
-    birdview_path:
-        If True, a birdview image for every region in which :func:`initialize` is called will be 
-        returned representing the current world. Note this will significantly impact on the latency.
-    birdview_path:
-        If birdview_path is set to True, the birdview images will be saved to this path.
+    save_birdviews_to:
+        If this variable is not None, the birdview images will be saved to this specified path.
     display_progress_bar:
         If True, a bar is displayed showing the progress of all relevant processes.
     
@@ -620,6 +609,7 @@ def area_initialization(
     --------
     :func:`initialize`
     """
+    get_birdview = save_birdviews_to is not None
 
     agent_states_sampled = []
     agent_attributes_sampled = []
@@ -725,7 +715,7 @@ def area_initialization(
                 traffic_light_state_history = [response.traffic_lights_states]
 
         except InvertedAIError as e:
-            logging.warning(e)
+            iai.logger.warning(e)
 
         # Get the recurrent state for any conditional agents in this region
         for s, rs in zip(response.agent_states[:len(states_history_predefined)],response.recurrent_states[:len(states_history_predefined)]):
