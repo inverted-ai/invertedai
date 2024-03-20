@@ -7,8 +7,14 @@ from simulation.car import Car
 
 
 class Region:
-    def __init__(self, cfg, boundary: Rectangle, npcs: Optional[List[Car]] = None, query_neighbors: Optional[Callable] = None,
-                 re_initialization: Optional[int] = RE_INITIALIZATION_PERIOD) -> None:
+    def __init__(
+        self, 
+        cfg, 
+        boundary: Rectangle, 
+        npcs: Optional[List[Car]] = None, 
+        query_neighbors: Optional[Callable] = None,
+        re_initialization: Optional[int] = RE_INITIALIZATION_PERIOD
+    ) -> None:
         self.cfg = cfg
         self.location = cfg.location
         self.npcs = npcs or []
@@ -51,38 +57,29 @@ class Region:
             remaining_npcs.append(npc)
         self.npcs = remaining_npcs
 
-    def sync_drive(self, traffic_lights_states=None):
+    def sync_drive(self, traffic_lights_states=None, light_recurrent_states = None):
         """_summary_
         updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
         """
         if self.empty:
-            return
+            return traffic_lights_states, light_recurrent_states
         else:
             agent_attributes, agent_states, recurrent_states = self.pre_drive()
-            drive_response = drive(location=self.location,
-                                   agent_attributes=agent_attributes,
-                                   agent_states=agent_states,
-                                   recurrent_states=recurrent_states,
-                                   traffic_lights_states=traffic_lights_states,
-                                   get_birdview=DEBUG,)
+            drive_response = drive(
+                location=self.location,
+                agent_attributes=agent_attributes,
+                agent_states=agent_states,
+                recurrent_states=recurrent_states,
+                traffic_lights_states=traffic_lights_states,
+                light_recurrent_states=light_recurrent_states,
+                get_birdview=DEBUG
+            )
             self.post_drive(drive_response=drive_response)
 
-    async def async_drive(self, traffic_lights_states=None):
-        """_summary_
-        async version:
-        updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
-        """
-        if self.empty:
-            return
-        else:
-            agent_attributes, agent_states, recurrent_states = self.pre_drive()
-            drive_response = await async_drive(location=self.location,
-                                               agent_attributes=agent_attributes,
-                                               agent_states=agent_states,
-                                               recurrent_states=recurrent_states,
-                                               traffic_lights_states=traffic_lights_states,
-                                               get_birdview=DEBUG)
-            self.post_drive(drive_response=drive_response)
+            traffic_lights_states = drive_response.traffic_lights_states
+            light_recurrent_states = drive_response.light_recurrent_states
+
+        return traffic_lights_states, light_recurrent_states
 
     def insert(self, npc):
         self.npcs.append(npc)
@@ -98,8 +95,15 @@ class Region:
 
 
 class QuadTree:
-    def __init__(self, capacity: int, boundary: Rectangle, color=(
-            140, 255, 160), thickness=1, convertors=None, cfg=None):
+    def __init__(
+        self, 
+        capacity: int, 
+        boundary: Rectangle, 
+        color=(140, 255, 160), 
+        thickness=1, 
+        convertors=None, 
+        cfg=None
+    ):
         self.capacity = capacity
         self.boundary = boundary
         self.particles = []
