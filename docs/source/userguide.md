@@ -1,5 +1,5 @@
 [examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
-[rest-link]: https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI
+[rest-link]: https://app.swaggerhub.com/apis/InvertedAI/InvertedAI/
 # User Guide
 
 Inverted AI API provides a service that controls non-playable characters (NPCs) in driving simulations. The two main

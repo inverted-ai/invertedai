@@ -10,7 +10,7 @@ hide-toc: true
 [github-badge]: https://badgen.net/badge/icon/github?icon=github&label
 [github-link]: https://github.com/inverted-ai/invertedai/
 [colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai/blob/develop/examples/IAI_demo.ipynb
-[rest-link]: https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI
+[rest-link]: https://app.swaggerhub.com/apis/InvertedAI/InvertedAI/
 [examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
 [![GitHub][github-badge]][github-link]
 [![PyPI][pypi-badge]][pypi-link]
@@ -38,7 +38,7 @@ self
 userguide
 pythonapi/index
 cppapi/index
-REST API <https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI>
+REST API <https://app.swaggerhub.com/apis/InvertedAI/InvertedAI/>
 pythonapi/pyexamples
 ```
 
