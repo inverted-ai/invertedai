@@ -28,7 +28,7 @@ private:
 public:
   const char* host_ = local_mode ? "localhost" : "api.inverted.ai";
   const char* port_ = local_mode ? "8000" : "443";
-  const char *subdomain = local_mode ? "/" : "/v0/aws/m1/";;
+  const char *subdomain = local_mode ? "/" : "/v0/aws/m1/";
   const int version_ = 11;
 
   explicit Session(net::io_context &ioc, ssl::context &ctx)
@@ -38,6 +38,16 @@ public:
    * Set your own api key here.
    */
   void set_api_key(const std::string &api_key);
+
+  /**
+   * Set a specific API URL here.
+   */
+  void set_url(
+    const char* &host,
+    const char* &port,
+    const char* &subdomain
+  );
+
   /**
    * Connect the session to the host.
    * You can connect once and use the shared session for different request.
@@ -52,9 +62,11 @@ public:
    * request, sent the request to host, and return the body string of the
    * response.
    */
-  const std::string request(const std::string &mode,
-                            const std::string &body_str,
-                            const std::string &url_params);
+  const std::string request(
+    const std::string &mode,
+    const std::string &body_str,
+    const std::string &url_params
+  );
 };
 
 } // namespace invertedai
