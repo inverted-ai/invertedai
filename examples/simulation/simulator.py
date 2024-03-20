@@ -98,9 +98,9 @@ class Simulation:
 
     def _initialize_regions(self, reintialize: bool = False):
         if DEBUG:
-            birdview_path = f"img/debug/initialize/{self.timer}"
+            save_birdviews_to = f"img/debug/initialize/{self.timer}"
         else:
-            birdview_path = None
+            save_birdviews_to = None
 
         if reintialize:
             if self.cfg.use_traffic_lights and (len(self.light_history) > 0):
@@ -111,17 +111,16 @@ class Simulation:
             agent_attributes = [car.agent_attributes for car in self.npcs]
             states_history = [list(car.agent_states_history) for car in self.npcs]
 
-            initialize_response = asyncio.run(iai.utils.async_area_re_initialization(self.location,
-                                                                                     agent_attributes=agent_attributes,
-                                                                                     states_history=states_history,
-                                                                                     traffic_lights_states=traffic_lights_states,
-                                                                                     random_seed=self.random_seed,
-                                                                                     map_center=(
-                                                                                         self.initialize_center.x,
-                                                                                         self.initialize_center.y),
-                                                                                     width=self.width, height=self.height,
-                                                                                     get_birdview=DEBUG,
-                                                                                     birdview_path=birdview_path))
+            initialize_response = asyncio.run(iai.utils.async_area_re_initialization(
+                self.location,
+                agent_attributes=agent_attributes,
+                states_history=states_history,
+                traffic_lights_states=traffic_lights_states,
+                random_seed=self.random_seed,
+                map_center=(self.initialize_center.x,self.initialize_center.y),
+                width=self.width, 
+                height=self.height,
+                save_birdviews_to=save_birdviews_to))
         else:
 
             if self.cfg.use_traffic_lights:
@@ -138,14 +137,17 @@ class Simulation:
 
             else:
                 traffic_lights_states = None
-            initialize_response = iai.utils.area_initialization(self.location, self.agent_per_region,
-                                                                traffic_lights_states=traffic_lights_states,
-                                                                random_seed=self.random_seed,
-                                                                map_center=(self.initialize_center.x,
-                                                                            self.initialize_center.y),
-                                                                width=self.width, height=self.height, stride=self.initialize_stride,
-                                                                get_birdview=DEBUG,
-                                                                birdview_path=birdview_path)
+            initialize_response = iai.utils.area_initialization(
+                self.location, 
+                self.agent_per_region,
+                traffic_lights_states=traffic_lights_states,
+                random_seed=self.random_seed,
+                map_center=(self.initialize_center.x,self.initialize_center.y),
+                width=self.width, 
+                height=self.height, 
+                stride=self.initialize_stride,
+                save_birdviews_to=save_birdviews_to
+            )
 
             npcs = [Car(agent_attributes=attr, agent_states=state, recurrent_states=rs, screen=self.screen,
                         convertor=self.cfg.convert_to_pygame_coords, cfg=self.cfg) for attr, state,
