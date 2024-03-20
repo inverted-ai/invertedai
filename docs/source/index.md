@@ -40,7 +40,7 @@ self
 userguide
 pythonapi/index
 cppapi/index
-REST API <https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI>
+REST API <https://app.swaggerhub.com/apis/InvertedAI/InvertedAI/>
 pythonapi/pyexamples
 ```
 
