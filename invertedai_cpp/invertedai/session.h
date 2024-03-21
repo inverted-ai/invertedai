@@ -1,5 +1,9 @@
 #include <string>
 #include <vector>
+#include <cmath> // For std::pow and std::log2
+#include <limits> // For std::numeric_limits
+#include <chrono> // For std::chrono
+#include <thread> // For std::this_thread
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/stream.hpp>
@@ -24,6 +28,12 @@ private:
   const char *debug_mode = std::getenv("DEBUG");
   const char *iai_dev = std::getenv("IAI_DEV");
   const bool local_mode = iai_dev && (std::string(iai_dev) == "1" || std::string(iai_dev) == "True");
+  double max_retries = std::numeric_limits<double>::infinity(); // Allows for infinite retries by default
+  std::vector<int> status_force_list = {408, 429, 500, 502, 503, 504};
+  int base_backoff = 1; // Base backoff time in seconds
+  int backoff_factor = 2;
+  int current_backoff = base_backoff;
+  int max_backoff = 0; // No max backoff by default, 0 signifies no limit
 
 public:
   const char* host_ = local_mode ? "localhost" : "api.inverted.ai";
@@ -65,7 +75,12 @@ public:
   const std::string request(
     const std::string &mode,
     const std::string &body_str,
-    const std::string &url_params
+    const std::string &url_params,
+    double max_retries = std::numeric_limits<double>::infinity(),
+    const std::vector<int>& status_force_list = {408, 429, 500, 502, 503, 504},
+    int base_backoff = 1,
+    int backoff_factor = 2,
+    int max_backoff = 0 // No max by default
   );
 };
 
