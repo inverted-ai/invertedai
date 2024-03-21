@@ -1,9 +1,9 @@
 #include <string>
 #include <vector>
-#include <cmath> // For std::pow and std::log2
-#include <limits> // For std::numeric_limits
-#include <chrono> // For std::chrono
-#include <thread> // For std::this_thread
+#include <cmath>
+#include <limits>
+#include <chrono>
+#include <thread>
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/stream.hpp>
