@@ -91,28 +91,6 @@ void Session::shutdown() {
   }
 }
 
-
-        // // Check if the response is OK or should be retried
-        // if (!ec && res.result() == http::status::ok) {
-        //     // Process the successful response
-        //     // ...
-        //     if (res["Content-Encoding"] == "gzip") {
-        //         // Decompress gzip response
-        //         // ...
-        //         return strstream.str(); // Assuming strstream holds the decompressed response
-        //     } else {
-        //         return res.body();
-        //     }
-        // } else if (std::find(status_force_list.begin(), status_force_list.end(), res.result_int()) != status_force_list.end() || ec) {
-        //     // The response should be retried
-        //     int delay_seconds = base_backoff * std::pow(backoff_factor, retry_count);
-        //     if (max_backoff > 0 && delay_seconds > max_backoff) {
-        //         delay_seconds = max_backoff;
-        //     }
-
-        //     std::this_thread::sleep_for(std::chrono::seconds(delay_seconds));
-        //     retry_count++;
-
 const std::string Session::request(
   const std::string &mode,
   const std::string &body_str,
