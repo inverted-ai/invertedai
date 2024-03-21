@@ -4,6 +4,7 @@ from pygame.math import Vector2
 from dataclasses import dataclass
 import numpy as np
 import pygame
+import asyncio
 
 import invertedai as iai
 from invertedai.common import Point
@@ -34,6 +35,7 @@ class AreaDriverConfig:
     fps: int = 10  #: 10 is the only value currently compatible with Inverted AI API
     random_seed: Optional[int] = None
     quadtree_reconstruction_period: int = 10
+    async_call: bool = True
     quadtree_capacity: int = 10
     pygame_window: bool = False
     pygame_resolution: Tuple[int] = (1200, 1200)
@@ -64,6 +66,7 @@ class AreaDriver:
         self.timer = 1
         self.screen = None
         self.show_quadtree = False
+        self.async_call = cfg.async_call
         self.map_fov = cfg.map_fov
         self.map_image = pygame.surfarray.make_surface(cfg.rendered_static_map)
         self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales = get_pygame_convertors(
@@ -142,6 +145,15 @@ class AreaDriver:
         for npc in self.npcs:
             is_inserted = self.quadtree.insert(npc)
 
+    async def async_drive(self):
+        regions = self.quadtree.get_regions()
+        results = await asyncio.gather(*[region.async_drive(self.light_recurrent_states) for region in regions])
+        for result in results:
+            if result[0] is not None:
+                self.traffic_lights_states = result[0]
+                self.light_recurrent_states = result[1]
+                break
+
     def sync_drive(self):
         regions = self.quadtree.get_regions()
         is_new_traffic_lights = True
@@ -187,7 +199,10 @@ class AreaDriver:
         self.timer += 1
 
         self.update_agents_in_fov()
-        self.sync_drive()
+        if self.async_call:
+            asyncio.run(self.async_drive())
+        else:
+            self.sync_drive()
 
         if self.show_quadtree:
             self._show_quadtree()

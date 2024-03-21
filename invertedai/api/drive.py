@@ -50,18 +50,18 @@ class DriveResponse(BaseModel):
 
 @validate_call
 def drive(
-        location: str,
-        agent_states: List[AgentState],
-        agent_attributes: List[AgentAttributes],
-        recurrent_states: Optional[List[RecurrentState]] = None,
-        traffic_lights_states: Optional[TrafficLightStatesDict] = None,
-        light_recurrent_states: Optional[LightRecurrentStates] = None,
-        get_birdview: bool = False,
-        rendering_center: Optional[Tuple[float, float]] = None,
-        rendering_fov: Optional[float] = None,
-        get_infractions: bool = False,
-        random_seed: Optional[int] = None,
-        api_model_version: Optional[str] = None
+    location: str,
+    agent_states: List[AgentState],
+    agent_attributes: List[AgentAttributes],
+    recurrent_states: Optional[List[RecurrentState]] = None,
+    traffic_lights_states: Optional[TrafficLightStatesDict] = None,
+    light_recurrent_states: Optional[LightRecurrentStates] = None,
+    get_birdview: bool = False,
+    rendering_center: Optional[Tuple[float, float]] = None,
+    rendering_fov: Optional[float] = None,
+    get_infractions: bool = False,
+    random_seed: Optional[int] = None,
+    api_model_version: Optional[str] = None
 ) -> DriveResponse:
     """
     Parameters
@@ -208,17 +208,18 @@ def drive(
 
 @validate_call
 async def async_drive(
-        location: str,
-        agent_states: List[AgentState],
-        agent_attributes: List[AgentAttributes],
-        recurrent_states: Optional[List[RecurrentState]] = None,
-        traffic_lights_states: Optional[TrafficLightStatesDict] = None,
-        get_birdview: bool = False,
-        rendering_center: Optional[Tuple[float, float]] = None,
-        rendering_fov: Optional[float] = None,
-        get_infractions: bool = False,
-        random_seed: Optional[int] = None,
-        api_model_versioin: Optional[str] = None
+    location: str,
+    agent_states: List[AgentState],
+    agent_attributes: List[AgentAttributes],
+    recurrent_states: Optional[List[RecurrentState]] = None,
+    traffic_lights_states: Optional[TrafficLightStatesDict] = None,
+    light_recurrent_states: Optional[LightRecurrentStates] = None,
+    get_birdview: bool = False,
+    rendering_center: Optional[Tuple[float, float]] = None,
+    rendering_fov: Optional[float] = None,
+    get_infractions: bool = False,
+    random_seed: Optional[int] = None,
+    api_model_version: Optional[str] = None
 ) -> DriveResponse:
     """
     A light async version of :func:`drive`
@@ -237,12 +238,14 @@ async def async_drive(
         agent_attributes=[state.tolist() for state in agent_attributes],
         recurrent_states=[r.packed for r in recurrent_states] if recurrent_states is not None else None,
         traffic_lights_states=traffic_lights_states,
+        light_recurrent_states=[light_recurrent_state.tolist() for light_recurrent_state in light_recurrent_states] 
+        if light_recurrent_states is not None else None,
         get_birdview=get_birdview,
         get_infractions=get_infractions,
         random_seed=random_seed,
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
-        model_version=api_model_versioin,
+        model_version=api_model_version
     )
     response = await iai.session.async_request(model="drive", data=model_inputs)
 

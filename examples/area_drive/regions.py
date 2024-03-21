@@ -78,6 +78,27 @@ class Region:
 
             return drive_response.traffic_lights_states, drive_response.light_recurrent_states
 
+    async def async_drive(self, light_recurrent_states = None):
+        """_summary_
+        async version:
+        updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
+        """
+        if self.empty:
+            return None, None
+        else:
+            agent_attributes, agent_states, recurrent_states = self.pre_drive()
+            drive_response = await async_drive(
+                location=self.location,
+                agent_attributes=agent_attributes,
+                agent_states=agent_states,
+                recurrent_states=recurrent_states,
+                light_recurrent_states=light_recurrent_states,
+                get_birdview=DEBUG
+            )
+            self.post_drive(drive_response=drive_response)
+
+            return drive_response.traffic_lights_states, drive_response.light_recurrent_states
+
     def insert(self, npc):
         self.npcs.append(npc)
         npc.color = self.color

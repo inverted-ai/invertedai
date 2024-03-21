@@ -32,6 +32,8 @@ def main(args):
 		map_center = map_center
 	)
 
+	print(f"Number of spawned vehicles: {len(initialize_response.agent_attributes)}")
+
 	print(f"Set up simulation.")	
 	map_width = max([abs(pt.x) for pt in location_info_response.bounding_polygon])
 	map_height = max([abs(pt.y) for pt in location_info_response.bounding_polygon]) 
@@ -61,6 +63,7 @@ def main(args):
 		    agent_states=initialize_response.agent_states,
 		    agent_attributes=initialize_response.agent_attributes,
 		)
+
 
 
 	print(f"Begin stepping through simulation.")
