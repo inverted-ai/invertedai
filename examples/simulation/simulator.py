@@ -187,7 +187,7 @@ class Simulation:
 
         self.update_agents_in_fov()
         self.sync_drive()
-        
+
         if self.show_quadtree:
             self._show_quadtree()
 
