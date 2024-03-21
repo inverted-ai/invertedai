@@ -144,13 +144,15 @@ class AreaDriver:
 
     def sync_drive(self):
         regions = self.quadtree.get_regions()
-        traffic_lights_states = None
-        light_recurrent_states = None
+        is_new_traffic_lights = True
+        current_light_recurrent_states = self.light_recurrent_states
         for region in regions:
-            traffic_lights_states, light_recurrent_states = region.sync_drive(self.traffic_light_states,self.light_recurrent_states)
+            traffic_lights_states, light_recurrent_states = region.sync_drive(current_light_recurrent_states)
 
-        self.traffic_lights_states = traffic_lights_states
-        self.light_recurrent_states = light_recurrent_states
+            if is_new_traffic_lights and traffic_lights_states is not None:
+                self.traffic_lights_states = traffic_lights_states
+                self.light_recurrent_states = light_recurrent_states
+                is_new_traffic_lights = False
 
     @property
     def traffic_light_states(self):

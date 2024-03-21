@@ -40,7 +40,8 @@ def main(args):
 		location = args.location,
 		map_center = map_center,
 		map_fov = map_extent,
-		rendered_static_map= location_info_response.birdview_image.decode(),
+		rendered_static_map = location_info_response.birdview_image.decode(),
+		quadtree_capacity = 20
 	)
 
 	simulation = AreaDriver(
