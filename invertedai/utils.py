@@ -939,7 +939,7 @@ def area_initialization(
                 get_birdview=get_birdview,
             )
 
-            if traffic_light_state_history is None:
+            if traffic_light_state_history is None and response.traffic_lights_states is not None:
                 # If no traffic light states are given, take the first non-None traffic light states output as the consistent traffic light states across all areas
                 traffic_light_state_history = [response.traffic_lights_states]
 
