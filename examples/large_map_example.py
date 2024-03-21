@@ -2,7 +2,7 @@ import sys
 sys.path.append('../')
 
 import invertedai as iai
-from simulation.simulator import Simulation, SimulationConfig
+from area_drive.area_drive import AreaDriver, AreaDriverConfig
 
 import argparse
 import pygame
@@ -36,14 +36,14 @@ def main(args):
 	map_width = max([abs(pt.x) for pt in location_info_response.bounding_polygon])
 	map_height = max([abs(pt.y) for pt in location_info_response.bounding_polygon]) 
 	map_extent = max([map_width,map_height])
-	cfg = SimulationConfig(
+	cfg = AreaDriverConfig(
 		location = args.location,
 		map_center = map_center,
 		map_fov = map_extent,
 		rendered_static_map= location_info_response.birdview_image.decode(),
 	)
 
-	simulation = Simulation(
+	simulation = AreaDriver(
 		cfg = cfg,
 		location_response = location_info_response,
 		initialize_response = initialize_response

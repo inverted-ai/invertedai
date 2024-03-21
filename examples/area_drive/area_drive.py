@@ -7,9 +7,9 @@ import pygame
 
 import invertedai as iai
 from invertedai.common import Point
-from simulation.utils import MAX_HISTORY_LEN, Rectangle, get_pygame_convertors, DEBUG
-from simulation.regions import QuadTree
-from simulation.car import Car
+from area_drive.utils import MAX_HISTORY_LEN, Rectangle, get_pygame_convertors, DEBUG
+from area_drive.regions import QuadTree
+from area_drive.car import Car
 
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
@@ -18,9 +18,9 @@ Color1 = (1, 1, 1)
 
 
 @dataclass
-class SimulationConfig:
+class AreaDriverConfig:
     """
-    A collection of static configuration options for the simulation.
+    A collection of static configuration options for driving vehicles in an area.
     """
     location: str = "carla:Town10HD"  #: in format recognized by Inverted AI API center map coordinate of the selected carla town
     map_center: Tuple[float] = (0.0, 0.0)
@@ -38,7 +38,7 @@ class SimulationConfig:
     pygame_window: bool = False
     pygame_resolution: Tuple[int] = (1200, 1200)
 
-class Simulation:
+class AreaDriver:
     """
     Stateful simulation for large maps with calls to Inverted AI API for simultaneously driving npcs in smaller regions.
 
@@ -47,7 +47,7 @@ class Simulation:
 
     def __init__(
         self, 
-        cfg: SimulationConfig, 
+        cfg: AreaDriverConfig, 
         location_response: Optional[LocationResponse] = None,
         initialize_response: Optional[InitializeResponse] = None
     ):
