@@ -21,7 +21,7 @@ class Region:
         self.query_neighbors = query_neighbors  # : Function that accepts npc and returns a list of neighbors in fov of npc
         self.re_initialization_period = re_initialization
         self.time_to_reinitialize = self.re_initialization_period
-        self.bounary = boundary
+        self.boundary = boundary
         self.timer = 0
         self.color = (randint(0, 255), randint(0, 255), randint(0, 255))
 
@@ -46,7 +46,7 @@ class Region:
 
     def post_drive(self, drive_response):
         if DEBUG:
-            file_path = f"img/debug/{self.bounary.position}-{self.timer}.jpg"
+            file_path = f"img/debug/{self.boundary.position}-{self.timer}.jpg"
             drive_response.birdview.decode_and_save(file_path)
             self.timer += 1
 

@@ -131,17 +131,16 @@ class Simulation:
         )]
 
     def create_quadtree(self):
-        quadtree = QuadTree(
+        self.quadtree = QuadTree(
             cfg=self.cfg, 
             capacity=self.cfg.quadtree_capacity, 
             boundary=self.boundary,
             convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales)
         )
-        quadtree.lineThickness = 1
-        quadtree.color = (0, 87, 146)
+        self.quadtree.lineThickness = 1
+        self.quadtree.color = (0, 87, 146)
         for npc in self.npcs:
-            quadtree.insert(npc)
-        self.quadtree = quadtree
+            is_inserted = self.quadtree.insert(npc)
 
     def sync_drive(self):
         regions = self.quadtree.get_regions()

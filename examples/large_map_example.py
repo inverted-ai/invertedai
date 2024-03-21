@@ -33,10 +33,13 @@ def main(args):
 	)
 
 	print(f"Set up simulation.")	
+	map_width = max([abs(pt.x) for pt in location_info_response.bounding_polygon])
+	map_height = max([abs(pt.y) for pt in location_info_response.bounding_polygon]) 
+	map_extent = max([map_width,map_height])
 	cfg = SimulationConfig(
 		location = args.location,
-		map_center = (location_info_response.map_center.x,location_info_response.map_center.y),
-		map_fov = args.fov,
+		map_center = map_center,
+		map_fov = map_extent,
 		rendered_static_map= location_info_response.birdview_image.decode(),
 	)
 
