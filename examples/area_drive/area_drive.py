@@ -131,11 +131,12 @@ class AreaDriver:
     def _initialize_regions(self, location_response=None, initialize_response=None):
         
         if location_response is None:
-            self.location_info = iai.location_info(
+            location_info = iai.location_info(
                 location=self.location,
-                rednering_center=self.center,
-                rendering_fov=self.map_fov
+                rendering_center=(self.center.x,self.center.y),
+                rendering_fov=int(self.map_fov)
             )
+            self.location_info = location_info
 
         if DEBUG:
             save_birdviews_to = f"img/debug/initialize/{self.timer}"
@@ -143,10 +144,9 @@ class AreaDriver:
             save_birdviews_to = None
 
         if initialize_response is None:
-            self.initialize_response = iai.utils.area_initialization(
+            initialize_response = iai.utils.area_initialization(
                 self.location, 
                 self.agent_per_region,
-                traffic_lights_states=None,
                 random_seed=self.random_seed,
                 map_center=(self.initialize_center.x,self.initialize_center.y),
                 width=self.width, 
@@ -154,6 +154,7 @@ class AreaDriver:
                 stride=self.initialize_stride,
                 save_birdviews_to=save_birdviews_to
             )
+            self.initialize_response = initialize_response
 
         self.traffic_light_states = self.initialize_response.traffic_lights_states
         self.light_recurrent_states = self.initialize_response.light_recurrent_states

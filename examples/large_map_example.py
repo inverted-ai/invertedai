@@ -42,7 +42,7 @@ def main(args):
 		location = args.location,
 		map_center = map_center,
 		map_fov = map_extent,
-		quadtree_capacity = 20
+		quadtree_capacity = 20,
 	)
 
 	simulation = AreaDriver(
