@@ -29,8 +29,8 @@ response = iai.location_info(location=args.location)
 if response.birdview_image is not None:
     rendered_static_map = response.birdview_image.decode()
 
-cfg = AreaDriverConfig(location=args.location, map_center=(response.map_center.x, response.map_center.y),
-                       map_fov=response.map_fov, rendered_static_map=rendered_static_map,
+cfg = AreaDriverConfig(location=args.location, area_center=(response.map_center.x, response.map_center.y),
+                       area_fov=response.map_fov, rendered_static_map=rendered_static_map,
                        map_width=response.map_fov, map_height=response.map_fov, agent_density=args.agent_density,
                        initialize_stride=50, quadtree_capacity=args.quadtree_capacity)
 simulation = AreaDriver(cfg=cfg)

@@ -25,8 +25,8 @@ class AreaDriverConfig:
     """
     #Simulation parameters
     location: str  #: in format recognized by Inverted AI API
-    map_center: Tuple[float] = (0.0, 0.0) #: The center of the square area over which the quadtree operates and drives the agents
-    map_fov: float = 100  #: The size of the square area over which the quadtree operates and drives the agents
+    area_center: Tuple[float] = (0.0, 0.0) #: The center of the square area over which the quadtree operates and drives the agents
+    area_fov: float = 100  #: The size of the square area over which the quadtree operates and drives the agents
     quadtree_reconstruction_period: int = 10 #: After how many timesteps the quadtree will update its leaves
     quadtree_capacity: int = 10 #: The maximum number of agents permitted in a quadtree leaf before splitting
     async_call: bool = True #: Whether to call drive asynchronously
@@ -39,8 +39,10 @@ class AreaDriverConfig:
     random_seed: Optional[int] = None
     #Visualization parameters
     rendered_static_map: Optional[np.ndarray] = None #: Map image from location info to render vehicles upon
-    pygame_window: bool = False
-    pygame_resolution: Tuple[int] = (1200, 1200)
+    render_fov: Optional[float] = 100 #: Field of view of any visualizations
+    pygame_window: Optional[bool] = False #: Whether to display the pygame window visualizaing agents in different quadtree leaves
+    show_quadtree: Optional[bool] = False #: Whether to show the quadtree in the pygame visualization
+    pygame_resolution: Tuple[int] = (1200, 1200) #: Resolution of the pygame window
     
 
 class AreaDriver:
@@ -85,7 +87,7 @@ class AreaDriver:
 
         self.cfg = cfg
         self.location = cfg.location
-        self.center = Point(x=cfg.map_center[0], y=cfg.map_center[1])
+        self.center = Point(x=cfg.area_center[0], y=cfg.area_center[1])
         self.initialize_center = Point(x=cfg.initialize_center[0], y=cfg.initialize_center[1]) if cfg.initialize_center else self.center
         self.width = cfg.map_width
         self.height = cfg.map_height
@@ -95,30 +97,31 @@ class AreaDriver:
         self.quad_re_initialization = cfg.quadtree_reconstruction_period
         self.timer = 1
         self.screen = None
-        self.show_quadtree = False
+        self.show_quadtree = cfg.show_quadtree
         self.async_call = cfg.async_call
-        self.map_fov = cfg.map_fov
+        self.area_fov = cfg.area_fov
+        self.render_fov = cfg.render_fov
         self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales = get_pygame_convertors(
-            self.center.x - self.map_fov / 2, self.center.x + self.map_fov / 2,
-            self.center.y - self.map_fov / 2, self.center.y + self.map_fov / 2,
+            self.center.x - self.render_fov / 2, self.center.x + self.render_fov / 2,
+            self.center.y - self.render_fov / 2, self.center.y + self.render_fov / 2,
             cfg.pygame_resolution[0], 
             cfg.pygame_resolution[1]
         )
 
         self.boundary = Rectangle(
             Vector2(
-                self.cfg.map_center[0] - (self.map_fov / 2),
-                self.cfg.map_center[1] - (self.map_fov / 2)
+                self.cfg.area_center[0] - (self.area_fov / 2),
+                self.cfg.area_center[1] - (self.area_fov / 2)
             ),
-            Vector2((self.map_fov, self.map_fov)),
+            Vector2((self.area_fov, self.area_fov)),
             convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales)
         )
 
         if cfg.pygame_window:
             self.map_image = pygame.surfarray.make_surface(cfg.rendered_static_map)
             self.top_left = cfg.convert_to_pygame_coords(
-                self.center.x - (self.map_fov / 2), self.center.y - (self.map_fov / 2))
-            self.x_scale, self.y_scale = cfg.convert_to_pygame_scales(self.map_fov, self.map_fov)
+                self.center.x - (self.render_fov / 2), self.center.y - (self.render_fov / 2))
+            self.x_scale, self.y_scale = cfg.convert_to_pygame_scales(self.render_fov, self.render_fov)
             self.screen = pygame.display.set_mode(cfg.pygame_resolution)
             pygame.display.set_caption("Quadtree")
         
@@ -134,7 +137,7 @@ class AreaDriver:
             location_info = iai.location_info(
                 location=self.location,
                 rendering_center=(self.center.x,self.center.y),
-                rendering_fov=int(self.map_fov)
+                rendering_fov=int(self.area_fov)
             )
             self.location_info = location_info
 

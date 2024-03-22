@@ -40,9 +40,12 @@ def main(args):
 	map_extent = max([map_width,map_height])
 	cfg = AreaDriverConfig(
 		location = args.location,
-		map_center = map_center,
-		map_fov = map_extent,
+		area_center = map_center,
+		area_fov = map_extent,
 		quadtree_capacity = 20,
+		pygame_window=args.display_sim,
+		render_fov=args.fov,
+		rendered_static_map = location_info_response.birdview_image.decode()
 	)
 
 	simulation = AreaDriver(
@@ -51,7 +54,7 @@ def main(args):
 		initialize_response = initialize_response
 	)
 
-	if args.display_sim:
+	if args.save_sim_gif:
 		rendered_static_map = location_info_response.birdview_image.decode()
 		scene_plotter = iai.utils.ScenePlotter(
 		    rendered_static_map,
@@ -69,10 +72,10 @@ def main(args):
 	for _ in tqdm(range(args.sim_length)):
 		simulation.drive()
 		
-		if args.display_sim: scene_plotter.record_step(simulation.agent_states,simulation.traffic_lights_states)
+		if args.save_sim_gif: scene_plotter.record_step(simulation.agent_states,simulation.traffic_lights_states)
 
 
-	if args.display_sim:
+	if args.save_sim_gif:
 		print("Simulation finished, save visualization.")
 		# save the visualization to disk
 		fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
@@ -134,10 +137,16 @@ if __name__ == '__main__':
 		default=[0,0]
 	)
 	argparser.add_argument(
+		'--save-sim-gif',
+		type=bool,
+		help=f"Should the simulation be saved with visualization tool.",
+		default=True
+	)
+	argparser.add_argument(
 		'--display-sim',
 		type=bool,
-		help=f"Should the simulation be visualized and saved.",
-		default=True
+		help=f"Should the simulation be visualized while ongoing.",
+		default=False
 	)
 	args = argparser.parse_args()
 
