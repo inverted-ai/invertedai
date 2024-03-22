@@ -98,7 +98,6 @@ class AreaDriver:
         self.show_quadtree = False
         self.async_call = cfg.async_call
         self.map_fov = cfg.map_fov
-        self.map_image = pygame.surfarray.make_surface(cfg.rendered_static_map)
         self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales = get_pygame_convertors(
             self.center.x - self.map_fov / 2, self.center.x + self.map_fov / 2,
             self.center.y - self.map_fov / 2, self.center.y + self.map_fov / 2,
@@ -116,6 +115,7 @@ class AreaDriver:
         )
 
         if cfg.pygame_window:
+            self.map_image = pygame.surfarray.make_surface(cfg.rendered_static_map)
             self.top_left = cfg.convert_to_pygame_coords(
                 self.center.x - (self.map_fov / 2), self.center.y - (self.map_fov / 2))
             self.x_scale, self.y_scale = cfg.convert_to_pygame_scales(self.map_fov, self.map_fov)
