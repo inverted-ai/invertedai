@@ -51,8 +51,7 @@ class Region:
             self.timer += 1
 
         remaining_npcs = []
-        for npc, state, rs in zip(
-                self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
+        for npc, state, rs in zip(self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
             npc.update(state, rs)
             remaining_npcs.append(npc)
         self.npcs = remaining_npcs
