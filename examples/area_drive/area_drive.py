@@ -23,22 +23,25 @@ class AreaDriverConfig:
     """
     A collection of static configuration options for driving vehicles in an area.
     """
-    location: str = "carla:Town10HD"  #: in format recognized by Inverted AI API center map coordinate of the selected carla town
-    map_center: Tuple[float] = (0.0, 0.0)
-    map_width: float = 100
-    map_height: float = 100
-    map_fov: float = 100
-    initialize_center: Optional[Tuple[float]] = None
-    rendered_static_map: Optional[np.ndarray] = None
-    agent_density: float = 10
-    initialize_stride: float = 50
-    fps: int = 10  #: 10 is the only value currently compatible with Inverted AI API
+    #Simulation parameters
+    location: str  #: in format recognized by Inverted AI API
+    map_center: Tuple[float] = (0.0, 0.0) #: The center of the square area over which the quadtree operates and drives the agents
+    map_fov: float = 100  #: The size of the square area over which the quadtree operates and drives the agents
+    quadtree_reconstruction_period: int = 10 #: After how many timesteps the quadtree will update its leaves
+    quadtree_capacity: int = 10 #: The maximum number of agents permitted in a quadtree leaf before splitting
+    async_call: bool = True #: Whether to call drive asynchronously
+    # Optional parameters if initialize or location info response are not provided
+    initialize_center: Optional[Tuple[float]] = None #: The center of the area to be initialized
+    map_width: Optional[float] = 100 #: width of the area to be initialized
+    map_height: Optional[float] = 100 #: height of the area to be initialized
+    agent_density: Optional[float] = 10 #: The number of agents to spawn in each 100x100m region
+    initialize_stride: Optional[float] = 50 #: The space between regions to be initialized
     random_seed: Optional[int] = None
-    quadtree_reconstruction_period: int = 10
-    async_call: bool = True
-    quadtree_capacity: int = 10
+    #Visualization parameters
+    rendered_static_map: Optional[np.ndarray] = None #: Map image from location info to render vehicles upon
     pygame_window: bool = False
     pygame_resolution: Tuple[int] = (1200, 1200)
+    
 
 class AreaDriver:
     """
@@ -53,6 +56,33 @@ class AreaDriver:
         location_response: Optional[LocationResponse] = None,
         initialize_response: Optional[InitializeResponse] = None
     ):
+        """
+        A utility function to drive agents in a simulation with more than 100 agents. The agents are
+        placed into a quadtree structure based on a given capacity parameter for agents within a 
+        physical region, then runs :func:`drive` on each region. Agents in neighbouring regions are
+        passed into each :func:`drive` call to prevent collisions across boundaries. An initialization
+        may be passed into the simulation or an initialization can be executed by the simulation itself 
+        by providing the appropriate information in the configuration argument. The configuration 
+        argument can also be used to specify other parameters such as the capacity of the leaves of the 
+        quadtree structure and async_call which controls whether synchronous or asynchronous :func:`drive`
+        calls are made.
+
+        Arguments
+        ----------
+        cfg:
+            A data class containing information to configure the simulation
+        location_response:
+            If a location response already exists, it may be optionally passed in, otherwise a location
+            response is acquired during setup.
+        initialize_response:
+            If an initialize response already exists, it may be optionally passed in, otherwise a initialize
+            response is acquired during setup.
+        
+        See Also
+        --------
+        :func:`drive`
+        """
+
         self.cfg = cfg
         self.location = cfg.location
         self.center = Point(x=cfg.map_center[0], y=cfg.map_center[1])
@@ -101,7 +131,11 @@ class AreaDriver:
     def _initialize_regions(self, location_response=None, initialize_response=None):
         
         if location_response is None:
-            self.location_info = iai.location_info(location=self.location)
+            self.location_info = iai.location_info(
+                location=self.location,
+                rednering_center=self.center,
+                rendering_fov=self.map_fov
+            )
 
         if DEBUG:
             save_birdviews_to = f"img/debug/initialize/{self.timer}"
