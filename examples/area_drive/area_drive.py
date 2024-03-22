@@ -261,11 +261,6 @@ class AreaDriver:
 		if self.display_pygame_window:
 			pygame.display.flip()
 
-		# for npc in self.npcs:
-		# 	px, py = npc.convertor_coords(npc.position.x, npc.position.y)
-		# 	px_alt, py_alt = self.convert_to_pygame_coords(npc.position.x, npc.position.y)
-		# 	print(f"NPC ID {npc.id} (px,py) ({px},{py}) and alternate (px,py) ({px_alt},{py_alt})")
-
 	def update_agents_in_fov(self):
 		for car in self.npcs:
 			car.fov_agents = self.quadtree.queryRange(car.fov_range())
