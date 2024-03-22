@@ -43,9 +43,7 @@ def main(args):
 		area_center = map_center,
 		area_fov = map_extent,
 		quadtree_capacity = 20,
-		pygame_window=args.display_sim,
 		render_fov=args.fov,
-		rendered_static_map = location_info_response.birdview_image.decode()
 	)
 
 	simulation = AreaDriver(

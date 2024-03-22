@@ -101,6 +101,7 @@ class AreaDriver:
         self.async_call = cfg.async_call
         self.area_fov = cfg.area_fov
         self.render_fov = cfg.render_fov
+        self.display_pygame_window = False #TOOL IS UNDER CONSTRUCTION
         self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales = get_pygame_convertors(
             self.center.x - self.render_fov / 2, self.center.x + self.render_fov / 2,
             self.center.y - self.render_fov / 2, self.center.y + self.render_fov / 2,
@@ -117,7 +118,7 @@ class AreaDriver:
             convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales)
         )
 
-        if cfg.pygame_window:
+        if self.display_pygame_window:
             self.map_image = pygame.surfarray.make_surface(cfg.rendered_static_map)
             self.top_left = cfg.convert_to_pygame_coords(
                 self.center.x - (self.render_fov / 2), self.center.y - (self.render_fov / 2))
@@ -228,7 +229,7 @@ class AreaDriver:
         return attributes
 
     def drive(self):
-        if self.cfg.pygame_window:
+        if self.display_pygame_window:
             self.screen.fill(Color1)
             self.screen.blit(pygame.transform.scale(pygame.transform.flip(
                 pygame.transform.rotate(self.map_image, 90), True, False), (self.x_scale, self.y_scale)), self.top_left)
@@ -245,7 +246,7 @@ class AreaDriver:
         if self.show_quadtree:
             self._show_quadtree()
 
-        if self.cfg.pygame_window:
+        if self.display_pygame_window:
             pygame.display.flip()
 
     def update_agents_in_fov(self):
