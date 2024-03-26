@@ -20,13 +20,6 @@ def get_pygame_convertors(x_min, x_max, y_min, y_max, H, W):
         pygame_y = int((y - y_min) * H / y_range)
         return (pygame_x, pygame_y)
 
-    def convert_to_pygame_coords_agent_flip(x, y):
-        x_range = x_max - x_min
-        y_range = y_max - y_min
-        pygame_x = int((x_max - x) * W / x_range)
-        pygame_y = int((y - y_min) * H / y_range)
-        return (pygame_x, pygame_y)
-
     def convert_to_pygame_scales(w, h):
         x_range = x_max - x_min
         y_range = y_max - y_min
@@ -34,7 +27,7 @@ def get_pygame_convertors(x_min, x_max, y_min, y_max, H, W):
         pygame_h = int(h * H / y_range)
         return (pygame_w, pygame_h)
 
-    return convert_to_pygame_coords, convert_to_pygame_scales, convert_to_pygame_coords_agent_flip
+    return convert_to_pygame_coords, convert_to_pygame_scales
 
 class Rotations:
     @ staticmethod

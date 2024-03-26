@@ -9,7 +9,6 @@ import pygame
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-
 def main(args):
 
 	map_center = tuple(args.map_center)
@@ -42,6 +41,7 @@ def main(args):
 		quadtree_capacity = args.capacity,
 		render_fov=args.fov,
 		pygame_window = args.display_sim,
+		show_quadtree = args.display_quadtree,
 		rendered_static_map = location_info_response.birdview_image.decode()
 	)
 
@@ -106,16 +106,16 @@ if __name__ == '__main__':
 		default='None'
 	)
 	argparser.add_argument(
-		'--fov',
-		type=int,
-		help=f"Field of view for visualization.",
-		default=100
-	)
-	argparser.add_argument(
 		'--capacity',
 		type=int,
 		help=f"The capacity parameter of a quadtree leaf before splitting.",
 		default=10
+	)
+	argparser.add_argument(
+		'--fov',
+		type=int,
+		help=f"Field of view for visualization.",
+		default=100
 	)
 	argparser.add_argument(
 		'--width',
@@ -145,7 +145,13 @@ if __name__ == '__main__':
 	argparser.add_argument(
 		'--display-sim',
 		type=bool,
-		help=f"Should the simulation be visualized while ongoing.",
+		help=f"Should the in-simulation visualization be displayed.",
+		default=False
+	)
+	argparser.add_argument(
+		'--display-quadtree',
+		type=bool,
+		help=f"If the in-simulation visualization is active, display the quadtree as well.",
 		default=False
 	)
 	args = argparser.parse_args()

@@ -1,10 +1,10 @@
 from typing import Tuple, Optional, List
-from collections import deque
 from pygame.math import Vector2
 from dataclasses import dataclass
 import numpy as np
 import pygame
 import asyncio
+import time
 
 import invertedai as iai
 from invertedai.common import Point
@@ -14,9 +14,6 @@ from area_drive.car import Car
 
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
-
-Color1 = (1, 1, 1)
-
 
 @dataclass
 class AreaDriverConfig:
@@ -100,7 +97,7 @@ class AreaDriver:
 		self.area_fov = cfg.area_fov
 		self.render_fov = cfg.render_fov
 		self.display_pygame_window = cfg.pygame_window
-		self.convert_to_pygame_coords, self.convert_to_pygame_scales, self.convert_to_pygame_coords_agent = get_pygame_convertors(
+		self.convert_to_pygame_coords, self.convert_to_pygame_scales = get_pygame_convertors(
 			self.center.x - self.render_fov / 2, self.center.x + self.render_fov / 2,
 			self.center.y - self.render_fov / 2, self.center.y + self.render_fov / 2,
 			cfg.pygame_resolution[0], 
@@ -169,7 +166,7 @@ class AreaDriver:
 				agent_states=state, 
 				recurrent_states=rs, 
 				screen=self.screen,
-				convertor_coords=self.convert_to_pygame_coords_agent,
+				convertor_coords=self.convert_to_pygame_coords,
 				convertor_scales=self.convert_to_pygame_scales
 			) for attr, state, rs in zip(initialize_response.agent_attributes, initialize_response.agent_states, initialize_response.recurrent_states)
 		]
@@ -232,18 +229,14 @@ class AreaDriver:
 
 	def drive(self):
 		if self.display_pygame_window:
-			self.screen.fill(Color1)
+			self.screen.fill((1,1,1))
 			self.screen.blit(
 				pygame.transform.scale(
-					pygame.transform.flip(
-						pygame.transform.rotate(self.map_image, 90), 
-						True, 
-						False
-					), 
+					pygame.transform.rotate(self.map_image, 90), 
 					(self.x_scale, self.y_scale)
 				), 
-			self.top_left
-		)
+				self.top_left
+			)
 
 		if not (self.timer % self.quad_re_initialization):
 			self.create_quadtree()
@@ -259,6 +252,13 @@ class AreaDriver:
 			self._show_quadtree()
 
 		if self.display_pygame_window:
+			self.screen.blit(
+				pygame.transform.scale(
+					pygame.transform.flip(self.screen, False, True), 
+					(self.x_scale, self.y_scale)
+				), 
+				self.top_left
+			)
 			pygame.display.flip()
 
 	def update_agents_in_fov(self):

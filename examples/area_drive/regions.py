@@ -171,14 +171,38 @@ class QuadTree:
             convertors=self.convertors
         )
 
-        self.northWest = QuadTree(self.capacity, boundary_nw, self.color,
-                                  self.lineThickness, convertors=self.convertors, cfg=self.cfg)
-        self.northEast = QuadTree(self.capacity, boundary_ne, self.color,
-                                  self.lineThickness, convertors=self.convertors, cfg=self.cfg)
-        self.southWest = QuadTree(self.capacity, boundary_sw, self.color,
-                                  self.lineThickness, convertors=self.convertors, cfg=self.cfg)
-        self.southEast = QuadTree(self.capacity, boundary_se, self.color,
-                                  self.lineThickness, convertors=self.convertors, cfg=self.cfg)
+        self.northWest = QuadTree(
+            self.capacity, 
+            boundary_nw, 
+            self.color, 
+            self.lineThickness, 
+            convertors=self.convertors, 
+            cfg=self.cfg
+        )
+        self.northEast = QuadTree(
+            self.capacity, 
+            boundary_ne, 
+            self.color, 
+            self.lineThickness, 
+            convertors=self.convertors, 
+            cfg=self.cfg
+        )
+        self.southWest = QuadTree(
+            self.capacity, 
+            boundary_sw, 
+            self.color, 
+            self.lineThickness, 
+            convertors=self.convertors, 
+            cfg=self.cfg
+        )
+        self.southEast = QuadTree(
+            self.capacity, 
+            boundary_se, 
+            self.color, 
+            self.lineThickness, 
+            convertors=self.convertors, 
+            cfg=self.cfg
+        )
 
         for particle in self.particles:
             if self.northWest.insert(particle):
