@@ -23,15 +23,13 @@ def get_pygame_convertors(x_min, x_max, y_min, y_max, H, W):
     def convert_to_pygame_scales(w, h):
         x_range = x_max - x_min
         y_range = y_max - y_min
-        pygame_w = int((w) * W / x_range)
-        pygame_h = int((h) * H / y_range)
+        pygame_w = int(w * W / x_range)
+        pygame_h = int(h * H / y_range)
         return (pygame_w, pygame_h)
 
     return convert_to_pygame_coords, convert_to_pygame_scales
 
-
 class Rotations:
-
     @ staticmethod
     def rotationX(angle):
         return [[1, 0, 0],
@@ -49,7 +47,6 @@ class Rotations:
         return [[math.cos(angle), -math.sin(angle), 0],
                 [math.sin(angle), math.cos(angle), 0],
                 [0, 0, 1]]
-
 
 class Rectangle:
     def __init__(self, position: Tuple[float, float], scale: Tuple[float, float], convertors=None):
