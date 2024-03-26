@@ -416,6 +416,20 @@ class Session:
 
         return data
 
+@validate_call
+def get_default_agent_attributes(agent_count_dict: Dict[str,int]) -> List[AgentAttributes]:
+    # Function that outputs a list a AgentAttributes with minimal default settings. 
+    # Mainly meant to be used to pad a list of AgentAttributes to send as input to
+    # to initialize(). This list is created by reading a dictionary containing the
+    # desired agent types with the agent count for each type respectively.
+
+    agent_attributes_list = []
+
+    for agent_type, agent_count in agent_count_dict.items():
+        for _ in range(agent_count):
+            agent_attributes_list.append(AgentAttributes.fromlist([agent_type]))
+
+    return agent_attributes_list
 
 def _get_centers(map_center, height, width, stride):
     def check_valid_center(center):
@@ -657,9 +671,9 @@ def area_initialization(
 
         try:
             all_agents_attributes_in_region = deepcopy(agent_attributes_region_conditional) if agent_attributes_region_conditional is not None else []
-            for _ in range(num_agents_to_spawn):
-                # Pad agent attributes list with default values
-                all_agents_attributes_in_region.append(AgentAttributes.fromlist(["car"]))
+            
+            padded_agent_attributes = get_default_agent_attributes({"car": num_agents_to_spawn})
+            all_agents_attributes_in_region.extend(padded_agent_attributes)
 
             # Initialize simulation with an API call
             response = iai.initialize(
