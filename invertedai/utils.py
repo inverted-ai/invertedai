@@ -256,15 +256,19 @@ class Session:
         try:
             retries = 0
             while retries < self.max_retries:
-                response = self.session.request(
-                    method=method,
-                    params=params,
-                    url=self.base_url + relative_path,
-                    headers=headers,
-                    data=data,
-                    json=json_body,
-                )
-                if response.status_code not in self.status_force_list:
+                try:
+                    response = self.session.request(
+                        method=method,
+                        params=params,
+                        url=self.base_url + relative_path,
+                        headers=headers,
+                        data=data,
+                        json=json_body,
+                    )
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                    logger.warning("Error communicating with IAI, will retry.")
+                    response = None
+                if response is not None and response.status_code not in self.status_force_list:
                     self.current_backoff = max(
                         self.base_backoff, self.current_backoff / self.backoff_factor
                     )
@@ -276,9 +280,12 @@ class Session:
                     else:
                         jitter = 0
                     if self.should_log(retries):
-                        logger.warning(
-                            f"Retrying {relative_path}: Status {response.status_code}, Message {STATUS_MESSAGE.get(response.status_code, response.text)} Retry #{retries + 1}, Backoff {self.current_backoff} seconds"
-                        )
+                        if response is not None:
+                            logger.warning(
+                                f"Retrying {relative_path}: Status {response.status_code}, Message {STATUS_MESSAGE.get(response.status_code, response.text)} Retry #{retries + 1}, Backoff {self.current_backoff} seconds"
+                            )
+                        else:
+                            logger.warning(f"Retrying {relative_path}: No response received, Retry #{retries + 1}, Backoff {self.current_backoff} seconds")
                     time.sleep(min(self.current_backoff * (1 + jitter), self.max_backoff if self.max_backoff is not None else float("inf")))
                     self.current_backoff *= self.backoff_factor
                     if self.max_backoff is not None:
@@ -287,7 +294,11 @@ class Session:
                         )
                     retries += 1
             else:
-                response.raise_for_status()
+                if response is not None:
+                    response.raise_for_status()
+                else:
+                    error.APIConnectionError(
+                        "Error communicating with IAI", should_retry=True)
 
 
         except requests.exceptions.ConnectionError as e:
