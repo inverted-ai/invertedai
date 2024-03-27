@@ -30,10 +30,11 @@ private:
   const bool local_mode = iai_dev && (std::string(iai_dev) == "1" || std::string(iai_dev) == "True");
   double max_retries = std::numeric_limits<double>::infinity(); // Allows for infinite retries by default
   std::vector<int> status_force_list = {408, 429, 500, 502, 503, 504};
-  int base_backoff = 1; // Base backoff time in seconds
-  int backoff_factor = 2;
-  int current_backoff = base_backoff;
-  int max_backoff = 0; // No max backoff by default, 0 signifies no limit
+  double base_backoff = 1; // Base backoff time in seconds
+  double backoff_factor = 2;
+  double current_backoff = base_backoff;
+  double max_backoff = 0; // No max backoff by default, 0 signifies no limit
+  double jitter_factor = 0.5;
 
 public:
   const char* host_ = local_mode ? "localhost" : "api.inverted.ai";
@@ -42,7 +43,9 @@ public:
   const int version_ = 11;
 
   explicit Session(net::io_context &ioc, ssl::context &ctx)
-      : resolver_(ioc), ssl_stream_(ioc, ctx), tcp_stream_(ioc){};
+      : resolver_(ioc), ssl_stream_(ioc, ctx), tcp_stream_(ioc){
+        tcp_stream_.expires_never();
+      };
 
   /**
    * Set your own api key here.
@@ -78,9 +81,10 @@ public:
     const std::string &url_params,
     double max_retries = std::numeric_limits<double>::infinity(),
     const std::vector<int>& status_force_list = {408, 429, 500, 502, 503, 504},
-    int base_backoff = 1,
-    int backoff_factor = 2,
-    int max_backoff = 0 // No max by default
+    double base_backoff = 1,
+    double backoff_factor = 2,
+    double max_backoff = 0, // No max by default
+    double jitter_factor = 0.5
   );
 };
 
