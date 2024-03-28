@@ -43,11 +43,7 @@ EgoAgentInput get_ego_agents(const json& example_ego_agent_log){
   current_ego_state.speed = example_ego_agent_log.at(0)["json"]["agent_states"][0][3];
   output_struct.ego_states = {current_ego_state};
 
-  invertedai::AgentAttributes ego_attributes;
-  ego_attributes.length = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][0];
-  ego_attributes.width = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][1];
-  ego_attributes.rear_axis_offset = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][2];
-  ego_attributes.agent_type = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][3];
+  invertedai::AgentAttributes ego_attributes(example_ego_agent_log.at(0)["json"]["agent_attributes"][0]);
   output_struct.ego_attributes = {ego_attributes};
 
   return output_struct;
