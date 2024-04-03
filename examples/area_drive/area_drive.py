@@ -26,7 +26,7 @@ class AreaDriverConfig:
     area_center: Tuple[float] = (0.0, 0.0) #: The center of the square area over which the quadtree operates and drives the agents
     area_fov: float = 100  #: The size of the square area over which the quadtree operates and drives the agents
     quadtree_reconstruction_period: int = 1 #: After how many timesteps the quadtree will update its leaves
-    quadtree_capacity: int = 10 #: The maximum number of agents permitted in a quadtree leaf before splitting
+    quadtree_capacity: int = 100 #: The maximum number of agents permitted in a quadtree leaf before splitting
     async_call: bool = True #: Whether to call drive asynchronously
     # Optional parameters if initialize or location info response are not provided
     initialize_center: Optional[Tuple[float]] = None #: The center of the area to be initialized

@@ -117,7 +117,7 @@ if __name__ == '__main__':
         '--capacity',
         type=int,
         help=f"The capacity parameter of a quadtree leaf before splitting.",
-        default=10
+        default=100
     )
     argparser.add_argument(
         '--fov',
