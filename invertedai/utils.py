@@ -419,21 +419,13 @@ class Session:
 
 def _get_centers(map_center, height, width, stride):
     def check_valid_center(center):
-        return (map_center[0] - width) < center[0] < (map_center[0] + width) and (
-            map_center[1] - height
-        ) < center[1] < (map_center[1] + height)
+        return (map_center[0] - width) < center[0] < (map_center[0] + width) and 
+        (map_center[1] - height) < center[1] < (map_center[1] + height)
 
     def get_neighbors(center):
         return [
             (center[0] + (i * stride), center[1] + (j * stride))
-            for i, j in list(
-                product(
-                    *[
-                        (-1, 1),
-                    ]
-                    * 2
-                )
-            )
+            for i, j in list(product(*[(-1, 1),]* 2))
         ]
 
     queue, centers = [map_center], []
