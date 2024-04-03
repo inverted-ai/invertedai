@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <string>
 
@@ -94,7 +95,14 @@ void Session::shutdown() {
 const std::string Session::request(
   const std::string &mode,
   const std::string &body_str,
-  const std::string &url_query_string) {
+  const std::string &url_query_string,
+  double max_retries,
+  const std::vector<int>& status_force_list,
+  double base_backoff,
+  double backoff_factor,
+  double max_backoff,
+  double jitter_factor
+  ) {
   std::string target = subdomain + mode + url_query_string;
 
   http::request<http::string_body> req{
@@ -107,6 +115,7 @@ const std::string Session::request(
   req.set("accept", "application/json");
   req.set("x-api-key", this->api_key_);
   req.set("x-client-version", INVERTEDAI_VERSION);
+  req.set("Connection","keep-alive");
   if (debug_mode) {
     std::cout << "req body content:\n";
     std::cout << body_str << std::endl;
@@ -114,45 +123,61 @@ const std::string Session::request(
   req.body() = body_str;
   req.prepare_payload();
 
-  if (local_mode){
-    http::write(this->tcp_stream_, req);
+  int retry_count = 0;
+  while (retry_count < max_retries || max_retries == std::numeric_limits<double>::infinity()) {
+    beast::error_code ec;
+    if (local_mode){
+      http::write(this->tcp_stream_, req);
+    }
+    else {
+      http::write(this->ssl_stream_, req);
+    }
 
-  }
-  else {
-    http::write(this->ssl_stream_, req);
-  }
+    beast::flat_buffer buffer;
+    http::response<http::string_body> res;
+    if (local_mode){
+      http::read(this->tcp_stream_, buffer, res, ec);
+    }
+    else{
+      http::read(this->ssl_stream_, buffer, res, ec);
+    }
+    std::cout << mode << " " << res.result() << " "<< ec << " " <<  res.result_int() << std::endl;
+    if (!(res.result() == http::status::ok) || ec) {
+      if (res.result_int() == 500) {
+        this->connect();
+      }
+      if (std::find(status_force_list.begin(), status_force_list.end(), res.result_int()) != status_force_list.end() || ec) {
+        int delay_seconds = base_backoff * std::pow(backoff_factor, retry_count);
+        if (max_backoff > 0 && delay_seconds > max_backoff) {
+          delay_seconds = max_backoff;
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(delay_seconds));
+        retry_count++;
+        std::cout << "Retrying" << mode << ":"  << "Status" << res.result() << std::endl;
+        continue;
+      } else {
+        throw std::runtime_error(
+            "response status: " + std::to_string(res.result_int()) + "\nbody:\n" + res.body());
+      }
+    }
+    if (debug_mode) {
+      std::cout << "res body content:\n";
+      std::cout << res.body().data() << std::endl;
+    }
 
-  beast::flat_buffer buffer;
-  http::response<http::string_body> res;
-  beast::error_code ec;
-  if (local_mode){
-    http::read(this->tcp_stream_, buffer, res, ec);
-
+    if (res["Content-Encoding"] == "gzip") {
+      boost::iostreams::array_source src{res.body().data(), res.body().size()};
+      boost::iostreams::filtering_istream is;
+      is.push(boost::iostreams::gzip_decompressor{}); // gzip
+      is.push(src);
+      std::stringstream strstream;
+      boost::iostreams::copy(is, strstream);
+      return strstream.str();
+    } else {
+      return res.body().data();
+    }
   }
-  else{
-    http::read(this->ssl_stream_, buffer, res, ec);
-
-  }
-  if (!(res.result() == http::status::ok)) {
-    throw std::runtime_error(
-        "response status: " + std::to_string(res.result_int()) + "\nbody:\n" + res.body());
-  }
-  if (debug_mode) {
-    std::cout << "res body content:\n";
-    std::cout << res.body().data() << std::endl;
-  }
-
-  if (res["Content-Encoding"] == "gzip") {
-    boost::iostreams::array_source src{res.body().data(), res.body().size()};
-    boost::iostreams::filtering_istream is;
-    is.push(boost::iostreams::gzip_decompressor{}); // gzip
-    is.push(src);
-    std::stringstream strstream;
-    boost::iostreams::copy(is, strstream);
-    return strstream.str();
-  } else {
-    return res.body().data();
-  }
+  throw std::runtime_error("max retries exceeded");
 }
 
 } // namespace invertedai
