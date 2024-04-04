@@ -6,6 +6,8 @@ import numpy as np
 import csv
 import math
 import logging
+import random
+
 import time
 
 from typing import Dict, Optional, List, Tuple
@@ -40,7 +42,6 @@ TIMEOUT_SECS = 600
 MAX_RETRIES = 10
 SLACK = 2
 AGENT_SCOPE_FOV = 120
-AGENT_FOV = 35
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ class Session:
         self._status_force_list = [408, 429, 500, 502, 503, 504]
         self._base_backoff = 1  # Base backoff time in seconds
         self._backoff_factor = 2
+        self._jitter_factor = 0.5
         self._current_backoff = self._base_backoff
         self._max_backoff = None
 
@@ -135,6 +137,15 @@ class Session:
     @max_backoff.setter
     def max_backoff(self, value):
         self._max_backoff = value
+
+    @property
+    def jitter_factor(self):
+        return self._jitter_factor
+    
+    @jitter_factor.setter
+    def jitter_factor(self, value):
+        self._jitter_factor = value
+
 
     def should_log(self, retry_count):
         return retry_count == 0 or math.log2(retry_count).is_integer()
@@ -246,26 +257,37 @@ class Session:
         try:
             retries = 0
             while retries < self.max_retries:
-                response = self.session.request(
-                    method=method,
-                    params=params,
-                    url=self.base_url + relative_path,
-                    headers=headers,
-                    data=data,
-                    json=json_body,
-                )
-                if response.status_code not in self.status_force_list:
+                try:
+                    response = self.session.request(
+                        method=method,
+                        params=params,
+                        url=self.base_url + relative_path,
+                        headers=headers,
+                        data=data,
+                        json=json_body,
+                    )
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                    logger.warning("Error communicating with IAI, will retry.")
+                    response = None
+                if response is not None and response.status_code not in self.status_force_list:
                     self.current_backoff = max(
                         self.base_backoff, self.current_backoff / self.backoff_factor
                     )
                     response.raise_for_status()
                     break
                 else:
+                    if self.jitter_factor is not None:
+                        jitter = random.uniform(-self.jitter_factor, self.jitter_factor)
+                    else:
+                        jitter = 0
                     if self.should_log(retries):
-                        logger.warning(
-                            f"Retrying {relative_path}: Status {response.status_code}, Message {STATUS_MESSAGE.get(response.status_code, response.text)} Retry #{retries + 1}, Backoff {self.current_backoff} seconds"
-                        )
-                    time.sleep(self.current_backoff)
+                        if response is not None:
+                            logger.warning(
+                                f"Retrying {relative_path}: Status {response.status_code}, Message {STATUS_MESSAGE.get(response.status_code, response.text)} Retry #{retries + 1}, Backoff {self.current_backoff} seconds"
+                            )
+                        else:
+                            logger.warning(f"Retrying {relative_path}: No response received, Retry #{retries + 1}, Backoff {self.current_backoff} seconds")
+                    time.sleep(min(self.current_backoff * (1 + jitter), self.max_backoff if self.max_backoff is not None else float("inf")))
                     self.current_backoff *= self.backoff_factor
                     if self.max_backoff is not None:
                         self.current_backoff = min(
@@ -273,7 +295,11 @@ class Session:
                         )
                     retries += 1
             else:
-                response.raise_for_status()
+                if response is not None:
+                    response.raise_for_status()
+                else:
+                    error.APIConnectionError(
+                        "Error communicating with IAI", should_retry=True)
 
 
         except requests.exceptions.ConnectionError as e:
@@ -434,21 +460,13 @@ def get_default_agent_attributes(agent_count_dict: Dict[str,int]) -> List[AgentA
 
 def _get_centers(map_center, height, width, stride):
     def check_valid_center(center):
-        return (map_center[0] - width) < center[0] < (map_center[0] + width) and (
-            map_center[1] - height
-        ) < center[1] < (map_center[1] + height)
+        return (map_center[0] - width) < center[0] < (map_center[0] + width) and \
+            (map_center[1] - height) < center[1] < (map_center[1] + height)
 
     def get_neighbors(center):
         return [
             (center[0] + (i * stride), center[1] + (j * stride))
-            for i, j in list(
-                product(
-                    *[
-                        (-1, 1),
-                    ]
-                    * 2
-                )
-            )
+            for i, j in list(product(*[(-1, 1),]* 2))
         ]
 
     queue, centers = [map_center], []
@@ -456,13 +474,11 @@ def _get_centers(map_center, height, width, stride):
     while queue:
         center = queue.pop(0)
         neighbors = filter(check_valid_center, get_neighbors(center))
-        queue.extend(
-            [
-                neighbor
-                for neighbor in neighbors
-                if neighbor not in queue and neighbor not in centers
-            ]
-        )
+        queue.extend([
+            neighbor
+            for neighbor in neighbors
+            if neighbor not in queue and neighbor not in centers
+        ])
         if center not in centers and check_valid_center(center):
             centers.append(center)
     return centers

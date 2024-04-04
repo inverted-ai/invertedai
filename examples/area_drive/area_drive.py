@@ -1,10 +1,11 @@
 from typing import Tuple, Optional, List
-from collections import deque
 from pygame.math import Vector2
 from dataclasses import dataclass
 import numpy as np
 import pygame
 import asyncio
+import time
+import random
 
 import invertedai as iai
 from invertedai.common import Point
@@ -15,9 +16,6 @@ from area_drive.car import Car
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
 
-Color1 = (1, 1, 1)
-
-
 @dataclass
 class AreaDriverConfig:
     """
@@ -27,8 +25,8 @@ class AreaDriverConfig:
     location: str  #: in format recognized by Inverted AI API
     area_center: Tuple[float] = (0.0, 0.0) #: The center of the square area over which the quadtree operates and drives the agents
     area_fov: float = 100  #: The size of the square area over which the quadtree operates and drives the agents
-    quadtree_reconstruction_period: int = 10 #: After how many timesteps the quadtree will update its leaves
-    quadtree_capacity: int = 10 #: The maximum number of agents permitted in a quadtree leaf before splitting
+    quadtree_reconstruction_period: int = 1 #: After how many timesteps the quadtree will update its leaves
+    quadtree_capacity: int = 100 #: The maximum number of agents permitted in a quadtree leaf before splitting
     async_call: bool = True #: Whether to call drive asynchronously
     # Optional parameters if initialize or location info response are not provided
     initialize_center: Optional[Tuple[float]] = None #: The center of the area to be initialized
@@ -48,8 +46,6 @@ class AreaDriverConfig:
 class AreaDriver:
     """
     Stateful simulation for large maps with calls to Inverted AI API for simultaneously driving npcs in smaller regions.
-
-    :param location: Location name as expected by :func:`initialize`.
     """
 
     def __init__(
@@ -72,7 +68,7 @@ class AreaDriver:
         Arguments
         ----------
         cfg:
-            A data class containing information to configure the simulation
+            A data class containing information to configure the simulation.
         location_response:
             If a location response already exists, it may be optionally passed in, otherwise a location
             response is acquired during setup.
@@ -101,8 +97,8 @@ class AreaDriver:
         self.async_call = cfg.async_call
         self.area_fov = cfg.area_fov
         self.render_fov = cfg.render_fov
-        self.display_pygame_window = False #TOOL IS UNDER CONSTRUCTION
-        self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales = get_pygame_convertors(
+        self.display_pygame_window = cfg.pygame_window
+        self.convert_to_pygame_coords, self.convert_to_pygame_scales = get_pygame_convertors(
             self.center.x - self.render_fov / 2, self.center.x + self.render_fov / 2,
             self.center.y - self.render_fov / 2, self.center.y + self.render_fov / 2,
             cfg.pygame_resolution[0], 
@@ -115,14 +111,16 @@ class AreaDriver:
                 self.cfg.area_center[1] - (self.area_fov / 2)
             ),
             Vector2((self.area_fov, self.area_fov)),
-            convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales)
+            convertors=(self.convert_to_pygame_coords, self.convert_to_pygame_scales)
         )
 
         if self.display_pygame_window:
             self.map_image = pygame.surfarray.make_surface(cfg.rendered_static_map)
-            self.top_left = cfg.convert_to_pygame_coords(
-                self.center.x - (self.render_fov / 2), self.center.y - (self.render_fov / 2))
-            self.x_scale, self.y_scale = cfg.convert_to_pygame_scales(self.render_fov, self.render_fov)
+            self.top_left = self.convert_to_pygame_coords(
+                self.center.x - (self.render_fov / 2),
+                self.center.y - (self.render_fov / 2)
+            )
+            self.x_scale, self.y_scale = self.convert_to_pygame_scales(self.render_fov, self.render_fov)
             self.screen = pygame.display.set_mode(cfg.pygame_resolution)
             pygame.display.set_caption("Quadtree")
         
@@ -130,6 +128,7 @@ class AreaDriver:
         self.initialize_response = initialize_response
 
         self._initialize_regions(self.location_response,self.initialize_response)
+        self.visualization_seed = random.randint(1,1000000)
         self.create_quadtree()
 
     def _initialize_regions(self, location_response=None, initialize_response=None):
@@ -163,21 +162,24 @@ class AreaDriver:
         self.traffic_light_states = self.initialize_response.traffic_lights_states
         self.light_recurrent_states = self.initialize_response.light_recurrent_states
 
-        self.npcs = [Car(
-            agent_attributes=attr, 
-            agent_states=state, 
-            recurrent_states=rs, 
-            screen=self.screen,
-            convertor=self.cfg.convert_to_pygame_coords, 
-            cfg=self.cfg) for attr, state, rs in zip(initialize_response.agent_attributes, initialize_response.agent_states, initialize_response.recurrent_states
-        )]
+        self.npcs = [
+            Car(
+                agent_attributes=attr, 
+                agent_states=state, 
+                recurrent_states=rs, 
+                screen=self.screen,
+                convertor_coords=self.convert_to_pygame_coords,
+                convertor_scales=self.convert_to_pygame_scales
+            ) for attr, state, rs in zip(initialize_response.agent_attributes, initialize_response.agent_states, initialize_response.recurrent_states)
+        ]
 
     def create_quadtree(self):
+        random.seed(self.visualization_seed)
         self.quadtree = QuadTree(
             cfg=self.cfg, 
             capacity=self.cfg.quadtree_capacity, 
             boundary=self.boundary,
-            convertors=(self.cfg.convert_to_pygame_coords, self.cfg.convert_to_pygame_scales)
+            convertors=(self.convert_to_pygame_coords, self.convert_to_pygame_scales)
         )
         self.quadtree.lineThickness = 1
         self.quadtree.color = (0, 87, 146)
@@ -230,14 +232,19 @@ class AreaDriver:
 
     def drive(self):
         if self.display_pygame_window:
-            self.screen.fill(Color1)
-            self.screen.blit(pygame.transform.scale(pygame.transform.flip(
-                pygame.transform.rotate(self.map_image, 90), True, False), (self.x_scale, self.y_scale)), self.top_left)
+            self.screen.fill((1,1,1))
+            self.screen.blit(
+                pygame.transform.scale(
+                    pygame.transform.rotate(self.map_image, 90), 
+                    (self.x_scale, self.y_scale)
+                ), 
+                self.top_left
+            )
+
         if not (self.timer % self.quad_re_initialization):
             self.create_quadtree()
         self.timer += 1
 
-        self.update_agents_in_fov()
         if self.async_call:
             asyncio.run(self.async_drive())
         else:
@@ -247,6 +254,13 @@ class AreaDriver:
             self._show_quadtree()
 
         if self.display_pygame_window:
+            self.screen.blit(
+                pygame.transform.scale(
+                    pygame.transform.flip(self.screen, False, True), 
+                    (self.x_scale, self.y_scale)
+                ), 
+                self.top_left
+            )
             pygame.display.flip()
 
     def update_agents_in_fov(self):

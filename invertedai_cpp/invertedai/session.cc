@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <string>
 
@@ -97,9 +98,10 @@ const std::string Session::request(
   const std::string &url_query_string,
   double max_retries,
   const std::vector<int>& status_force_list,
-  int base_backoff,
-  int backoff_factor,
-  int max_backoff
+  double base_backoff,
+  double backoff_factor,
+  double max_backoff,
+  double jitter_factor
   ) {
   std::string target = subdomain + mode + url_query_string;
 
@@ -113,6 +115,7 @@ const std::string Session::request(
   req.set("accept", "application/json");
   req.set("x-api-key", this->api_key_);
   req.set("x-client-version", INVERTEDAI_VERSION);
+  req.set("Connection","keep-alive");
   if (debug_mode) {
     std::cout << "req body content:\n";
     std::cout << body_str << std::endl;
@@ -138,7 +141,11 @@ const std::string Session::request(
     else{
       http::read(this->ssl_stream_, buffer, res, ec);
     }
-    if (!(res.result() == http::status::ok)) {
+    std::cout << mode << " " << res.result() << " "<< ec << " " <<  res.result_int() << std::endl;
+    if (!(res.result() == http::status::ok) || ec) {
+      if (res.result_int() == 500) {
+        this->connect();
+      }
       if (std::find(status_force_list.begin(), status_force_list.end(), res.result_int()) != status_force_list.end() || ec) {
         int delay_seconds = base_backoff * std::pow(backoff_factor, retry_count);
         if (max_backoff > 0 && delay_seconds > max_backoff) {
