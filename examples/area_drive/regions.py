@@ -1,5 +1,5 @@
 from pygame.math import Vector2
-from area_drive.utils import Rectangle, RE_INITIALIZATION_PERIOD, DEBUG
+from area_drive.utils import Rectangle, RE_INITIALIZATION_PERIOD, DEBUG, AGENT_FOV
 from typing import List, Optional, Callable
 from random import randint
 from invertedai.api.drive import drive, async_drive
@@ -24,11 +24,13 @@ class Region:
         self.boundary = boundary
         self.timer = 0
         self.color = (randint(0, 255), randint(0, 255), randint(0, 255))
+        self.agents_in_fov = []
 
     def pre_drive(self):
-        agents_in_fov = []
-        for car in self.npcs:
-            agents_in_fov.extend(filter(lambda x: x not in self.npcs, car.fov_agents))
+        # agents_in_fov = []
+        # for car in self.npcs:
+        #     agents_in_fov.extend(filter(lambda x: x not in self.npcs, car.fov_agents))
+        # agents_in_fov = list(set(agents_in_fov)) #Remove duplicates
 
         agent_states = []
         agent_attributes = []
@@ -38,7 +40,7 @@ class Region:
             agent_attributes.append(npc.agent_attributes)
             recurrent_states.append(npc.recurrent_states)
 
-        for npc in agents_in_fov:
+        for npc in self.agents_in_fov:
             agent_states.append(npc.agent_states)
             agent_attributes.append(npc.agent_attributes)
             recurrent_states.append(npc.recurrent_states)
@@ -51,8 +53,7 @@ class Region:
             self.timer += 1
 
         remaining_npcs = []
-        for npc, state, rs in zip(
-                self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
+        for npc, state, rs in zip(self.npcs, drive_response.agent_states[:self.size], drive_response.recurrent_states[:self.size]):
             npc.update(state, rs)
             remaining_npcs.append(npc)
         self.npcs = remaining_npcs
@@ -103,6 +104,9 @@ class Region:
         self.npcs.append(npc)
         npc.color = self.color
 
+    def insert_fov_agent(self, npc):
+        self.agents_in_fov.append(npc)
+
     @property
     def size(self):
         return len(self.npcs)
@@ -134,7 +138,18 @@ class QuadTree:
         self.southEast = None
         self.convertors = convertors
         self.cfg = cfg
-        self.region = Region(boundary=boundary, cfg=cfg)
+        self.buffer_length = AGENT_FOV
+
+        self.boundary_buffer = Rectangle(
+            Vector2(
+                self.boundary.position.x-self.buffer_length,
+                self.boundary.position.y-self.buffer_length
+            ),
+            Vector2(self.boundary.scale[0]+self.buffer_length*2,self.boundary.scale[1]+self.buffer_length*2),
+            convertors=self.convertors
+        )
+        self.region = Region(boundary=self.boundary_buffer, cfg=cfg)
+        self.particles_boundary = []
 
     def subdivide(self):
         parent = self.boundary
@@ -172,50 +187,81 @@ class QuadTree:
             convertors=self.convertors
         )
 
-        self.northWest = QuadTree(self.capacity, boundary_nw, self.color,
-                                  self.lineThickness, convertors=self.convertors, cfg=self.cfg)
-        self.northEast = QuadTree(self.capacity, boundary_ne, self.color,
-                                  self.lineThickness, convertors=self.convertors, cfg=self.cfg)
-        self.southWest = QuadTree(self.capacity, boundary_sw, self.color,
-                                  self.lineThickness, convertors=self.convertors, cfg=self.cfg)
-        self.southEast = QuadTree(self.capacity, boundary_se, self.color,
-                                  self.lineThickness, convertors=self.convertors, cfg=self.cfg)
+        self.northWest = QuadTree(
+            self.capacity, 
+            boundary_nw, 
+            self.color, 
+            self.lineThickness, 
+            convertors=self.convertors, 
+            cfg=self.cfg
+        )
+        self.northEast = QuadTree(
+            self.capacity, 
+            boundary_ne, 
+            self.color, 
+            self.lineThickness, 
+            convertors=self.convertors, 
+            cfg=self.cfg
+        )
+        self.southWest = QuadTree(
+            self.capacity, 
+            boundary_sw, 
+            self.color, 
+            self.lineThickness, 
+            convertors=self.convertors, 
+            cfg=self.cfg
+        )
+        self.southEast = QuadTree(
+            self.capacity, 
+            boundary_se, 
+            self.color, 
+            self.lineThickness, 
+            convertors=self.convertors, 
+            cfg=self.cfg
+        )
 
-        for particle in self.particles:
-            if self.northWest.insert(particle):
-                pass
-            elif self.northEast.insert(particle):
-                pass
-            elif self.southWest.insert(particle):
-                pass
-            else:
-                self.southEast.insert(particle)
-        self.particles = []
         self.region = None
         self.leaf = False
 
+        for particle in self.particles:
+            is_inserted = []
+            is_inserted.append(self.northWest.insert(particle))
+            is_inserted.append(self.northEast.insert(particle))
+            is_inserted.append(self.southWest.insert(particle))
+            is_inserted.append(self.southEast.insert(particle))
+            is_inserted = any(is_inserted)
+        self.particles = []
+        
+
     def insert(self, particle):
-        if self.boundary.containsParticle(particle) == False:
+        is_in_boundary = self.boundary.containsParticle(particle)
+        is_in_buffer = self.boundary_buffer.containsParticle(particle) and not is_in_boundary
+
+        if not is_in_boundary and not is_in_buffer:
             return False
 
-        if len(self.particles) < self.capacity and self.leaf:
-            self.particles.append(particle)
-            self.region.insert(particle)
-            particle.region = self.region
-            return True
+        if (len(self.particles) + len(self.particles_boundary)) < self.capacity and self.leaf:
+            if is_in_boundary:
+                self.particles.append(particle)
+                self.region.insert(particle)
+                particle.region = self.region
+                return True
+
+            else: # Particle is within the buffer region of this leaf node
+                self.particles_boundary.append(particle)
+                return False
+
         else:
             if self.leaf:
                 self.subdivide()
 
-            if self.northWest.insert(particle):
-                return True
-            if self.northEast.insert(particle):
-                return True
-            if self.southWest.insert(particle):
-                return True
-            if self.southEast.insert(particle):
-                return True
-            return False
+            is_inserted = []
+            is_inserted.append(self.northWest.insert(particle))
+            is_inserted.append(self.northEast.insert(particle))
+            is_inserted.append(self.southWest.insert(particle))
+            is_inserted.append(self.southEast.insert(particle))
+
+            return any(is_inserted)
 
     def get_regions(self):
         if self.leaf:
@@ -242,7 +288,7 @@ class QuadTree:
         self.boundary.color = self.color
         self.boundary.lineThickness = self.lineThickness
         self.boundary.Draw(screen)
-        if self.northWest is not None:
+        if not self.leaf:
             self.northWest.Show(screen)
             self.northEast.Show(screen)
             self.southWest.Show(screen)
