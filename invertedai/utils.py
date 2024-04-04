@@ -447,7 +447,7 @@ class Session:
 def get_default_agent_attributes(agent_count_dict: Dict[str,int]) -> List[AgentAttributes]:
     # Function that outputs a list a AgentAttributes with minimal default settings. 
     # Mainly meant to be used to pad a list of AgentAttributes to send as input to
-    # to initialize(). This list is created by reading a dictionary containing the
+    # initialize(). This list is created by reading a dictionary containing the
     # desired agent types with the agent count for each type respectively.
 
     agent_attributes_list = []
@@ -501,7 +501,6 @@ def _get_agent_density_per_region(centers,location,agent_density,scaling_factor,
 
     for area_center in iterable_regions:
         #Naively check every square within requested area
-        #TODO: Use heuristics or other methods to (e.g. map polygon, high FOV image, quadtree) to reduce computation time
         center_tuple = (area_center.x, area_center.y)
         birdview = iai.location_info(
             location=location,
@@ -779,7 +778,7 @@ def iai_conditional_initialize(
 ):
     """
     A utility function to run initialize with conditional agents located at arbitrary distances from the location
-    if interest. Only agents within a defined distance of the location of interest are passed to initialize as 
+    of interest. Only agents within a defined distance of the location of interest are passed to initialize as 
     conditional. Agents outisde of this distance are padded on to the initialize response, including their reccurent
     states. Recurrent states must be provided for all agents, otherwise this function behaves like :func:`initialize`.
     Please refer to the documentation for :func:`initialize` for more information.
