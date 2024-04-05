@@ -32,21 +32,27 @@ def get_pygame_convertors(x_min, x_max, y_min, y_max, H, W):
 class Rotations:
     @ staticmethod
     def rotationX(angle):
-        return [[1, 0, 0],
-                [0, math.cos(angle), -math.sin(angle)],
-                [0, math.sin(angle), math.cos(angle)]]
+        return [
+            [1, 0, 0],
+            [0, math.cos(angle), -math.sin(angle)],
+            [0, math.sin(angle), math.cos(angle)]
+        ]
 
     @ staticmethod
     def rotationY(angle):
-        return [[math.cos(angle), 0, -math.sin(angle)],
-                [0, 1, 0],
-                [math.sin(angle), 0, math.cos(angle)]]
+        return [
+            [math.cos(angle), 0, -math.sin(angle)],
+            [0, 1, 0],
+            [math.sin(angle), 0, math.cos(angle)]
+        ]
 
     @ staticmethod
     def rotationZ(angle):
-        return [[math.cos(angle), -math.sin(angle), 0],
-                [math.sin(angle), math.cos(angle), 0],
-                [0, 0, 1]]
+        return [
+            [math.cos(angle), -math.sin(angle), 0],
+            [math.sin(angle), math.cos(angle), 0],
+            [0, 0, 1]
+        ]
 
 class Rectangle:
     def __init__(self, position: Tuple[float, float], scale: Tuple[float, float], convertors=None):
@@ -77,7 +83,6 @@ class Rectangle:
             return False
 
     def Draw(self, screen):
-
         if self.convertors:
             x, y = self.convertors[0](*self.position)
             w, h = self.convertors[1](*self.scale)

@@ -27,11 +27,6 @@ class Region:
         self.agents_in_fov = []
 
     def pre_drive(self):
-        # agents_in_fov = []
-        # for car in self.npcs:
-        #     agents_in_fov.extend(filter(lambda x: x not in self.npcs, car.fov_agents))
-        # agents_in_fov = list(set(agents_in_fov)) #Remove duplicates
-
         agent_states = []
         agent_attributes = []
         recurrent_states = []
