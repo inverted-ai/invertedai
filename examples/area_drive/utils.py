@@ -16,15 +16,15 @@ def get_pygame_convertors(x_min, x_max, y_min, y_max, H, W):
     def convert_to_pygame_coords(x, y):
         x_range = x_max - x_min
         y_range = y_max - y_min
-        pygame_x = int((x - x_min) * W / x_range)
-        pygame_y = int((y - y_min) * H / y_range)
+        pygame_x = round((x - x_min) * W / x_range)
+        pygame_y = round((y - y_min) * H / y_range)
         return (pygame_x, pygame_y)
 
     def convert_to_pygame_scales(w, h):
         x_range = x_max - x_min
         y_range = y_max - y_min
-        pygame_w = int(w * W / x_range)
-        pygame_h = int(h * H / y_range)
+        pygame_w = round(w * W / x_range)
+        pygame_h = round(h * H / y_range)
         return (pygame_w, pygame_h)
 
     return convert_to_pygame_coords, convert_to_pygame_scales
@@ -61,7 +61,7 @@ class Rectangle:
         x, y = particle.position.x, particle.position.y
         bx, by = self.position
         w, h = self.scale
-        if x > bx and x < bx+w and y > by and y < by+h:
+        if x >= bx and x < bx+w and y >= by and y < by+h:
             return True
         else:
             return False

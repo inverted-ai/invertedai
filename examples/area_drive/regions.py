@@ -224,17 +224,20 @@ class QuadTree:
         self.leaf = False
 
         for particle in self.particles:
-            is_inserted = []
-            is_inserted.append(self.northWest.insert(particle))
-            is_inserted.append(self.northEast.insert(particle))
-            is_inserted.append(self.southWest.insert(particle))
-            is_inserted.append(self.southEast.insert(particle))
-            is_inserted = any(is_inserted)
+            is_inserted = self.insert_particle_in_leaf_nodes(particle)
         self.particles = []
         
+    def insert_particle_in_leaf_nodes(self,particle):
+        is_inserted = False
+        is_inserted = is_inserted or self.northWest.insert(particle,is_inserted)
+        is_inserted = is_inserted or self.northEast.insert(particle,is_inserted)
+        is_inserted = is_inserted or self.southWest.insert(particle,is_inserted)
+        is_inserted = is_inserted or self.southEast.insert(particle,is_inserted)
 
-    def insert(self, particle):
-        is_in_boundary = self.boundary.containsParticle(particle)
+        return is_inserted
+
+    def insert(self, particle, is_particle_placed=False):
+        is_in_boundary = self.boundary.containsParticle(particle) and not is_particle_placed
         is_in_buffer = self.boundary_buffer.containsParticle(particle) and not is_in_boundary
 
         if not is_in_boundary and not is_in_buffer:
@@ -249,19 +252,16 @@ class QuadTree:
 
             else: # Particle is within the buffer region of this leaf node
                 self.particles_boundary.append(particle)
+                self.region.insert_fov_agent(particle)
                 return False
 
         else:
             if self.leaf:
                 self.subdivide()
 
-            is_inserted = []
-            is_inserted.append(self.northWest.insert(particle))
-            is_inserted.append(self.northEast.insert(particle))
-            is_inserted.append(self.southWest.insert(particle))
-            is_inserted.append(self.southEast.insert(particle))
+            is_inserted = self.insert_particle_in_leaf_nodes(particle)
 
-            return any(is_inserted)
+            return is_inserted
 
     def get_regions(self):
         if self.leaf:
