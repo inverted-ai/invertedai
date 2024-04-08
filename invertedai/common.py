@@ -2,7 +2,9 @@ from typing import List, Optional, Dict
 from enum import Enum
 from pydantic import BaseModel, model_validator
 import math
-
+from PIL import Image as PImage
+import numpy as np
+import io
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
@@ -78,19 +80,14 @@ class Image(BaseModel):
     def decode(self):
         """
         Decode and return the image.
-        Requires numpy and cv2 to be available, otherwise raises `ImportError`.
         """
-        try:
-            import numpy as np
-            import cv2
-        except ImportError as e:
-            iai.logger.error(
-                "Decoding images requires numpy and cv2, which were not found."
-            )
-            raise e
-        array = np.array(self.encoded_image, dtype=np.uint8)
-        image = cv2.imdecode(array, cv2.IMREAD_COLOR)
-        return image
+        self.encoded_image = bytes(self.encoded_image)
+        img_stream = io.BytesIO(self.encoded_image)
+        img = PImage.open(img_stream)
+        img_array = np.array(img)
+        img_array = img_array[:, :, ::-1]
+        return img_array
+
 
     @classmethod
     def fromval(cls, val):
