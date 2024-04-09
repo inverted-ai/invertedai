@@ -27,11 +27,6 @@ class Region:
         self.agents_in_fov = []
 
     def pre_drive(self):
-        # agents_in_fov = []
-        # for car in self.npcs:
-        #     agents_in_fov.extend(filter(lambda x: x not in self.npcs, car.fov_agents))
-        # agents_in_fov = list(set(agents_in_fov)) #Remove duplicates
-
         agent_states = []
         agent_attributes = []
         recurrent_states = []
@@ -149,7 +144,7 @@ class QuadTree:
             convertors=self.convertors
         )
         self.region = Region(boundary=self.boundary_buffer, cfg=cfg)
-        self.particles_boundary = []
+        self.particles_buffer = []
 
     def subdivide(self):
         parent = self.boundary
@@ -224,44 +219,47 @@ class QuadTree:
         self.leaf = False
 
         for particle in self.particles:
-            is_inserted = []
-            is_inserted.append(self.northWest.insert(particle))
-            is_inserted.append(self.northEast.insert(particle))
-            is_inserted.append(self.southWest.insert(particle))
-            is_inserted.append(self.southEast.insert(particle))
-            is_inserted = any(is_inserted)
+            is_inserted = self.insert_particle_in_leaf_nodes(particle)
+        for particle in self.particles_buffer:
+            is_inserted = self.insert_particle_in_leaf_nodes(particle)
         self.particles = []
+        self.particles_buffer = []
         
+    def insert_particle_in_leaf_nodes(self,particle):
+        is_inserted = False
+        is_inserted = self.northWest.insert(particle,is_inserted) or is_inserted
+        is_inserted = self.northEast.insert(particle,is_inserted) or is_inserted
+        is_inserted = self.southWest.insert(particle,is_inserted) or is_inserted
+        is_inserted = self.southEast.insert(particle,is_inserted) or is_inserted
 
-    def insert(self, particle):
+        return is_inserted
+
+    def insert(self, particle, is_particle_placed=False):
         is_in_boundary = self.boundary.containsParticle(particle)
-        is_in_buffer = self.boundary_buffer.containsParticle(particle) and not is_in_boundary
+        is_in_buffer = self.boundary_buffer.containsParticle(particle)
 
-        if not is_in_boundary and not is_in_buffer:
+        if (not is_in_boundary) and (not is_in_buffer):
             return False
 
-        if (len(self.particles) + len(self.particles_boundary)) < self.capacity and self.leaf:
-            if is_in_boundary:
+        if (len(self.particles) + len(self.particles_buffer)) < self.capacity and self.leaf:
+            if is_in_boundary and not is_particle_placed:
                 self.particles.append(particle)
                 self.region.insert(particle)
                 particle.region = self.region
                 return True
 
             else: # Particle is within the buffer region of this leaf node
-                self.particles_boundary.append(particle)
+                self.particles_buffer.append(particle)
+                self.region.insert_fov_agent(particle)
                 return False
 
         else:
             if self.leaf:
                 self.subdivide()
 
-            is_inserted = []
-            is_inserted.append(self.northWest.insert(particle))
-            is_inserted.append(self.northEast.insert(particle))
-            is_inserted.append(self.southWest.insert(particle))
-            is_inserted.append(self.southEast.insert(particle))
+            is_inserted = self.insert_particle_in_leaf_nodes(particle)
 
-            return any(is_inserted)
+            return is_inserted
 
     def get_regions(self):
         if self.leaf:
@@ -269,6 +267,13 @@ class QuadTree:
         else:
             return self.northWest.get_regions() + self.northEast.get_regions() + \
                 self.southWest.get_regions() + self.southEast.get_regions()
+
+    def get_leaf_nodes(self):
+        if self.leaf:
+            return [self]
+        else:
+            return self.northWest.get_leaf_nodes() + self.northEast.get_leaf_nodes() + \
+                self.southWest.get_leaf_nodes() + self.southEast.get_leaf_nodes()
 
     def queryRange(self, query_range):
         particlesInRange = []
@@ -288,8 +293,11 @@ class QuadTree:
         self.boundary.color = self.color
         self.boundary.lineThickness = self.lineThickness
         self.boundary.Draw(screen)
+
         if not self.leaf:
             self.northWest.Show(screen)
             self.northEast.Show(screen)
             self.southWest.Show(screen)
             self.southEast.Show(screen)
+
+        

@@ -16,15 +16,15 @@ def get_pygame_convertors(x_min, x_max, y_min, y_max, H, W):
     def convert_to_pygame_coords(x, y):
         x_range = x_max - x_min
         y_range = y_max - y_min
-        pygame_x = int((x - x_min) * W / x_range)
-        pygame_y = int((y - y_min) * H / y_range)
+        pygame_x = round((x - x_min) * W / x_range)
+        pygame_y = round((y - y_min) * H / y_range)
         return (pygame_x, pygame_y)
 
     def convert_to_pygame_scales(w, h):
         x_range = x_max - x_min
         y_range = y_max - y_min
-        pygame_w = int(w * W / x_range)
-        pygame_h = int(h * H / y_range)
+        pygame_w = round(w * W / x_range)
+        pygame_h = round(h * H / y_range)
         return (pygame_w, pygame_h)
 
     return convert_to_pygame_coords, convert_to_pygame_scales
@@ -32,21 +32,27 @@ def get_pygame_convertors(x_min, x_max, y_min, y_max, H, W):
 class Rotations:
     @ staticmethod
     def rotationX(angle):
-        return [[1, 0, 0],
-                [0, math.cos(angle), -math.sin(angle)],
-                [0, math.sin(angle), math.cos(angle)]]
+        return [
+            [1, 0, 0],
+            [0, math.cos(angle), -math.sin(angle)],
+            [0, math.sin(angle), math.cos(angle)]
+        ]
 
     @ staticmethod
     def rotationY(angle):
-        return [[math.cos(angle), 0, -math.sin(angle)],
-                [0, 1, 0],
-                [math.sin(angle), 0, math.cos(angle)]]
+        return [
+            [math.cos(angle), 0, -math.sin(angle)],
+            [0, 1, 0],
+            [math.sin(angle), 0, math.cos(angle)]
+        ]
 
     @ staticmethod
     def rotationZ(angle):
-        return [[math.cos(angle), -math.sin(angle), 0],
-                [math.sin(angle), math.cos(angle), 0],
-                [0, 0, 1]]
+        return [
+            [math.cos(angle), -math.sin(angle), 0],
+            [math.sin(angle), math.cos(angle), 0],
+            [0, 0, 1]
+        ]
 
 class Rectangle:
     def __init__(self, position: Tuple[float, float], scale: Tuple[float, float], convertors=None):
@@ -61,7 +67,7 @@ class Rectangle:
         x, y = particle.position.x, particle.position.y
         bx, by = self.position
         w, h = self.scale
-        if x > bx and x < bx+w and y > by and y < by+h:
+        if x >= bx and x <= bx+w and y >= by and y <= by+h:
             return True
         else:
             return False
@@ -77,7 +83,6 @@ class Rectangle:
             return False
 
     def Draw(self, screen):
-
         if self.convertors:
             x, y = self.convertors[0](*self.position)
             w, h = self.convertors[1](*self.scale)

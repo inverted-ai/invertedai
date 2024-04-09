@@ -26,15 +26,13 @@ def main(args):
         location = args.location, 
         agent_density = args.agent_density, 
         scaling_factor = 1.0,
-        width = args.width,
-        height = args.height,
+        width = int(args.width/2),
+        height = int(args.height/2),
         map_center = map_center
     )
 
     print(f"Set up simulation.")    
-    map_width = max([abs(pt.x) for pt in location_info_response.bounding_polygon])
-    map_height = max([abs(pt.y) for pt in location_info_response.bounding_polygon]) 
-    map_extent = max([map_width,map_height])
+    map_extent = max([args.width,args.height])
     cfg = AreaDriverConfig(
         location = args.location,
         area_center = map_center,
@@ -128,13 +126,13 @@ if __name__ == '__main__':
     argparser.add_argument(
         '--width',
         type=int,
-        help=f"Width of the area to initialize.",
+        help=f"Full width of the area to initialize.",
         default=100
     )
     argparser.add_argument(
         '--height',
         type=int,
-        help=f"Height of the area to initialize",
+        help=f"Full height of the area to initialize",
         default=100
     )
     argparser.add_argument(
