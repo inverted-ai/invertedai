@@ -67,7 +67,7 @@ class Rectangle:
         x, y = particle.position.x, particle.position.y
         bx, by = self.position
         w, h = self.scale
-        if x >= bx and x < bx+w and y >= by and y < by+h:
+        if x >= bx and x <= bx+w and y >= by and y <= by+h:
             return True
         else:
             return False
