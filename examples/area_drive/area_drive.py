@@ -35,6 +35,7 @@ class AreaDriverConfig:
     agent_density: Optional[float] = 10 #: The number of agents to spawn in each 100x100m region
     initialize_stride: Optional[float] = 50 #: The space between regions to be initialized
     random_seed: Optional[int] = None
+    model_version: Optional[str] = None
     #Visualization parameters
     rendered_static_map: Optional[np.ndarray] = None #: Map image from location info to render vehicles upon
     render_fov: Optional[float] = 100 #: Field of view of any visualizations
@@ -89,6 +90,7 @@ class AreaDriver:
         self.height = cfg.map_height
         self.agent_per_region = cfg.agent_density
         self.random_seed = cfg.random_seed
+        self.model_version = cfg.model_version
         self.initialize_stride = cfg.initialize_stride
         self.quad_re_initialization = cfg.quadtree_reconstruction_period
         self.timer = 1
@@ -188,7 +190,7 @@ class AreaDriver:
 
     async def async_drive(self):
         regions = self.quadtree.get_regions()
-        results = await asyncio.gather(*[region.async_drive(self.light_recurrent_states) for region in regions])
+        results = await asyncio.gather(*[region.async_drive(self.light_recurrent_states,random_seed=self.random_seed,api_model_version=self.model_version) for region in regions])
         for result in results:
             if result[0] is not None:
                 self.traffic_lights_states = result[0]
@@ -200,7 +202,7 @@ class AreaDriver:
         is_new_traffic_lights = True
         current_light_recurrent_states = self.light_recurrent_states
         for region in regions:
-            traffic_lights_states, light_recurrent_states = region.sync_drive(current_light_recurrent_states)
+            traffic_lights_states, light_recurrent_states = region.sync_drive(current_light_recurrent_states,random_seed=self.random_seed,api_model_version=self.model_version)
 
             if is_new_traffic_lights and traffic_lights_states is not None:
                 self.traffic_lights_states = traffic_lights_states

@@ -1021,6 +1021,7 @@ class ScenePlotter:
         }
 
         self.agent_c = (0.2, 0.2, 0.7)
+        self.agent_ped_c = (1.0, 0.75, 0.8)
         self.cond_c = (0.75, 0.35, 0.35)
         self.dir_c = (0.9, 0.9, 0.9)
         self.v_c = (0.2, 0.75, 0.2)
@@ -1204,6 +1205,8 @@ class ScenePlotter:
 
     def _update_agent(self, agent_idx, agent, agent_attribute):
         l, w = agent_attribute.length, agent_attribute.width
+        if agent_attribute.agent_type == "pedestrian":
+            l, w = 1.5, 1.5
         x, y = agent.center.x, agent.center.y
         v = agent.speed
         psi = agent.orientation
@@ -1252,7 +1255,10 @@ class ScenePlotter:
         if agent_idx in self.conditional_agents:
             c = self.cond_c
         else:
-            c = self.agent_c
+            if agent_attribute.agent_type == "pedestrian":
+                c = self.agent_ped_c
+            else: 
+                c = self.agent_c
 
         rect = Rectangle(
             (x - l / 2, y - w / 2),

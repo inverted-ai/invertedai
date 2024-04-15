@@ -53,7 +53,7 @@ class Region:
             remaining_npcs.append(npc)
         self.npcs = remaining_npcs
 
-    def sync_drive(self, light_recurrent_states = None):
+    def sync_drive(self, light_recurrent_states = None, random_seed = None, api_model_version = None):
         """_summary_
         updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
         """
@@ -67,14 +67,15 @@ class Region:
                 agent_states=agent_states,
                 recurrent_states=recurrent_states,
                 light_recurrent_states=light_recurrent_states,
-                get_birdview=DEBUG
+                get_birdview=DEBUG,
+                random_seed=random_seed
             )
 
             self.post_drive(drive_response=drive_response)
 
             return drive_response.traffic_lights_states, drive_response.light_recurrent_states
 
-    async def async_drive(self, light_recurrent_states = None):
+    async def async_drive(self, light_recurrent_states = None, random_seed = None, api_model_version = None):
         """_summary_
         async version:
         updates the state of all NPCs inside the region (agents outside the region that are visible to inside NPCs are included to the call to drive but their state is not changed)
@@ -89,7 +90,8 @@ class Region:
                 agent_states=agent_states,
                 recurrent_states=recurrent_states,
                 light_recurrent_states=light_recurrent_states,
-                get_birdview=DEBUG
+                get_birdview=DEBUG,
+                random_seed=random_seed
             )
             self.post_drive(drive_response=drive_response)
 
