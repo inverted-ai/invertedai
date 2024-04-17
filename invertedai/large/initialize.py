@@ -213,8 +213,8 @@ def region_initialize(
             # Initialize simulation with an API call
             response = iai.initialize(
                 location=location,
-                states_history=[all_agent_states],
-                agent_attributes=all_agent_attributes,
+                states_history=None if len(all_agent_states) == 0 else [all_agent_states],
+                agent_attributes=None if len(all_agent_attributes) == 0 else all_agent_attributes,
                 get_infractions=get_infractions,
                 traffic_light_state_history=traffic_light_state_history,
                 location_of_interest=(region_center.x, region_center.y),
@@ -258,7 +258,7 @@ def region_initialize(
     all_agent_states, all_agent_attributes, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
 
     response.agent_states = all_agent_states
-    response.recurrent_states = all_agent_attributes
-    response.agent_attributes = all_recurrent_states
-
+    response.agent_attributes = all_agent_attributes
+    response.recurrent_states = all_recurrent_states 
+    
     return response
