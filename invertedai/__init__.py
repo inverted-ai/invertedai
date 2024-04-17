@@ -10,6 +10,7 @@ from invertedai.api.drive import drive, async_drive
 from invertedai.api.blame import blame, async_blame
 from invertedai.cosimulation import BasicCosimulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
+from invertedai.large.initialize import define_regions_grid, get_regions_density_by_road_area, region_initialize
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
 if dev:

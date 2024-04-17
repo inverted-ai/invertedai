@@ -13,17 +13,18 @@ class Region(BaseModel):
     """
 
     center: Optional[Point] = None # The center of the region if such a concept is relevant (e.g. center of a square, center of a rectangle)
-    fov: Optional[float] = 100 # Side length of the region for the default interpretation of a region as a square
-    agent_states: Optional[AgentState] = None # A list of existing agents within the region
-    agent_attributes: Optional[AgentAttributes] = None # The attributes of agents that exist within the region or that will be initialized within the region
-    recurrent_states: Optional[RecurrentState] = None
-    region_type = 'square' # Geometric category of the region. As of now, only 'square' is supported.
-    vertices: List[Tuple[float,float]] # An ordered list of x-y coordinates of the region defined clockwise around the perimeter of the region
+    fov: Optional[float] = None # Side length of the region for the default interpretation of a region as a square
+    agent_states: Optional[List[AgentState]] = None # A list of existing agents within the region
+    agent_attributes: Optional[List[AgentAttributes]] = None # The attributes of agents that exist within the region or that will be initialized within the region
+    recurrent_states: Optional[List[RecurrentState]] = None # Recurrent states of the agents contained within the region
+    region_type: str = 'square' # Geometric category of the region. As of now, only 'square' is supported.
+    vertexes: List[Point] # An ordered list of x-y coordinates of the region defined clockwise around the perimeter of the region
 
     @classmethod
-    def fromlist(cls, l, agent_states = None, agent_attributes = None):
+    def fromlist(cls, l, agent_states = [], agent_attributes = [], recurrent_states = []):
         center = None
         fov = 100
+        region_type = 'square'
 
         if region_type == 'square':
             if len(l) == 2:
@@ -32,46 +33,62 @@ class Region(BaseModel):
             elif len(l) == 1:
                 center = l[0]
 
-            vertices = self.define_square_vertices(center,fov)
+            vertexes = cls.define_square_vertices(cls,center,fov)
 
         for agent in agent_states:
-            assert self.check_point_in_region(agent.center), "Existing agent states must be located within the region."
+            assert cls.check_point_in_region(cls,agent.center), f"Existing agent states at position {agent.center} must be located within the region."
 
-        return cls(center=center, fov=fov, agent_states=agent_states, agent_attributes=agent_attributes, region_type=region_type, vertices=vertices)
+        return cls(
+            center=center, 
+            fov=fov, 
+            agent_states=agent_states, 
+            agent_attributes=agent_attributes, 
+            recurrent_states=recurrent_states, 
+            region_type=region_type, 
+            vertexes=vertexes
+        )
 
 
     def define_square_vertices(self,center,fov):
-        assert center is not None, "Square region must contain valid center Point"
-        vertices = [
-            tuple(center.x-fov/2,center.y+fov/2), # Top left
-            tuple(center.x+fov/2,center.y+fov/2), # Top right
-            tuple(center.x+fov/2,center.y-fov/2), # Bottom right
-            tuple(center.x-fov/2,center.y-fov/2) # Bottom left
+        assert center is not None, "Square region must contain valid center Point."
+        vertexes = [
+            Point.fromlist([center.x-fov/2,center.y+fov/2]), # Top left
+            Point.fromlist([center.x+fov/2,center.y+fov/2]), # Top right
+            Point.fromlist([center.x+fov/2,center.y-fov/2]), # Bottom right
+            Point.fromlist([center.x-fov/2,center.y-fov/2]) # Bottom left
         ]
 
-        return vertices
+        return vertexes
 
     def check_point_in_region(self,point):
-        # Use horizontal raycast method to check if point is in region defined by vertices
+        # Use horizontal raycast method to check if point is in region defined by vertexes
         # If a ray from the point to positive infinity towards the right crosses edges of
-        # the polygon an odd number of times, the point is within the polygon.
+        # the polygon an odd number of times, the point is within the polygon (works with 
+        # both convex and concave polygons).
         x, y = point.x, point.y
         is_inside = False
      
-        p1 = self.vertices[0]
-        num_vertices = len(self.vertices)
+        p1 = self.vertexes[0]
+        num_vertices = len(self.vertexes)
         for i in range(1, num_vertices + 1):
-            p2 = self.vertices[i % num_vertices]
+            p2 = self.vertexes[i % num_vertices]
 
             p1x, p1y, p2x, p2y = p1.x, p1.y, p2.x, p2.y
             if x == p2x and y == p2y:
-                # The point is equal to a vertex therefore is within the region
+                # The point is equal to the p2 vertex therefore is within the region.
                 return True
 
-            # Eliminate edges whose coordinates indicate crossing the ray is impossible
+            # Only consider edges whose coordinates indicate crossing the ray is possible.
             if y >= min(p1y, p2y):
                 if y <= max(p1y, p2y):
                     if x <= max(p1x, p2x):
+                        if p1x == p2x:
+                            # This indicates the edge is a horizontal line with its maximum x value
+                            # to the right of the point and satisfying the y-value conditions indicates
+                            # the ray is parallel and inline with this edge, therefore crosses this edge.
+                            is_inside = not is_inside
+                            continue
+
                         # Calculate the x-intersection of the line connecting the point to the edge
                         x_intersection = (y - p1y)*(p2x - p1x)/(p2y - p1y) + p1x
                         
@@ -79,6 +96,19 @@ class Region(BaseModel):
                             # The point is on the edge between p1 and p2 therefore is within the region
                             return True
 
-                        if p1x == p2x or x <= x_intersection:
+                        if x <= x_intersection:
+                            # Since the largest x value of the edge is to the right of the point and the intercept of the edge is 
+                            # also to the right, the ray crosses the edge. 
                             is_inside = not is_inside
             p1 = p2
+
+    def get_region_fov(self):
+        min_x, max_x, min_y, max_y = float('inf'), float('-inf'), float('inf'), float('-inf')
+
+        for vertex in self.vertexes:
+            min_x = min(min_x,vertex.x)
+            max_x = max(max_x,vertex.x)
+            min_y = min(min_y,vertex.y)
+            max_y = max(max_y,vertex.y)
+
+        return max(max_x-min_x,max_y-min_y)

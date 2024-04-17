@@ -1,13 +1,18 @@
 import time
 from pydantic import BaseModel, validate_call
 from typing import List, Optional, Dict, Tuple
+from itertools import product
+from tqdm.contrib import tenumerate
+import numpy as np
 
+import invertedai as iai
 from invertedai.large.common import Region
-from invertedai.api.initiazlie import InitializeResponse
+from invertedai.api.initialize import InitializeResponse
+from invertedai.common import TrafficLightStatesDict, Point
 from invertedai.utils import get_default_agent_attributes
 
 SLACK = 2
-AGENT_SCOPE_FOV = 120
+AGENT_SCOPE_FOV_BUFFER = 20
 
 @validate_call
 def define_regions_grid(
@@ -59,7 +64,7 @@ def get_regions_density_by_road_area(
     
     iterable_regions = None
     if display_progress_bar:
-        iterable_regions = tmap(
+        iterable_regions = tenumerate(
             regions, 
             total=len(regions),
             desc=f"Calculating drivable surface areas"
@@ -67,12 +72,12 @@ def get_regions_density_by_road_area(
     else:
         iterable_regions = regions
 
-    for region in iterable_regions:
+    for i, region in iterable_regions:
         #Naively check every square within requested area
         center_tuple = (region.center.x, region.center.y)
         birdview = iai.location_info(
             location=location,
-            rendering_fov=100,
+            rendering_fov=region.get_region_fov(),
             rendering_center=center_tuple
         ).birdview_image.decode()
 
@@ -93,14 +98,12 @@ def get_regions_density_by_road_area(
     new_regions = [None]*len(regions)
     for i, (region_center, drivable_ratio) in enumerate(center_road_area_dict.items()):
         num_agents = _calculate_agent_density_max_scaled(max_agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio)
-        regions[i] = Region.fromlist([Point.fromlist(list(center))],agent_attributes=get_default_agent_attributes({"car":num_agents}))
+        new_regions[i] = Region.fromlist([Point.fromlist(list(region_center))],agent_attributes=get_default_agent_attributes({"car":num_agents}))
 
     return new_regions
 
 def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio):
-
     return round(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio)) if drivable_ratio > 0.0 else 0
-
 
 def _get_all_existing_agents_from_regions(regions):
     agent_states = []
@@ -111,6 +114,7 @@ def _get_all_existing_agents_from_regions(regions):
         agent_states.extend(region_agent_states)
         agent_attributes.extend(region.agent_attributes[:len(region_agent_states)])
         recurrent_states.extend(region.recurrent_states)
+    
     return agent_states, agent_attributes, recurrent_states
 
 @validate_call
@@ -118,8 +122,8 @@ def region_initialize(
     location: str,
     regions: List[Region],
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
-    get_birdview: bool = False,
-    get_infractions: bool = False,
+    get_birdview: Optional[bool] = False,
+    get_infractions: Optional[bool] = False,
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
     display_progress_bar: Optional[bool] = True   
@@ -159,6 +163,9 @@ def region_initialize(
 
     api_model_version:
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
+
+    display_progress_bar:
+        If True, a bar is displayed showing the progress of all relevant processes.
     
     See Also
     --------
@@ -175,21 +182,22 @@ def region_initialize(
     
     iterable_regions = None
     if display_progress_bar:
-        iterable_regions = tmap(
+        iterable_regions = tenumerate(
             regions, 
             total=len(regions),
-            desc=f"Initializing {location.split(':')[1]}"
+            desc=f"Calculating drivable surface areas"
         )
     else:
         iterable_regions = regions
 
-    for i, region in enumerate(iterable_regions):
+    for i, region in iterable_regions:
         region_center = region.center
+        region_fov = region.get_region_fov()
 
         existing_agent_states, existing_agent_attributes, _ = _get_all_existing_agents_from_regions(regions)
 
         conditional_agents = list(filter(
-            lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
+            lambda x: inside_fov(center=region_center, agent_scope_fov=region_fov+AGENT_SCOPE_FOV_BUFFER, point=x[0].center), 
             zip(existing_agent_states,existing_agent_attributes)
         ))
 
@@ -220,11 +228,6 @@ def region_initialize(
         except InvertedAIError as e:
             iai.logger.warning(e)
 
-        # Get the recurrent state for any predefined agents in this region
-        predefined_agents_slice = len(conditional_agent_states):len(conditional_agent_states)+len(region_predefined_agent_states)
-        for s, rs in zip(response.agent_states[predefined_agents_slice],response.recurrent_states[predefined_agents_slice]):
-            predefined_agent_recurrent_state_dict[(s.center.x,s.center.y)] = rs
-
         # Remove all predefined agents before filtering at the edges
         response_agent_states_sampled = response.agent_states[len(all_agent_states):]
         response_agent_attributes_sampled = response.agent_attributes[len(all_agent_states):]
@@ -234,7 +237,7 @@ def region_initialize(
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
         valid_agents = list(filter(
-            lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV - SLACK, point=x[0].center),
+            lambda x: inside_fov(center=region_center, agent_scope_fov=region_fov - SLACK, point=x[0].center),
             zip(response_agent_states_sampled, response_agent_attributes_sampled, response_recurrent_states_sampled)
         ))
 
@@ -242,7 +245,8 @@ def region_initialize(
         valid_agent_attrs = [x[1] for x in valid_agents]
         valid_agent_rs = [x[2] for x in valid_agents]
 
-        regions[i].agent_states = region_predefined_agent_states + valid_agent_state
+        predefined_agents_slice = slice(len(conditional_agent_states),len(conditional_agent_states)+len(region_predefined_agent_states))
+        regions[i].agent_states = response.agent_states[predefined_agents_slice] + valid_agent_state
         regions[i].agent_attributes = response.agent_attributes[predefined_agents_slice] + valid_agent_attrs
         regions[i].recurrent_states = response.recurrent_states[predefined_agents_slice] + valid_agent_rs
 
