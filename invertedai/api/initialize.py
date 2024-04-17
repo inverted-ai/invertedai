@@ -50,18 +50,16 @@ class InitializeResponse(BaseModel):
 
 @validate_call
 def initialize(
-        location: str,
-        agent_attributes: Optional[List[AgentAttributes]] = None,
-        states_history: Optional[List[List[AgentState]]] = None,
-        traffic_light_state_history: Optional[
-            List[TrafficLightStatesDict]
-        ] = None,
-        get_birdview: bool = False,
-        location_of_interest: Optional[Tuple[float, float]] = None,
-        get_infractions: bool = False,
-        agent_count: Optional[int] = None,
-        random_seed: Optional[int] = None,
-        api_model_version: Optional[str] = None  # Model version used for this API call
+    location: str,
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    states_history: Optional[List[List[AgentState]]] = None,
+    traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
+    get_birdview: bool = False,
+    location_of_interest: Optional[Tuple[float, float]] = None,
+    get_infractions: bool = False,
+    agent_count: Optional[int] = None,
+    random_seed: Optional[int] = None,
+    api_model_version: Optional[str] = None  # Model version used for this API call
 ) -> InitializeResponse:
     """
     Initializes a simulation in a given location, using a combination of **user-defined** and **sampled** agents.
@@ -206,18 +204,16 @@ def initialize(
 
 @validate_call
 async def async_initialize(
-        location: str,
-        agent_attributes: Optional[List[AgentAttributes]] = None,
-        states_history: Optional[List[List[AgentState]]] = None,
-        traffic_light_state_history: Optional[
-            List[TrafficLightStatesDict]
-        ] = None,
-        get_birdview: bool = False,
-        location_of_interest: Optional[Tuple[float, float]] = None,
-        get_infractions: bool = False,
-        agent_count: Optional[int] = None,
-        random_seed: Optional[int] = None,
-        api_model_version: Optional[str] = None
+    location: str,
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    states_history: Optional[List[List[AgentState]]] = None,
+    traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
+    get_birdview: bool = False,
+    location_of_interest: Optional[Tuple[float, float]] = None,
+    get_infractions: bool = False,
+    agent_count: Optional[int] = None,
+    random_seed: Optional[int] = None,
+    api_model_version: Optional[str] = None
 ) -> InitializeResponse:
     """
     The async version of :func:`initialize`

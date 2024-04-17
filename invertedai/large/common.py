@@ -48,7 +48,6 @@ class Region(BaseModel):
             vertexes=vertexes
         )
 
-
     def define_square_vertices(self,center,fov):
         assert center is not None, "Square region must contain valid center Point."
         vertexes = [

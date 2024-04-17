@@ -10,6 +10,7 @@ from invertedai.large.common import Region
 from invertedai.api.initialize import InitializeResponse
 from invertedai.common import TrafficLightStatesDict, Point
 from invertedai.utils import get_default_agent_attributes
+from invertedai.error import InvertedAIError
 
 SLACK = 2
 AGENT_SCOPE_FOV_BUFFER = 20
@@ -77,7 +78,7 @@ def get_regions_density_by_road_area(
         center_tuple = (region.center.x, region.center.y)
         birdview = iai.location_info(
             location=location,
-            rendering_fov=region.get_region_fov(),
+            rendering_fov=int(region.get_region_fov()),
             rendering_center=center_tuple
         ).birdview_image.decode()
 
@@ -185,7 +186,7 @@ def region_initialize(
         iterable_regions = tenumerate(
             regions, 
             total=len(regions),
-            desc=f"Calculating drivable surface areas"
+            desc=f"Initializing regions"
         )
     else:
         iterable_regions = regions
