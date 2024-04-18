@@ -20,11 +20,12 @@ class Region(BaseModel):
     region_type: str = 'square' # Geometric category of the region. As of now, only 'square' is supported.
     vertexes: List[Point] # An ordered list of x-y coordinates of the region defined clockwise around the perimeter of the region
 
+    auxiliary_agent_states: Optional[List[AgentState]] = None # A list of existing agents not within the region but are nonetheless of significance (e.g. near the region)
+
     @classmethod
-    def fromlist(cls, l, agent_states = [], agent_attributes = [], recurrent_states = []):
+    def fromlist(cls, l, agent_states = [], agent_attributes = [], recurrent_states = [], region_type = 'square'):
         center = None
         fov = 100
-        region_type = 'square'
 
         if region_type == 'square':
             if len(l) == 2:
@@ -40,16 +41,32 @@ class Region(BaseModel):
 
         return cls(
             center=center, 
-            fov=fov, 
+            fov=fov,
+            region_type=region_type, 
+            vertexes=vertexes,
             agent_states=agent_states, 
             agent_attributes=agent_attributes, 
-            recurrent_states=recurrent_states, 
-            region_type=region_type, 
-            vertexes=vertexes
+            recurrent_states=recurrent_states 
         )
 
+    def insert_all_agent_details(self,agent_state,agent_attributes,recurrent_state):
+        if self.agent_states is None:
+            self.agent_states = [agent_state]
+        else:
+            self.agent_states.append(agent_state)
+
+        if self.agent_attributes is None:
+            self.agent_attributes = [agent_attributes]
+        else:
+            self.agent_attributes.append(agent_attributes)
+
+        if self.recurrent_states is None:
+            self.recurrent_states = [recurrent_state]
+        else:
+            self.recurrent_states.append(recurrent_state)
+
     def define_square_vertices(self,center,fov):
-        assert center is not None, "Square region must contain valid center Point."
+        assert center is not None, f"Square region must contain valid center Point."
         vertexes = [
             Point.fromlist([center.x-fov/2,center.y+fov/2]), # Top left
             Point.fromlist([center.x+fov/2,center.y+fov/2]), # Top right
@@ -100,6 +117,23 @@ class Region(BaseModel):
                             # also to the right, the ray crosses the edge. 
                             is_inside = not is_inside
             p1 = p2
+
+    def check_point_in_bounding_box(self,point):
+        # Helper function to check if a point is within an X-Y axis aligned bounding box around the region.
+        # This function should be faster but and equivalent in result to the other checking function if the 
+        # region is rectangular.
+
+        if self.fov is not None:
+            fov = self.fov
+        else:
+            fov = self.get_region_fov()
+
+        x, y = point.x, point.y
+        region_x, region_y = self.center.x, self.center.y
+        if region_x - fov/2 <= x and x <= region_x + fov/2 and region_y - fov/2 <= y and y <= region_y + fov/2:
+            return True
+        else:
+            return False
 
     def get_region_fov(self):
         min_x, max_x, min_y, max_y = float('inf'), float('-inf'), float('inf'), float('-inf')
