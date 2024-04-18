@@ -30,7 +30,7 @@ def main(args):
         )
 
         print(f"Begin initialization.") 
-        initialize_response = iai.region_initialize(
+        response = iai.region_initialize(
             location = args.location,
             regions = iai.get_regions_density_by_road_area(
                 location = args.location,
@@ -46,26 +46,6 @@ def main(args):
         )
 
         print(f"Set up simulation.")    
-        map_extent = max([args.width,args.height])
-        cfg = AreaDriverConfig(
-            location = args.location,
-            area_center = map_center,
-            area_fov = map_extent,
-            quadtree_capacity = args.capacity,
-            render_fov=args.fov,
-            pygame_window = args.display_sim,
-            show_quadtree = args.display_quadtree,
-            rendered_static_map = location_info_response.birdview_image.decode(),
-            random_seed = drive_seed,
-            model_version = model_version
-        )
-
-        simulation = AreaDriver(
-            cfg = cfg,
-            location_response = location_info_response,
-            initialize_response = initialize_response
-        )
-
         if args.save_sim_gif:
             rendered_static_map = location_info_response.birdview_image.decode()
             scene_plotter = iai.utils.ScenePlotter(
@@ -77,19 +57,29 @@ def main(args):
                 dpi=300
             )
             scene_plotter.initialize_recording(
-                agent_states=initialize_response.agent_states,
-                agent_attributes=initialize_response.agent_attributes,
-                traffic_light_states=initialize_response.traffic_lights_states
+                agent_states=response.agent_states,
+                agent_attributes=response.agent_attributes,
+                traffic_light_states=response.traffic_lights_states
             )
 
-        total_num_agents = len(simulation.agent_states)
+        total_num_agents = len(response.agent_states)
         print(f"Number of agents in simulation: {total_num_agents}")
 
         print(f"Begin stepping through simulation.")
         for _ in tqdm(range(args.sim_length)):
-            simulation.drive()
+            response = iai.region_drive(
+                location = args.location,
+                agent_states = response.agent_states,
+                agent_attributes = response.agent_attributes,
+                recurrent_states = response.recurrent_states,
+                traffic_lights_states = response.traffic_lights_states,
+                light_recurrent_states = response.light_recurrent_states,
+                random_seed = drive_seed,
+                api_model_version = model_version,
+                capacity = args.capacity
+            )
             
-            if args.save_sim_gif: scene_plotter.record_step(simulation.agent_states,simulation.traffic_lights_states)
+            if args.save_sim_gif: scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
 
         if args.save_sim_gif:
             print("Simulation finished, save visualization.")
@@ -97,7 +87,6 @@ def main(args):
             fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
             plt.axis('off')
             current_time = int(time.time())
-            # gif_name = f'large_map_example_{int(time.time())}_{total_num_agents}agents.gif'
             gif_name = f'large_map_example_{current_time}_location-{args.location.split(":")[-1]}_density-{args.agent_density}_center-x{map_center[0]}y{map_center[1]}_width-{args.width}_height-{args.height}_initseed-{initialize_seed}_driveseed-{drive_seed}_modelversion-{model_version}.gif'
             scene_plotter.animate_scene(
                 output_name=gif_name,
@@ -168,18 +157,6 @@ if __name__ == '__main__':
         type=bool,
         help=f"Should the simulation be saved with visualization tool.",
         default=True
-    )
-    argparser.add_argument(
-        '--display-sim',
-        type=bool,
-        help=f"Should the in-simulation visualization be displayed.",
-        default=False
-    )
-    argparser.add_argument(
-        '--display-quadtree',
-        type=bool,
-        help=f"If the in-simulation visualization is active, display the quadtree as well.",
-        default=False
     )
     argparser.add_argument(
         '--num-simulations',
