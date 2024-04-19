@@ -1,10 +1,10 @@
 from typing import Tuple, Optional, List
-from pydantic import validate_call
+from pydantic import BaseModel, validate_call
 import asyncio
 
 import invertedai as iai
 from invertedai.large.common import Region
-from invertedai.common import Point, AgentState, AgentAttributes, RecurrentState
+from invertedai.common import Point, AgentState, AgentAttributes, RecurrentState, TrafficLightStatesDict, LightRecurrentStates
 from invertedai.api.drive import DriveResponse
 
 BUFFER_FOV = 35
@@ -23,16 +23,17 @@ class Particle(BaseModel):
     agent_state: AgentState
     agent_attributes: AgentAttributes
     recurrent_state: RecurrentState
+    agent_id: int
 
     def tolist(self):
-        return [agent_state, agent_attributes, recurrent_state]
+        return [self.agent_state, self.agent_attributes, self.recurrent_state, self.agent_id]
 
     @classmethod
     def fromlist(cls, l):
-        agent_state, agent_attributes, recurrent_state = l
-        return cls(agent_state=agent_state, agent_attributes=agent_attributes, recurrent_state=recurrent_state)
+        agent_state, agent_attributes, recurrent_state, agent_id = l
+        return cls(agent_state=agent_state, agent_attributes=agent_attributes, recurrent_state=recurrent_state, agent_id=agent_id)
 
-class QuadTree(BaseModel):
+class QuadTree:
     def __init__(
         self, 
         capacity: int, 
@@ -40,24 +41,25 @@ class QuadTree(BaseModel):
     ):
         self.capacity = capacity
         self.region = region
-        self.particles = []
         self.leaf = True
         self.northWest = None
         self.northEast = None
         self.southWest = None
         self.southEast = None
 
-        self.region_buffer = Region.fromlist([self.region.center,self.region.fov+BUFFER_FOV])
+        self.region_buffer = Region.fromlist([self.region.center,self.region.fov+2*BUFFER_FOV])
+        self.particles = []
         self.particles_buffer = []
 
     def subdivide(self):
         parent = self.region
         new_fov = self.region.fov/2
+        new_center_dist = new_fov/2
 
-        boundary_nw = Region.fromlist([Point.fromlist([parent.center.x-new_fov/2,parent.center.y+new_fov/2]),new_fov])
-        boundary_ne = Region.fromlist([Point.fromlist([parent.center.x+new_fov/2,parent.center.y+new_fov/2]),new_fov])
-        boundary_sw = Region.fromlist([Point.fromlist([parent.center.x-new_fov/2,parent.center.y-new_fov/2]),new_fov])
-        boundary_se = Region.fromlist([Point.fromlist([parent.center.x+new_fov/2,parent.center.y-new_fov/2]),new_fov])
+        boundary_nw = Region.fromlist([Point.fromlist([parent.center.x-new_center_dist,parent.center.y+new_center_dist]),new_fov])
+        boundary_ne = Region.fromlist([Point.fromlist([parent.center.x+new_center_dist,parent.center.y+new_center_dist]),new_fov])
+        boundary_sw = Region.fromlist([Point.fromlist([parent.center.x-new_center_dist,parent.center.y-new_center_dist]),new_fov])
+        boundary_se = Region.fromlist([Point.fromlist([parent.center.x+new_center_dist,parent.center.y-new_center_dist]),new_fov])
 
         self.northWest = QuadTree(self.capacity,boundary_nw)
         self.northEast = QuadTree(self.capacity,boundary_ne)
@@ -65,22 +67,23 @@ class QuadTree(BaseModel):
         self.southEast = QuadTree(self.capacity,boundary_se)
 
         self.leaf = False
+        self.region.clear_agents()
+        self.region_buffer.clear_agents()
 
         for particle in self.particles:
-            is_inserted = self.insert_particle_in_leaf_nodes(particle)
+            is_inserted = self.insert_particle_in_leaf_nodes(particle,False)
         for particle in self.particles_buffer:
-            is_inserted = self.insert_particle_in_leaf_nodes(particle)
+            is_inserted = self.insert_particle_in_leaf_nodes(particle,False)
         self.particles = []
         self.particles_buffer = []
         
-    def insert_particle_in_leaf_nodes(self,particle):
-        is_inserted = False
-        is_inserted = self.northWest.insert(particle,is_inserted) or is_inserted
-        is_inserted = self.northEast.insert(particle,is_inserted) or is_inserted
-        is_inserted = self.southWest.insert(particle,is_inserted) or is_inserted
-        is_inserted = self.southEast.insert(particle,is_inserted) or is_inserted
+    def insert_particle_in_leaf_nodes(self,particle,is_inserted):
+        is_inserted_in_this_branch = self.northWest.insert(particle,is_inserted)
+        is_inserted_in_this_branch = self.northEast.insert(particle,is_inserted_in_this_branch or is_inserted) or is_inserted_in_this_branch
+        is_inserted_in_this_branch = self.southWest.insert(particle,is_inserted_in_this_branch or is_inserted) or is_inserted_in_this_branch
+        is_inserted_in_this_branch = self.southEast.insert(particle,is_inserted_in_this_branch or is_inserted) or is_inserted_in_this_branch
 
-        return is_inserted
+        return is_inserted_in_this_branch
 
     def insert(self, particle, is_particle_placed=False):
         is_in_region = self.region.check_point_in_bounding_box(particle.agent_state.center)
@@ -92,25 +95,19 @@ class QuadTree(BaseModel):
         if (len(self.particles) + len(self.particles_buffer)) < self.capacity and self.leaf:
             if is_in_region and not is_particle_placed:
                 self.particles.append(particle)
-                if self.region.agent_states is None:
-                    self.region.insert_all_agent_details(*particle.tolist())
-                else:
-                    self.region.insert_all_agent_details(*particle.tolist())
+                self.region.insert_all_agent_details(*particle.tolist()[:-1])
                 return True
 
             else: # Particle is within the buffer region of this leaf node
                 self.particles_buffer.append(particle)
-                if self.region_buffer.agent_states is None:
-                    self.region_buffer.insert_all_agent_details(*particle.tolist())
-                else:
-                    self.region_buffer.insert_all_agent_details(*particle.tolist())
+                self.region_buffer.insert_all_agent_details(*particle.tolist()[:-1])
                 return False
 
         else:
             if self.leaf:
                 self.subdivide()
 
-            is_inserted = self.insert_particle_in_leaf_nodes(particle)
+            is_inserted = self.insert_particle_in_leaf_nodes(particle,is_particle_placed)
 
             return is_inserted
 
@@ -127,6 +124,23 @@ class QuadTree(BaseModel):
         else:
             return self.northWest.get_leaf_nodes() + self.northEast.get_leaf_nodes() + \
                 self.southWest.get_leaf_nodes() + self.southEast.get_leaf_nodes()
+
+def _flatten_and_sort(nested_list,index_list):
+    # Cannot unpack iterables during list comprehension so use this helper function instead
+    flat_list = []
+    for sublist in nested_list:
+        flat_list.extend(sublist)
+    
+    sorted_list = []
+    for ind in range(len(index_list)):
+        agent_index = index_list.index(ind)
+        sorted_list.append(flat_list[agent_index])
+    
+    return sorted_list
+
+async def async_drive_all(async_input_params):
+    all_responses = await asyncio.gather(*[iai.async_drive(**input_params) for input_params in async_input_params])
+    return all_responses
 
 @validate_call
 def region_drive(
@@ -222,22 +236,24 @@ def region_drive(
         agent_y[i] = agent.center.y
     max_x, min_x, max_y, min_y = max(agent_x), min(agent_x), max(agent_y), min(agent_y)
     region_fov = max(max_x,max_y) - min(min_x,min_y)
-    region_center = tuple((max_x-min_x)/2,(max_y-min_y)/2)
+    region_center = ((max_x+min_x)/2,(max_y+min_y)/2)
 
     quadtree = QuadTree(
         capacity=capacity,
-        boundary=Region.fromlist([Point.fromlist(list(region_center)),region_fov]),
+        region=Region.fromlist([Point.fromlist(list(region_center)),region_fov]),
     )
-    for agent, attrs, recurr_state in zip(agent_states,agent_attributes,recurrent_states):
-        particle = Particle.fromlist([agent, attrs, recurr_state])
+    for i, (agent, attrs, recurr_state) in enumerate(zip(agent_states,agent_attributes,recurrent_states)):
+        particle = Particle.fromlist([agent, attrs, recurr_state, i])
         is_inserted = quadtree.insert(particle)
 
     all_leaf_nodes = quadtree.get_leaf_nodes()
     async_input_params = []
     all_responses = []
     non_empty_regions = []
+    agent_id_order = []
     for i, leaf_node in enumerate(all_leaf_nodes):
         region, region_buffer = leaf_node.region, leaf_node.region_buffer
+        region_agents_ids = [particle.agent_id for particle in leaf_node.particles]
         
         if len(region.agent_states) == 0:
             # Region is empty, do not call DRIVE
@@ -245,6 +261,7 @@ def region_drive(
         
         else: 
             non_empty_regions.append(region)
+            agent_id_order.extend(region_agents_ids)
             input_params = {
                 "location":location,
                 "agent_attributes":region.agent_attributes+region_buffer.agent_attributes,
@@ -265,14 +282,13 @@ def region_drive(
                 async_input_params.append(input_params)
 
     if is_async:
-        all_responses = await asyncio.gather([iai.async_drive(**input_params) for input_params in async_input_params])
+        all_responses = asyncio.run(async_drive_all(async_input_params))
 
-    zip_iterable = zip(all_responses,non_empty_regions)
     response = DriveResponse(
-        agent_states = [*response.agent_states[:len(region.agent_attributes)] for response, region in zip_iterable],
-        recurrent_states = [*response.recurrent_states[:len(region.agent_attributes)] for response, region in zip_iterable],
-        infractions = [*response.infractions[:len(region.agent_attributes)] for response, region in zip_iterable],
-        is_inside_supported_area = [*response.is_inside_supported_area[:len(region.agent_attributes)] for response, region in zip_iterable],
+        agent_states = _flatten_and_sort([response.agent_states[:len(region.agent_attributes)] for response, region in zip(all_responses,non_empty_regions)],agent_id_order),
+        recurrent_states = _flatten_and_sort([response.recurrent_states[:len(region.agent_attributes)] for response, region in zip(all_responses,non_empty_regions)],agent_id_order),
+        is_inside_supported_area = _flatten_and_sort([response.is_inside_supported_area[:len(region.agent_attributes)] for response, region in zip(all_responses,non_empty_regions)],agent_id_order),
+        infractions = [] if not get_infractions else _flatten_and_sort([response.infractions[:len(region.agent_attributes)] for response, region in zip(all_responses,non_empty_regions)],agent_id_order),
         api_model_version = '' if len(all_responses) == 0 else all_responses[0].api_model_version,
         birdview = None if len(all_responses) == 0 or not get_birdview else all_responses[0].birdview,
         traffic_lights_states = traffic_lights_states if len(all_responses) == 0 else all_responses[0].traffic_lights_states,

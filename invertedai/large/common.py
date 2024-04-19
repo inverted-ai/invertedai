@@ -20,8 +20,6 @@ class Region(BaseModel):
     region_type: str = 'square' # Geometric category of the region. As of now, only 'square' is supported.
     vertexes: List[Point] # An ordered list of x-y coordinates of the region defined clockwise around the perimeter of the region
 
-    auxiliary_agent_states: Optional[List[AgentState]] = None # A list of existing agents not within the region but are nonetheless of significance (e.g. near the region)
-
     @classmethod
     def fromlist(cls, l, agent_states = [], agent_attributes = [], recurrent_states = [], region_type = 'square'):
         center = None
@@ -49,6 +47,11 @@ class Region(BaseModel):
             recurrent_states=recurrent_states 
         )
 
+    def clear_agents(self):
+        self.agent_states = None
+        self.agent_attributes = None
+        self.recurrent_states = None
+
     def insert_all_agent_details(self,agent_state,agent_attributes,recurrent_state):
         if self.agent_states is None:
             self.agent_states = [agent_state]
@@ -67,11 +70,14 @@ class Region(BaseModel):
 
     def define_square_vertices(self,center,fov):
         assert center is not None, f"Square region must contain valid center Point."
+        fov_split = fov/2
+        center_x = center.x
+        center_y = center.y
         vertexes = [
-            Point.fromlist([center.x-fov/2,center.y+fov/2]), # Top left
-            Point.fromlist([center.x+fov/2,center.y+fov/2]), # Top right
-            Point.fromlist([center.x+fov/2,center.y-fov/2]), # Bottom right
-            Point.fromlist([center.x-fov/2,center.y-fov/2]) # Bottom left
+            Point.fromlist([center_x-fov_split,center_y+fov_split]), # Top left
+            Point.fromlist([center_x+fov_split,center_y+fov_split]), # Top right
+            Point.fromlist([center_x+fov_split,center_y-fov_split]), # Bottom right
+            Point.fromlist([center_x-fov_split,center_y-fov_split]) # Bottom left
         ]
 
         return vertexes

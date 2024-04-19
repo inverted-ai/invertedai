@@ -66,19 +66,21 @@ def main(args):
         print(f"Number of agents in simulation: {total_num_agents}")
 
         print(f"Begin stepping through simulation.")
+        agent_attributes = response.agent_attributes
         for _ in tqdm(range(args.sim_length)):
             response = iai.region_drive(
                 location = args.location,
                 agent_states = response.agent_states,
-                agent_attributes = response.agent_attributes,
+                agent_attributes = agent_attributes,
                 recurrent_states = response.recurrent_states,
                 traffic_lights_states = response.traffic_lights_states,
                 light_recurrent_states = response.light_recurrent_states,
                 random_seed = drive_seed,
                 api_model_version = model_version,
-                capacity = args.capacity
+                capacity = args.capacity,
+                is_async = True
             )
-            
+
             if args.save_sim_gif: scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
 
         if args.save_sim_gif:
@@ -98,8 +100,6 @@ def main(args):
         print("Done")
 
 if __name__ == '__main__':
-    iai.add_apikey("5RE3ho3Yhx7njlN0m5fna32MAKp0FNdR1MQWPZ8Z", url="https://staging-api.inverted.ai/staging/aws/m1")
-
     argparser = argparse.ArgumentParser(description=__doc__)
     argparser.add_argument(
         '-D',

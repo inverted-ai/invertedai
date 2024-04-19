@@ -214,7 +214,7 @@ def region_initialize(
             response = iai.initialize(
                 location=location,
                 states_history=None if len(all_agent_states) == 0 else [all_agent_states],
-                agent_attributes=None if len(all_agent_attributes) == 0 else all_agent_attributes,
+                agent_attributes=[] if len(all_agent_attributes) == 0 else all_agent_attributes,
                 get_infractions=get_infractions,
                 traffic_light_state_history=traffic_light_state_history,
                 location_of_interest=(region_center.x, region_center.y),
@@ -228,6 +228,7 @@ def region_initialize(
 
         except InvertedAIError as e:
             iai.logger.warning(e)
+            continue
 
         # Remove all predefined agents before filtering at the edges
         response_agent_states_sampled = response.agent_states[len(all_agent_states):]
