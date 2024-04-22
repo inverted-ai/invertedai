@@ -1,5 +1,6 @@
 from typing import Tuple, Optional, List
 from pydantic import BaseModel, validate_call
+from math import ceil
 import asyncio
 
 import invertedai as iai
@@ -55,11 +56,13 @@ class QuadTree:
         parent = self.region
         new_fov = self.region.fov/2
         new_center_dist = new_fov/2
+        parent_x = parent.center.x
+        parent_y = parent.center.y
 
-        region_nw = Region.fromlist([Point.fromlist([parent.center.x-new_center_dist,parent.center.y+new_center_dist]),new_fov])
-        region_ne = Region.fromlist([Point.fromlist([parent.center.x+new_center_dist,parent.center.y+new_center_dist]),new_fov])
-        region_sw = Region.fromlist([Point.fromlist([parent.center.x-new_center_dist,parent.center.y-new_center_dist]),new_fov])
-        region_se = Region.fromlist([Point.fromlist([parent.center.x+new_center_dist,parent.center.y-new_center_dist]),new_fov])
+        region_nw = Region.fromlist([Point.fromlist([parent_x-new_center_dist,parent_y+new_center_dist]),new_fov])
+        region_ne = Region.fromlist([Point.fromlist([parent_x+new_center_dist,parent_y+new_center_dist]),new_fov])
+        region_sw = Region.fromlist([Point.fromlist([parent_x-new_center_dist,parent_y-new_center_dist]),new_fov])
+        region_se = Region.fromlist([Point.fromlist([parent_x+new_center_dist,parent_y-new_center_dist]),new_fov])
 
         self.northWest = QuadTree(self.capacity,region_nw)
         self.northEast = QuadTree(self.capacity,region_ne)
@@ -235,7 +238,7 @@ def region_drive(
         agent_x[i] = agent.center.x
         agent_y[i] = agent.center.y
     max_x, min_x, max_y, min_y = max(agent_x), min(agent_x), max(agent_y), min(agent_y)
-    region_fov = max(max_x,max_y) - min(min_x,min_y)
+    region_fov = ceil(max(max_x,max_y) - min(min_x,min_y)) #Round up the starting FOV to an integer to reduce floating point issues
     region_center = ((max_x+min_x)/2,(max_y+min_y)/2)
 
     quadtree = QuadTree(

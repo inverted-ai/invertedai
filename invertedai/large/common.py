@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple
 from pydantic import BaseModel, model_validator
+from math import ceil
 
 from invertedai.common import AgentAttributes, AgentState, RecurrentState, Point
 
@@ -70,9 +71,9 @@ class Region(BaseModel):
 
     def define_square_vertices(self,center,fov):
         assert center is not None, f"Square region must contain valid center Point."
-        fov_split = round(fov/2,2)
-        center_x = round(center.x,2)
-        center_y = round(center.y,2)
+        fov_split = fov/2
+        center_x = center.x
+        center_y = center.y
         vertexes = [
             Point.fromlist([center_x-fov_split,center_y+fov_split]), # Top left
             Point.fromlist([center_x+fov_split,center_y+fov_split]), # Top right
