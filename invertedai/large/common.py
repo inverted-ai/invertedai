@@ -1,6 +1,5 @@
 from typing import List, Optional, Tuple
-from pydantic import BaseModel, model_validator
-from math import ceil
+from pydantic import BaseModel
 
 from invertedai.common import AgentAttributes, AgentState, RecurrentState, Point
 
@@ -127,7 +126,7 @@ class Region(BaseModel):
 
     def check_point_in_bounding_box(self,point):
         # Helper function to check if a point is within an X-Y axis aligned bounding box around the region.
-        # This function should be faster but and equivalent in result to the other checking function if the 
+        # This function should be faster but equivalent in result to the other checking function if the 
         # region is rectangular.
 
         if self.fov is not None:
