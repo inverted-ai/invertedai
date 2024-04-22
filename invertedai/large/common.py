@@ -70,9 +70,9 @@ class Region(BaseModel):
 
     def define_square_vertices(self,center,fov):
         assert center is not None, f"Square region must contain valid center Point."
-        fov_split = fov/2
-        center_x = center.x
-        center_y = center.y
+        fov_split = round(fov/2,2)
+        center_x = round(center.x,2)
+        center_y = round(center.y,2)
         vertexes = [
             Point.fromlist([center_x-fov_split,center_y+fov_split]), # Top left
             Point.fromlist([center_x+fov_split,center_y+fov_split]), # Top right
