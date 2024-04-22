@@ -1011,7 +1011,7 @@ class ScenePlotter:
         self.traffic_lights = {
             static_actor.actor_id: static_actor
             for static_actor in static_actors
-            if static_actor.agent_type == "traffic-light"
+            if static_actor.agent_type == "traffic_light"
         }
 
         self.traffic_light_colors = {

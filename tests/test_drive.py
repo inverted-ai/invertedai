@@ -129,7 +129,7 @@ negative_tests = [
 def run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count,
                               simulation_length: int = 20):
     location_info_response = location_info(location=location, rendering_fov=200)
-    scene_has_lights = any(actor.agent_type == "traffic-light" for actor in location_info_response.static_actors)
+    scene_has_lights = any(actor.agent_type == "traffic_light" for actor in location_info_response.static_actors)
     
     initialize_response = initialize(
         location,

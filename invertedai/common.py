@@ -263,7 +263,7 @@ class StaticMapActor(BaseModel):
     """
 
     actor_id: TrafficLightId  #: ID as used in :func:`iai.initialize` and :func:`iai.drive`.
-    agent_type: str  #: Not currently used, there may be more traffic signals in the future.
+    agent_type: str  #: Supported types are "traffic_light" and "stop_sign" and "yield_sign".
     center: Point  #: The center of the stop line.
     #: Natural direction of traffic going through the stop line, in radians like in :class:`AgentState`.
     orientation: float
