@@ -160,7 +160,7 @@ async def async_drive_all(async_input_params):
     return all_responses
 
 @validate_call
-def region_drive(
+def large_drive(
     location: str,
     agent_states: List[AgentState],
     agent_attributes: List[AgentAttributes],

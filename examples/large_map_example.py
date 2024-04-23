@@ -25,7 +25,7 @@ def main(args):
         )
 
         print(f"Begin initialization.") 
-        response = iai.region_initialize(
+        response = iai.large_initialize(
             location = args.location,
             regions = iai.get_number_of_agents_per_region_by_drivable_area(
                 location = args.location,
@@ -62,7 +62,7 @@ def main(args):
         print(f"Begin stepping through simulation.")
         agent_attributes = response.agent_attributes
         for _ in tqdm(range(args.sim_length)):
-            response = iai.region_drive(
+            response = iai.large_drive(
                 location = args.location,
                 agent_states = response.agent_states,
                 agent_attributes = agent_attributes,

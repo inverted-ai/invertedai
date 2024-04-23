@@ -158,7 +158,7 @@ def _get_all_existing_agents_from_regions(regions):
     return agent_states, agent_attributes, recurrent_states
 
 @validate_call
-def region_initialize(
+def large_initialize(
     location: str,
     regions: List[Region],
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,

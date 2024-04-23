@@ -10,8 +10,8 @@ from invertedai.api.drive import drive, async_drive
 from invertedai.api.blame import blame, async_blame
 from invertedai.cosimulation import BasicCosimulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
-from invertedai.large.initialize import define_regions_grid, get_number_of_agents_per_region_by_drivable_area, region_initialize
-from invertedai.large.drive import region_drive
+from invertedai.large.initialize import define_regions_grid, get_number_of_agents_per_region_by_drivable_area, large_initialize
+from invertedai.large.drive import large_drive
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
 if dev:
