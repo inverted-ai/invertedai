@@ -12,7 +12,7 @@ BUFFER_FOV = 35
 
 class AgentInfo(BaseModel):
     """
-    All information relevant to a particular agent
+    All information relevant to a single agent.
 
     See Also
     --------
@@ -144,7 +144,6 @@ class QuadTree:
                 self.southWest.get_leaf_nodes() + self.southEast.get_leaf_nodes()
 
 def _flatten_and_sort(nested_list,index_list):
-    # Cannot unpack iterables during list comprehension so use this helper function instead
     flat_list = []
     for sublist in nested_list:
         flat_list.extend(sublist)
@@ -253,7 +252,7 @@ def region_drive(
         agent_x[i] = agent.center.x
         agent_y[i] = agent.center.y
     max_x, min_x, max_y, min_y = max(agent_x), min(agent_x), max(agent_y), min(agent_y)
-    region_size = ceil(max(max_x,max_y) - min(min_x,min_y)) #Round up the starting FOV to an integer to reduce floating point issues
+    region_size = ceil(max(max_x,max_y) - min(min_x,min_y))
     region_center = ((max_x+min_x)/2,(max_y+min_y)/2)
 
     quadtree = QuadTree(
@@ -276,11 +275,7 @@ def region_drive(
         region, region_buffer = leaf_node.region, leaf_node.region_buffer
         region_agents_ids = [particle.agent_id for particle in leaf_node.particles]
         
-        if len(region.agent_states) == 0:
-            # Region is empty, do not call DRIVE
-            continue
-        
-        else: 
+        if len(region.agent_states) > 0:
             non_empty_regions.append(region)
             agent_id_order.extend(region_agents_ids)
             input_params = {

@@ -23,8 +23,8 @@ def define_regions_grid(
     stride: Optional[float] = 50.0
 ) -> List[Region]:
     """
-    A utility function to initialize an area larger than 100x100m. This function breaks up an 
-    area into a grid of 100x100m regions on which each can be initialized.
+    A utility function to help initialize an area larger than 100x100m. This function breaks up an 
+    area into a grid of 100x100m regions, each of which can be initialized directly.
 
     Arguments
     ----------
@@ -101,7 +101,6 @@ def get_number_of_agents_per_region_by_drivable_area(
     
     """
 
-    #Get fraction of image that is a drivable surface (assume all non-black pixels are drivable)
     center_road_area_dict = {}
     max_drivable_area_ratio = 0
     
@@ -115,7 +114,6 @@ def get_number_of_agents_per_region_by_drivable_area(
         iterable_regions = regions
 
     for i, region in iterable_regions:
-        #Naively check every square within requested area
         center_tuple = (region.center.x, region.center.y)
         birdview = iai.location_info(
             location=location,
@@ -123,7 +121,6 @@ def get_number_of_agents_per_region_by_drivable_area(
             rendering_center=center_tuple
         ).birdview_image.decode()
 
-        ## Get number of black pixels
         birdview_arr_shape = birdview.shape
         total_num_pixels = birdview_arr_shape[0]*birdview_arr_shape[1]
         number_of_black_pix = np.sum(birdview.sum(axis=-1) == 0)
@@ -178,8 +175,7 @@ def region_initialize(
     conditional agents to :func:`initialize`. Regions will be rejected and :func:`initialize` 
     will not be called if it is not possible for agents to exist there (e.g. there are no 
     drivable surfaces present) or if the agent density criterion is already satisfied. As well,
-    predefined agents may be passed and will be considered as conditional within the 
-    appropriate region.
+    predefined agents may be passed via the regions and will be considered as conditional. 
 
     Arguments
     ----------
@@ -251,7 +247,6 @@ def region_initialize(
         all_agent_attributes = conditional_agent_attributes + region.agent_attributes
 
         try:
-            # Initialize simulation with an API call
             response = iai.initialize(
                 location=location,
                 states_history=None if len(all_agent_states) == 0 else [all_agent_states],
@@ -264,7 +259,6 @@ def region_initialize(
             )
 
             if traffic_light_state_history is None and response.traffic_lights_states is not None:
-                # If no traffic light states are given, take the first non-None traffic light states output as the consistent traffic light states across all areas
                 traffic_light_state_history = [response.traffic_lights_states]
 
         except InvertedAIError as e:
@@ -277,8 +271,8 @@ def region_initialize(
         response_recurrent_states_sampled = response.recurrent_states[len(all_agent_states):]
 
         # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
-        # SLACK is for removing the agents that are very close to the boundary and
-        # they may collide agents not filtered as conditional
+        # SLACK is for removing the agents that are very close to the boundary and they may collide with agents not 
+        # labelled as conditional
         valid_agents = list(filter(
             lambda x: inside_fov(center=region_center, agent_scope_fov=region_size - SLACK, point=x[0].center),
             zip(response_agent_states_sampled, response_agent_attributes_sampled, response_recurrent_states_sampled)
@@ -292,10 +286,6 @@ def region_initialize(
         regions[i].agent_states = response.agent_states[predefined_agents_slice] + valid_agent_state
         regions[i].agent_attributes = response.agent_attributes[predefined_agents_slice] + valid_agent_attrs
         regions[i].recurrent_states = response.recurrent_states[predefined_agents_slice] + valid_agent_rs
-
-        # if get_birdview:
-        #     file_path = f"{save_birdviews_to}_{(region_center.x, region_center.y)}.jpg"
-        #     response.birdview.decode_and_save(file_path)
 
     all_agent_states, all_agent_attributes, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
 
