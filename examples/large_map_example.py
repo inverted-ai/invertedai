@@ -5,7 +5,6 @@ import invertedai as iai
 from area_drive.area_drive import AreaDriver, AreaDriverConfig
 
 import argparse
-import pygame
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import time

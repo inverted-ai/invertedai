@@ -1,8 +1,10 @@
 from typing import Tuple, Optional, List
-from pygame.math import Vector2
 from dataclasses import dataclass
 import numpy as np
-import pygame
+try:
+    import pygame
+except ImportError:
+    pygame = None
 import asyncio
 import time
 import random
@@ -106,11 +108,11 @@ class AreaDriver:
         )
 
         self.boundary = Rectangle(
-            Vector2(
+            (
                 self.cfg.area_center[0] - (self.area_fov / 2),
                 self.cfg.area_center[1] - (self.area_fov / 2)
             ),
-            Vector2((self.area_fov, self.area_fov)),
+            (self.area_fov, self.area_fov),
             convertors=(self.convert_to_pygame_coords, self.convert_to_pygame_scales)
         )
 
