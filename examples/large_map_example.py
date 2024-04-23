@@ -1,11 +1,6 @@
-import sys
-sys.path.append('../')
-
 import invertedai as iai
-from area_drive.area_drive import AreaDriver, AreaDriverConfig
 
 import argparse
-import pygame
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import time
@@ -32,20 +27,19 @@ def main(args):
         print(f"Begin initialization.") 
         response = iai.region_initialize(
             location = args.location,
-            regions = iai.get_regions_density_by_road_area(
+            regions = iai.get_number_of_agents_per_region_by_drivable_area(
                 location = args.location,
                 regions = iai.define_regions_grid(
-                    map_center = map_center,
                     width = int(args.width/2), 
-                    height = int(args.height/2) 
+                    height = int(args.height/2),
+                    map_center = map_center
                 ),
-                max_agent_density = args.agent_density,
-                scaling_factor = 1.0
+                max_agents_per_region = args.agent_density
             ),
             random_seed = initialize_seed
         )
 
-        print(f"Set up simulation.")    
+        print(f"Set up simulation.")
         if args.save_sim_gif:
             rendered_static_map = location_info_response.birdview_image.decode()
             scene_plotter = iai.utils.ScenePlotter(
@@ -73,12 +67,11 @@ def main(args):
                 agent_states = response.agent_states,
                 agent_attributes = agent_attributes,
                 recurrent_states = response.recurrent_states,
-                traffic_lights_states = response.traffic_lights_states,
                 light_recurrent_states = response.light_recurrent_states,
                 random_seed = drive_seed,
                 api_model_version = model_version,
                 capacity = args.capacity,
-                is_async = True
+                is_async = args.is_async
             )
 
             if args.save_sim_gif: scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
@@ -151,6 +144,12 @@ if __name__ == '__main__':
         nargs='+',
         help=f"Center of the area to initialize",
         default=[0,0]
+    )
+    argparser.add_argument(
+        '--is-async',
+        type=bool,
+        help=f"Whether to call drive asynchronously.",
+        default=True
     )
     argparser.add_argument(
         '--save-sim-gif',

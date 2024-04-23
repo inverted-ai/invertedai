@@ -10,7 +10,7 @@ from invertedai.api.drive import DriveResponse
 
 BUFFER_FOV = 35
 
-class Particle(BaseModel):
+class AgentInfo(BaseModel):
     """
     All information relevant to a particular agent
 
@@ -48,21 +48,36 @@ class QuadTree:
         self.southWest = None
         self.southEast = None
 
-        self.region_buffer = Region.fromlist([self.region.center,self.region.fov+2*BUFFER_FOV])
+        self.region_buffer = Region.init_square_region(
+            center=self.region.center,
+            size=self.region.size+2*BUFFER_FOV
+        )
         self.particles = []
         self.particles_buffer = []
 
     def subdivide(self):
         parent = self.region
-        new_fov = self.region.fov/2
-        new_center_dist = new_fov/2
+        new_size = self.region.size/2
+        new_center_dist = new_size/2
         parent_x = parent.center.x
         parent_y = parent.center.y
 
-        region_nw = Region.fromlist([Point.fromlist([parent_x-new_center_dist,parent_y+new_center_dist]),new_fov])
-        region_ne = Region.fromlist([Point.fromlist([parent_x+new_center_dist,parent_y+new_center_dist]),new_fov])
-        region_sw = Region.fromlist([Point.fromlist([parent_x-new_center_dist,parent_y-new_center_dist]),new_fov])
-        region_se = Region.fromlist([Point.fromlist([parent_x+new_center_dist,parent_y-new_center_dist]),new_fov])
+        region_nw = Region.init_square_region(
+            center=Point.fromlist([parent_x-new_center_dist,parent_y+new_center_dist]),
+            size=new_size
+        )
+        region_ne = Region.init_square_region(
+            center=Point.fromlist([parent_x+new_center_dist,parent_y+new_center_dist]),
+            size=new_size
+        )
+        region_sw = Region.init_square_region(
+            center=Point.fromlist([parent_x-new_center_dist,parent_y-new_center_dist]),
+            size=new_size
+        )
+        region_se = Region.init_square_region(
+            center=Point.fromlist([parent_x+new_center_dist,parent_y-new_center_dist]),
+            size=new_size
+        )
 
         self.northWest = QuadTree(self.capacity,region_nw)
         self.northEast = QuadTree(self.capacity,region_ne)
@@ -238,16 +253,19 @@ def region_drive(
         agent_x[i] = agent.center.x
         agent_y[i] = agent.center.y
     max_x, min_x, max_y, min_y = max(agent_x), min(agent_x), max(agent_y), min(agent_y)
-    region_fov = ceil(max(max_x,max_y) - min(min_x,min_y)) #Round up the starting FOV to an integer to reduce floating point issues
+    region_size = ceil(max(max_x,max_y) - min(min_x,min_y)) #Round up the starting FOV to an integer to reduce floating point issues
     region_center = ((max_x+min_x)/2,(max_y+min_y)/2)
 
     quadtree = QuadTree(
         capacity=capacity,
-        region=Region.fromlist([Point.fromlist(list(region_center)),region_fov]),
+        region=Region.init_square_region(
+            Point.fromlist(list(region_center)),
+            region_size
+        ),
     )
     for i, (agent, attrs, recurr_state) in enumerate(zip(agent_states,agent_attributes,recurrent_states)):
-        particle = Particle.fromlist([agent, attrs, recurr_state, i])
-        is_inserted = quadtree.insert(particle)
+        agent_info = AgentInfo.fromlist([agent, attrs, recurr_state, i])
+        is_inserted = quadtree.insert(agent_info)
 
     all_leaf_nodes = quadtree.get_leaf_nodes()
     async_input_params = []

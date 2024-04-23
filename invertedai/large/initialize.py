@@ -17,11 +17,30 @@ AGENT_SCOPE_FOV_BUFFER = 20
 
 @validate_call
 def define_regions_grid(
-    map_center: Optional[Tuple[float,float]] = (0.0,0.0),
-    width: Optional[float] = 100.0, 
-    height: Optional[float] = 100.0, 
+    width: float,
+    height: float,
+    map_center: Optional[Tuple[float,float]] = (0.0,0.0), 
     stride: Optional[float] = 50.0
 ) -> List[Region]:
+    """
+    A utility function to initialize an area larger than 100x100m. This function breaks up an 
+    area into a grid of 100x100m regions on which each can be initialized.
+
+    Arguments
+    ----------
+    width:
+        The horizontal size of the area which will be broken into smaller regions.
+
+    height:
+        The vertical size of the area which will be broken into smaller regions.
+
+    map_center:
+        The coordinates of the center of the rectangular area to be broken into smaller regions.
+
+    stride:
+        How far apart the centers of the 100x100m regions should be. Some overlap is recommended for best results.
+    
+    """
     def check_valid_center(center):
         return (map_center[0] - width) < center[0] < (map_center[0] + width) and \
             (map_center[1] - height) < center[1] < (map_center[1] + height)
@@ -47,23 +66,45 @@ def define_regions_grid(
     
     regions = [None]*len(centers)
     for i, center in enumerate(centers):
-        regions[i] = Region.fromlist([Point.fromlist(list(center))])
+        regions[i] = Region.init_square_region(center=Point.fromlist(list(center)))
 
     return regions
 
 @validate_call
-def get_regions_density_by_road_area(
+def get_number_of_agents_per_region_by_drivable_area(
     location: str,
     regions: List[Region],
-    max_agent_density: Optional[int] = 10,
-    scaling_factor: Optional[float] = 1.0,
+    max_agents_per_region: Optional[int] = 10,
     display_progress_bar: Optional[bool] = True
 ) -> List[Region]:
+    """
+    This function takes in a list of regions, infers the total drivable surface area per region by calculating 
+    the number of black pixels (non-drivable surfaces), then inserts a number of default AgentAttributes objects
+    into the region to be initialized porportional to its drivable surface area relative to the other regions.
+
+    Arguments
+    ----------
+    location:
+        Location name in IAI format.
+
+    regions:
+        A list of empty Regions (i.e. no pre-existing agent information) for which the number of agents to 
+        initialize is calculated. 
+
+    max_agents_per_region:
+        The maximum number of agents that can be initialized in any region. The region with the largest drivable
+        surface area will have this many agents initialized while other regions will have equal or fewer number 
+        of agents.
+
+    display_progress_bar:
+        A flag to control whether a command line progress bar is displayed for convenience.
+    
+    """
+
     #Get fraction of image that is a drivable surface (assume all non-black pixels are drivable)
     center_road_area_dict = {}
     max_drivable_area_ratio = 0
     
-    iterable_regions = None
     if display_progress_bar:
         iterable_regions = tenumerate(
             regions, 
@@ -78,17 +119,14 @@ def get_regions_density_by_road_area(
         center_tuple = (region.center.x, region.center.y)
         birdview = iai.location_info(
             location=location,
-            rendering_fov=int(region.get_region_fov()),
+            rendering_fov=int(region.size),
             rendering_center=center_tuple
         ).birdview_image.decode()
 
         ## Get number of black pixels
         birdview_arr_shape = birdview.shape
         total_num_pixels = birdview_arr_shape[0]*birdview_arr_shape[1]
-        # Convert to grayscale using Luminosity Method: gray = 0.114*B + 0.587*G + 0.299*R
-        # Image should be in BGR color pixel format
-        birdview_grayscale = np.matmul(birdview.reshape(total_num_pixels,3),np.array([[0.114],[0.587],[0.299]]))
-        number_of_black_pix = np.sum(birdview_grayscale == 0)
+        number_of_black_pix = np.sum(birdview.sum(axis=-1) == 0)
 
         drivable_area_ratio = (total_num_pixels-number_of_black_pix)/total_num_pixels 
         center_road_area_dict[center_tuple] = drivable_area_ratio
@@ -96,15 +134,19 @@ def get_regions_density_by_road_area(
         if drivable_area_ratio > max_drivable_area_ratio:
             max_drivable_area_ratio = drivable_area_ratio
 
-    new_regions = [None]*len(regions)
     for i, (region_center, drivable_ratio) in enumerate(center_road_area_dict.items()):
-        num_agents = _calculate_agent_density_max_scaled(max_agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio)
-        new_regions[i] = Region.fromlist([Point.fromlist(list(region_center))],agent_attributes=get_default_agent_attributes({"car":num_agents}))
+        num_agents = _calculate_agent_density_max_scaled(
+            agent_density=max_agents_per_region,
+            scaling_factor=1.0,
+            drivable_ratio=drivable_ratio,
+            max_drivable_area_ratio=max_drivable_area_ratio
+        )
+        regions[i].agent_attributes.extend(get_default_agent_attributes({"car":num_agents}))
 
-    return new_regions
+    return regions
 
 def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio):
-    return round(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio)) if drivable_ratio > 0.0 else 0
+    return max(round(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio)) if drivable_ratio > 0.0 else 0, 0)
 
 def _get_all_existing_agents_from_regions(regions):
     agent_states = []
@@ -181,7 +223,6 @@ def region_initialize(
         return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
                 (center.y - (agent_scope_fov / 2) < point.y < center.y + (agent_scope_fov / 2)))
     
-    iterable_regions = None
     if display_progress_bar:
         iterable_regions = tenumerate(
             regions, 
@@ -193,12 +234,12 @@ def region_initialize(
 
     for i, region in iterable_regions:
         region_center = region.center
-        region_fov = region.get_region_fov()
+        region_size = region.size
 
         existing_agent_states, existing_agent_attributes, _ = _get_all_existing_agents_from_regions(regions)
 
         conditional_agents = list(filter(
-            lambda x: inside_fov(center=region_center, agent_scope_fov=region_fov+AGENT_SCOPE_FOV_BUFFER, point=x[0].center), 
+            lambda x: inside_fov(center=region_center, agent_scope_fov=region_size+AGENT_SCOPE_FOV_BUFFER, point=x[0].center), 
             zip(existing_agent_states,existing_agent_attributes)
         ))
 
@@ -239,7 +280,7 @@ def region_initialize(
         # SLACK is for removing the agents that are very close to the boundary and
         # they may collide agents not filtered as conditional
         valid_agents = list(filter(
-            lambda x: inside_fov(center=region_center, agent_scope_fov=region_fov - SLACK, point=x[0].center),
+            lambda x: inside_fov(center=region_center, agent_scope_fov=region_size - SLACK, point=x[0].center),
             zip(response_agent_states_sampled, response_agent_attributes_sampled, response_recurrent_states_sampled)
         ))
 
