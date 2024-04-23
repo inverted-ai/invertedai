@@ -96,11 +96,10 @@ class Image(BaseModel):
     def decode_and_save(self, path):
         """
         Decode the image and save it to the specified path.
-        Requires numpy and cv2 to be available, otherwise raises `ImportError`.
         """
         image = self.decode()
-        import cv2
-        cv2.imwrite(path, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        image_pil = PImage.fromarray(image)
+        image_pil.save(path)
 
 
 class TrafficLightState(str, Enum):
