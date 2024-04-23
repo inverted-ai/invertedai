@@ -1,4 +1,7 @@
-import pygame
+try:
+    import pygame
+except ImportError:
+    pygame=None
 import math
 from invertedai.common import Point
 from typing import Tuple

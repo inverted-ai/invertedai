@@ -1,4 +1,3 @@
-from pygame.math import Vector2
 from area_drive.utils import Rectangle, RE_INITIALIZATION_PERIOD, DEBUG, AGENT_FOV
 from typing import List, Optional, Callable
 from random import randint
@@ -136,11 +135,11 @@ class QuadTree:
         self.buffer_length = AGENT_FOV
 
         self.boundary_buffer = Rectangle(
-            Vector2(
-                self.boundary.position.x-self.buffer_length,
-                self.boundary.position.y-self.buffer_length
+            (
+                self.boundary.position[0]-self.buffer_length,
+                self.boundary.position[1]-self.buffer_length
             ),
-            Vector2(self.boundary.scale[0]+self.buffer_length*2,self.boundary.scale[1]+self.buffer_length*2),
+            (self.boundary.scale[0]+self.buffer_length*2,self.boundary.scale[1]+self.buffer_length*2),
             convertors=self.convertors
         )
         self.region = Region(boundary=self.boundary_buffer, cfg=cfg)
@@ -150,7 +149,7 @@ class QuadTree:
         parent = self.boundary
 
         boundary_nw = Rectangle(
-            Vector2(
+            (
                 parent.position.x,
                 parent.position.y
             ),
@@ -158,7 +157,7 @@ class QuadTree:
             convertors=self.convertors
         )
         boundary_ne = Rectangle(
-            Vector2(
+            (
                 parent.position.x + parent.scale.x / 2,
                 parent.position.y
             ),
@@ -166,7 +165,7 @@ class QuadTree:
             convertors=self.convertors
         )
         boundary_sw = Rectangle(
-            Vector2(
+            (
                 parent.position.x,
                 parent.position.y + parent.scale.y / 2
             ),
@@ -174,7 +173,7 @@ class QuadTree:
             convertors=self.convertors
         )
         boundary_se = Rectangle(
-            Vector2(
+            (
                 parent.position.x + parent.scale.x / 2,
                 parent.position.y + parent.scale.y / 2
             ),
