@@ -14,7 +14,7 @@ from invertedai.utils import get_default_agent_attributes
 from invertedai.error import InvertedAIError
 
 AGENT_SCOPE_FOV_BUFFER = 20
-ATTEMPT_PER_NUM_REGIONS = 6
+ATTEMPT_PER_NUM_REGIONS = 15
 
 @validate_call
 def get_regions_default(
@@ -150,7 +150,8 @@ def get_number_of_agents_per_region_by_drivable_area(
     """
     This function takes in a list of regions, infers the total drivable surface area per region by calculating 
     the number of black pixels (non-drivable surfaces), then inserts a number of default AgentAttributes objects
-    into the region to be initialized porportional to its drivable surface area relative to the other regions.
+    into the region to be initialized porportional to its drivable surface area relative to the other regions. It
+    is possible for regions with none or small amounts of drivable surfaces to be assigned zero agents.
 
     Arguments
     ----------
@@ -234,7 +235,8 @@ def large_initialize(
     get_infractions: Optional[bool] = False,
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
-    display_progress_bar: Optional[bool] = True   
+    display_progress_bar: Optional[bool] = True,
+    return_exact_agents: Optional[bool] = False
 ) -> InitializeResponse:
     """
     A utility function to initialize an area larger than 100x100m. This function breaks up an 
@@ -269,6 +271,11 @@ def large_initialize(
 
     display_progress_bar:
         If True, a bar is displayed showing the progress of all relevant processes.
+
+    return_exact_agents:
+        If set to True, this function will raise an Exception if it cannot fit the requested number of agents in any single
+        region. If set to False, a region that fails to return the number of requested agents will be skipped and only its
+        predefined agents (if any) will be returned.
     
     See Also
     --------
@@ -314,10 +321,12 @@ def large_initialize(
         all_agent_states = out_of_region_conditional_agent_states + region_predefined_agent_states
         all_agent_attributes = out_of_region_conditional_agent_attributes + region_predefined_agent_attributes
 
+        num_out_of_region_conditional_agents = len(out_of_region_conditional_agent_states)
+
         regions[i].clear_agents()
-        for attempt in range(num_attempts):
-            try:
-                if len(all_agent_attributes) > 0:
+        if len(all_agent_attributes) > 0:
+            for attempt in range(num_attempts):
+                try:
                     response = iai.initialize(
                         location=location,
                         states_history=None if len(all_agent_states) == 0 else [all_agent_states],
@@ -328,20 +337,31 @@ def large_initialize(
                         random_seed=random_seed
                     )
 
-                    if traffic_light_state_history is None and response.traffic_lights_states is not None:
-                        traffic_light_state_history = [response.traffic_lights_states]
-                        light_recurrent_states = response.light_recurrent_states
-                else:
-                    #There are no agents to initialize within this region, break the loop and proceed to the next region
-                    break
+                except InvertedAIError as e:
+                    # If error has occurred, display the warning and retry
+                    iai.logger.warning(f"Region initialize attempt {attempt} error: {e}")
+                    continue
 
-            except InvertedAIError as e:
-                # If error has occurred, display the warning and retry
-                iai.logger.warning(f"Region initialize attempt {attempt} error: {e}")
-                continue
+                # Initialization of this region was successful, break the loop and proceed to the next region
+                break
+            
+            else:
+                if return_exact_agents: 
+                    raise Exception(f"Failed to initialize region at {region.center} with size {region.size} after {num_attempts} attempts.")
+                else:
+                    if len(region_predefined_agent_states) > 0:
+                    # Get the recurrent states for all predefined agents
+                        response = iai.initialize(
+                            location=location,
+                            states_history=[all_agent_states],
+                            agent_attributes=region_predefined_agent_attributes[:num_out_of_region_conditional_agents+len(region_predefined_agent_attributes)],
+                            get_infractions=get_infractions,
+                            traffic_light_state_history=traffic_light_state_history,
+                            location_of_interest=(region_center.x, region_center.y),
+                            random_seed=random_seed
+                        )
 
             # Filter out conditional agents from other regions
-            num_out_of_region_conditional_agents = len(out_of_region_conditional_agent_states)
             for state, attrs, r_state in zip(
                 response.agent_states[num_out_of_region_conditional_agents:],
                 response.agent_attributes[num_out_of_region_conditional_agents:],
@@ -349,11 +369,13 @@ def large_initialize(
             ):
                 regions[i].insert_all_agent_details(state,attrs,r_state)
 
-            # Initialization of this region was successful, break the loop and proceed to the next region
-            break
-        
-        else:
-            raise Exception(f"Failed to initialize region at {region.center} with size {region.size} after {num_attempts} attempts.")
+            if traffic_light_state_history is None and response.traffic_lights_states is not None:
+                traffic_light_state_history = [response.traffic_lights_states]
+                light_recurrent_states = response.light_recurrent_states
+    else:
+        #There are no agents to initialize within this region, proceed to the next region
+        continue
+
 
     all_agent_states, all_agent_attributes, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
 
