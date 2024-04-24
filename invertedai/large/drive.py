@@ -167,9 +167,6 @@ def large_drive(
     recurrent_states: Optional[List[RecurrentState]] = None,
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[LightRecurrentStates] = None,
-    get_birdview: bool = False,
-    rendering_center: Optional[Tuple[float, float]] = None,
-    rendering_fov: Optional[float] = None,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
@@ -210,16 +207,6 @@ def large_drive(
        Specifies the state and time remaining for each light group in the map.
        If manual control of individual traffic lights is desired, modify the relevant state(s) 
        in traffic_lights_states, then pass in light_recurrent_states as usual.
-
-    get_birdview:
-        Whether to return an image visualizing the simulation state.
-        This is very slow and should only be used for debugging.
-
-    rendering_center:
-        Optional center coordinates for the rendered birdview.
-
-    rendering_fov:
-        Optional fov for the rendered birdview.
 
     get_infractions:
         Whether to check predicted agent states for infractions.
@@ -285,9 +272,9 @@ def large_drive(
                 "recurrent_states":region.recurrent_states+region_buffer.recurrent_states,
                 "light_recurrent_states":light_recurrent_states,
                 "traffic_lights_states":traffic_lights_states,
-                "get_birdview":get_birdview,
-                "rendering_center":rendering_center,
-                "rendering_fov":rendering_fov,
+                "get_birdview":False,
+                "rendering_center":None,
+                "rendering_fov":None,
                 "get_infractions":get_infractions,
                 "random_seed":random_seed,
                 "api_model_version":api_model_version
@@ -306,7 +293,7 @@ def large_drive(
         is_inside_supported_area = _flatten_and_sort([response.is_inside_supported_area[:len(region.agent_attributes)] for response, region in zip(all_responses,non_empty_regions)],agent_id_order),
         infractions = [] if not get_infractions else _flatten_and_sort([response.infractions[:len(region.agent_attributes)] for response, region in zip(all_responses,non_empty_regions)],agent_id_order),
         api_model_version = '' if len(all_responses) == 0 else all_responses[0].api_model_version,
-        birdview = None if len(all_responses) == 0 or not get_birdview else all_responses[0].birdview,
+        birdview = None,
         traffic_lights_states = traffic_lights_states if len(all_responses) == 0 else all_responses[0].traffic_lights_states,
         light_recurrent_states = light_recurrent_states if len(all_responses) == 0 else all_responses[0].light_recurrent_states
     )

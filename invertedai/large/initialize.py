@@ -12,7 +12,6 @@ from invertedai.common import TrafficLightStatesDict, Point
 from invertedai.utils import get_default_agent_attributes
 from invertedai.error import InvertedAIError
 
-SLACK = 2
 AGENT_SCOPE_FOV_BUFFER = 20
 
 @validate_call
@@ -162,7 +161,6 @@ def large_initialize(
     location: str,
     regions: List[Region],
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
-    get_birdview: Optional[bool] = False,
     get_infractions: Optional[bool] = False,
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
@@ -190,10 +188,6 @@ def large_initialize(
         the last element is the current state. If there are traffic lights in the map, 
         not specifying traffic light state is equivalent to using iai generated light states.
 
-    get_birdview:
-        If True, a birdview image will be returned representing the current world. Note this will significantly
-        impact on the latency.
-
     get_infractions:
         If True, infraction metrics will be returned for each agent.
     
@@ -214,6 +208,7 @@ def large_initialize(
     agent_states_sampled = []
     agent_attributes_sampled = []
     agent_rs_sampled = []
+    light_recurrent_states = None
 
     def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
         return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
@@ -234,63 +229,57 @@ def large_initialize(
 
         existing_agent_states, existing_agent_attributes, _ = _get_all_existing_agents_from_regions(regions)
 
-        conditional_agents = list(filter(
+        # Acquire agents that exist in other regions that must be passed as conditional to avoid collisions
+        out_of_region_conditional_agents = list(filter(
             lambda x: inside_fov(center=region_center, agent_scope_fov=region_size+AGENT_SCOPE_FOV_BUFFER, point=x[0].center), 
             zip(existing_agent_states,existing_agent_attributes)
         ))
 
-        conditional_agent_states = [x[0] for x in conditional_agents]
-        conditional_agent_attributes = [x[1] for x in conditional_agents]
+        out_of_region_conditional_agent_states = [x[0] for x in out_of_region_conditional_agents]
+        out_of_region_conditional_agent_attributes = [x[1] for x in out_of_region_conditional_agents]
 
         region_predefined_agent_states = [] if region.agent_states is None else region.agent_states
-        all_agent_states = conditional_agent_states + region_predefined_agent_states
-        all_agent_attributes = conditional_agent_attributes + region.agent_attributes
+        all_agent_states = out_of_region_conditional_agent_states + region_predefined_agent_states
+        all_agent_attributes = out_of_region_conditional_agent_attributes + region.agent_attributes
 
         try:
-            response = iai.initialize(
-                location=location,
-                states_history=None if len(all_agent_states) == 0 else [all_agent_states],
-                agent_attributes=[] if len(all_agent_attributes) == 0 else all_agent_attributes,
-                get_infractions=get_infractions,
-                traffic_light_state_history=traffic_light_state_history,
-                location_of_interest=(region_center.x, region_center.y),
-                random_seed=random_seed,
-                get_birdview=get_birdview,
-            )
+            if len(all_agent_attributes) > 0:
+                response = iai.initialize(
+                    location=location,
+                    states_history=None if len(all_agent_states) == 0 else [all_agent_states],
+                    agent_attributes=all_agent_attributes,
+                    get_infractions=get_infractions,
+                    traffic_light_state_history=traffic_light_state_history,
+                    location_of_interest=(region_center.x, region_center.y),
+                    random_seed=random_seed
+                )
 
-            if traffic_light_state_history is None and response.traffic_lights_states is not None:
-                traffic_light_state_history = [response.traffic_lights_states]
+                if traffic_light_state_history is None and response.traffic_lights_states is not None:
+                    traffic_light_state_history = [response.traffic_lights_states]
+                    light_recurrent_states = response.light_recurrent_states
+            else:
+                #There are no agents to initialize within this region
+                continue
 
         except InvertedAIError as e:
             iai.logger.warning(e)
             continue
 
-        # Remove all predefined agents before filtering at the edges
-        response_agent_states_sampled = response.agent_states[len(all_agent_states):]
-        response_agent_attributes_sampled = response.agent_attributes[len(all_agent_states):]
-        response_recurrent_states_sampled = response.recurrent_states[len(all_agent_states):]
-
-        # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
-        # SLACK is for removing the agents that are very close to the boundary and they may collide with agents not 
-        # labelled as conditional
-        valid_agents = list(filter(
-            lambda x: inside_fov(center=region_center, agent_scope_fov=region_size - SLACK, point=x[0].center),
-            zip(response_agent_states_sampled, response_agent_attributes_sampled, response_recurrent_states_sampled)
-        ))
-
-        valid_agent_state = [x[0] for x in valid_agents]
-        valid_agent_attrs = [x[1] for x in valid_agents]
-        valid_agent_rs = [x[2] for x in valid_agents]
-
-        predefined_agents_slice = slice(len(conditional_agent_states),len(conditional_agent_states)+len(region_predefined_agent_states))
-        regions[i].agent_states = response.agent_states[predefined_agents_slice] + valid_agent_state
-        regions[i].agent_attributes = response.agent_attributes[predefined_agents_slice] + valid_agent_attrs
-        regions[i].recurrent_states = response.recurrent_states[predefined_agents_slice] + valid_agent_rs
+        # Filter out conditional agents from other regions
+        num_out_of_region_conditional_agents = len(out_of_region_conditional_agent_states)
+        regions[i].clear_agents()
+        for state, attrs, r_state in zip(
+            response.agent_states[num_out_of_region_conditional_agents:],
+            response.agent_attributes[num_out_of_region_conditional_agents:],
+            response.recurrent_states[num_out_of_region_conditional_agents:]
+        ):
+            regions[i].insert_all_agent_details(state,attrs,r_state)
 
     all_agent_states, all_agent_attributes, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
 
     response.agent_states = all_agent_states
     response.agent_attributes = all_agent_attributes
     response.recurrent_states = all_recurrent_states 
+    response.light_recurrent_states = light_recurrent_states
     
     return response
