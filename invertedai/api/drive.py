@@ -43,7 +43,7 @@ class DriveResponse(BaseModel):
     is_inside_supported_area: List[
         bool
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
-    traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light. Passing this to the next call of :func:`iai.drive` will set the traffic light states as provided, overriding the original light states given by 'light_recurrent_states'.
+    traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light. Passing this to the next call of :func:`iai.drive` sets the traffic light states accordingly, and overrides the light states given by 'light_recurrent_states'.
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group. Pass this to the next call of :func:`iai.drive` to continuously step all traffic light states.
     api_model_version: str  # Model version used for this API call
 
