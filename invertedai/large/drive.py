@@ -170,7 +170,7 @@ def large_drive(
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
-    capacity: Optional[int] = 100,
+    single_call_agent_limit: Optional[int] = None,
     is_async: Optional[bool] = True
 ) -> DriveResponse:
     """
@@ -219,7 +219,7 @@ def large_drive(
         Optionally specify the version of the model. If None is passed which is by default, 
         the best model will be used.
     
-    capacity:
+    single_call_agent_limit:
         The number of agents allowed in a region before it must subdivide. Currently this 
         value represents the capacity of a quadtree leaf node that will subdivide if the 
         number of vehicles in the region passes this threshold.
@@ -243,7 +243,7 @@ def large_drive(
     region_center = ((max_x+min_x)/2,(max_y+min_y)/2)
 
     quadtree = QuadTree(
-        capacity=capacity,
+        capacity=single_call_agent_limit,
         region=Region.init_square_region(
             Point.fromlist(list(region_center)),
             region_size

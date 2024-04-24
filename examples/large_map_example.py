@@ -25,20 +25,19 @@ def main(args):
         )
 
         print(f"Begin initialization.") 
-        response = iai.large_initialize(
+        regions = iai.get_regions_default(
             location = args.location,
-            regions = iai.get_number_of_agents_per_region_by_drivable_area(
-                location = args.location,
-                regions = iai.define_regions_grid(
-                    width = int(args.width/2), 
-                    height = int(args.height/2),
-                    map_center = map_center
-                ),
-                max_agents_per_region = args.agent_density
-            ),
-            random_seed = initialize_seed
+            total_num_agents = args.num_agents,
+            area_size = tuple([int(args.width/2),int(args.height/2)]),
+            map_center = map_center, 
         )
 
+        response = iai.large_initialize(
+            location = args.location,
+            regions = regions,
+            random_seed = initialize_seed
+        )
+        
         print(f"Set up simulation.")
         if args.save_sim_gif:
             rendered_static_map = location_info_response.birdview_image.decode()
@@ -82,7 +81,7 @@ def main(args):
             fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
             plt.axis('off')
             current_time = int(time.time())
-            gif_name = f'large_map_example_{current_time}_location-{args.location.split(":")[-1]}_density-{args.agent_density}_center-x{map_center[0]}y{map_center[1]}_width-{args.width}_height-{args.height}_initseed-{initialize_seed}_driveseed-{drive_seed}_modelversion-{model_version}.gif'
+            gif_name = f'large_map_example_{current_time}_location-{args.location.split(":")[-1]}_density-{args.num_agents}_center-x{map_center[0]}y{map_center[1]}_width-{args.width}_height-{args.height}_initseed-{initialize_seed}_driveseed-{drive_seed}_modelversion-{model_version}.gif'
             scene_plotter.animate_scene(
                 output_name=gif_name,
                 ax=ax,
@@ -95,8 +94,8 @@ def main(args):
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description=__doc__)
     argparser.add_argument(
-        '-D',
-        '--agent-density',
+        '-N',
+        '--num-agents',
         metavar='D',
         default=1,
         type=int,

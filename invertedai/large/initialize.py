@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 from itertools import product
 from tqdm.contrib import tenumerate
 import numpy as np
+from random import choices
 
 import invertedai as iai
 from invertedai.large.common import Region
@@ -13,9 +14,78 @@ from invertedai.utils import get_default_agent_attributes
 from invertedai.error import InvertedAIError
 
 AGENT_SCOPE_FOV_BUFFER = 20
+ATTEMPT_PER_NUM_REGIONS = 6
 
 @validate_call
-def define_regions_grid(
+def get_regions_default(
+    location: str,
+    total_num_agents: Optional[int] = None,
+    area_size: Optional[Tuple[float,float]] = None,
+    map_center: Optional[Tuple[float,float]] = (0.0,0.0),
+    random_seed: Optional[int] = None, 
+    display_progress_bar: Optional[bool] = True
+) -> List[Region]:
+    """
+    A utility function to create a set of Regions to be passed into :func:`large_initialize` in
+    a single convenient entry point. 
+
+    Arguments
+    ----------
+    location:
+        Location name in IAI format.
+
+    total_num_agents:
+        The total number of agents to initialize throughout all the regions.
+
+    area_size:
+        Contains the [width, height] of the area in which to create regions to be initialized.
+
+    map_center:
+        The coordinates of the center of the rectangular area to be broken into smaller regions.
+
+    random_seed:
+        Controls the stochastic aspects of assigning agents to regions for reproducibility.
+
+    display_progress_bar:
+        A flag to control whether a command line progress bar is displayed for convenience.
+    
+    """
+    if area_size is None:
+        location_response = iai.location_info(
+            location = location,
+            rendering_center = map_center
+        )
+        height, width = 100, 100
+        polygon_x, polygon_y = [], []
+        for pt in location_response.bounding_polygon:
+            polygon_x.append(pt.x)
+            polygon_y.append(pt.y)
+        width = max(polygon_x) - min(polygon_x)
+        height = max(polygon_y) - min(polygon_y)
+
+        area_size = tuple([width,height])
+
+    regions = iai.get_regions_in_grid(
+        width = area_size[0], 
+        height = area_size[1],
+        map_center = map_center
+    )
+
+    if total_num_agents is None:
+        total_num_agents = 10*len(regions)
+
+    new_regions = iai.get_number_of_agents_per_region_by_drivable_area(
+        location = location,
+        regions = regions,
+        total_num_agents = total_num_agents,
+        random_seed = random_seed,
+        display_progress_bar = display_progress_bar
+    )
+
+    return new_regions
+
+@validate_call
+def get_regions_in_grid(
     width: float,
     height: float,
     map_center: Optional[Tuple[float,float]] = (0.0,0.0), 
@@ -73,7 +143,8 @@ def define_regions_grid(
 def get_number_of_agents_per_region_by_drivable_area(
     location: str,
     regions: List[Region],
-    max_agents_per_region: Optional[int] = 10,
+    total_num_agents: Optional[int] = 10,
+    random_seed: Optional[int] = None,
     display_progress_bar: Optional[bool] = True
 ) -> List[Region]:
     """
@@ -90,18 +161,22 @@ def get_number_of_agents_per_region_by_drivable_area(
         A list of empty Regions (i.e. no pre-existing agent information) for which the number of agents to 
         initialize is calculated. 
 
-    max_agents_per_region:
-        The maximum number of agents that can be initialized in any region. The region with the largest drivable
-        surface area will have this many agents initialized while other regions will have equal or fewer number 
-        of agents.
+    total_num_agents:
+        The total number of agents to initialize throughout all the regions.
+
+    random_seed:
+        Controls the stochastic aspects of assigning agents to regions for reproducibility.
 
     display_progress_bar:
         A flag to control whether a command line progress bar is displayed for convenience.
     
     """
 
-    center_road_area_dict = {}
-    max_drivable_area_ratio = 0
+    region_road_area = []
+    total_drivable_area_ratio = 0
+
+    if random_seed is not None:
+        random.seed(random_seed)
     
     if display_progress_bar:
         iterable_regions = tenumerate(
@@ -125,24 +200,19 @@ def get_number_of_agents_per_region_by_drivable_area(
         number_of_black_pix = np.sum(birdview.sum(axis=-1) == 0)
 
         drivable_area_ratio = (total_num_pixels-number_of_black_pix)/total_num_pixels 
-        center_road_area_dict[center_tuple] = drivable_area_ratio
+        total_drivable_area_ratio += drivable_area_ratio
+        region_road_area.append(drivable_area_ratio)
 
-        if drivable_area_ratio > max_drivable_area_ratio:
-            max_drivable_area_ratio = drivable_area_ratio
+    # Select which region in which to assign agents using drivable area as weight
+    all_region_weights = [0]*len(regions)
+    for i, drivable_ratio in enumerate(region_road_area):
+        all_region_weights[i] = drivable_ratio/total_drivable_area_ratio
+    random_indexes = choices(list(range(len(regions))), weights=all_region_weights, k=total_num_agents)
 
-    for i, (region_center, drivable_ratio) in enumerate(center_road_area_dict.items()):
-        num_agents = _calculate_agent_density_max_scaled(
-            agent_density=max_agents_per_region,
-            scaling_factor=1.0,
-            drivable_ratio=drivable_ratio,
-            max_drivable_area_ratio=max_drivable_area_ratio
-        )
-        regions[i].agent_attributes.extend(get_default_agent_attributes({"car":num_agents}))
+    for ind in random_indexes:
+        regions[ind].agent_attributes.extend(get_default_agent_attributes({"car":1}))
 
     return regions
-
-def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio):
-    return max(round(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio)) if drivable_ratio > 0.0 else 0, 0)
 
 def _get_all_existing_agents_from_regions(regions):
     agent_states = []
@@ -223,6 +293,7 @@ def large_initialize(
     else:
         iterable_regions = regions
 
+    num_attempts = 1 + len(regions) // ATTEMPT_PER_NUM_REGIONS
     for i, region in iterable_regions:
         region_center = region.center
         region_size = region.size
@@ -239,41 +310,50 @@ def large_initialize(
         out_of_region_conditional_agent_attributes = [x[1] for x in out_of_region_conditional_agents]
 
         region_predefined_agent_states = [] if region.agent_states is None else region.agent_states
+        region_predefined_agent_attributes = [] if region.agent_attributes is None else region.agent_attributes
         all_agent_states = out_of_region_conditional_agent_states + region_predefined_agent_states
-        all_agent_attributes = out_of_region_conditional_agent_attributes + region.agent_attributes
+        all_agent_attributes = out_of_region_conditional_agent_attributes + region_predefined_agent_attributes
 
-        try:
-            if len(all_agent_attributes) > 0:
-                response = iai.initialize(
-                    location=location,
-                    states_history=None if len(all_agent_states) == 0 else [all_agent_states],
-                    agent_attributes=all_agent_attributes,
-                    get_infractions=get_infractions,
-                    traffic_light_state_history=traffic_light_state_history,
-                    location_of_interest=(region_center.x, region_center.y),
-                    random_seed=random_seed
-                )
+        regions[i].clear_agents()
+        for attempt in range(num_attempts):
+            try:
+                if len(all_agent_attributes) > 0:
+                    response = iai.initialize(
+                        location=location,
+                        states_history=None if len(all_agent_states) == 0 else [all_agent_states],
+                        agent_attributes=all_agent_attributes,
+                        get_infractions=get_infractions,
+                        traffic_light_state_history=traffic_light_state_history,
+                        location_of_interest=(region_center.x, region_center.y),
+                        random_seed=random_seed
+                    )
 
-                if traffic_light_state_history is None and response.traffic_lights_states is not None:
-                    traffic_light_state_history = [response.traffic_lights_states]
-                    light_recurrent_states = response.light_recurrent_states
-            else:
-                #There are no agents to initialize within this region
+                    if traffic_light_state_history is None and response.traffic_lights_states is not None:
+                        traffic_light_state_history = [response.traffic_lights_states]
+                        light_recurrent_states = response.light_recurrent_states
+                else:
+                    #There are no agents to initialize within this region, break the loop and proceed to the next region
+                    break
+
+            except InvertedAIError as e:
+                # If error has occurred, display the warning and retry
+                iai.logger.warning(f"Region initialize attempt {attempt} error: {e}")
                 continue
 
-        except InvertedAIError as e:
-            iai.logger.warning(e)
-            continue
+            # Filter out conditional agents from other regions
+            num_out_of_region_conditional_agents = len(out_of_region_conditional_agent_states)
+            for state, attrs, r_state in zip(
+                response.agent_states[num_out_of_region_conditional_agents:],
+                response.agent_attributes[num_out_of_region_conditional_agents:],
+                response.recurrent_states[num_out_of_region_conditional_agents:]
+            ):
+                regions[i].insert_all_agent_details(state,attrs,r_state)
 
-        # Filter out conditional agents from other regions
-        num_out_of_region_conditional_agents = len(out_of_region_conditional_agent_states)
-        regions[i].clear_agents()
-        for state, attrs, r_state in zip(
-            response.agent_states[num_out_of_region_conditional_agents:],
-            response.agent_attributes[num_out_of_region_conditional_agents:],
-            response.recurrent_states[num_out_of_region_conditional_agents:]
-        ):
-            regions[i].insert_all_agent_details(state,attrs,r_state)
+            # Initialization of this region was successful, break the loop and proceed to the next region
+            break
+        
+        else:
+            raise Exception(f"Failed to initialize region at {region.center} with size {region.size} after {num_attempts} attempts.")
 
     all_agent_states, all_agent_attributes, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
 
