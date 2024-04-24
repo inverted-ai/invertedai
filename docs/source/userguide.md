@@ -64,7 +64,7 @@ of the map as well. Traffic light state changes dynamically and is controlled ex
 API. Each traffic light can be green, yellow, or red at any given point. Traffic light IDs are fixed and can be derived
 from the map, but for convenience we also provide traffic light IDs and the corresponding locations in LOCATION_INFO.
 For maps with traffic lights, the client is responsible for specifying their state on each call to INITIALIZE and DRIVE.
-This can be done either with manual setting of each light's state through 'traffic_lights_states, or let iai manage 
+This can be done either with manual setting of each light's state through 'traffic_lights_states', or let iai manage 
 light states through 'light_recurrent_states'. 
 
 ## Handling agents and NPCs
