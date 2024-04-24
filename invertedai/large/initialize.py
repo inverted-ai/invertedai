@@ -346,9 +346,11 @@ def large_initialize(
                 break
             
             else:
+                exception_string = f"Failed to initialize region at {region.center} with size {region.size} after {num_attempts} attempts."
                 if return_exact_agents: 
-                    raise Exception(f"Failed to initialize region at {region.center} with size {region.size} after {num_attempts} attempts.")
+                    raise Exception(exception_string)
                 else:
+                    iai.logger.warning(exception_string)
                     if len(region_predefined_agent_states) > 0:
                     # Get the recurrent states for all predefined agents
                         response = iai.initialize(
@@ -372,9 +374,9 @@ def large_initialize(
             if traffic_light_state_history is None and response.traffic_lights_states is not None:
                 traffic_light_state_history = [response.traffic_lights_states]
                 light_recurrent_states = response.light_recurrent_states
-    else:
-        #There are no agents to initialize within this region, proceed to the next region
-        continue
+        else:
+            #There are no agents to initialize within this region, proceed to the next region
+            continue
 
 
     all_agent_states, all_agent_attributes, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
