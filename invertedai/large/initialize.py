@@ -232,11 +232,11 @@ def large_initialize(
     location: str,
     regions: List[Region],
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
-    get_infractions: Optional[bool] = False,
+    get_infractions: bool = False,
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
-    display_progress_bar: Optional[bool] = True,
-    return_exact_agents: Optional[bool] = False
+    display_progress_bar: bool = True,
+    return_exact_agents: bool = False
 ) -> InitializeResponse:
     """
     A utility function to initialize an area larger than 100x100m. This function breaks up an 
@@ -346,7 +346,7 @@ def large_initialize(
                 break
             
             else:
-                exception_string = f"Failed to initialize region at {region.center} with size {region.size} after {num_attempts} attempts."
+                exception_string = f"Unable to initialize region at {region.center} with size {region.size} after {num_attempts} attempts."
                 if return_exact_agents: 
                     raise Exception(exception_string)
                 else:
