@@ -9,6 +9,7 @@ from invertedai.api.mock import (
     mock_update_agent_state,
     get_mock_birdview,
     get_mock_infractions,
+    get_mock_light_recurrent_states
 )
 from invertedai.error import APIConnectionError, InvalidInput
 from invertedai.common import (
@@ -136,6 +137,9 @@ def drive(
             recurrent_states=recurrent_states,
             birdview=birdview,
             infractions=infractions,
+            traffic_lights_states=traffic_lights_states if traffic_lights_states is not None else None,
+            light_recurrent_states=get_mock_light_recurrent_states(len(traffic_lights_states)) if traffic_lights_states is not None else None,
+            api_model_version=api_model_version if api_model_version is not None else "best"
         )
         return response
 
