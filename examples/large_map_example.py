@@ -69,8 +69,8 @@ def main(args):
                 light_recurrent_states = response.light_recurrent_states,
                 random_seed = drive_seed,
                 api_model_version = model_version,
-                capacity = args.capacity,
-                is_async = args.is_async
+                single_call_agent_limit = args.capacity,
+                async_api_calls = args.is_async
             )
 
             if args.save_sim_gif: scene_plotter.record_step(response.agent_states,response.traffic_lights_states)

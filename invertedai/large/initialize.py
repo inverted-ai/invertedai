@@ -133,7 +133,7 @@ def get_regions_in_grid(
         if center not in centers and check_valid_center(center):
             centers.append(center)
     
-    regions = [None]*len(centers)
+    regions = [None for _ in range(len(centers))]
     for i, center in enumerate(centers):
         regions[i] = Region.init_square_region(center=Point.fromlist(list(center)))
 
@@ -348,7 +348,7 @@ def large_initialize(
             else:
                 exception_string = f"Unable to initialize region at {region.center} with size {region.size} after {num_attempts} attempts."
                 if return_exact_agents: 
-                    raise Exception(exception_string)
+                    iai.logger.error(exception_string)
                 else:
                     iai.logger.warning(exception_string)
                     if len(region_predefined_agent_states) > 0:
