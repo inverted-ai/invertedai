@@ -35,10 +35,10 @@ def get_regions_default(
         Location name in IAI format.
 
     total_num_agents:
-        The total number of agents to initialize throughout all the regions.
+        The total number of agents to initialize across all regions.
 
     area_size:
-        Contains the [width, height] of the area in which to create regions to be initialized.
+        Contains the [width, height] of the rectangular area to be broken into smaller regions.
 
     map_center:
         The coordinates of the center of the rectangular area to be broken into smaller regions.
@@ -241,11 +241,13 @@ def large_initialize(
     """
     A utility function to initialize an area larger than 100x100m. This function breaks up an 
     area into a grid of 100x100m regions and runs initialize on them all. For any particular 
-    region of interest, existing agents in overlapping, neighbouring regions are passed as 
+    region of interest, existing agents near enough to the region of interest are passed as 
     conditional agents to :func:`initialize`. Regions will be rejected and :func:`initialize` 
     will not be called if it is not possible for agents to exist there (e.g. there are no 
-    drivable surfaces present) or if the agent density criterion is already satisfied. As well,
-    predefined agents may be passed via the regions and will be considered as conditional. 
+    drivable surfaces present). As well, predefined agents may be passed via the regions and 
+    will be considered as conditional. A boolean flag can be used to control failure behaviour
+    if :func:`initialize` is unable to produce viable vehicle placements if the initialization
+    should continue or raise an exception.
 
     Arguments
     ----------

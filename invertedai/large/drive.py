@@ -7,7 +7,7 @@ import invertedai as iai
 from invertedai.large.common import Region
 from invertedai.common import Point, AgentState, AgentAttributes, RecurrentState, TrafficLightStatesDict, LightRecurrentState
 from invertedai.api.drive import DriveResponse
-from ._quadtree import QuadTreeAgentInfo, QuadTree, _flatten_and_sort
+from ._quadtree import QuadTreeAgentInfo, QuadTree, _flatten_and_sort, QUADTREE_SIZE_BUFFER
 
 async def async_drive_all(async_input_params):
     all_responses = await asyncio.gather(*[iai.async_drive(**input_params) for input_params in async_input_params])
@@ -28,6 +28,12 @@ def large_drive(
     async_api_calls: bool = True
 ) -> DriveResponse:
     """
+    A utility function to drive more than the normal capacity of agents in a call to :func:`drive`.
+    The agents are inserted into a quadtree structure and :func:`drive` is then called on each
+    region represented by a leaf node of the quadtree. Agents near this region are included in the
+    :func:`drive` calls to ensure the agents behave properly locally. The quadtree is constructed 
+    during each call to this utility function to maintain statelessness.
+
     Parameters
     ----------
     location:
@@ -48,7 +54,7 @@ def large_drive(
 
     recurrent_states:
         Recurrent states for all agents, obtained from the previous call to
-        :func:`drive` or :func:`initialize`.
+        :func:`drive` or :func:`initialize` or the large equivalents.
 
     traffic_lights_states:
        If the location contains traffic lights within the supported area,
@@ -57,7 +63,7 @@ def large_drive(
 
     light_recurrent_states:
        Light recurrent states for all agents, obtained from the previous call to
-        :func:`drive` or :func:`initialize`.
+        :func:`drive` or :func:`initialize` or the large equivalents.
        Specifies the state and time remaining for each light group in the map.
        If manual control of individual traffic lights is desired, modify the relevant state(s) 
        in traffic_lights_states, then pass in light_recurrent_states as usual.
@@ -85,7 +91,7 @@ def large_drive(
     --------
     :func:`drive`
     """
-    
+
     # Validate input arguments
     if single_call_agent_limit is None:
         single_call_agent_limit = 100
@@ -96,8 +102,8 @@ def large_drive(
     agent_x = [agent.center.x for agent in agent_states]
     agent_y = [agent.center.y for agent in agent_states]
     max_x, min_x, max_y, min_y = max(agent_x), min(agent_x), max(agent_y), min(agent_y)
-    region_size = ceil(max(max_x - min_x, max_y - min_y))
-    region_center = ((max_x+min_x)/2,(max_y+min_y)/2)
+    region_size = ceil(max(max_x - min_x, max_y - min_y)) + QUADTREE_SIZE_BUFFER
+    region_center = (round((max_x+min_x)/2),round((max_y+min_y)/2))
 
     quadtree = QuadTree(
         capacity=single_call_agent_limit,
@@ -163,7 +169,7 @@ def large_drive(
         )
 
     else:
-        # Quad tree capacity has not been surpassed therefore can just call regular drive()
+        # Quadtree capacity has not been surpassed therefore can just call regular drive()
         response = iai.drive(
             location = location,
             agent_states = agent_states,

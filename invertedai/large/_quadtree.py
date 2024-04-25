@@ -5,6 +5,7 @@ from invertedai.large.common import Region
 from invertedai.common import Point, AgentState, AgentAttributes, RecurrentState
 
 BUFFER_FOV = 35
+QUADTREE_SIZE_BUFFER = 1
 
 class QuadTreeAgentInfo(BaseModel):
     """
