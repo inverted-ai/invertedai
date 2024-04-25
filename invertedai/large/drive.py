@@ -85,101 +85,98 @@ def large_drive(
     --------
     :func:`drive`
     """
+    
     # Validate input arguments
-    try:
-        if single_call_agent_limit is None:
-            single_call_agent_limit = 100
-        if not (len(agent_states) == len(agent_attributes) == len(recurrent_states)):
-            iai.logger.error("Input lists are not of equal size.")
+    if single_call_agent_limit is None:
+        single_call_agent_limit = 100
+    if not (len(agent_states) == len(agent_attributes) == len(recurrent_states)):
+        iai.logger.error("Input lists are not of equal size.")
 
-        # Generate quadtree
-        agent_x = [agent.center.x for agent in agent_states]
-        agent_y = [agent.center.y for agent in agent_states]
-        max_x, min_x, max_y, min_y = max(agent_x), min(agent_x), max(agent_y), min(agent_y)
-        region_size = ceil(max(max_x - min_x, max_y - min_y))
-        region_center = ((max_x+min_x)/2,(max_y+min_y)/2)
+    # Generate quadtree
+    agent_x = [agent.center.x for agent in agent_states]
+    agent_y = [agent.center.y for agent in agent_states]
+    max_x, min_x, max_y, min_y = max(agent_x), min(agent_x), max(agent_y), min(agent_y)
+    region_size = ceil(max(max_x - min_x, max_y - min_y))
+    region_center = ((max_x+min_x)/2,(max_y+min_y)/2)
 
-        quadtree = QuadTree(
-            capacity=single_call_agent_limit,
-            region=Region.init_square_region(
-                center=Point.fromlist(list(region_center)),
-                size=region_size
-            ),
+    quadtree = QuadTree(
+        capacity=single_call_agent_limit,
+        region=Region.init_square_region(
+            center=Point.fromlist(list(region_center)),
+            size=region_size
+        ),
+    )
+    for i, (agent, attrs, recurr_state) in enumerate(zip(agent_states,agent_attributes,recurrent_states)):
+        agent_info = QuadTreeAgentInfo.fromlist([agent, attrs, recurr_state, i])
+        is_inserted = quadtree.insert(agent_info)
+
+        if not is_inserted:
+            iai.logger.error(f"Unable to insert agent into region.")
+
+    
+    # Call DRIVE API on all leaf nodes
+    all_leaf_nodes = quadtree.get_leaf_nodes()
+    async_input_params = []
+    all_responses = []
+    non_empty_nodes = []
+    agent_id_order = []
+    
+    if len(all_leaf_nodes) > 1:
+        for i, leaf_node in enumerate(all_leaf_nodes):
+            region, region_buffer = leaf_node.region, leaf_node.region_buffer
+            region_agents_ids = [particle.agent_id for particle in leaf_node.particles]
+            
+            if len(region.agent_states) > 0:
+                non_empty_nodes.append(leaf_node)
+                agent_id_order.extend(region_agents_ids)
+                input_params = {
+                    "location":location,
+                    "agent_attributes":region.agent_attributes+region_buffer.agent_attributes,
+                    "agent_states":region.agent_states+region_buffer.agent_states,
+                    "recurrent_states":region.recurrent_states+region_buffer.recurrent_states,
+                    "light_recurrent_states":light_recurrent_states,
+                    "traffic_lights_states":traffic_lights_states,
+                    "get_birdview":False,
+                    "rendering_center":None,
+                    "rendering_fov":None,
+                    "get_infractions":get_infractions,
+                    "random_seed":random_seed,
+                    "api_model_version":api_model_version
+                }
+                if not async_api_calls:
+                    all_responses.append(iai.drive(**input_params))
+                else:
+                    async_input_params.append(input_params)
+
+        if async_api_calls:
+            all_responses = asyncio.run(async_drive_all(async_input_params))
+
+        response = DriveResponse(
+            agent_states = _flatten_and_sort([region_response.agent_states[:leaf_node.get_number_of_agents_in_node()] for region_response, leaf_node in zip(all_responses,non_empty_nodes)],agent_id_order),
+            recurrent_states = _flatten_and_sort([region_response.recurrent_states[:leaf_node.get_number_of_agents_in_node()] for region_response, leaf_node in zip(all_responses,non_empty_nodes)],agent_id_order),
+            is_inside_supported_area = _flatten_and_sort([region_response.is_inside_supported_area[:leaf_node.get_number_of_agents_in_node()] for region_response, leaf_node in zip(all_responses,non_empty_nodes)],agent_id_order),
+            infractions = [] if not get_infractions else _flatten_and_sort([region_response.infractions[:leaf_node.get_number_of_agents_in_node()] for region_response, leaf_node in zip(all_responses,non_empty_nodes)],agent_id_order),
+            api_model_version = all_responses[0].api_model_version,
+            birdview = None,
+            traffic_lights_states = all_responses[0].traffic_lights_states,
+            light_recurrent_states = all_responses[0].light_recurrent_states
         )
-        for i, (agent, attrs, recurr_state) in enumerate(zip(agent_states,agent_attributes,recurrent_states)):
-            agent_info = QuadTreeAgentInfo.fromlist([agent, attrs, recurr_state, i])
-            is_inserted = quadtree.insert(agent_info)
 
-            if not is_inserted:
-                iai.logger.error(f"Unable to insert agent into region.")
-
-        
-        # Call DRIVE API on all leaf nodes
-        all_leaf_nodes = quadtree.get_leaf_nodes()
-        async_input_params = []
-        all_responses = []
-        non_empty_nodes = []
-        agent_id_order = []
-        
-        if len(all_leaf_nodes) > 1:
-            for i, leaf_node in enumerate(all_leaf_nodes):
-                region, region_buffer = leaf_node.region, leaf_node.region_buffer
-                region_agents_ids = [particle.agent_id for particle in leaf_node.particles]
-                
-                if len(region.agent_states) > 0:
-                    non_empty_nodes.append(leaf_node)
-                    agent_id_order.extend(region_agents_ids)
-                    input_params = {
-                        "location":location,
-                        "agent_attributes":region.agent_attributes+region_buffer.agent_attributes,
-                        "agent_states":region.agent_states+region_buffer.agent_states,
-                        "recurrent_states":region.recurrent_states+region_buffer.recurrent_states,
-                        "light_recurrent_states":light_recurrent_states,
-                        "traffic_lights_states":traffic_lights_states,
-                        "get_birdview":False,
-                        "rendering_center":None,
-                        "rendering_fov":None,
-                        "get_infractions":get_infractions,
-                        "random_seed":random_seed,
-                        "api_model_version":api_model_version
-                    }
-                    if not async_api_calls:
-                        all_responses.append(iai.drive(**input_params))
-                    else:
-                        async_input_params.append(input_params)
-
-            if async_api_calls:
-                all_responses = asyncio.run(async_drive_all(async_input_params))
-
-            response = DriveResponse(
-                agent_states = _flatten_and_sort([region_response.agent_states[:leaf_node.get_number_of_agents_in_node()] for region_response, leaf_node in zip(all_responses,non_empty_nodes)],agent_id_order),
-                recurrent_states = _flatten_and_sort([region_response.recurrent_states[:leaf_node.get_number_of_agents_in_node()] for region_response, leaf_node in zip(all_responses,non_empty_nodes)],agent_id_order),
-                is_inside_supported_area = _flatten_and_sort([region_response.is_inside_supported_area[:leaf_node.get_number_of_agents_in_node()] for region_response, leaf_node in zip(all_responses,non_empty_nodes)],agent_id_order),
-                infractions = [] if not get_infractions else _flatten_and_sort([region_response.infractions[:leaf_node.get_number_of_agents_in_node()] for region_response, leaf_node in zip(all_responses,non_empty_nodes)],agent_id_order),
-                api_model_version = all_responses[0].api_model_version,
-                birdview = None,
-                traffic_lights_states = all_responses[0].traffic_lights_states,
-                light_recurrent_states = all_responses[0].light_recurrent_states
-            )
-
-        else:
-            # Quad tree capacity has not been surpassed therefore can just call regular drive()
-            response = iai.drive(
-                location = location,
-                agent_states = agent_states,
-                agent_attributes = agent_attributes,
-                recurrent_states = recurrent_states,
-                traffic_lights_states = traffic_lights_states,
-                light_recurrent_states = light_recurrent_states,
-                get_birdview = False,
-                rendering_center = None,
-                rendering_fov = None,
-                get_infractions = get_infractions,
-                random_seed = random_seed,
-                api_model_version = api_model_version
-            )
-    except Exception as e:
-        print(f"Error: {e}")
-        breakpoint()
+    else:
+        # Quad tree capacity has not been surpassed therefore can just call regular drive()
+        response = iai.drive(
+            location = location,
+            agent_states = agent_states,
+            agent_attributes = agent_attributes,
+            recurrent_states = recurrent_states,
+            traffic_lights_states = traffic_lights_states,
+            light_recurrent_states = light_recurrent_states,
+            get_birdview = False,
+            rendering_center = None,
+            rendering_fov = None,
+            get_infractions = get_infractions,
+            random_seed = random_seed,
+            api_model_version = api_model_version
+        )
 
     return response
