@@ -45,7 +45,7 @@ class QuadTree:
         self.southWest = None
         self.southEast = None
 
-        self.region_buffer = Region.init_square_region(
+        self.region_buffer = Region.create_square_region(
             center=self.region.center,
             size=self.region.size+2*BUFFER_FOV
         )
@@ -59,19 +59,19 @@ class QuadTree:
         parent_x = parent.center.x
         parent_y = parent.center.y
 
-        region_nw = Region.init_square_region(
+        region_nw = Region.create_square_region(
             center=Point.fromlist([parent_x-new_center_dist,parent_y+new_center_dist]),
             size=new_size
         )
-        region_ne = Region.init_square_region(
+        region_ne = Region.create_square_region(
             center=Point.fromlist([parent_x+new_center_dist,parent_y+new_center_dist]),
             size=new_size
         )
-        region_sw = Region.init_square_region(
+        region_sw = Region.create_square_region(
             center=Point.fromlist([parent_x-new_center_dist,parent_y-new_center_dist]),
             size=new_size
         )
-        region_se = Region.init_square_region(
+        region_se = Region.create_square_region(
             center=Point.fromlist([parent_x+new_center_dist,parent_y-new_center_dist]),
             size=new_size
         )
@@ -101,8 +101,8 @@ class QuadTree:
         return is_inserted_in_this_branch
 
     def insert(self, particle, is_particle_placed=False):
-        is_in_region = self.region.check_point_in_bounding_box(particle.agent_state.center)
-        is_in_buffer = self.region_buffer.check_point_in_bounding_box(particle.agent_state.center)
+        is_in_region = self.region.is_inside(particle.agent_state.center)
+        is_in_buffer = self.region_buffer.is_inside(particle.agent_state.center)
 
         if (not is_in_region) and (not is_in_buffer):
             return False

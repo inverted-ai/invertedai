@@ -28,7 +28,7 @@ def main(args):
         regions = iai.get_regions_default(
             location = args.location,
             total_num_agents = args.num_agents,
-            area_size = tuple([int(args.width/2),int(args.height/2)]),
+            area_shape = (int(args.width/2),int(args.height/2)),
             map_center = map_center, 
         )
 
