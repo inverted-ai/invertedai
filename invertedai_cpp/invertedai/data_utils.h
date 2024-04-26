@@ -14,7 +14,7 @@ using AttrVariant = std::variant<double, std::string>;
 namespace invertedai {
 
 const std::map<std::string, int> kControlType = {
-    {"traffic-light", 0},       {"yield", 1},       {"stop-sign", 2},
+    {"traffic_light", 0},       {"yield_sign", 1},       {"stop_sign", 2},
     {"traffic-light-actor", 3}, {"yield-actor", 4}, {"stop-sign-actor", 5}};
 
 /**
