@@ -106,7 +106,7 @@ def drive(
        'light_recurrent_states' to step the traffic lights. If provided, light states from 'traffic_light_states' will override
        the original light states given by 'light_recurrent_states'. The server does not currently support continuing user-provided light state sequences, 
        so once the states are provided at any step, they should also be provided on all subsequent steps to guarantee coherent light sequences.
-       If neither 'traffic_lights_states' nor 'light_recurrent_states' are provided, the server will realistically initialize the traffic light states,
+       If neither 'traffic_lights_states' nor 'light_recurrent_states' are provided, the server will arbitrarily initialize the traffic light states,
        and return the associated 'light_recurrent_states' in the response.
 
     light_recurrent_states:
