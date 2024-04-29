@@ -60,11 +60,14 @@ NPCs may negatively affect the quality of subsequent predictions.
 ## Traffic lights and other control signals
 Static traffic signals form a part of the map description and influence NPC predictions, but they are not exposed in the
 interface. Traffic light placement, in particular regarding which traffic light applies to which lanelet, forms a part
-of the map as well. Traffic light state changes dynamically and is controlled exclusively by the client when calling the
-API. Each traffic light can be green, yellow, or red at any given point. Traffic light IDs are fixed and can be derived
-from the map, but for convenience we also provide traffic light IDs and the corresponding locations in LOCATION_INFO.
-For maps with traffic lights, the client is responsible for specifying their state on each call to INITIALIZE and DRIVE.
-If no state is provided for any particular light, it will be considered absent.
+of the map as well. Traffic light state changes dynamically and can be automatically managed by the server when calling the API. 
+Each traffic light can be green, yellow, or red at any given point. 
+Traffic light IDs are fixed and can be derived from the map, but for convenience we also provide traffic light IDs 
+and the corresponding locations in LOCATION_INFO.
+For maps with traffic lights, on a call to INITIALIZE, the server generates a realistic configuration of all traffic lights,
+and returns the associated light states via 'light_recurrent_states'. On each call to DRIVE, traffic lights' states can be automatically managed by the server with 'light_recurrent_states'. 
+There is also the option to manually set light states with 'traffic_lights_states', but once this path is taken,
+it is on the client to continually provide 'traffic_lights_states' on all calls to DRIVE.
 
 ## Handling agents and NPCs
 In the API, there is no distinction between agents, controlled by you, and NPCs, controlled by us, so we refer to them
