@@ -27,6 +27,8 @@ class Region(BaseModel):
         agent_attributes: Optional[List[AgentAttributes]] = [], 
         recurrent_states: Optional[List[RecurrentState]] = []
     ):
+        cls.center = center
+        cls.size = size
         for agent in agent_states:
             assert cls.is_inside(cls,agent.center), f"Existing agent states at position {agent.center} must be located within the region."
 

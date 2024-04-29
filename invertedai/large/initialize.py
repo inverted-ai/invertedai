@@ -224,15 +224,16 @@ def get_number_of_agents_per_region_by_drivable_area(
 
     return new_regions
 
-def _get_all_existing_agents_from_regions(regions):
+def _get_all_existing_agents_from_regions(regions,exclude_index=None):
     agent_states = []
     agent_attributes = []
     recurrent_states = []
-    for region in regions:
-        region_agent_states = region.agent_states
-        agent_states.extend(region_agent_states)
-        agent_attributes.extend(region.agent_attributes[:len(region_agent_states)])
-        recurrent_states.extend(region.recurrent_states)
+    for ind, region in enumerate(regions):
+        if not ind == exclude_index:
+            region_agent_states = region.agent_states
+            agent_states.extend(region_agent_states)
+            agent_attributes.extend(region.agent_attributes[:len(region_agent_states)])
+            recurrent_states.extend(region.recurrent_states)
     
     return agent_states, agent_attributes, recurrent_states
 
@@ -319,7 +320,7 @@ def large_initialize(
         region_center = region.center
         region_size = region.size
 
-        existing_agent_states, existing_agent_attributes, _ = _get_all_existing_agents_from_regions(regions)
+        existing_agent_states, existing_agent_attributes, _ = _get_all_existing_agents_from_regions(regions,i)
 
         # Acquire agents that exist in other regions that must be passed as conditional to avoid collisions
         out_of_region_conditional_agents = list(filter(
@@ -330,10 +331,12 @@ def large_initialize(
         out_of_region_conditional_agent_states = [x[0] for x in out_of_region_conditional_agents]
         out_of_region_conditional_agent_attributes = [x[1] for x in out_of_region_conditional_agents]
 
-        region_predefined_agent_states = [] if region.agent_states is None else region.agent_states
-        region_predefined_agent_attributes = [] if region.agent_attributes is None else region.agent_attributes
-        all_agent_states = out_of_region_conditional_agent_states + region_predefined_agent_states
-        all_agent_attributes = out_of_region_conditional_agent_attributes + region_predefined_agent_attributes
+        region_conditional_agent_states = [] if region.agent_states is None else region.agent_states
+        num_region_conditional_agents = len(region_conditional_agent_states)
+        region_conditional_agent_attributes = [] if region.agent_attributes is None else region.agent_attributes[:num_region_conditional_agents]
+        region_unsampled_agent_attributes = [] if region.agent_attributes is None else region.agent_attributes[num_region_conditional_agents:]
+        all_agent_states = out_of_region_conditional_agent_states + region_conditional_agent_states
+        all_agent_attributes = out_of_region_conditional_agent_attributes + region_conditional_agent_attributes + region_unsampled_agent_attributes
 
         num_out_of_region_conditional_agents = len(out_of_region_conditional_agent_states)
 
@@ -365,12 +368,12 @@ def large_initialize(
                     raise InvertedAIError(message=exception_string)
                 else:
                     iai.logger.warning(exception_string)
-                    if len(region_predefined_agent_states) > 0:
-                    # Get the recurrent states for all predefined agents
+                    if num_region_conditional_agents > 0:
+                    # Get the recurrent states for all predefined agents within the region
                         response = iai.initialize(
                             location=location,
                             states_history=[all_agent_states],
-                            agent_attributes=region_predefined_agent_attributes[:num_out_of_region_conditional_agents+len(region_predefined_agent_attributes)],
+                            agent_attributes=all_agent_attributes[:num_out_of_region_conditional_agents+num_region_conditional_agents],
                             get_infractions=get_infractions,
                             traffic_light_state_history=traffic_light_state_history,
                             location_of_interest=(region_center.x, region_center.y),
