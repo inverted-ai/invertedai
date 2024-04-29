@@ -43,8 +43,8 @@ class InitializeResponse(BaseModel):
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
-    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light. Pass this field to :func:`iai.drive` to set light states over that timestep, this takes precedence over 'light_recurrent_states'.
-    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group. Pass this to :func:`iai.drive` at the first time step to use the same initial light states in drive.
+    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
+    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map. Pass this to :func:`iai.drive` at the first time step to let the server generate a realistic continuation of the traffic light state sequence. This does not work correctly if any specific light states were specified as input to `initialize`.
     api_model_version: str # Model version used for this API call
 
 
@@ -75,7 +75,8 @@ def initialize(
     Agents are identified by their list index, so ensure the indices of each agent match in `states_history` and
     `agent_attributes` when applicable. 
     If traffic lights are present in the scene, their states history can be specified with a list of `TrafficLightStatesDict`, each represent light states for one timestep, 
-    with the last element representing the current time step. It is legal to omit the traffic light state specification, and the scene will be initialized with iai generated light states.
+    with the last element representing the current time step. It is legal to omit the traffic light state specification, 
+    and the scene will be initialized with a light state configuration consistent with agent states.
     Every simulation must start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
     Parameters

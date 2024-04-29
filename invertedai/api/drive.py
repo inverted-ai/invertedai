@@ -43,8 +43,8 @@ class DriveResponse(BaseModel):
     is_inside_supported_area: List[
         bool
     ]  #: For each agent, indicates whether the predicted state is inside supported area.
-    traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light. Passing this to the next call of :func:`iai.drive` sets the traffic light states accordingly, and overrides the light states given by 'light_recurrent_states'.
-    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group. Pass this to the next call of :func:`iai.drive` to continuously step all traffic light states.
+    traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, as seen by the agents before they performed their actions resulting in the returned state. Each key-value pair corresponds to one particular traffic light.
+    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group. Pass this to the next call of :func:`iai.drive` for the server to realistically update the traffic light states.
     api_model_version: str  # Model version used for this API call
 
 
@@ -104,15 +104,17 @@ def drive(
        If the location contains traffic lights within the supported area,
        their current state can be provided here. It is legal to not provide this field, and use
        'light_recurrent_states' to step the traffic lights. If provided, light states from 'traffic_light_states' will override
-       the original light states given by 'light_recurrent_states'.
+       the original light states given by 'light_recurrent_states'. The server does not currently support continuing user-provided light state sequences, 
+       so once the states are provided at any step, they should also be provided on all subsequent steps to guarantee coherent light sequences.
+       If neither 'traffic_lights_states' nor 'light_recurrent_states' are provided, the server will realistically initialize the traffic light states,
+       and return the associated 'light_recurrent_states' in the response.
 
     light_recurrent_states:
        Light recurrent states for all agents, obtained from the previous call to
         :func:`drive` or :func:`initialize`.
        Specifies the state and time remaining for each light group in the map.
-       To let iai manage all light states in the scene, simply pass 'light_recurrent_states' from the previous response of :func:`drive` here.
-       If customized control of individual traffic lights is desired, modify the relevant state(s) 
-       in traffic_lights_states, then pass in light_recurrent_states as usual.
+       To let the server manage all light states in the scene, 
+       pass 'light_recurrent_states' from the previous response of :func:`drive` here and leave `traffic_light_states=None`.
 
     random_seed:
         Controls the stochastic aspects of agent behavior for reproducibility.
