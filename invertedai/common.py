@@ -202,7 +202,36 @@ class AgentAttributes(BaseModel):
             attr_list.append([self.waypoint.x, self.waypoint.y])
         return attr_list
 
+class AgentProperties(BaseModel):
+    """
+    Static attributes of the agent, which don't change over the course of a simulation.
+    We assume every agent is a rectangle obeying a kinematic bicycle model.
 
+    See Also
+    --------
+    AgentState
+    """
+
+    length: Optional[float] = None  #: Longitudinal extent of the agent, in meters.
+    width: Optional[float] = None  #: Lateral extent of the agent, in meters.
+    #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
+    rear_axis_offset: Optional[float] = None
+    agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
+    waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it.
+    max_speed: Optional[float] = None  #: Maximum speed of the agent in m/s.
+
+    @classmethod
+    def deserialize(cls, val):
+        return cls(length=val['length'], width=val['width'], rear_axis_offset=val['rear_axis_offset'], agent_type=val['agent_type'], 
+                   waypoint=Point(x=val['waypoint'][0], y=val['waypoint'][1]) if val['waypoint'] else None, max_speed=val['max_speed'])
+    
+    def serialize(self):
+        """
+        Convert AgentProperties to a valid request format in json
+        """
+        return {"length": self.length, "width": self.width, "rear_axis_offset": self.rear_axis_offset, "agent_type": self.agent_type, 
+                 "waypoint": [self.waypoint.x, self.waypoint.y] if self.waypoint else None, "max_speed": self.max_speed}
+    
 class AgentState(BaseModel):
     """
     The current or predicted state of a given agent at a given point.

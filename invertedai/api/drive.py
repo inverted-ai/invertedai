@@ -17,6 +17,7 @@ from invertedai.common import (
     Image,
     InfractionIndicators,
     AgentAttributes,
+    AgentProperties,
     TrafficLightStatesDict,
     LightRecurrentStates,
     LightRecurrentState,
@@ -52,7 +53,8 @@ class DriveResponse(BaseModel):
 def drive(
     location: str,
     agent_states: List[AgentState],
-    agent_attributes: List[AgentAttributes],
+    agent_attributes: Optional[List[AgentAttributes]]=None,
+    agent_properties: Optional[List[AgentProperties]]=None,
     recurrent_states: Optional[List[RecurrentState]] = None,
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[LightRecurrentStates] = None,
@@ -81,6 +83,14 @@ def drive(
         width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
         currently supports 'car' and 'pedestrian'.
         waypoint: optional [Point], the target waypoint of the agent.
+
+    agent_properties:
+        Agent properties for all agents, replacing soon to be deprecated `agent_attributes`.
+        List of agent attributes. Each agent requires, length: [float]
+        width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
+        currently supports 'car' and 'pedestrian'.
+        waypoint: optional [Point], the target waypoint of the agent.
+        max_speed: optional [float], the desired maximum speed of the agent in m/s.
 
     recurrent_states:
         Recurrent states for all agents, obtained from the previous call to
@@ -153,7 +163,8 @@ def drive(
     model_inputs = dict(
         location=location,
         agent_states=[state.tolist() for state in agent_states],
-        agent_attributes=[state.tolist() for state in agent_attributes],
+        agent_attributes=[state.tolist() for state in agent_attributes] if agent_attributes is not None else None,
+        agent_properties=[ap.serialize() for ap in agent_properties] if agent_properties is not None else None,
         recurrent_states=[r.packed for r in recurrent_states] if recurrent_states is not None else None,
         traffic_lights_states=traffic_lights_states,
         light_recurrent_states=[light_recurrent_state.tolist() for light_recurrent_state in light_recurrent_states] 
@@ -214,7 +225,8 @@ def drive(
 async def async_drive(
     location: str,
     agent_states: List[AgentState],
-    agent_attributes: List[AgentAttributes],
+    agent_attributes: Optional[List[AgentAttributes]]=None,
+    agent_properties: Optional[List[AgentProperties]]=None,
     recurrent_states: Optional[List[RecurrentState]] = None,
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[LightRecurrentStates] = None,
@@ -239,7 +251,8 @@ async def async_drive(
     model_inputs = dict(
         location=location,
         agent_states=[state.tolist() for state in agent_states],
-        agent_attributes=[state.tolist() for state in agent_attributes],
+        agent_attributes=[state.tolist() for state in agent_attributes] if agent_attributes is not None else None,
+        agent_properties=[ap.serialize() for ap in agent_properties] if agent_properties is not None else None,
         recurrent_states=[r.packed for r in recurrent_states] if recurrent_states is not None else None,
         traffic_lights_states=traffic_lights_states,
         light_recurrent_states=[light_recurrent_state.tolist() for light_recurrent_state in light_recurrent_states] 

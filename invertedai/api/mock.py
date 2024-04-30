@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 from invertedai.common import (
     AgentAttributes,
+    AgentProperties,
     AgentState,
     RecurrentState,
     InfractionIndicators,
@@ -17,6 +18,11 @@ def get_mock_birdview() -> Image:
 def get_mock_agent_attributes() -> AgentAttributes:
     attributes = AgentAttributes(length=5, width=2, rear_axis_offset=1.4)
     return attributes
+
+
+def get_mock_agent_properties() -> AgentProperties:
+    properties = AgentProperties(length=5, width=2, rear_axis_offset=1.4)
+    return properties
 
 
 def get_mock_agent_state() -> AgentState:
