@@ -2,6 +2,7 @@ import sys
 import pytest
 
 sys.path.insert(0, "../../")
+import invertedai as iai
 from invertedai.api.initialize import initialize
 from invertedai.api.drive import drive, DriveResponse
 from invertedai.api.location import location_info
@@ -183,3 +184,11 @@ def test_postivie(location, states_history, agent_attributes, get_infractions, a
                   simulation_length: int = 20):
     run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count,
                               simulation_length)
+    
+@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests)
+def test_mock_drive(location, states_history, agent_attributes, get_infractions, agent_count,
+                  simulation_length: int = 20):
+    iai.api.config.mock_api = True
+    run_initialize_drive_flow(location, states_history, agent_attributes, get_infractions, agent_count,
+                              simulation_length)
+    iai.api.config.mock_api = False
