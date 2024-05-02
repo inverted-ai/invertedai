@@ -218,7 +218,7 @@ class AgentProperties(BaseModel):
     rear_axis_offset: Optional[float] = None
     agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
     waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it.
-    max_speed: Optional[float] = None  #: Maximum speed of the agent in m/s.
+    max_speed: Optional[float] = None  #: Maximum speed limit of the agent in m/s.
 
     @classmethod
     def deserialize(cls, val):
