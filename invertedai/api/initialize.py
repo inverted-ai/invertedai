@@ -13,6 +13,8 @@ from invertedai.api.mock import (
     get_mock_recurrent_state,
     get_mock_birdview,
     get_mock_infractions,
+    get_mock_traffic_light_states,
+    get_mock_light_recurrent_states
 )
 from invertedai.common import (
     RecurrentState,
@@ -137,14 +139,18 @@ def initialize(
     """
 
     if should_use_mock_api():
+        assert agent_properties is not None or agent_attributes is not None or agent_count is not None
         if agent_properties is not None:
-            agent_properties = [get_mock_agent_properties() for _ in range(agent_count)]
+            agent_count = len(agent_properties)
+        elif agent_attributes is not None:
+            agent_count = len(agent_attributes)
+
+        agent_properties = [get_mock_agent_properties() for _ in range(agent_count)]
+        agent_attributes = [get_mock_agent_attributes() for _ in range(agent_count)]
         if agent_attributes is None:
-            assert agent_count is not None
-            agent_attributes = [get_mock_agent_attributes() for _ in range(agent_count)]
             agent_states = [get_mock_agent_state() for _ in range(agent_count)]
         else:
-            agent_states = states_history[-1]
+            agent_states = states_history[-1] if states_history is not None else []
         recurrent_states = [get_mock_recurrent_state() for _ in range(agent_count)]
         birdview = get_mock_birdview()
         infractions = get_mock_infractions(len(agent_states))
@@ -155,6 +161,9 @@ def initialize(
             recurrent_states=recurrent_states,
             birdview=birdview,
             infractions=infractions,
+            api_model_version=api_model_version if api_model_version is not None else "best",
+            traffic_lights_states=traffic_light_state_history[-1] if traffic_light_state_history is not None else None,
+            light_recurrent_states=get_mock_light_recurrent_states(len(traffic_light_state_history[0])) if traffic_light_state_history is not None else None
         )
         return response
 
@@ -174,7 +183,7 @@ def initialize(
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
-        model_version=api_model_version
+        model_version=api_model_version if api_model_version is not None else "best"
     )
     start = time.time()
     timeout = TIMEOUT

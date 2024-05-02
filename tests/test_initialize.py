@@ -2,6 +2,7 @@ import sys
 import pytest
 
 sys.path.insert(0, "../../")
+import invertedai as iai
 from invertedai.common import Point, AgentProperties
 from invertedai.api.initialize import initialize, InitializeResponse
 from invertedai.api.location import location_info
@@ -198,6 +199,11 @@ def test_negative_old(location, states_history, agent_attributes, get_infraction
 def test_positive_old(location, states_history, agent_attributes, get_infractions, agent_count):
     run_initialize(location, states_history, agent_attributes, None, get_infractions, agent_count)
 
+@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests_old)
+def test_mock_initialize_old(location, states_history, agent_attributes, get_infractions, agent_count):
+    iai.api.config.mock_api = True
+    run_initialize(location, states_history, agent_attributes, None, get_infractions, agent_count)
+    iai.api.config.mock_api = False
 
 positive_tests = [
     ("canada:ubc_roundabout",
@@ -380,3 +386,10 @@ def test_negative(location, states_history, agent_properties, get_infractions, a
 @pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", positive_tests)
 def test_positive(location, states_history, agent_properties, get_infractions, agent_count):
     run_initialize(location, states_history, None, agent_properties, get_infractions, agent_count)
+
+
+@pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", positive_tests)
+def test_mock_initialize_old(location, states_history, agent_properties, get_infractions, agent_count):
+    iai.api.config.mock_api = True
+    run_initialize(location, states_history, None, agent_properties, get_infractions, agent_count)
+    iai.api.config.mock_api = False

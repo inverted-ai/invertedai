@@ -66,6 +66,9 @@ def location_info(
             static_actors=[],
             bounding_polygon=[],
             max_agent_number=10,
+            map_center=Point(x=0, y=0),
+            map_fov=100,
+
         )
         return response
 
