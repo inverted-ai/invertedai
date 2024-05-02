@@ -21,10 +21,41 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
     }
     this->states_history_.push_back(agent_states);
   }
-  this->agent_attributes_.clear();
-  for (const auto &element : this->body_json_["agent_attributes"]) {
-    AgentAttributes agent_attribute(element);
-    this->agent_attributes_.push_back(agent_attribute);
+  if (this->body_json_["agent_attributes"].is_null()) {
+    this->agent_attributes_ = std::nullopt;
+  } else {
+    this->agent_attributes_ = std::vector<AgentAttributes>();
+    for (const auto &element : this->body_json_["agent_attributes"]) {
+      AgentAttributes agent_attribute(element);
+      this->agent_attributes_.value().push_back(agent_attribute);
+    }
+  }
+  if (this->body_json_["agent_properties"].is_null()) {
+    this->agent_properties_ = std::nullopt;
+  } else {
+    this->agent_properties_ = std::vector<AgentProperties>();
+    for (const auto &element : this->body_json_["agent_properties"]) {
+      AgentProperties ap;
+      if (element.contains("length")) {
+        ap.length = element["length"];
+      }
+      if (element.contains("width")) {
+        ap.width = element["width"];
+      }
+      if (element.contains("rear_axis_offset")) {
+        ap.rear_axis_offset = element["rear_axis_offset"];
+      }
+      if (element.contains("agent_type")) {
+        ap.agent_type = element["agent_type"];
+      }
+      if (element.contains("waypoint")) {
+        ap.waypoint = {element["waypoint"] [0], element["waypoint"] [1]};
+      }
+      if (element.contains("max_speed")) {
+        ap.max_speed = element["max_speed"];
+      }
+      this->agent_properties_.value().push_back(ap);
+    }
   }
   this->traffic_light_state_history_.clear();
   std::vector<std::map<std::string, std::string>> traffic_light_states;
@@ -73,10 +104,46 @@ void InitializeRequest::refresh_body_json_() {
     }
     this->body_json_["states_history"].push_back(elements);
   }
-  this->body_json_["agent_attributes"].clear();
-  for (const AgentAttributes &agent_attribute : this->agent_attributes_) {
-    json element = agent_attribute.toJson();
-    this->body_json_["agent_attributes"].push_back(element);
+  if (this->agent_attributes_.has_value()) {
+    this->body_json_["agent_attributes"].clear();
+    for (const AgentAttributes &agent_attribute : this->agent_attributes_.value()) {
+      json element = agent_attribute.toJson();
+      this->body_json_["agent_attributes"].push_back(element);
+    }
+  } else {
+    this->body_json_["agent_attributes"] = nullptr;
+  }
+
+  if (this->agent_properties_.has_value()) {
+    this->body_json_["agent_properties"].clear();
+    for (const AgentProperties &ap : this->agent_properties_.value()) {
+      json element;
+      if (ap.length.has_value()) {
+        element["length"] = ap.length.value();
+      }
+
+      if (ap.width.has_value()) {
+        element["width"] = ap.width.value();
+      }
+
+      if (ap.rear_axis_offset.has_value()) {
+        element["rear_axis_offset"] = ap.rear_axis_offset.value();
+      }
+
+      if (ap.agent_type.has_value()) {
+        element["agent_type"] = ap.agent_type.value();
+      }
+
+      if (ap.max_speed.has_value()) {
+        element["max_speed"] = ap.max_speed.value();
+      }
+      if (ap.waypoint.has_value()) {
+        element["waypoint"] = {ap.waypoint->x, ap.waypoint->y};
+      }
+      this->body_json_["agent_properties"].push_back(element);
+    }
+  } else {
+    this->body_json_["agent_properties"] = nullptr;
   }
   this->body_json_["traffic_light_state_history"].clear();
   for (const std::map<std::string, std::string> &traffic_light_states : this->traffic_light_state_history_) {
@@ -127,8 +194,12 @@ std::vector<std::vector<AgentState>> InitializeRequest::states_history() const {
   return this->states_history_;
 }
 
-std::vector<AgentAttributes> InitializeRequest::agent_attributes() const {
+std::optional<std::vector<AgentAttributes>> InitializeRequest::agent_attributes() const {
   return this->agent_attributes_;
+}
+
+std::optional<std::vector<AgentProperties>> InitializeRequest::agent_properties() const {
+  return this->agent_properties_;
 }
 
 std::vector<std::map<std::string, std::string>> InitializeRequest::traffic_light_state_history() const {
