@@ -20,7 +20,8 @@ class DriveRequest {
 private:
   std::string location_;
   std::vector<AgentState> agent_states_;
-  std::vector<AgentAttributes> agent_attributes_;
+  std::optional<std::vector<AgentAttributes>> agent_attributes_;
+  std::optional<std::vector<AgentProperties>> agent_properties_;
   std::optional<std::map<std::string, std::string>> traffic_lights_states_;
   std::optional<std::vector<LightRecurrentState>> light_recurrent_states_;
   std::vector<std::vector<double>> recurrent_states_;
@@ -58,6 +59,10 @@ public:
    * Update the agent attributes of drive request.
    */
   void update_attribute(int idx, AgentAttributes &agent_attributes);
+  /**
+   * Update the agent properties of drive request.
+   */
+  void update_property(int idx, AgentProperties &agent_properties);
   // getters
   /**
    * Get location string in IAI format.
@@ -74,7 +79,11 @@ public:
   /**
    * Get static attributes for all agents.
    */
-  std::vector<AgentAttributes> agent_attributes() const;
+  std::optional<std::vector<AgentAttributes>> agent_attributes() const;
+  /**
+   * Get static properties for all agents.
+   */
+  std::optional<std::vector<AgentProperties>> agent_properties() const;
   /**
    * Get the states of traffic lights.
    */

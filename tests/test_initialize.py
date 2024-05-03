@@ -3,13 +3,13 @@ import pytest
 
 sys.path.insert(0, "../../")
 import invertedai as iai
-from invertedai.common import Point
+from invertedai.common import Point, AgentProperties
 from invertedai.api.initialize import initialize, InitializeResponse
 from invertedai.api.location import location_info
 from invertedai.api.light import light
 from invertedai.error import InvalidRequestError
 
-positive_tests = [
+positive_tests_old = [
     ("canada:ubc_roundabout",
      [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
        dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)]],
@@ -126,6 +126,202 @@ positive_tests = [
       dict(length=4.55, width=1.94, rear_axis_offset=1.4, agent_type='car', waypoint=Point(x=1, y=2)),
       dict(agent_type='pedestrian'),
       dict(waypoint=Point(x=1, y=2))],
+     False, 6)
+]
+
+negative_tests_old = [
+    ("canada:ubc_roundabout",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [dict(length=1.39, agent_type='pedestrian'),
+      dict(width=1.98, rear_axis_offset=0.0, agent_type='pedestrian'),
+      dict(agent_type='pedestrian'),
+      dict(agent_type='car')],
+     False, None),
+    ("canada:ubc_roundabout",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [dict(length=1.39, width=1.20, agent_type='pedestrian'),
+      dict(length=1.37, width=1.98, agent_type='car'),
+      dict(agent_type='pedestrian'),
+      dict(agent_type='car')],
+     False, None),
+    ("canada:ubc_roundabout",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [dict(length=1.39, width=1.26, rear_axis_offset=0.0, agent_type='pedestrian'),
+      dict(length=1.37, width=1.98, rear_axis_offset=0.0, agent_type='pedestrian'),
+      dict(width=1.15, agent_type='pedestrian'),
+      dict(agent_type='car')],
+     False, None),
+     ("canada:ubc_roundabout",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [dict(length=1.39, width=1.26, rear_axis_offset=0.0, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(length=1.37, width=1.98, rear_axis_offset=0.0, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(width=1.15, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      dict(agent_type='car')],
+     False, None),
+]
+
+def run_initialize(location, states_history, agent_attributes, agent_properties,  get_infractions, agent_count):
+    response = initialize(
+        location,
+        agent_attributes=agent_attributes,
+        agent_properties=agent_properties,
+        states_history=states_history,
+        traffic_light_state_history=None,
+        get_birdview=False,
+        get_infractions=get_infractions,
+        agent_count=agent_count,
+    )
+    assert isinstance(response,
+                      InitializeResponse) and response.agent_attributes is not None and response.agent_states is not None
+    if response.traffic_lights_states is not None:
+      assert response.light_recurrent_states is not None
+
+
+@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests_old)
+def test_negative_old(location, states_history, agent_attributes, get_infractions, agent_count):
+    with pytest.raises(InvalidRequestError):
+        run_initialize(location, states_history, agent_attributes, None, get_infractions, agent_count)
+
+
+@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests_old)
+def test_positive_old(location, states_history, agent_attributes, get_infractions, agent_count):
+    run_initialize(location, states_history, agent_attributes, None, get_infractions, agent_count)
+
+@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests_old)
+def test_mock_initialize_old(location, states_history, agent_attributes, get_infractions, agent_count):
+    iai.api.config.mock_api = True
+    run_initialize(location, states_history, agent_attributes, None, get_infractions, agent_count)
+    iai.api.config.mock_api = False
+
+positive_tests = [
+    ("canada:ubc_roundabout",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)]],
+     [AgentProperties(length=1.39, width=1.78, rear_axis_offset=0.0, agent_type='pedestrian'),
+      AgentProperties(length=1.37, width=1.98, rear_axis_offset=0.0, agent_type='pedestrian'),
+      AgentProperties(agent_type='pedestrian')],
+     False, None),
+    ("canada:ubc_roundabout",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [AgentProperties(length=1.39, width=1.78, agent_type='pedestrian'),
+      AgentProperties(length=1.37, width=1.98, rear_axis_offset=0.0, agent_type='pedestrian'),
+      AgentProperties(agent_type='pedestrian'),
+      AgentProperties(agent_type='car')],
+     False, None),
+    ("canada:ubc_roundabout",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [AgentProperties(length=1.39, width=1.78, rear_axis_offset=0.0, agent_type='pedestrian'),
+      AgentProperties(length=1.37, width=1.98, agent_type='pedestrian'),
+      AgentProperties(agent_type='car'),
+      AgentProperties()],
+     False, None),
+    ("carla:Town03",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [AgentProperties(length=1.39, width=1.78, agent_type='pedestrian'),
+      AgentProperties(length=1.37, width=1.98, rear_axis_offset=None, agent_type='pedestrian'),
+      AgentProperties(agent_type='car'),
+      AgentProperties()],
+     False, 5),
+    ("carla:Town03",
+     None,
+     [AgentProperties(agent_type='pedestrian'),
+      AgentProperties(),
+      AgentProperties(agent_type='car'),
+      AgentProperties()],
+     False, 5),
+    ("carla:Town03",
+     None,
+     [AgentProperties(agent_type='pedestrian'),
+      AgentProperties(),
+      AgentProperties(agent_type='car'),
+      AgentProperties()],
+     False, None),
+    ("canada:drake_street_and_pacific_blvd",
+     None,
+     [AgentProperties(agent_type='pedestrian'),
+      AgentProperties(),
+      AgentProperties(agent_type='car'),
+      AgentProperties()],
+     False, None),
+    ("canada:drake_street_and_pacific_blvd",
+     None,
+     [AgentProperties(agent_type='pedestrian'),
+      AgentProperties(),
+      AgentProperties(agent_type='car'),
+      AgentProperties()],
+     False, 5),
+    ("canada:drake_street_and_pacific_blvd",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-46.62, y=-25.02), orientation=0.04, speed=1.09)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=-47.62, y=-23.02), orientation=0.04, speed=1.09)]],
+     [AgentProperties(length=1.39, width=1.78, agent_type='pedestrian'),
+      AgentProperties(length=1.37, width=1.98, agent_type='pedestrian'),
+      AgentProperties(agent_type='pedestrian'),
+      AgentProperties(agent_type='car')],
+     False, 6),
+     ("canada:drake_street_and_pacific_blvd",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)]],
+     [AgentProperties(length=1.39, width=1.78, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      AgentProperties(length=1.37, width=1.98, rear_axis_offset=None, agent_type="pedestrian",  waypoint=Point(x=1, y=2)),
+      AgentProperties(length=4.55, width=1.94, rear_axis_offset=1.4, agent_type='car', waypoint=Point(x=1, y=2)),
+      AgentProperties(agent_type='pedestrian'),
+      AgentProperties(agent_type='car')],
+     False, 6),
+     ("canada:drake_street_and_pacific_blvd",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)]],
+     [AgentProperties(length=1.39, width=1.78, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      AgentProperties(length=1.37, width=1.98, rear_axis_offset=None, agent_type="pedestrian",  waypoint=Point(x=1, y=2)),
+      AgentProperties(length=4.55, width=1.94, rear_axis_offset=1.4, agent_type='car', waypoint=Point(x=1, y=2)),
+      AgentProperties(agent_type='pedestrian'),
+      AgentProperties(waypoint=Point(x=1, y=2))],
+     False, 6),
+     ("canada:drake_street_and_pacific_blvd",
+     [[dict(center=dict(x=-31.1, y=-24.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)],
+      [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)],
+       [dict(center=dict(x=-31.1, y=-23.36), orientation=2.21, speed=0.11),
+       dict(center=dict(x=17.9, y=7.98), orientation=-2.74, speed=0.06),
+       dict(center=dict(x=-41.5, y=-34.3), orientation=0.42, speed=0.05)]],
+     [AgentProperties(length=1.39, width=1.78, agent_type='pedestrian', waypoint=Point(x=1, y=2)),
+      AgentProperties(length=1.37, width=1.98, rear_axis_offset=None, agent_type="pedestrian",  waypoint=Point(x=1, y=2)),
+      AgentProperties(length=4.55, width=1.94, rear_axis_offset=1.4, agent_type='car', waypoint=Point(x=1, y=2)),
+      AgentProperties(agent_type='pedestrian'),
+      AgentProperties(waypoint=Point(x=1, y=2))],
      False, 6),
     ("carla:Town04",
      None,
@@ -181,35 +377,19 @@ negative_tests = [
      False, None),
 ]
 
-def run_initialize(location, states_history, agent_attributes, get_infractions, agent_count):
-    response = initialize(
-        location,
-        agent_attributes=agent_attributes,
-        states_history=states_history,
-        traffic_light_state_history=None,
-        get_birdview=False,
-        get_infractions=get_infractions,
-        agent_count=agent_count,
-    )
-    assert isinstance(response,
-                      InitializeResponse) and response.agent_attributes is not None and response.agent_states is not None
-    if response.traffic_lights_states is not None:
-      assert response.light_recurrent_states is not None
-
-
-@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests)
-def test_negative(location, states_history, agent_attributes, get_infractions, agent_count):
+@pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", negative_tests)
+def test_negative(location, states_history, agent_properties, get_infractions, agent_count):
     with pytest.raises(InvalidRequestError):
-        run_initialize(location, states_history, agent_attributes, get_infractions, agent_count)
+        run_initialize(location, states_history, None, agent_properties, get_infractions, agent_count)
 
 
-@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests)
-def test_positive(location, states_history, agent_attributes, get_infractions, agent_count):
-    run_initialize(location, states_history, agent_attributes, get_infractions, agent_count)
+@pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", positive_tests)
+def test_positive(location, states_history, agent_properties, get_infractions, agent_count):
+    run_initialize(location, states_history, None, agent_properties, get_infractions, agent_count)
 
 
-@pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests)
-def test_mock_initialize(location, states_history, agent_attributes, get_infractions, agent_count):
+@pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", positive_tests)
+def test_mock_initialize_old(location, states_history, agent_properties, get_infractions, agent_count):
     iai.api.config.mock_api = True
-    run_initialize(location, states_history, agent_attributes, get_infractions, agent_count)
+    run_initialize(location, states_history, None, agent_properties, get_infractions, agent_count)
     iai.api.config.mock_api = False

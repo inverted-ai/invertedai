@@ -230,6 +230,65 @@ struct AgentAttributes {
 };
 
 /**
+ * Static agent properties of the agent, which don’t change over the course of a
+ * simulation. We assume every agent is a rectangle obeying a kinematic bicycle
+ * model.
+ * This struct is replacing AgentAttributes.
+ */
+struct AgentProperties {
+  /**
+   * Longitudinal, lateral extent of the agent in meters.
+   */
+  std::optional<double> length, width;
+  /**
+   * Distance from the agent’s center to its rear axis in meters. Determines
+   * motion constraints.
+   */
+  std::optional<double> rear_axis_offset;
+  /**
+   * Agent types are used to indicate how that agent might behave in a scenario.
+   * Currently "car" and "pedestrian" are supported.
+   */
+  std::optional<std::string> agent_type;
+  /**
+   *  Target waypoint of the agent. If provided the agent will attempt to reach it.
+   */
+  std::optional<Point2d> waypoint;
+  /**
+   *  Target waypoint of the agent. If provided the agent will attempt to reach it.
+   */
+  std::optional<double> max_speed;
+  /**
+   *  Maximum speed limit of the agent in m/s.
+   */
+
+
+  void printFields() const {
+    std::cout << "checking fields of current agent..." << std::endl;
+    if (length.has_value()) {
+      std::cout << "Length: " << length.value() << std::endl;
+    }
+    if (width.has_value()) {
+      std::cout << "Width: " << width.value() << std::endl;
+    }
+    if (rear_axis_offset.has_value()) {
+      std::cout << "rear_axis_offset: " << rear_axis_offset.value() << std::endl;
+    }
+    if (agent_type.has_value()) {
+      std::cout << "Agent type: " << agent_type.value() << std::endl;
+    }
+    if (waypoint.has_value()) {
+      std::cout << "Waypoint: (" << waypoint.value().x << "," << waypoint.value().y << ")"<< std::endl;
+    }
+    if (max_speed.has_value()) {
+      std::cout << "Max speed: " << max_speed.value() << std::endl;
+    }
+  }
+
+
+};
+
+/**
  * Dynamic state of a traffic light.
  */
 struct TrafficLightState {
