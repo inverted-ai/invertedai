@@ -57,7 +57,7 @@ class BasicCosimulation:
         if traffic_lights:
             location_info_response = location_info(location=location)
             static_actors = location_info_response.static_actors
-            if any(actor.agent_type == "traffic-light" for actor in static_actors):
+            if any(actor.agent_type == "traffic_light" for actor in static_actors):
                 self.light_flag = True
         response = initialize(
             location=location,

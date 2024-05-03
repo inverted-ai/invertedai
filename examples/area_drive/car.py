@@ -1,6 +1,8 @@
 from typing import Optional
-import pygame
-from pygame.math import Vector2
+try:
+    import pygame
+except ImportError:
+    pygame = None
 from pydantic import validate_call
 from invertedai.common import AgentState, AgentAttributes, RecurrentState
 from collections import deque
@@ -48,8 +50,8 @@ class Car:
 
     def fov_range(self):
         return Rectangle(
-            Vector2(self.position.x-(self.fov/2), self.position.y-(self.fov/2)),
-            Vector2((self.fov, self.fov)),
+            (self.position.x-(self.fov/2), self.position.y-(self.fov/2)),
+            ((self.fov, self.fov)),
             convertors=(self.convertor_coords, self.convertor_scales)
         )
 
