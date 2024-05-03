@@ -109,7 +109,7 @@ def initialize(
     traffic_light_state_history:
        History of traffic light states - the list is over time, in chronological order, i.e.
        the last element is the current state. If there are traffic lights in the map, 
-       not specifying traffic light state is equivalent to using iai generated light states.
+       not specifying traffic light state is equivalent to using server generated light states.
 
     location_of_interest:
         Optional coordinates for spawning agents with the given location as center instead of the default map center
