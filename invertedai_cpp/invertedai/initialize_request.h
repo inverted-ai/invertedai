@@ -17,7 +17,8 @@ private:
   std::string location_;
   std::optional<int> num_agents_to_spawn_;
   std::vector<std::vector<AgentState>> states_history_;
-  std::vector<AgentAttributes> agent_attributes_;
+  std::optional<std::vector<AgentAttributes>> agent_attributes_;
+  std::optional<std::vector<AgentProperties>> agent_properties_;
   std::vector<std::map<std::string, std::string>> traffic_light_state_history_;
   std::optional<std::pair<double, double>> location_of_interest_;
   bool get_birdview_;
@@ -55,7 +56,11 @@ public:
   /**
    * Get static attributes for all agents.
    */
-  std::vector<AgentAttributes> agent_attributes() const;
+  std::optional<std::vector<AgentAttributes>> agent_attributes() const;
+    /**
+   * Get static properties for all agents.
+   */
+  std::optional<std::vector<AgentProperties>> agent_properties() const;
   /**
    * Get history of traffic light states - the list is
    * over time, in chronological order.
@@ -105,8 +110,11 @@ public:
   /**
    * Set static attributes for all agents.
    */
-  void
-  set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes);
+  void set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes);
+  /**
+   * Set static properties for all agents.
+   */
+  void set_agent_properties(const std::vector<AgentProperties> &agent_properties);
   /**
    * Set history of traffic light states - the list is
    * over time, in chronological order. Traffic light states should be provided

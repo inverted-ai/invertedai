@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "invertedai"
-version = "0.0.15"
+version = "0.0.17dev0"
 description = "Client SDK for InvertedAI"
 authors = ["Inverted AI <info@inverted.ai>"]
 readme = "README.md"
@@ -15,10 +15,9 @@ requests = "^2.28.1"
 pydantic = "^2.5.3"
 matplotlib = "^3.6.2"
 tqdm = "^4.65.0"
+numpy = "^1.24.4"
 
 [tool.poetry.group.dev.dependencies]
-numpy = "^1.17.0"
-matplotlib = ">=3.6.2"
 ipython = "^7.34"
 ipywidgets = "^8.0.2"
 carla = "^0.9.13"

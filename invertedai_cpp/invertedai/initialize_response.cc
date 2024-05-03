@@ -17,10 +17,38 @@ InitializeResponse::InitializeResponse(const std::string &body_str) {
     };
     this->agent_states_.push_back(agent_state);
   }
-  this->agent_attributes_.clear();
-  for (const auto &element : body_json_["agent_attributes"]) {
-    AgentAttributes agent_attribute(element);
-    this->agent_attributes_.push_back(agent_attribute);
+  if (this->body_json_["agent_attributes"].is_null()) {
+    this->agent_attributes_ = std::nullopt;
+  } else {
+    this->agent_attributes_ = std::vector<AgentAttributes>();
+    for (const auto &element : this->body_json_["agent_attributes"]) {
+      AgentAttributes agent_attribute(element);
+      this->agent_attributes_.value().push_back(agent_attribute);
+    }
+  }
+
+  this->agent_properties_ = std::vector<AgentProperties>();
+  for (const auto &element : this->body_json_["agent_properties"]) {
+    AgentProperties ap;
+    if (element.contains("length")) {
+      ap.length = element["length"];
+    }
+    if (element.contains("width")) {
+      ap.width = element["width"];
+    }
+    if (element.contains("rear_axis_offset") && !element["rear_axis_offset"].is_null()) {
+      ap.rear_axis_offset = element["rear_axis_offset"];
+    }
+    if (element.contains("agent_type")) {
+      ap.agent_type = element["agent_type"];
+    }
+    if (element.contains("waypoint") && !element["waypoint"].is_null() ) {
+      ap.waypoint = {element["waypoint"][0], element["waypoint"][1]};
+    }
+    if (element.contains("max_speed") && !element["max_speed"].is_null()) {
+      ap.max_speed = element["max_speed"];
+    }
+    this->agent_properties_.push_back(ap);
   }
   this->recurrent_states_.clear();
   for (const auto &element : body_json_["recurrent_states"]) {
@@ -87,10 +115,41 @@ void InitializeResponse::refresh_body_json_() {
     };
     this->body_json_["agent_states"].push_back(element);
   }
-  this->body_json_["agent_attributes"].clear();
-  for (const AgentAttributes &agent_attribute : this->agent_attributes_) {
-    json element = agent_attribute.toJson();
-    this->body_json_["agent_attributes"].push_back(element);
+  if (this->body_json_["agent_attributes"].is_null()) {
+    this->agent_attributes_ = std::nullopt;
+  } else {
+    this->agent_attributes_ = std::vector<AgentAttributes>();
+    for (const auto &element : this->body_json_["agent_attributes"]) {
+      AgentAttributes agent_attribute(element);
+      this->agent_attributes_.value().push_back(agent_attribute);
+    }
+  }
+  this->body_json_["agent_properties"].clear();
+  for (const AgentProperties &ap : this->agent_properties_) {
+    json element;
+    if (ap.length.has_value()) {
+      element["length"] = ap.length.value();
+    }
+
+    if (ap.width.has_value()) {
+      element["width"] = ap.width.value();
+    }
+
+    if (ap.rear_axis_offset.has_value()) {
+      element["rear_axis_offset"] = ap.rear_axis_offset.value();
+    }
+
+    if (ap.agent_type.has_value()) {
+      element["agent_type"] = ap.agent_type.value();
+    }
+
+    if (ap.max_speed.has_value()) {
+      element["max_speed"] = ap.max_speed.value();
+    }
+    if (ap.waypoint.has_value()) {
+      element["waypoint"] = {ap.waypoint->x, ap.waypoint->y};
+    }
+    this->body_json_["agent_properties"].push_back(element);
   }
   this->body_json_["recurrent_states"].clear();
   for (const std::vector<double> &recurrent_state : this->recurrent_states_) {
@@ -147,8 +206,12 @@ std::vector<AgentState> InitializeResponse::agent_states() const {
   return this->agent_states_;
 }
 
-std::vector<AgentAttributes> InitializeResponse::agent_attributes() const {
+std::optional<std::vector<AgentAttributes>> InitializeResponse::agent_attributes() const {
   return this->agent_attributes_;
+}
+
+std::vector<AgentProperties> InitializeResponse::agent_properties() const {
+  return this->agent_properties_;
 }
 
 std::vector<std::vector<double>> InitializeResponse::recurrent_states() const {

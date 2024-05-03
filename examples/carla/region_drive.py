@@ -3,7 +3,7 @@ sys.path.append('../')
 
 import argparse
 import invertedai as iai
-from simulation.simulator import Simulation, SimulationConfig
+from area_drive.area_drive import AreaDriver, AreaDriverConfig
 import pathlib
 import pygame
 from tqdm import tqdm
@@ -19,7 +19,6 @@ parser.add_argument("--center", type=str,  default="carla:Town10HD")
 parser.add_argument("-l", "--episode_length", type=int, default=300)
 parser.add_argument("-cap", "--quadtree_capacity", type=int, default=15)
 parser.add_argument("-ad", "--agent_density", type=int, default=10)
-parser.add_argument("-ri", "--re_initialization", type=int, default=30)
 parser.add_argument("-len", "--simulation_length", type=int, default=600)
 args = parser.parse_args()
 
@@ -30,12 +29,11 @@ response = iai.location_info(location=args.location)
 if response.birdview_image is not None:
     rendered_static_map = response.birdview_image.decode()
 
-cfg = SimulationConfig(location=args.location, map_center=(response.map_center.x, response.map_center.y),
-                       map_fov=response.map_fov, rendered_static_map=rendered_static_map,
+cfg = AreaDriverConfig(location=args.location, area_center=(response.map_center.x, response.map_center.y),
+                       area_fov=response.map_fov, rendered_static_map=rendered_static_map,
                        map_width=response.map_fov, map_height=response.map_fov, agent_density=args.agent_density,
-                       initialize_stride=50, quadtree_capacity=args.quadtree_capacity,
-                       re_initialization_period=args.re_initialization)
-simulation = Simulation(cfg=cfg)
+                       initialize_stride=50, quadtree_capacity=args.quadtree_capacity)
+simulation = AreaDriver(cfg=cfg)
 
 fps = 60
 clock = pygame.time.Clock()

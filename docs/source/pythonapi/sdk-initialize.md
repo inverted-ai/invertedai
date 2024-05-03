@@ -9,6 +9,7 @@
 .. autoclass:: invertedai.api.InitializeResponse
    :members:
    :undoc-members:
+   :exclude-members: model_config, model_fields
 ```
 
 

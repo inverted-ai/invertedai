@@ -1,0 +1,14 @@
+{
+    "location": "foretellix:M80_FTX_de_stuttgart",
+    "num_agents_to_spawn": 2,
+    "states_history": [[[373, -234, 2.5, 20], [353, -198, 2.5, 19]]],
+    "agent_properties": [
+        {"length": 4.55, "width": 1.94, "rear_axis_offset": 1.7, "agent_type": "car", "waypoint": [270.61, -159.85], "max_speed": 1},
+        {"length": 4.55, "width": 1.97, "rear_axis_offset": 1.7, "agent_type": "car", "waypoint": [260, -128]}
+    ],
+    "traffic_light_state_history": null,
+    "get_birdview": true,
+    "get_infractions": true,
+    "random_seed": null,
+    "location_of_interest": null
+}
