@@ -213,7 +213,7 @@ def get_number_of_agents_per_region_by_drivable_area(
         total_drivable_area_ratio += drivable_area_ratio
         region_road_area.append(drivable_area_ratio)
 
-    # Select which region in which to assign agents using drivable area as weight
+    # Select region in which to assign agents using drivable area as weight
     all_region_weights = [0]*len(new_regions)
     for i, drivable_ratio in enumerate(region_road_area):
         all_region_weights[i] = drivable_ratio/total_drivable_area_ratio

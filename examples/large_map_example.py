@@ -15,14 +15,14 @@ def main(args):
         initialize_seed = random.randint(1,10000)
         drive_seed = random.randint(1,10000)
 
-        map_center = tuple(args.map_center)
-
+        map_center = args.map_center if args.map_center is None else tuple(args.map_center)
         print(f"Call location info.")
         location_info_response = iai.location_info(
             location = args.location,
             rendering_fov = args.fov,
             rendering_center = map_center
         )
+        map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
 
         print(f"Begin initialization.") 
         regions = iai.get_regions_default(
@@ -142,7 +142,7 @@ if __name__ == '__main__':
         type=int,
         nargs='+',
         help=f"Center of the area to initialize",
-        default=[0,0]
+        default=None
     )
     argparser.add_argument(
         '--is-async',
