@@ -367,7 +367,7 @@ def large_initialize(
                 if return_exact_agents: 
                     raise InvertedAIError(message=exception_string)
                 else:
-                    iai.logger.warning(exception_string)
+                    iai.logger.debug(exception_string)
                     if num_region_conditional_agents > 0:
                     # Get the recurrent states for all predefined agents within the region
                         response = iai.initialize(
