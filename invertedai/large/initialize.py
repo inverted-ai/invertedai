@@ -300,7 +300,6 @@ def large_initialize(
     agent_states_sampled = []
     agent_attributes_sampled = []
     agent_rs_sampled = []
-    light_recurrent_states = None
 
     def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
         return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
@@ -316,6 +315,7 @@ def large_initialize(
         iterable_regions = regions
 
     num_attempts = 1 + len(regions) // ATTEMPT_PER_NUM_REGIONS
+    all_responses = []
     for i, region in iterable_regions:
         region_center = region.center
         region_size = region.size
@@ -341,6 +341,7 @@ def large_initialize(
         num_out_of_region_conditional_agents = len(out_of_region_conditional_agent_states)
 
         regions[i].clear_agents()
+        response = None
         if len(all_agent_attributes) > 0:
             for attempt in range(num_attempts):
                 try:
@@ -379,18 +380,19 @@ def large_initialize(
                             location_of_interest=(region_center.x, region_center.y),
                             random_seed=random_seed
                         )
+            
+            if response is not None:
+                all_responses.append(response)
+                # Filter out conditional agents from other regions
+                for state, attrs, r_state in zip(
+                    response.agent_states[num_out_of_region_conditional_agents:],
+                    response.agent_attributes[num_out_of_region_conditional_agents:],
+                    response.recurrent_states[num_out_of_region_conditional_agents:]
+                ):
+                    regions[i].insert_all_agent_details(state,attrs,r_state)
 
-            # Filter out conditional agents from other regions
-            for state, attrs, r_state in zip(
-                response.agent_states[num_out_of_region_conditional_agents:],
-                response.agent_attributes[num_out_of_region_conditional_agents:],
-                response.recurrent_states[num_out_of_region_conditional_agents:]
-            ):
-                regions[i].insert_all_agent_details(state,attrs,r_state)
-
-            if traffic_light_state_history is None and response.traffic_lights_states is not None:
-                traffic_light_state_history = [response.traffic_lights_states]
-                light_recurrent_states = response.light_recurrent_states
+                if traffic_light_state_history is None and response.traffic_lights_states is not None:
+                    traffic_light_state_history = [response.traffic_lights_states]
         else:
             #There are no agents to initialize within this region, proceed to the next region
             continue
@@ -398,9 +400,14 @@ def large_initialize(
 
     all_agent_states, all_agent_attributes, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
 
-    response.agent_states = all_agent_states
-    response.agent_attributes = all_agent_attributes
-    response.recurrent_states = all_recurrent_states 
-    response.light_recurrent_states = light_recurrent_states
+    if len(all_responses) > 0:
+        # Get non-region-specific values such as api_model_version and traffic_light_states from an existing response
+        response = all_responses[0] 
+        # Set agent information with all agent information from every region
+        response.agent_states = all_agent_states
+        response.agent_attributes = all_agent_attributes
+        response.recurrent_states = all_recurrent_states 
+    else:
+        raise InvertedAIError(message=f"Unable to initialize all given regions. Please check the input parameters.")
     
     return response
