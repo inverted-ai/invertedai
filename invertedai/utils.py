@@ -74,7 +74,7 @@ class Session:
         )
         self._base_url = self._get_base_url()
         self._max_retries = float("inf")
-        self._status_force_list = [408, 429, 500, 502, 503, 504]
+        self._status_force_list = [403, 408, 429, 500, 502, 503, 504]
         self._base_backoff = 1  # Base backoff time in seconds
         self._backoff_factor = 2
         self._jitter_factor = 0.5
@@ -706,7 +706,7 @@ class ScenePlotter:
         self.traffic_lights = {
             static_actor.actor_id: static_actor
             for static_actor in static_actors
-            if static_actor.agent_type == "traffic-light"
+            if static_actor.agent_type == "traffic_light"
         }
 
         self.traffic_light_colors = {

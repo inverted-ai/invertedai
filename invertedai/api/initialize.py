@@ -8,15 +8,19 @@ from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import TryAgain, InvalidInputType, InvalidInput
 from invertedai.api.mock import (
     get_mock_agent_attributes,
+    get_mock_agent_properties,
     get_mock_agent_state,
     get_mock_recurrent_state,
     get_mock_birdview,
     get_mock_infractions,
+    get_mock_traffic_light_states,
+    get_mock_light_recurrent_states
 )
 from invertedai.common import (
     RecurrentState,
     AgentState,
     AgentAttributes,
+    AgentProperties,
     TrafficLightStatesDict,
     Image,
     InfractionIndicators,
@@ -37,6 +41,7 @@ class InitializeResponse(BaseModel):
     agent_attributes: List[
         Optional[AgentAttributes]
     ]  #: Static attributes of all initialized agents.
+    agent_properties: List[AgentProperties]  #: Static agent properties of all initialized agents.
     birdview: Optional[
         Image
     ]  #: If `get_birdview` was set, this contains the resulting image.
@@ -44,7 +49,7 @@ class InitializeResponse(BaseModel):
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
     traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
-    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group.
+    light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map. Pass this to :func:`iai.drive` at the first time step to let the server generate a realistic continuation of the traffic light state sequence. This does not work correctly if any specific light states were specified as input to `initialize`.
     api_model_version: str # Model version used for this API call
 
 
@@ -52,6 +57,7 @@ class InitializeResponse(BaseModel):
 def initialize(
     location: str,
     agent_attributes: Optional[List[AgentAttributes]] = None,
+    agent_properties: Optional[List[AgentProperties]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
     get_birdview: bool = False,
@@ -72,9 +78,9 @@ def initialize(
     agents may be defined by specifying `agent_type` only. 
     Agents are identified by their list index, so ensure the indices of each agent match in `states_history` and
     `agent_attributes` when applicable. 
-    If traffic lights are present in the scene, for best results their state should be specified for the current time in a 
-    `TrafficLightStatesDict`, and all historical time steps for which `states_history` is provided. It is legal to omit
-    the traffic light state specification, but the scene will be initialized as if the traffic lights were disabled.
+    If traffic lights are present in the scene, their states history can be specified with a list of `TrafficLightStatesDict`, each represent light states for one timestep, 
+    with the last element representing the current time step. It is legal to omit the traffic light state specification, 
+    and the scene will be initialized with a light state configuration consistent with agent states.
     Every simulation must start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
     Parameters
@@ -86,6 +92,11 @@ def initialize(
         Static attributes for all agents.
         The pre-defined agents should be specified first, followed by the sampled agents.
         The optional waypoint passed will be ignored for Initialize.
+    agent_properties:
+        Agent properties for all agents, replacing soon to be deprecated `agent_attributes`.
+        The pre-defined agents should be specified first, followed by the sampled agents.
+        The optional waypoint passed will be ignored for Initialize.
+        max_speed: optional [float], the desired maximum speed of the agent in m/s.
 
     states_history:
         History of pre-defined agent states - the outer list is over time and the inner over agents,
@@ -96,7 +107,7 @@ def initialize(
     traffic_light_state_history:
        History of traffic light states - the list is over time, in chronological order, i.e.
        the last element is the current state. If there are traffic lights in the map, 
-       not specifying traffic light state is equivalent to using iai generated light states.
+       not specifying traffic light state is equivalent to using server generated light states.
 
     location_of_interest:
         Optional coordinates for spawning agents with the given location as center instead of the default map center
@@ -126,21 +137,31 @@ def initialize(
     """
 
     if should_use_mock_api():
+        assert agent_properties is not None or agent_attributes is not None or agent_count is not None
+        if agent_properties is not None:
+            agent_count = len(agent_properties)
+        elif agent_attributes is not None:
+            agent_count = len(agent_attributes)
+
+        agent_properties = [get_mock_agent_properties() for _ in range(agent_count)]
+        agent_attributes = [get_mock_agent_attributes() for _ in range(agent_count)]
         if agent_attributes is None:
-            assert agent_count is not None
-            agent_attributes = [get_mock_agent_attributes() for _ in range(agent_count)]
             agent_states = [get_mock_agent_state() for _ in range(agent_count)]
         else:
-            agent_states = states_history[-1]
+            agent_states = states_history[-1] if states_history is not None else []
         recurrent_states = [get_mock_recurrent_state() for _ in range(agent_count)]
         birdview = get_mock_birdview()
         infractions = get_mock_infractions(len(agent_states))
         response = InitializeResponse(
             agent_states=agent_states,
             agent_attributes=agent_attributes,
+            agent_properties=agent_properties,
             recurrent_states=recurrent_states,
             birdview=birdview,
             infractions=infractions,
+            api_model_version=api_model_version if api_model_version is not None else "best",
+            traffic_lights_states=traffic_light_state_history[-1] if traffic_light_state_history is not None else None,
+            light_recurrent_states=get_mock_light_recurrent_states(len(traffic_light_state_history[0])) if traffic_light_state_history is not None else None
         )
         return response
 
@@ -153,12 +174,14 @@ def initialize(
         agent_attributes=agent_attributes
         if agent_attributes is None
         else [state.tolist() for state in agent_attributes],
+        agent_properties=agent_properties if agent_properties is None 
+        else [ap.serialize() if ap else None for ap in agent_properties] ,
         traffic_light_state_history=traffic_light_state_history,
         get_birdview=get_birdview,
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
         random_seed=random_seed,
-        model_version=api_model_version
+        model_version=api_model_version if api_model_version is not None else "best"
     )
     start = time.time()
     timeout = TIMEOUT
@@ -171,6 +194,9 @@ def initialize(
                 ],
                 agent_attributes=[
                     AgentAttributes.fromlist(attr) for attr in response["agent_attributes"]
+                ] if response["agent_attributes"] is not None else [],
+                agent_properties=[
+                    AgentProperties.deserialize(ap) for ap in response["agent_properties"]
                 ],
                 recurrent_states=[
                     RecurrentState.fromval(r) for r in response["recurrent_states"]
@@ -206,6 +232,7 @@ def initialize(
 async def async_initialize(
     location: str,
     agent_attributes: Optional[List[AgentAttributes]] = None,
+    agent_properties: Optional[List[AgentProperties]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
     get_birdview: bool = False,
@@ -228,6 +255,8 @@ async def async_initialize(
         agent_attributes=agent_attributes
         if agent_attributes is None
         else [state.tolist() for state in agent_attributes],
+        agent_properties=agent_properties if agent_properties is None 
+        else [ap.serialize() if ap else None for ap in agent_properties] ,
         traffic_light_state_history=traffic_light_state_history,
         get_birdview=get_birdview,
         location_of_interest=location_of_interest,
@@ -249,6 +278,9 @@ async def async_initialize(
         agent_attributes=[
             AgentAttributes.fromlist(attr) for attr in response["agent_attributes"]
         ],
+        agent_properties=[
+                    AgentProperties.deserialize(ap) for ap in response["agent_properties"]
+                ],
         recurrent_states=[
             RecurrentState.fromval(r) for r in response["recurrent_states"]
         ],

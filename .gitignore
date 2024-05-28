@@ -181,3 +181,5 @@ bazel-*
 *.avi
 *.gif
 examples/*.png
+examples/output/
+examples/*.csv

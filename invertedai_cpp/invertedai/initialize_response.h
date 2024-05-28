@@ -15,7 +15,8 @@ namespace invertedai {
 class InitializeResponse {
 private:
   std::vector<AgentState> agent_states_;
-  std::vector<AgentAttributes> agent_attributes_;
+  std::optional<std::vector<AgentAttributes>> agent_attributes_;
+  std::vector<AgentProperties> agent_properties_;
   std::vector<std::vector<double>> recurrent_states_;
   std::optional<std::map<std::string, std::string>> traffic_lights_states_;
   std::optional<std::vector<LightRecurrentState>> light_recurrent_states_;
@@ -45,7 +46,11 @@ public:
   /**
    * Get static attributes for all agents.
    */
-  std::vector<AgentAttributes> agent_attributes() const;
+  std::optional<std::vector<AgentAttributes>> agent_attributes() const;
+  /**
+   * Get static properties for all agents.
+   */
+  std::vector<AgentProperties> agent_properties() const;
   /**
    * Get the recurrent states for all agents.
    */
@@ -86,6 +91,10 @@ public:
    */
   void
   set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes);
+  /**
+   * Set static properties for all agents.
+   */
+  void set_agent_properties(const std::vector<AgentProperties> &agent_properties);
   /**
    * Set the recurrent states for all agents.
    */
