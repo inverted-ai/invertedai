@@ -179,3 +179,5 @@ bazel-*
 # Demos
 *.avi
 *.gif
+examples/output/
+examples/*.csv
