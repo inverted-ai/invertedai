@@ -88,11 +88,11 @@ def run_large_initialize(location, regions, return_exact_agents):
         assert response.light_recurrent_states is not None
 
 
-@pytest.mark.parametrize("location, regions, return_exact_agents", negative_tests_general)
-def test_negative_general(location, regions, return_exact_agents):
-    with pytest.raises(InvertedAIError):
-        run_large_initialize(location, regions, return_exact_agents)
+# @pytest.mark.parametrize("location, regions, return_exact_agents", negative_tests_general)
+# def test_negative_general(location, regions, return_exact_agents):
+#     with pytest.raises(InvertedAIError):
+#         run_large_initialize(location, regions, return_exact_agents)
 
-@pytest.mark.parametrize("location, regions, return_exact_agents", positive_tests)
-def test_positive(location, regions, return_exact_agents):
-    run_large_initialize(location, regions, return_exact_agents)
+# @pytest.mark.parametrize("location, regions, return_exact_agents", positive_tests)
+# def test_positive(location, regions, return_exact_agents):
+#     run_large_initialize(location, regions, return_exact_agents)

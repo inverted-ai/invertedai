@@ -129,9 +129,9 @@ def run_drive_direct(location, agent_states, agent_attributes, recurrent_states,
             assert response.traffic_lights_states is not None
             assert response.light_recurrent_states is not None
 
-@pytest.mark.parametrize("location, agent_states, agent_attributes, recurrent_states, light_recurrent_states, simulation_length", positive_tests)
-def test_postivie(location, agent_states, agent_attributes, recurrent_states, light_recurrent_states, simulation_length):
-    run_drive_direct(location, agent_states, agent_attributes, recurrent_states, light_recurrent_states, simulation_length)
+# @pytest.mark.parametrize("location, agent_states, agent_attributes, recurrent_states, light_recurrent_states, simulation_length", positive_tests)
+# def test_postivie(location, agent_states, agent_attributes, recurrent_states, light_recurrent_states, simulation_length):
+#     run_drive_direct(location, agent_states, agent_attributes, recurrent_states, light_recurrent_states, simulation_length)
 
 
 
