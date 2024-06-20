@@ -195,7 +195,7 @@ def get_number_of_agents_per_region_by_drivable_area(
             desc=f"Calculating drivable surface areas"
         )
     else:
-        iterable_regions = new_regions
+        iterable_regions = enumerate(new_regions)
 
     for i, region in iterable_regions:
         center_tuple = (region.center.x, region.center.y)
@@ -312,7 +312,7 @@ def large_initialize(
             desc=f"Initializing regions"
         )
     else:
-        iterable_regions = regions
+        iterable_regions = enumerate(regions)
 
     num_attempts = 1 + len(regions) // ATTEMPT_PER_NUM_REGIONS
     all_responses = []
