@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 from itertools import product
 from tqdm.contrib import tenumerate
 import numpy as np
-from random import choices
+from random import choices, seed
 
 import invertedai as iai
 from invertedai.large.common import Region
@@ -186,7 +186,7 @@ def get_number_of_agents_per_region_by_drivable_area(
     total_drivable_area_ratio = 0
 
     if random_seed is not None:
-        random.seed(random_seed)
+        seed(random_seed)
     
     if display_progress_bar:
         iterable_regions = tenumerate(
