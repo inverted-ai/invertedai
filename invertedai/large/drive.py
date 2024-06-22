@@ -5,7 +5,7 @@ import asyncio
 
 import invertedai as iai
 from invertedai.large.common import Region
-from invertedai.common import Point, AgentState, AgentAttributes, RecurrentState, TrafficLightStatesDict, LightRecurrentState
+from invertedai.common import Point, AgentState, AgentAttributes, AgentProperties, RecurrentState, TrafficLightStatesDict, LightRecurrentState
 from invertedai.api.drive import DriveResponse
 from invertedai.error import InvertedAIError, InvalidRequestError
 from ._quadtree import QuadTreeAgentInfo, QuadTree, _flatten_and_sort, QUADTREE_SIZE_BUFFER
@@ -20,7 +20,7 @@ async def async_drive_all(async_input_params):
 def large_drive(
     location: str,
     agent_states: List[AgentState],
-    agent_attributes: List[AgentAttributes],
+    agent_attributes: Optional[List[AgentAttributes]],
     recurrent_states: List[RecurrentState],
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[List[LightRecurrentState]] = None,
@@ -161,10 +161,20 @@ def large_drive(
 
     else:
         # Quadtree capacity has not been surpassed therefore can just call regular drive()
+        agent_properties = [
+            AgentProperties(
+                length = attr.length,
+                width = attr.width,
+                rear_axis_offset = attr.rear_axis_offset,
+                agent_type = attr.agent_type,
+                waypoint = attr.waypoint
+            ) for attr in agent_attributes
+        ]
         response = iai.drive(
             location = location,
             agent_states = agent_states,
-            agent_attributes = agent_attributes,
+            # agent_attributes = agent_attributes,
+            agent_properties = agent_properties,
             recurrent_states = recurrent_states,
             traffic_lights_states = traffic_lights_states,
             light_recurrent_states = light_recurrent_states,

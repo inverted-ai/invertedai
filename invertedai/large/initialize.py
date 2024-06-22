@@ -13,7 +13,7 @@ from invertedai.common import TrafficLightStatesDict, Point
 from invertedai.utils import get_default_agent_attributes
 from invertedai.error import InvertedAIError
 
-AGENT_SCOPE_FOV_BUFFER = 20
+AGENT_SCOPE_FOV_BUFFER = 60
 ATTEMPT_PER_NUM_REGIONS = 15
 
 @validate_call
@@ -220,7 +220,7 @@ def get_number_of_agents_per_region_by_drivable_area(
     random_indexes = choices(list(range(len(new_regions))), weights=all_region_weights, k=total_num_agents)
 
     for ind in random_indexes:
-        new_regions[ind].agent_attributes.extend(get_default_agent_attributes({"car":1}))
+        new_regions[ind].agent_attributes = new_regions[ind].agent_attributes + get_default_agent_attributes({"car":1})
 
     return new_regions
 
@@ -231,9 +231,9 @@ def _get_all_existing_agents_from_regions(regions,exclude_index=None):
     for ind, region in enumerate(regions):
         if not ind == exclude_index:
             region_agent_states = region.agent_states
-            agent_states.extend(region_agent_states)
-            agent_attributes.extend(region.agent_attributes[:len(region_agent_states)])
-            recurrent_states.extend(region.recurrent_states)
+            agent_states = agent_states + region_agent_states
+            agent_attributes = agent_attributes + region.agent_attributes[:len(region_agent_states)]
+            recurrent_states = recurrent_states + region.recurrent_states
     
     return agent_states, agent_attributes, recurrent_states
 
@@ -389,6 +389,10 @@ def large_initialize(
                     response.agent_attributes[num_out_of_region_conditional_agents:],
                     response.recurrent_states[num_out_of_region_conditional_agents:]
                 ):
+                    if not return_exact_agents:
+                        if not inside_fov(center=region_center, agent_scope_fov=region_size, point=state.center):
+                            continue
+
                     regions[i].insert_all_agent_details(state,attrs,r_state)
 
                 if traffic_light_state_history is None and response.traffic_lights_states is not None:
