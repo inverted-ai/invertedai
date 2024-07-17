@@ -1,4 +1,7 @@
 import invertedai as iai
+from invertedai.large.common import Region
+from invertedai.common import AgentAttributes
+from invertedai.utils import get_default_agent_properties
 
 import argparse
 from tqdm import tqdm
@@ -51,7 +54,7 @@ def main(args):
             )
             scene_plotter.initialize_recording(
                 agent_states=response.agent_states,
-                agent_attributes=response.agent_attributes,
+                agent_properties=response.agent_properties,
                 traffic_light_states=response.traffic_lights_states
             )
 
@@ -59,12 +62,12 @@ def main(args):
         print(f"Number of agents in simulation: {total_num_agents}")
 
         print(f"Begin stepping through simulation.")
-        agent_attributes = response.agent_attributes
+        agent_properties = response.agent_properties
         for _ in tqdm(range(args.sim_length)):
             response = iai.large_drive(
                 location = args.location,
                 agent_states = response.agent_states,
-                agent_attributes = agent_attributes,
+                agent_properties = agent_properties,
                 recurrent_states = response.recurrent_states,
                 light_recurrent_states = response.light_recurrent_states,
                 random_seed = drive_seed,

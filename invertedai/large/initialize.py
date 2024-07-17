@@ -10,7 +10,7 @@ import invertedai as iai
 from invertedai.large.common import Region
 from invertedai.api.initialize import InitializeResponse
 from invertedai.common import TrafficLightStatesDict, Point
-from invertedai.utils import get_default_agent_attributes
+from invertedai.utils import get_default_agent_properties
 from invertedai.error import InvertedAIError
 
 AGENT_SCOPE_FOV_BUFFER = 20
@@ -156,7 +156,7 @@ def get_number_of_agents_per_region_by_drivable_area(
     """
     This function takes in a list of regions, calculates the driveable area for each of them using 
     :func:`location_info`, then creates a new Region object with copied location and shape data and 
-    inserts a number of default AgentAttributes objects into it porportional to its drivable surface 
+    inserts a number of default AgentProperties objects into it porportional to its drivable surface 
     area relative to the other regions. Regions with no or a relatively small amount of drivable 
     surfaces will be assigned zero agents.
 
@@ -220,22 +220,22 @@ def get_number_of_agents_per_region_by_drivable_area(
     random_indexes = choices(list(range(len(new_regions))), weights=all_region_weights, k=total_num_agents)
 
     for ind in random_indexes:
-        new_regions[ind].agent_attributes.extend(get_default_agent_attributes({"car":1}))
+        new_regions[ind].agent_properties.extend(get_default_agent_properties({"car":1}))
 
     return new_regions
 
 def _get_all_existing_agents_from_regions(regions,exclude_index=None):
     agent_states = []
-    agent_attributes = []
+    agent_properties = []
     recurrent_states = []
     for ind, region in enumerate(regions):
         if not ind == exclude_index:
             region_agent_states = region.agent_states
             agent_states.extend(region_agent_states)
-            agent_attributes.extend(region.agent_attributes[:len(region_agent_states)])
+            agent_properties.extend(region.agent_properties[:len(region_agent_states)])
             recurrent_states.extend(region.recurrent_states)
     
-    return agent_states, agent_attributes, recurrent_states
+    return agent_states, agent_properties, recurrent_states
 
 @validate_call
 def large_initialize(
@@ -254,7 +254,7 @@ def large_initialize(
     response is combined into a single response which is returned. While looping over all
     regions, if there are agents in other regions that are near enough to the region of
     interest, they will be passed as conditional to :func:`initialize`. :func:`initialize` 
-    will not be called if no agent_states or agent_attributes are specified in the region. 
+    will not be called if no agent_states or agent_properties are specified in the region. 
     As well, predefined agents may be passed via the regions and will be considered as 
     conditional. A boolean flag can be used to control failure behaviour if :func:`initialize` 
     is unable to produce viable vehicle placements if the initialization should continue or 
@@ -267,7 +267,7 @@ def large_initialize(
 
     regions:
         List of regions that contains information about the center, size, and agent_states and 
-        agent_attributes formatted to align with :func:`initialize`. Please refer to the 
+        agent_properties formatted to align with :func:`initialize`. Please refer to the 
         documentation for :func:`initialize` for more details. The Region objects are not 
         modified, rather they are used 
     
@@ -298,7 +298,7 @@ def large_initialize(
     """
 
     agent_states_sampled = []
-    agent_attributes_sampled = []
+    agent_properties_sampled = []
     agent_rs_sampled = []
 
     def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
@@ -320,35 +320,35 @@ def large_initialize(
         region_center = region.center
         region_size = region.size
 
-        existing_agent_states, existing_agent_attributes, _ = _get_all_existing_agents_from_regions(regions,i)
+        existing_agent_states, existing_agent_properties, _ = _get_all_existing_agents_from_regions(regions,i)
 
         # Acquire agents that exist in other regions that must be passed as conditional to avoid collisions
         out_of_region_conditional_agents = list(filter(
             lambda x: inside_fov(center=region_center, agent_scope_fov=region_size+AGENT_SCOPE_FOV_BUFFER, point=x[0].center), 
-            zip(existing_agent_states,existing_agent_attributes)
+            zip(existing_agent_states,existing_agent_properties)
         ))
 
         out_of_region_conditional_agent_states = [x[0] for x in out_of_region_conditional_agents]
-        out_of_region_conditional_agent_attributes = [x[1] for x in out_of_region_conditional_agents]
+        out_of_region_conditional_agent_properties = [x[1] for x in out_of_region_conditional_agents]
 
         region_conditional_agent_states = [] if region.agent_states is None else region.agent_states
         num_region_conditional_agents = len(region_conditional_agent_states)
-        region_conditional_agent_attributes = [] if region.agent_attributes is None else region.agent_attributes[:num_region_conditional_agents]
-        region_unsampled_agent_attributes = [] if region.agent_attributes is None else region.agent_attributes[num_region_conditional_agents:]
+        region_conditional_agent_properties = [] if region.agent_properties is None else region.agent_properties[:num_region_conditional_agents]
+        region_unsampled_agent_properties = [] if region.agent_properties is None else region.agent_properties[num_region_conditional_agents:]
         all_agent_states = out_of_region_conditional_agent_states + region_conditional_agent_states
-        all_agent_attributes = out_of_region_conditional_agent_attributes + region_conditional_agent_attributes + region_unsampled_agent_attributes
+        all_agent_properties = out_of_region_conditional_agent_properties + region_conditional_agent_properties + region_unsampled_agent_properties
 
         num_out_of_region_conditional_agents = len(out_of_region_conditional_agent_states)
 
         regions[i].clear_agents()
         response = None
-        if len(all_agent_attributes) > 0:
+        if len(all_agent_properties) > 0:
             for attempt in range(num_attempts):
                 try:
                     response = iai.initialize(
                         location=location,
                         states_history=None if len(all_agent_states) == 0 else [all_agent_states],
-                        agent_attributes=all_agent_attributes,
+                        agent_properties=all_agent_properties,
                         get_infractions=get_infractions,
                         traffic_light_state_history=traffic_light_state_history,
                         location_of_interest=(region_center.x, region_center.y),
@@ -374,7 +374,7 @@ def large_initialize(
                         response = iai.initialize(
                             location=location,
                             states_history=[all_agent_states],
-                            agent_attributes=all_agent_attributes[:num_out_of_region_conditional_agents+num_region_conditional_agents],
+                            agent_properties=all_agent_properties[:num_out_of_region_conditional_agents+num_region_conditional_agents],
                             get_infractions=get_infractions,
                             traffic_light_state_history=traffic_light_state_history,
                             location_of_interest=(region_center.x, region_center.y),
@@ -386,7 +386,7 @@ def large_initialize(
                 # Filter out conditional agents from other regions
                 for state, attrs, r_state in zip(
                     response.agent_states[num_out_of_region_conditional_agents:],
-                    response.agent_attributes[num_out_of_region_conditional_agents:],
+                    response.agent_properties[num_out_of_region_conditional_agents:],
                     response.recurrent_states[num_out_of_region_conditional_agents:]
                 ):
                     regions[i].insert_all_agent_details(state,attrs,r_state)
@@ -398,14 +398,14 @@ def large_initialize(
             continue
 
 
-    all_agent_states, all_agent_attributes, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
+    all_agent_states, all_agent_properties, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
 
     if len(all_responses) > 0:
         # Get non-region-specific values such as api_model_version and traffic_light_states from an existing response
         response = all_responses[0] 
         # Set agent information with all agent information from every region
         response.agent_states = all_agent_states
-        response.agent_attributes = all_agent_attributes
+        response.agent_properties = all_agent_properties
         response.recurrent_states = all_recurrent_states 
     else:
         raise InvertedAIError(message=f"Unable to initialize all given regions. Please check the input parameters.")
