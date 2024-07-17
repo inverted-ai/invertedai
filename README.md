@@ -48,7 +48,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import invertedai as iai
 
-location = "iai:drake_street_and_pacific_blvd"  # select one of available locations
+location = "canada:drake_street_and_pacific_blvd"  # select one of available locations
 
 iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
 
@@ -73,8 +73,8 @@ scene_plotter = iai.utils.ScenePlotter(rendered_static_map,
                                        (location_info_response.map_center.x, location_info_response.map_center.y),
                                        location_info_response.static_actors)
 scene_plotter.initialize_recording(
-    agent_states=response.agent_states,
-    agent_attributes=agent_attributes,
+    response.agent_states,
+    agent_attributes,
 )
 
 print("Begin stepping through simulation.")
