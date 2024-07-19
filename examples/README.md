@@ -17,11 +17,11 @@ be CARLA-compatible.
 
 Then, once you obtain an API key, you can run the examples.
 ```bash
-python npc_only.py --api_key $IAI_API_KEY
+python minimal_example.py --api_key $IAI_API_KEY
 ```
 There are currently three different examples available.
 
-## NPC only
+## Minimal Example
 
 This demonstration script runs without a local simulator and the API is used to control
 all vehicles, meaning all vehicles in the simulation are NPCs. To minimize client-side

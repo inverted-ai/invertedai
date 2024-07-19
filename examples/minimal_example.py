@@ -37,7 +37,7 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
         agent_attributes=agent_attributes,
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
-        traffic_lights_states=response.light_recurrent_states,
+        light_recurrent_states=response.light_recurrent_states,
     )
 
     # save the visualization
