@@ -2,7 +2,9 @@ from typing import List, Optional, Dict
 from enum import Enum
 from pydantic import BaseModel, model_validator
 import math
-
+from PIL import Image as PImage
+import numpy as np
+import io
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
@@ -78,19 +80,14 @@ class Image(BaseModel):
     def decode(self):
         """
         Decode and return the image.
-        Requires numpy and cv2 to be available, otherwise raises `ImportError`.
         """
-        try:
-            import numpy as np
-            import cv2
-        except ImportError as e:
-            iai.logger.error(
-                "Decoding images requires numpy and cv2, which were not found."
-            )
-            raise e
-        array = np.array(self.encoded_image, dtype=np.uint8)
-        image = cv2.imdecode(array, cv2.IMREAD_COLOR)
-        return image
+        self.encoded_image = bytes(self.encoded_image)
+        img_stream = io.BytesIO(self.encoded_image)
+        img = PImage.open(img_stream)
+        img_array = np.array(img)
+        img_array = img_array[:, :, ::-1]
+        return img_array
+
 
     @classmethod
     def fromval(cls, val):
@@ -99,11 +96,10 @@ class Image(BaseModel):
     def decode_and_save(self, path):
         """
         Decode the image and save it to the specified path.
-        Requires numpy and cv2 to be available, otherwise raises `ImportError`.
         """
         image = self.decode()
-        import cv2
-        cv2.imwrite(path, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        image_pil = PImage.fromarray(image)
+        image_pil.save(path)
 
 
 class TrafficLightState(str, Enum):
@@ -206,7 +202,36 @@ class AgentAttributes(BaseModel):
             attr_list.append([self.waypoint.x, self.waypoint.y])
         return attr_list
 
+class AgentProperties(BaseModel):
+    """
+    Static attributes of the agent, which don't change over the course of a simulation.
+    We assume every agent is a rectangle obeying a kinematic bicycle model.
 
+    See Also
+    --------
+    AgentState
+    """
+
+    length: Optional[float] = None  #: Longitudinal extent of the agent, in meters.
+    width: Optional[float] = None  #: Lateral extent of the agent, in meters.
+    #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
+    rear_axis_offset: Optional[float] = None
+    agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
+    waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it.
+    max_speed: Optional[float] = None  #: Maximum speed limit of the agent in m/s.
+
+    @classmethod
+    def deserialize(cls, val):
+        return cls(length=val['length'], width=val['width'], rear_axis_offset=val['rear_axis_offset'], agent_type=val['agent_type'], 
+                   waypoint=Point(x=val['waypoint'][0], y=val['waypoint'][1]) if val['waypoint'] else None, max_speed=val['max_speed'])
+    
+    def serialize(self):
+        """
+        Convert AgentProperties to a valid request format in json
+        """
+        return {"length": self.length, "width": self.width, "rear_axis_offset": self.rear_axis_offset, "agent_type": self.agent_type, 
+                 "waypoint": [self.waypoint.x, self.waypoint.y] if self.waypoint else None, "max_speed": self.max_speed}
+    
 class AgentState(BaseModel):
     """
     The current or predicted state of a given agent at a given point.
@@ -263,7 +288,7 @@ class StaticMapActor(BaseModel):
     """
 
     actor_id: TrafficLightId  #: ID as used in :func:`iai.initialize` and :func:`iai.drive`.
-    agent_type: str  #: Not currently used, there may be more traffic signals in the future.
+    agent_type: str  #: Supported types are "traffic_light" and "stop_sign" and "yield_sign".
     center: Point  #: The center of the stop line.
     #: Natural direction of traffic going through the stop line, in radians like in :class:`AgentState`.
     orientation: float

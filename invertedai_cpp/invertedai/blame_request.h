@@ -71,7 +71,7 @@ public:
   /**
    * Get the state history of traffic lights.
    * List of TrafficLightStatesDict objects containing the state of all traffic
-   * lights for every time step. The dictionary keys are the traffic-light IDs
+   * lights for every time step. The dictionary keys are the traffic_light IDs
    * and value is the state, i.e., ‘green’, ‘yellow’, ‘red’, or None.
    */
   std::optional<std::vector<std::vector<TrafficLightState>>>
@@ -125,7 +125,7 @@ public:
   /**
    * Set the list of TrafficLightStatesDict objects containing the state of all
    * traffic lights for every time step. The dictionary keys are the
-   * traffic-light IDs and value is the state, i.e., ‘green’, ‘yellow’, ‘red’,
+   * traffic_light IDs and value is the state, i.e., ‘green’, ‘yellow’, ‘red’,
    * or None.
    */
   void set_traffic_light_state_history(const std::optional<std::vector<std::vector<TrafficLightState>>>&traffic_light_state_history);

@@ -90,3 +90,17 @@ cc_binary(
         "@opencv",
     ],
 )
+
+cc_binary(
+    name = "max_speed_example",
+    srcs = ["max_speed_example.cc"],
+    data = [
+        "drive_body.json",
+        "initialize_body_max_speed_car_example.json",
+    ],
+    deps = [
+        "//invertedai:api",
+        "@boost//:beast",
+        "@opencv",
+    ],
+)

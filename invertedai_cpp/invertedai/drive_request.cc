@@ -20,10 +20,41 @@ DriveRequest::DriveRequest(const std::string &body_str) {
     };
     this->agent_states_.push_back(agent_state);
   }
-  this->agent_attributes_.clear();
-  for (const auto &element : this->body_json_["agent_attributes"]) {
-    AgentAttributes agent_attribute(element);
-    this->agent_attributes_.push_back(agent_attribute);
+  if (this->body_json_["agent_attributes"].is_null()) {
+    this->agent_attributes_ = std::nullopt;
+  } else {
+    this->agent_attributes_ = std::vector<AgentAttributes>();
+    for (const auto &element : this->body_json_["agent_attributes"]) {
+      AgentAttributes agent_attribute(element);
+      this->agent_attributes_.value().push_back(agent_attribute);
+    }
+  }
+  if (this->body_json_["agent_properties"].is_null()) {
+    this->agent_properties_ = std::nullopt;
+  } else {
+    this->agent_properties_ = std::vector<AgentProperties>();
+    for (const auto &element : this->body_json_["agent_properties"]) {
+      AgentProperties ap;
+      if (element.contains("length")) {
+        ap.length = element["length"];
+      }
+      if (element.contains("width")) {
+        ap.width = element["width"];
+      }
+      if (element.contains("rear_axis_offset")) {
+        ap.rear_axis_offset = element["rear_axis_offset"];
+      }
+      if (element.contains("agent_type")) {
+        ap.agent_type = element["agent_type"];
+      }
+      if (element.contains("waypoint")) {
+        ap.waypoint = {element["waypoint"] [0], element["waypoint"] [1]};
+      }
+      if (element.contains("max_speed")) {
+        ap.max_speed = element["max_speed"];
+      }
+      this->agent_properties_.value().push_back(ap);
+    }
   }
   this->recurrent_states_.clear();
   for (const auto &element : this->body_json_["recurrent_states"]) {
@@ -94,10 +125,46 @@ void DriveRequest::refresh_body_json_() {
     };
     this->body_json_["agent_states"].push_back(element);
   }
-  this->body_json_["agent_attributes"].clear();
-  for (const AgentAttributes &agent_attribute : this->agent_attributes_) {
-    json element = agent_attribute.toJson();
-    this->body_json_["agent_attributes"].push_back(element);
+  if (this->agent_attributes_.has_value()) {
+    this->body_json_["agent_attributes"].clear();
+    for (const AgentAttributes &agent_attribute : this->agent_attributes_.value()) {
+      json element = agent_attribute.toJson();
+      this->body_json_["agent_attributes"].push_back(element);
+    }
+  } else {
+    this->body_json_["agent_attributes"] = nullptr;
+  }
+
+  if (this->agent_properties_.has_value()) {
+    this->body_json_["agent_properties"].clear();
+    for (const AgentProperties &ap : this->agent_properties_.value()) {
+      json element;
+      if (ap.length.has_value()) {
+        element["length"] = ap.length.value();
+      }
+
+      if (ap.width.has_value()) {
+        element["width"] = ap.width.value();
+      }
+
+      if (ap.rear_axis_offset.has_value()) {
+        element["rear_axis_offset"] = ap.rear_axis_offset.value();
+      }
+
+      if (ap.agent_type.has_value()) {
+        element["agent_type"] = ap.agent_type.value();
+      }
+
+      if (ap.max_speed.has_value()) {
+        element["max_speed"] = ap.max_speed.value();
+      }
+      if (ap.waypoint.has_value()) {
+        element["waypoint"] = {ap.waypoint->x, ap.waypoint->y};
+      }
+      this->body_json_["agent_properties"].push_back(element);
+    }
+  } else {
+    this->body_json_["agent_properties"] = nullptr;
   }
   this->body_json_["recurrent_states"].clear();
   for (const std::vector<double> &recurrent_state : this->recurrent_states_) {
@@ -156,6 +223,7 @@ void DriveRequest::refresh_body_json_() {
 void DriveRequest::update(const InitializeResponse &init_res) {
   this->agent_states_ = init_res.agent_states();
   this->agent_attributes_ = init_res.agent_attributes();
+  this->agent_properties_ = init_res.agent_properties();
   this->recurrent_states_ = init_res.recurrent_states();
   this->light_recurrent_states_ = init_res.light_recurrent_states();
 }
@@ -165,9 +233,20 @@ void DriveRequest::update(const DriveResponse &drive_res) {
   this->recurrent_states_ = drive_res.recurrent_states();
   this->light_recurrent_states_ = drive_res.light_recurrent_states();
 }
-
 void DriveRequest::update_attribute(int idx, AgentAttributes &agent_attributes) {
-  this->agent_attributes_[idx] = agent_attributes;
+  if (this->agent_attributes_.has_value()) {
+    this->agent_attributes_.value()[idx] = agent_attributes;
+  } else {
+    throw std::runtime_error("Agent attributes is not initialized.");
+  }
+}
+
+void DriveRequest::update_property(int idx, AgentProperties &agent_properties) {
+  if (this->agent_properties_.has_value()) {
+    this->agent_properties_.value()[idx] = agent_properties;
+  } else {
+    throw std::runtime_error("Agent properties is not initialized.");
+  }
 }
 
 std::string DriveRequest::body_str() {
@@ -183,8 +262,12 @@ std::vector<AgentState> DriveRequest::agent_states() const {
   return this->agent_states_;
 }
 
-std::vector<AgentAttributes> DriveRequest::agent_attributes() const {
+std::optional<std::vector<AgentAttributes>> DriveRequest::agent_attributes() const {
   return this->agent_attributes_;
+};
+
+std::optional<std::vector<AgentProperties>> DriveRequest::agent_properties() const {
+  return this->agent_properties_;
 };
 
 std::optional<std::map<std::string, std::string>> DriveRequest::traffic_lights_states() const {

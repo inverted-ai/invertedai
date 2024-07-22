@@ -162,8 +162,15 @@ class ServiceUnavailableError(InvertedAIError):
 class InvalidAPIType(InvertedAIError):
     pass
 
-class LargeRequestTimeout(InvertedAIError):
+class RequestTooLarge(InvertedAIError):
     pass
+
+class RequestTimeoutError(InvertedAIError):
+    pass
+
+class ServerTimeoutError(InvertedAIError):
+    pass
+
 
 class SignatureVerificationError(InvertedAIError):
     def __init__(self, message, sig_header, http_body=None):

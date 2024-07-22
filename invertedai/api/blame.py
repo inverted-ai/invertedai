@@ -67,7 +67,7 @@ def blame(
 
     traffic_light_state_history:
         List of TrafficLightStatesDict objects containing the state of all traffic lights
-        for every time step. The dictionary keys are the traffic-light IDs and value is 
+        for every time step. The dictionary keys are the traffic_light IDs and value is 
         the state, i.e., 'green', 'yellow', 'red', or None.
 
     get_reasons:
