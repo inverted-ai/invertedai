@@ -178,6 +178,8 @@ def insert_agents_into_nearest_region(
         closest_region_index = region_distances.index(min(region_distances))
         regions[closest_region_index].agent_properties.append(prop)
 
+    return regions
+
 
 @validate_call
 def get_number_of_agents_per_region_by_drivable_area(
