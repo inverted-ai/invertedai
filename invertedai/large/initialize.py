@@ -10,7 +10,7 @@ from math import sqrt
 import invertedai as iai
 from invertedai.large.common import Region
 from invertedai.api.initialize import InitializeResponse
-from invertedai.common import TrafficLightStatesDict, Point, AgentProperties, AgentStates
+from invertedai.common import TrafficLightStatesDict, Point, AgentProperties, AgentState
 from invertedai.utils import get_default_agent_properties
 from invertedai.error import InvertedAIError
 
@@ -150,7 +150,7 @@ def get_regions_in_grid(
 def insert_agents_into_nearest_region(
     regions: List[Region],
     agent_properties: List[AgentProperties],
-    agent_states: List[AgentStates]
+    agent_states: List[AgentState]
 ) -> List[Region]:
     """
     Helper function to place pre-existing agents into a group of regions. If agents exist 
