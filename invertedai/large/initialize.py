@@ -5,11 +5,12 @@ from itertools import product
 from tqdm.contrib import tenumerate
 import numpy as np
 from random import choices, seed
+from math import sqrt
 
 import invertedai as iai
 from invertedai.large.common import Region
 from invertedai.api.initialize import InitializeResponse
-from invertedai.common import TrafficLightStatesDict, Point
+from invertedai.common import TrafficLightStatesDict, Point, AgentProperties, AgentStates
 from invertedai.utils import get_default_agent_properties
 from invertedai.error import InvertedAIError
 
@@ -146,6 +147,39 @@ def get_regions_in_grid(
     return regions
 
 @validate_call
+def insert_agents_into_nearest_region(
+    regions: List[Region],
+    agent_properties: List[AgentProperties],
+    agent_states: List[AgentStates]
+) -> List[Region]:
+    """
+    Helper function to place pre-existing agents into a group of regions. If agents exist 
+    within the bounds of multiple regions, it is placed within the region to which whose 
+    center it is closest. Agents will be placed "into" the region that is closest even if 
+    it is not within the bounds of the region.
+
+    Arguments
+    ----------
+    regions:
+        A list of Regions with bounds and centre defined for which agents are associated. 
+
+    agent_states:
+        Please refer to the documentation of :func:`drive` for information on this parameter.
+
+    agent_properties:
+        Please refer to the documentation of :func:`drive` for information on this parameter.
+    """
+
+    for state, prop in zip (agent_states,agent_properties):
+        region_distances = []
+        for region in regions:
+            region_distances.append(sqrt((state.center.x-region.center.x)**2 + (state.center.y-region.center.y)**2))
+
+        closest_region_index = region_distances.index(min(region_distances))
+        regions[closest_region_index].agent_properties.append(prop)
+
+
+@validate_call
 def get_number_of_agents_per_region_by_drivable_area(
     location: str,
     regions: List[Region],
@@ -158,7 +192,8 @@ def get_number_of_agents_per_region_by_drivable_area(
     :func:`location_info`, then creates a new Region object with copied location and shape data and 
     inserts a number of default AgentProperties objects into it porportional to its drivable surface 
     area relative to the other regions. Regions with no or a relatively small amount of drivable 
-    surfaces will be assigned zero agents.
+    surfaces will be assigned zero agents. If a region is at its capacity (e.g. due to pre-existing
+    agents), no more agents will be added to it. 
 
     Arguments
     ----------
@@ -219,8 +254,16 @@ def get_number_of_agents_per_region_by_drivable_area(
         all_region_weights[i] = drivable_ratio/total_drivable_area_ratio
     random_indexes = choices(list(range(len(new_regions))), weights=all_region_weights, k=total_num_agents)
 
+    number_sampled_agents = {}
     for ind in random_indexes:
-        new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({"car":1})
+        if ind not in number_sampled_agents:
+            number_sampled_agents[ind] = 1
+        else:
+            number_sampled_agents[ind] += 1
+
+    for ind in random_indexes:
+        if len(new_regions[ind].agent_properties) < number_sampled_agents[ind]:
+            new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({"car":1})
 
     return new_regions
 
