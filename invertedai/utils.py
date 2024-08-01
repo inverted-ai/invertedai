@@ -865,7 +865,7 @@ class ScenePlotter():
         self.traffic_lights_history = []
         self.agent_properties = None
         self.conditional_agents = []
-        self.agent_attributes = None
+        self.agent_properties = None
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
 
@@ -893,7 +893,8 @@ class ScenePlotter():
     def plot_scene(
         self,
         agent_states: List[AgentState], 
-        agent_attributes: List[AgentAttributes], 
+        agent_attributes: Optional[List[AgentAttributes]] = None, 
+        agent_properties: Optional[List[AgentProperties]] = None, 
         traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
         conditional_agents: Optional[List[int]] = None,
         ax: Optional[Axes] = None,
@@ -913,6 +914,9 @@ class ScenePlotter():
         agent_attributes: 
             Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic
             bicycle model.
+        agent_properties:
+            Static attributes of the agent (with the AgentProperties data type), which don’t change over the course of a simulation. We assume every 
+            agent is a rectangle obeying a kinematic bicycle model.
         traffic_light_states: 
             Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the 
             corresponding map contains traffic light static actors.
@@ -934,16 +938,22 @@ class ScenePlotter():
             index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
 
         """
+        assert (agent_attributes is not None) ^ (agent_properties is not None), \
+            "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
+
+        if agent_attributes is not None:
+            agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+
         self.initialize_recording(
-            agent_states, 
-            agent_attributes,
+            agent_states=agent_states, 
+            agent_properties=agent_properties,
             traffic_light_states=traffic_light_states,
             conditional_agents=conditional_agents
         )
 
         self._validate_agent_style_data(
-            agent_face_colors,
-            agent_edge_colors
+            agent_face_colors=agent_face_colors,
+            agent_edge_colors=agent_edge_colors
         )
 
         self._plot_frame(
@@ -1033,12 +1043,12 @@ class ScenePlotter():
         self._update_frame_to(idx)
 
     def _validate_agent_style_data(self,agent_face_colors,agent_edge_colors):
-        if self.agent_attributes is not None: 
+        if self.agent_properties is not None: 
             if agent_face_colors is not None:
-                if len(agent_face_colors) != len(self.agent_attributes):
+                if len(agent_face_colors) != len(self.agent_properties):
                     raise Exception("Number of agent face colors does not match number of agents.")
             if agent_edge_colors is not None:
-                if len(agent_edge_colors) != len(self.agent_attributes):
+                if len(agent_edge_colors) != len(self.agent_properties):
                     raise Exception("Number of agent edge colors does not match number of agents.")
 
         self.agent_face_colors = agent_face_colors
