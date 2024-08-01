@@ -2,6 +2,7 @@ from typing import List, Optional, Tuple, Union
 from pydantic import BaseModel
 
 from invertedai.common import AgentAttributes, AgentProperties, AgentState, RecurrentState, Point
+from invertedai.utils import convert_attributes_to_properties
 
 class Region(BaseModel):
     """
@@ -37,7 +38,7 @@ class Region(BaseModel):
         for properties in agent_properties:
             properties_new = properties
             if isinstance(properties,AgentAttributes):
-                properties_new = cls.convert_attributes_to_properties(cls,properties_new)
+                properties_new = convert_attributes_to_properties(properties_new)
             agent_properties_new.append(properties_new)
         agent_properties = agent_properties_new
 
@@ -76,7 +77,7 @@ class Region(BaseModel):
         recurrent_state: RecurrentState
     ):
         if isinstance(agent_properties,AgentAttributes):
-            agent_properties = self.convert_attributes_to_properties(agent_properties)
+            agent_properties = convert_attributes_to_properties(agent_properties)
 
         self.agent_states.append(agent_state)
         self.agent_properties.append(agent_properties)
@@ -96,14 +97,3 @@ class Region(BaseModel):
         x, y = point.x, point.y
         region_x, region_y = self.center.x, self.center.y
         return region_x - self.size/2 <= x and x <= region_x + self.size/2 and region_y - self.size/2 <= y and y <= region_y + self.size/2
-
-    def convert_attributes_to_properties(self,attributes):
-        properties = AgentProperties(
-            length=attributes.length,
-            width=attributes.width,
-            rear_axis_offset=attributes.rear_axis_offset,
-            agent_type=attributes.agent_type,
-            waypoint=attributes.waypoint
-        )
-
-        return properties

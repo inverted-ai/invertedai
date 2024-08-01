@@ -7,6 +7,7 @@ import invertedai as iai
 from invertedai.large.common import Region
 from invertedai.common import Point, AgentState, AgentAttributes, AgentProperties, RecurrentState, TrafficLightStatesDict, LightRecurrentState
 from invertedai.api.drive import DriveResponse
+from invertedai.utils import convert_attributes_to_properties
 from invertedai.error import InvertedAIError, InvalidRequestError
 from ._quadtree import QuadTreeAgentInfo, QuadTree, _flatten_and_sort, QUADTREE_SIZE_BUFFER
 
@@ -96,13 +97,7 @@ def large_drive(
     for properties in agent_properties:
         properties_new = properties
         if isinstance(properties,AgentAttributes):
-            properties_new = AgentProperties(
-                length=properties.length,
-                width=properties.width,
-                rear_axis_offset=properties.rear_axis_offset,
-                agent_type=properties.agent_type,
-                waypoint=properties.waypoint
-            )
+            properties_new = convert_attributes_to_properties(properties)
         agent_properties_new.append(properties_new)
     agent_properties = agent_properties_new
 

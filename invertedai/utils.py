@@ -445,26 +445,44 @@ class Session:
 @validate_call
 def get_default_agent_properties(
     agent_count_dict: Dict[str,int],
-    attribute_type: Optional[str] = "properties"
+    use_agent_properties: Optional[bool] = True
 ) -> List[Union[AgentAttributes,AgentProperties]]:
-    # Function that outputs a list a AgentAttributes with minimal default settings. 
-    # Mainly meant to be used to pad a list of AgentAttributes to send as input to
-    # initialize(). This list is created by reading a dictionary containing the
-    # desired agent types with the agent count for each type respectively.
-    # If desired to use deprecate AgentAttributes instead of AgentProperties, input
-    # string "attributes" instead of default "properties"
+    """
+    Function that outputs a list a AgentAttributes with minimal default settings. 
+    Mainly meant to be used to pad a list of AgentAttributes to send as input to
+    initialize(). This list is created by reading a dictionary containing the
+    desired agent types with the agent count for each type respectively.
+    If desired to use deprecate AgentAttributes instead of AgentProperties, set the
+    use_agent_properties flag to False.
+    """
 
     agent_attributes_list = []
 
     for agent_type, agent_count in agent_count_dict.items():
         for _ in range(agent_count):
-            if attribute_type == "properties":
+            if use_agent_properties:
                 agent_properties = AgentProperties(agent_type=agent_type)
                 agent_attributes_list.append(agent_properties)
             else:
                 agent_attributes_list.append(AgentAttributes.fromlist([agent_type]))
 
     return agent_attributes_list
+
+@validate_call
+def convert_attributes_to_properties(attributes: AgentAttributes) -> AgentProperties:
+    """
+    Convert deprecated AgentAttributes data type to AgentProperties.
+    """
+
+    properties = AgentProperties(
+        length=attributes.length,
+        width=attributes.width,
+        rear_axis_offset=attributes.rear_axis_offset,
+        agent_type=attributes.agent_type,
+        waypoint=attributes.waypoint
+    )
+
+    return properties
 
 @validate_call
 def iai_conditional_initialize(
