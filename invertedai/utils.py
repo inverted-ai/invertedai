@@ -8,7 +8,8 @@ import logging
 import random
 import time
 
-from typing import Dict, Optional, List, Tuple, Any
+
+from typing import Dict, Optional, List, Tuple, Union, Any
 from tqdm.contrib import tmap
 from itertools import product
 from copy import deepcopy
@@ -20,9 +21,7 @@ from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter, Retry
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 from matplotlib import animation
-import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.animation import FuncAnimation
 from matplotlib.axes import Axes
@@ -32,7 +31,7 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import AgentState, AgentAttributes, TrafficLightState, TrafficLightStatesDict, StaticMapActor, Image, Point, RecurrentState
+from invertedai.common import AgentState, AgentAttributes, AgentProperties, StaticMapActor, TrafficLightState, TrafficLightStatesDict, Point, RecurrentState
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
 from invertedai.api.initialize import InitializeResponse
@@ -204,7 +203,8 @@ class Session:
         Args:
             api_token (str): The API key to be added. Defaults to an empty string.
             key_type (str, optional): The type of API key. Defaults to None. When passed, the base_url will be set according to the key_type.
-            url (str, optional): The URL to be used for the request. Defaults to None. When passed, the base_rul will be set to the passed value and the key_type will be ignored.
+            url (str, optional): The URL to be used for the request. Defaults to None. When passed, the base_rul will be set to the passed value 
+            and the key_type will be ignored.
 
         Raises:
             InvalidAPIKeyError: If the API key is empty and not in development mode.
@@ -448,19 +448,46 @@ class Session:
         return data
 
 @validate_call
-def get_default_agent_attributes(agent_count_dict: Dict[str,int]) -> List[AgentAttributes]:
-    # Function that outputs a list a AgentAttributes with minimal default settings. 
-    # Mainly meant to be used to pad a list of AgentAttributes to send as input to
-    # initialize(). This list is created by reading a dictionary containing the
-    # desired agent types with the agent count for each type respectively.
+def get_default_agent_properties(
+    agent_count_dict: Dict[str,int],
+    use_agent_properties: Optional[bool] = True
+) -> List[Union[AgentAttributes,AgentProperties]]:
+    """
+    Function that outputs a list a AgentAttributes with minimal default settings. 
+    Mainly meant to be used to pad a list of AgentAttributes to send as input to
+    initialize(). This list is created by reading a dictionary containing the
+    desired agent types with the agent count for each type respectively.
+    If desired to use deprecate AgentAttributes instead of AgentProperties, set the
+    use_agent_properties flag to False.
+    """
 
     agent_attributes_list = []
 
     for agent_type, agent_count in agent_count_dict.items():
         for _ in range(agent_count):
-            agent_attributes_list.append(AgentAttributes.fromlist([agent_type]))
+            if use_agent_properties:
+                agent_properties = AgentProperties(agent_type=agent_type)
+                agent_attributes_list.append(agent_properties)
+            else:
+                agent_attributes_list.append(AgentAttributes.fromlist([agent_type]))
 
     return agent_attributes_list
+
+@validate_call
+def convert_attributes_to_properties(attributes: AgentAttributes) -> AgentProperties:
+    """
+    Convert deprecated AgentAttributes data type to AgentProperties.
+    """
+
+    properties = AgentProperties(
+        length=attributes.length,
+        width=attributes.width,
+        rear_axis_offset=attributes.rear_axis_offset,
+        agent_type=attributes.agent_type,
+        waypoint=attributes.waypoint
+    )
+
+    return properties
 
 @validate_call
 def iai_conditional_initialize(
@@ -725,7 +752,8 @@ class ScenePlotter():
         xy_offset:
             The left-hand offset for the center of the map image. This parameter must be provided if using an ASAM OpenDRIVE format map.
         static_actors:
-            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided if using an ASAM OpenDRIVE format map.
+            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided
+             if using an ASAM OpenDRIVE format map.
         
         See Also
         --------
@@ -735,7 +763,7 @@ class ScenePlotter():
         self._left_hand_coordinates = left_hand_coordinates
 
         self.conditional_agents = None
-        self.agent_attributes = None
+        self.agent_properties = None
         self.traffic_lights_history = None
         self.agent_states_history = None
         
@@ -785,28 +813,42 @@ class ScenePlotter():
     def initialize_recording(
         self,
         agent_states: List[AgentState], 
-        agent_attributes: List[AgentAttributes], 
+        agent_attributes: Optional[List[AgentAttributes]] = None, 
+        agent_properties: Optional[List[AgentProperties]] = None,
         traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
         conditional_agents: Optional[List[int]] = None
     ):
         """
-        Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous agent state, agent attribute, conditional agent, traffic light, and agent style data.
+        Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous 
+        agent state, agent attribute, conditional agent, traffic light, and agent style data.
 
         Arguments
         ----------
         agent_states:
             A list of AgentState objects corresponding to the initial time step to be visualized.
         agent_attributes:
-            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic bicycle model.
+            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a 
+            kinematic bicycle model.
+        agent_properties:
+            Static attributes of the agent (with the AgentProperties data type), which don’t change over the course of a simulation. We assume every 
+            agent is a rectangle obeying a kinematic bicycle model.
         traffic_light_states:
-            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
+            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter 
+            should only be used if the corresponding map contains traffic light static actors.
         conditional_agents:
             Optional parameter containing a list of agent IDs corresponding to conditional agents to be visualized to distinguish themselves.
         """
 
+        assert (agent_attributes is not None) ^ (agent_properties is not None), \
+            "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
+
+        if agent_attributes is not None:
+            self.agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+        else:
+            self.agent_properties = agent_properties
+
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
-        self.agent_attributes = agent_attributes
         if conditional_agents is not None:
             self.conditional_agents = conditional_agents
         else:
@@ -821,6 +863,7 @@ class ScenePlotter():
         """
         self.agent_states_history = []
         self.traffic_lights_history = []
+        self.agent_properties = None
         self.conditional_agents = []
         self.agent_attributes = None
         self.agent_face_colors = None 
@@ -840,7 +883,8 @@ class ScenePlotter():
         agent_states:
             A list of AgentState objects corresponding to the initial time step to be visualized.
         traffic_light_states:
-            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should only be used if the corresponding map contains traffic light static actors.
+            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should
+            only be used if the corresponding map contains traffic light static actors.
         """
         self.agent_states_history.append(agent_states)
         self.traffic_lights_history.append(traffic_light_states)
@@ -862,14 +906,16 @@ class ScenePlotter():
         """
         Plot a single timestep of data then reset the recording. 
 
-        Parameters
+        Arguments
         ----------
         agent_states:
             A list of agents to be visualized in the image.
         agent_attributes: 
-            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic bicycle model.
+            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic
+            bicycle model.
         traffic_light_states: 
-            Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the corresponding map contains traffic light static actors.
+            Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the 
+            corresponding map contains traffic light static actors.
         conditional_agents:
             Optional parameter containing a list of agent IDs of conditional agents to be visualized in the image to distinguish themselves.
         ax: 
@@ -881,19 +927,33 @@ class ScenePlotter():
         velocity_vec: 
             Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
         agent_face_colors:
-            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
+            of None in this list will use the default color. This value gets overwritten by the conditional agent color.
         agent_edge_colors:
-            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding 
+            index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
 
         """
-        self.initialize_recording(agent_states, agent_attributes,
-                                  traffic_light_states=traffic_light_states,
-                                  conditional_agents=conditional_agents)
+        self.initialize_recording(
+            agent_states, 
+            agent_attributes,
+            traffic_light_states=traffic_light_states,
+            conditional_agents=conditional_agents
+        )
 
-        self._validate_agent_style_data(agent_face_colors,agent_edge_colors)
+        self._validate_agent_style_data(
+            agent_face_colors,
+            agent_edge_colors
+        )
 
-        self._plot_frame(idx=0, ax=ax, numbers=numbers, direction_vec=direction_vec,
-                        velocity_vec=velocity_vec, plot_frame_number=False)
+        self._plot_frame(
+            idx=0, 
+            ax=ax, 
+            numbers=numbers, 
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec, 
+            plot_frame_number=False
+        )
 
         self.reset_recording()
 
@@ -933,9 +993,11 @@ class ScenePlotter():
         plot_frame_number: 
             Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
         agent_face_colors:
-            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
+            of None in this list will use the default color. This value gets overwritten by the conditional agent color.
         agent_edge_colors:
-            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index 
+            ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
         """
 
         self._validate_agent_style_data(agent_face_colors,agent_edge_colors)
@@ -1027,7 +1089,7 @@ class ScenePlotter():
 
     def _update_frame_to(self, frame_idx):
         for i, (agent, agent_attribute) in enumerate(
-            zip(self.agent_states_history[frame_idx], self.agent_attributes)
+            zip(self.agent_states_history[frame_idx], self.agent_properties)
         ):
             self._update_agent(i, agent, agent_attribute)
 

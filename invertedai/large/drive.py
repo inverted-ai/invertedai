@@ -1,12 +1,13 @@
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Union
 from pydantic import BaseModel, validate_call
 from math import ceil
 import asyncio
 
 import invertedai as iai
 from invertedai.large.common import Region
-from invertedai.common import Point, AgentState, AgentAttributes, RecurrentState, TrafficLightStatesDict, LightRecurrentState
+from invertedai.common import Point, AgentState, AgentAttributes, AgentProperties, RecurrentState, TrafficLightStatesDict, LightRecurrentState
 from invertedai.api.drive import DriveResponse
+from invertedai.utils import convert_attributes_to_properties
 from invertedai.error import InvertedAIError, InvalidRequestError
 from ._quadtree import QuadTreeAgentInfo, QuadTree, _flatten_and_sort, QUADTREE_SIZE_BUFFER
 
@@ -20,7 +21,7 @@ async def async_drive_all(async_input_params):
 def large_drive(
     location: str,
     agent_states: List[AgentState],
-    agent_attributes: List[AgentAttributes],
+    agent_properties: List[Union[AgentAttributes,AgentProperties]],
     recurrent_states: List[RecurrentState],
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[List[LightRecurrentState]] = None,
@@ -45,7 +46,7 @@ def large_drive(
     agent_states:
         Please refer to the documentation of :func:`drive` for information on this parameter.
 
-    agent_attributes:
+    agent_properties:
         Please refer to the documentation of :func:`drive` for information on this parameter.
 
     recurrent_states:
@@ -86,8 +87,19 @@ def large_drive(
     if single_call_agent_limit > DRIVE_MAXIMUM_NUM_AGENTS:
         single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS
         iai.logger.warning(f"Single Call Agent Limit cannot be more than {DRIVE_MAXIMUM_NUM_AGENTS}, limiting this value to {DRIVE_MAXIMUM_NUM_AGENTS} and proceeding.")
-    if not (len(agent_states) == len(agent_attributes) == len(recurrent_states)):
+    if not (len(agent_states) == len(agent_properties) == len(recurrent_states)):
         raise InvalidRequestError(message="Input lists are not of equal size.")
+    if not len(agent_states) > 0:
+        raise InvalidRequestError(message="Valid call must contain at least 1 agent.")
+
+    # Convert any AgentAttributes to AgentProperties for backwards compatibility 
+    agent_properties_new = []
+    for properties in agent_properties:
+        properties_new = properties
+        if isinstance(properties,AgentAttributes):
+            properties_new = convert_attributes_to_properties(properties)
+        agent_properties_new.append(properties_new)
+    agent_properties = agent_properties_new
 
     # Generate quadtree
     agent_x = [agent.center.x for agent in agent_states]
@@ -103,7 +115,7 @@ def large_drive(
             size=region_size
         ),
     )
-    for i, (agent, attrs, recurr_state) in enumerate(zip(agent_states,agent_attributes,recurrent_states)):
+    for i, (agent, attrs, recurr_state) in enumerate(zip(agent_states,agent_properties,recurrent_states)):
         agent_info = QuadTreeAgentInfo.fromlist([agent, attrs, recurr_state, i])
         is_inserted = quadtree.insert(agent_info)
 
@@ -128,8 +140,8 @@ def large_drive(
                 agent_id_order.extend(region_agents_ids)
                 input_params = {
                     "location":location,
-                    "agent_attributes":region.agent_attributes+region_buffer.agent_attributes,
                     "agent_states":region.agent_states+region_buffer.agent_states,
+                    "agent_properties":region.agent_properties+region_buffer.agent_properties,
                     "recurrent_states":region.recurrent_states+region_buffer.recurrent_states,
                     "light_recurrent_states":light_recurrent_states,
                     "traffic_lights_states":traffic_lights_states,
@@ -164,7 +176,7 @@ def large_drive(
         response = iai.drive(
             location = location,
             agent_states = agent_states,
-            agent_attributes = agent_attributes,
+            agent_properties = agent_properties,
             recurrent_states = recurrent_states,
             traffic_lights_states = traffic_lights_states,
             light_recurrent_states = light_recurrent_states,
