@@ -45,10 +45,10 @@ def main(args):
         if args.save_sim_gif:
             rendered_static_map = location_info_response.birdview_image.decode()
             scene_plotter = iai.utils.ScenePlotter(
-                rendered_static_map,
-                args.fov,
-                map_center,
-                location_info_response.static_actors,
+                map_image=rendered_static_map,
+                fov=args.fov,
+                xy_offset=map_center,
+                static_actors=location_info_response.static_actors,
                 resolution=(2048,2048),
                 dpi=300
             )
