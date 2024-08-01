@@ -10,7 +10,7 @@ import random
 
 import time
 
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple, Union
 from tqdm.contrib import tmap
 from itertools import product
 from copy import deepcopy
@@ -29,7 +29,7 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import AgentState, AgentAttributes, StaticMapActor, TrafficLightStatesDict, Point, RecurrentState
+from invertedai.common import AgentState, AgentAttributes, AgentProperties, StaticMapActor, TrafficLightStatesDict, Point, RecurrentState
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
 from invertedai.api.initialize import InitializeResponse
@@ -443,19 +443,46 @@ class Session:
         return data
 
 @validate_call
-def get_default_agent_attributes(agent_count_dict: Dict[str,int]) -> List[AgentAttributes]:
-    # Function that outputs a list a AgentAttributes with minimal default settings. 
-    # Mainly meant to be used to pad a list of AgentAttributes to send as input to
-    # initialize(). This list is created by reading a dictionary containing the
-    # desired agent types with the agent count for each type respectively.
+def get_default_agent_properties(
+    agent_count_dict: Dict[str,int],
+    use_agent_properties: Optional[bool] = True
+) -> List[Union[AgentAttributes,AgentProperties]]:
+    """
+    Function that outputs a list a AgentAttributes with minimal default settings. 
+    Mainly meant to be used to pad a list of AgentAttributes to send as input to
+    initialize(). This list is created by reading a dictionary containing the
+    desired agent types with the agent count for each type respectively.
+    If desired to use deprecate AgentAttributes instead of AgentProperties, set the
+    use_agent_properties flag to False.
+    """
 
     agent_attributes_list = []
 
     for agent_type, agent_count in agent_count_dict.items():
         for _ in range(agent_count):
-            agent_attributes_list.append(AgentAttributes.fromlist([agent_type]))
+            if use_agent_properties:
+                agent_properties = AgentProperties(agent_type=agent_type)
+                agent_attributes_list.append(agent_properties)
+            else:
+                agent_attributes_list.append(AgentAttributes.fromlist([agent_type]))
 
     return agent_attributes_list
+
+@validate_call
+def convert_attributes_to_properties(attributes: AgentAttributes) -> AgentProperties:
+    """
+    Convert deprecated AgentAttributes data type to AgentProperties.
+    """
+
+    properties = AgentProperties(
+        length=attributes.length,
+        width=attributes.width,
+        rear_axis_offset=attributes.rear_axis_offset,
+        agent_type=attributes.agent_type,
+        waypoint=attributes.waypoint
+    )
+
+    return properties
 
 @validate_call
 def iai_conditional_initialize(
@@ -687,7 +714,7 @@ class ScenePlotter:
         dpi=100,
     ):
         self.conditional_agents = None
-        self.agent_attributes = None
+        self.agent_properties = None
         self.traffic_lights_history = None
         self.agent_states_history = None
         self.open_drive = open_drive
@@ -736,13 +763,13 @@ class ScenePlotter:
     def initialize_recording(
         self,
         agent_states,
-        agent_attributes,
+        agent_properties,
         traffic_light_states=None,
         conditional_agents=None,
     ):
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
-        self.agent_attributes = agent_attributes
+        self.agent_properties = agent_properties
         if conditional_agents is not None:
             self.conditional_agents = conditional_agents
         else:
@@ -751,7 +778,7 @@ class ScenePlotter:
     def reset_recording(self):
         self.agent_states_history = []
         self.traffic_lights_history = []
-        self.agent_attributes = None
+        self.agent_properties = None
         self.conditional_agents = []
 
     def record_step(self, agent_states, traffic_light_states=None):
@@ -761,7 +788,7 @@ class ScenePlotter:
     def plot_scene(
         self,
         agent_states,
-        agent_attributes,
+        agent_properties,
         traffic_light_states=None,
         conditional_agents=None,
         ax=None,
@@ -771,7 +798,7 @@ class ScenePlotter:
     ):
         self.initialize_recording(
             agent_states,
-            agent_attributes,
+            agent_properties,
             traffic_light_states=traffic_light_states,
             conditional_agents=conditional_agents,
         )
@@ -878,7 +905,7 @@ class ScenePlotter:
 
     def _update_frame_to(self, frame_idx):
         for i, (agent, agent_attribute) in enumerate(
-            zip(self.agent_states_history[frame_idx], self.agent_attributes)
+            zip(self.agent_states_history[frame_idx], self.agent_properties)
         ):
             self._update_agent(i, agent, agent_attribute)
 
