@@ -1421,7 +1421,7 @@ class LogHandler():
         self.scenario_log = None
         self.simulation_length = None
 
-    def plot_up_to_timestep(
+    def visualize_up_to_timestep(
         self,
         timestep,
         gif_path,
@@ -1467,7 +1467,7 @@ class LogHandler():
             plot_frame_number=plot_frame_number,
         )
 
-    def plot_all(
+    def visualize(
         self,
         gif_path,
         fov = 200,
@@ -1683,11 +1683,10 @@ class LogReader(LogHandler):
     A class for conveniently reading in a log file then rendering it and/or plugging it into a simulation.
 
     """
-    def __init__(self):
+    def __init__(self,log_path):
         super().__init__()
         self.current_timestep = 1
 
-    def read_log_from_json(log_path):
         with open(log_path) as f:
             LOG_DATA = json.load(f)
 
@@ -1744,6 +1743,8 @@ class LogReader(LogHandler):
             agent_properties=all_agent_properties, 
             traffic_lights_states=all_traffic_light_states, 
             location=location, 
+            rendering_center=tuple(LOG_DATA["birdview_options"]["rendering_center"]["0"],LOG_DATA["birdview_options"]["rendering_center"]["1"]),
+            rendering_fov=LOG_DATA["birdview_options"]["renderingFOV"],
             lights_random_seed=LOG_DATA["lights_random_seed"],
             initialize_random_seed=LOG_DATA["initialize_random_seed"],
             drive_random_seed=LOG_DATA["drive_random_seed"],
@@ -1753,6 +1754,7 @@ class LogReader(LogHandler):
             recurrent_states=None,
             waypoints=agent_waypoints
         )
+        self._scenario_log_original = self.scenario_log
 
         self.simulation_length = len(all_agent_states)
 
@@ -1776,6 +1778,17 @@ class LogReader(LogHandler):
 
     def return_last_state(self):
         return self.return_state_at_timestep(timestep=self.simulation_length-1)
+
+    def location_info(self):
+        return iai.location_info(
+            location=self.scenario_log.location,
+            rendering_fov=self.scenario_log.rendering_fov,
+            rendering_center=self.scenario_log.rendering_center,
+        )
+
+    def reset_log(self):
+        self.scenario_log = self._scenario_log_original
+        self.current_timestep = 1
 
     def initialize(self):
         current_timestep = 0
