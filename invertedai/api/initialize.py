@@ -34,23 +34,15 @@ class InitializeResponse(BaseModel):
     Response returned from an API call to :func:`iai.initialize`.
     """
 
-    recurrent_states: List[
-        Optional[RecurrentState]
-    ]  #: To pass to :func:`iai.drive` at the first time step.
-    agent_states: List[Optional[AgentState]]  #: Initial states of all initialized agents.
-    agent_attributes: List[
-        Optional[AgentAttributes]
-    ]  #: Static attributes of all initialized agents.
+    agent_states: List[AgentState] #: Initial states of all initialized agents.
+    recurrent_states: Optional[List[RecurrentState]] #: To pass to :func:`iai.drive` at the first time step.
+    agent_attributes: Optional[List[AgentAttributes]] #: Static attributes of all initialized agents.
     agent_properties: List[AgentProperties]  #: Static agent properties of all initialized agents.
-    birdview: Optional[
-        Image
-    ]  #: If `get_birdview` was set, this contains the resulting image.
-    infractions: Optional[
-        List[InfractionIndicators]
-    ]  #: If `get_infractions` was set, they are returned here.
-    traffic_lights_states: Optional[TrafficLightStatesDict]  #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
+    birdview: Optional[Image] #: If `get_birdview` was set, this contains the resulting image.
+    infractions: Optional[List[InfractionIndicators]] #: If `get_infractions` was set, they are returned here.
+    traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map. Pass this to :func:`iai.drive` at the first time step to let the server generate a realistic continuation of the traffic light state sequence. This does not work correctly if any specific light states were specified as input to `initialize`.
-    api_model_version: str # Model version used for this API call
+    api_model_version: str #: Model version used for this API call
 
 
 @validate_call

@@ -37,7 +37,7 @@ from invertedai.common import AgentState, AgentAttributes, AgentProperties, Stat
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
 from invertedai.api.initialize import InitializeResponse
-from invertedai.drive import DriveResponse
+from invertedai.api.drive import DriveResponse
 from invertedai.api.location import LocationResponse
 
 
@@ -1433,7 +1433,7 @@ class LogHandler():
         velocity_vec = False,
         plot_frame_number = True
     ):
-        assert timestep < 2 or timestep > (self.simulation_length - 1), "Simulation period to plot is invalid."
+        assert timestep >= 1 or timestep <= (self.simulation_length - 1), "Simulation period to plot is invalid."
 
         location_info_response = iai.location_info(location=self.scenario_log.location)
         rendered_static_map = location_info_response.birdview_image.decode()
@@ -1478,7 +1478,7 @@ class LogHandler():
         velocity_vec = False,
         plot_frame_number = True
     ):
-        self.plot_up_to_timestep(
+        self.visualize_up_to_timestep(
             timestep = self.simulation_length-1,
             gif_path = gif_path,
             fov = fov,
@@ -1501,8 +1501,10 @@ class LogWriter(LogHandler):
     def write_scenario_log_to_json(
         self,
         log_path,
-        scenario_log = self.scenario_log
-    ):
+        scenario_log = None
+    ):  
+        if scenario_log is None:
+            scenario_log = self.scenario_log
         num_cars, num_pedestrians = 0, 0
         for prop in scenario_log.agent_properties:
             if prop.agent_type == "car":
@@ -1527,9 +1529,9 @@ class LogWriter(LogHandler):
             states_dict = {}
             for t, states in enumerate(scenario_log.agent_states):
                 states_dict[str(t)] = {
-                    "center": {"x": states[t][i].center.x, "y": states[t][i].center.y},
-                    "orientation": states[t][i].orientation,
-                    "speed": states[t][i].speed
+                    "center": {"x": states[i].center.x, "y": states[i].center.y},
+                    "orientation": states[i].orientation,
+                    "speed": states[i].speed
                 }
 
             predetermined_agents_dict[str(i)] = {
@@ -1650,13 +1652,17 @@ class LogWriter(LogHandler):
         self.scenario_log = ScenarioLog(
             agent_states=[init_response.agent_states], 
             agent_properties=agent_properties, 
-            traffic_lights_states=[init_response.traffic_lights_states] if is not None else None, 
-            location=location, 
+            traffic_lights_states=[init_response.traffic_lights_states] if init_response.traffic_lights_states is not None else None, 
+            location=location,
+            rendering_center=[
+                self.location_info_response.map_center.x,
+                self.location_info_response.map_center.y
+            ],
             lights_random_seed=lights_random_seed,
             initialize_random_seed=initialize_random_seed,
             drive_random_seed=drive_random_seed,
             initialize_model_version=init_response.api_model_version,
-            drive_model_version="best",
+            drive_model_version=None,
             light_recurrent_states=init_response.light_recurrent_states,
             recurrent_states=init_response.recurrent_states,
             waypoints=None
@@ -1670,7 +1676,7 @@ class LogWriter(LogHandler):
     ): 
         self.scenario_log.agent_states.append(drive_response.agent_states)
         if drive_response.traffic_lights_states is not None:
-            self.scenario_log.agent_states.append(drive_response.traffic_lights_states)
+            self.scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
         
         self.scenario_log.drive_model_version = drive_response.api_model_version
         self.scenario_log.light_recurrent_states = drive_response.light_recurrent_states
@@ -1699,12 +1705,12 @@ class LogReader(LogHandler):
             for agent_num, agent in LOG_DATA["predetermined_agents"].items():
                 if i == 0:
                     agent_attributes_json = agent["static_attributes"]
-                    all_agent_properties.append(AgentProperties.fromlist([
-                        agent_attributes_json["length"],
-                        agent_attributes_json["width"],
-                        agent_attributes_json["rear_axis_offset"],
-                        agent["entity_type"]
-                    ]))
+                    agent_properties = AgentProperties()
+                    agent_properties.length = agent_attributes_json["length"]
+                    agent_properties.width = agent_attributes_json["width"]
+                    agent_properties.rear_axis_offset = agent_attributes_json["rear_axis_offset"]
+                    agent_properties.agent_type = agent["entity_type"]
+                    all_agent_properties.append(agent_properties)
 
                 agent_state = agent["states"][str(i)]
                 agent_states_ts.append(AgentState.fromlist([
@@ -1730,7 +1736,7 @@ class LogReader(LogHandler):
             all_traffic_light_states = None
 
         agent_waypoints = {}
-        for agent_id, waypoints in range(LOG_DATA["individual_suggestions"]):
+        for agent_id, waypoints in LOG_DATA["individual_suggestions"].items():
             agent_waypoints[agent_id] = []
             for i, pt in waypoints["states"].items():
                 data = pt["center"]
@@ -1743,22 +1749,20 @@ class LogReader(LogHandler):
             agent_properties=all_agent_properties, 
             traffic_lights_states=all_traffic_light_states, 
             location=location, 
-            rendering_center=tuple(LOG_DATA["birdview_options"]["rendering_center"]["0"],LOG_DATA["birdview_options"]["rendering_center"]["1"]),
+            rendering_center=tuple([LOG_DATA["birdview_options"]["rendering_center"][0],LOG_DATA["birdview_options"]["rendering_center"][1]]),
             rendering_fov=LOG_DATA["birdview_options"]["renderingFOV"],
             lights_random_seed=LOG_DATA["lights_random_seed"],
             initialize_random_seed=LOG_DATA["initialize_random_seed"],
             drive_random_seed=LOG_DATA["drive_random_seed"],
             initialize_model_version=LOG_DATA["initialize_model_version"],
             drive_model_version=LOG_DATA["drive_model_version"],
-            light_recurrent_states=None if LOG_DATA["light_recurrent_states"] is [] else [LightRecurrentState(state=state["0"],time_remaining=state["1"]) for state in LOG_DATA["light_recurrent_states"]],
+            light_recurrent_states=None if LOG_DATA["light_recurrent_states"] is [] else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
             recurrent_states=None,
             waypoints=agent_waypoints
         )
         self._scenario_log_original = self.scenario_log
 
         self.simulation_length = len(all_agent_states)
-
-        return self.scenario_log
 
     def return_state_at_timestep(self,timestep):
         if timestep == 0:
@@ -1770,10 +1774,11 @@ class LogReader(LogHandler):
             agent_states=self.scenario_log.agent_states[timestep],
             traffic_lights_states=None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[timestep],
             recurrent_states=None,
-            light_recurrent_states=self.scenario_log if timestep == (self.simulation_length - 1) else None,
+            light_recurrent_states=self.scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None,
             api_model_version=self.scenario_log.drive_model_version,
             birdview=None,
-            infractions=None
+            infractions=None,
+            is_inside_supported_area=None
         )
 
     def return_last_state(self):
@@ -1794,11 +1799,11 @@ class LogReader(LogHandler):
         current_timestep = 0
 
         return InitializeResponse(
+            agent_states=self.scenario_log.agent_states[current_timestep],
+            recurrent_states=None,
             agent_properties=self.scenario_log.agent_properties,
             agent_attributes=None,
-            agent_states=self.scenario_log.agent_states[current_timestep],
             traffic_lights_states=None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[current_timestep],
-            recurrent_states=None,
             light_recurrent_states=self.scenario_log if current_timestep == (len(self.scenario_log.agent_states) - 1) else None,
             api_model_version=self.scenario_log.initialize_model_version,
             birdview=None,

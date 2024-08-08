@@ -33,18 +33,18 @@ class DriveResponse(BaseModel):
     agent_states: List[
         AgentState
     ]  #: Predicted states for all agents at the next time step.
-    recurrent_states: List[
+    recurrent_states: Optional[List[
         RecurrentState
-    ]  #: To pass to :func:`iai.drive` at the subsequent time step.
+    ]]  #: To pass to :func:`iai.drive` at the subsequent time step.
     birdview: Optional[
         Image
     ]  #: If `get_birdview` was set, this contains the resulting image.
     infractions: Optional[
         List[InfractionIndicators]
     ]  #: If `get_infractions` was set, they are returned here.
-    is_inside_supported_area: List[
+    is_inside_supported_area: Optional[List[
         bool
-    ]  #: For each agent, indicates whether the predicted state is inside supported area.
+    ]]  #: For each agent, indicates whether the predicted state is inside supported area.
     traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, as seen by the agents before they performed their actions resulting in the returned state. Each key-value pair corresponds to one particular traffic light.
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group. Pass this to the next call of :func:`iai.drive` for the server to realistically update the traffic light states.
     api_model_version: str  # Model version used for this API call
