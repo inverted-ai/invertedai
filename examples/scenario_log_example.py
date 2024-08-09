@@ -78,8 +78,8 @@ log_reader.visualize(
 print("Extending read log...")
 
 location_info_response_replay = log_reader.location_info()
-response = log_reader.initialize()
-agent_properties = response.agent_properties
+log_reader.initialize()
+agent_properties = log_reader.agent_properties
 
 rendered_static_map = location_info_response_replay.birdview_image.decode()
 scene_plotter = iai.utils.ScenePlotter(
@@ -89,28 +89,34 @@ scene_plotter = iai.utils.ScenePlotter(
     location_info_response_replay.static_actors
 )
 scene_plotter.initialize_recording(
-    agent_states=response.agent_states,
+    agent_states=log_reader.agent_states,
     agent_properties=agent_properties
 )
 
 print("Stepping through simulation...")
 while True: # Log reader will return None when it has run out of simulation data
-    popped_response = log_reader.drive()
-    if popped_response is None:
+    is_timestep_populated = log_reader.drive()
+    if not is_timestep_populated:
         break
-    else:
-        response = popped_response
-    scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
+    scene_plotter.record_step(log_reader.agent_states,log_reader.traffic_lights_states)
+
+agent_states = log_reader.agent_states
+recurrent_states = log_reader.recurrent_states
+traffic_lights_states = log_reader.traffic_lights_states
 for _ in range(SIMULATION_LENGTH_EXTEND): 
     response = iai.drive(
         location=log_reader.scenario_log.location,
         agent_properties=agent_properties,
-        agent_states=response.agent_states,
-        recurrent_states=response.recurrent_states,
-        traffic_lights_states=response.traffic_lights_states
+        agent_states=agent_states,
+        recurrent_states=recurrent_states,
+        traffic_lights_states=traffic_lights_states
     )
 
-    scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
+    agent_states = response.agent_states
+    recurrent_states = response.recurrent_states
+    traffic_lights_states = response.traffic_lights_states
+
+    scene_plotter.record_step(agent_states,traffic_lights_states)
 
 gif_path_extended = os.path.join(os.getcwd(),f"scenario_log_example_extended.gif")
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
@@ -130,8 +136,8 @@ print("Re-reading the log...")
 log_reader.reset_log()
 
 location_info_response_replay = log_reader.location_info()
-response = log_reader.initialize()
-agent_properties = response.agent_properties
+log_reader.initialize()
+agent_properties = log_reader.agent_properties
 
 rendered_static_map = location_info_response_replay.birdview_image.decode()
 scene_plotter_new = iai.utils.ScenePlotter(
@@ -141,25 +147,33 @@ scene_plotter_new = iai.utils.ScenePlotter(
     location_info_response_replay.static_actors
 )
 scene_plotter_new.initialize_recording(
-    agent_states=response.agent_states,
+    agent_states=log_reader.agent_states,
     agent_properties=agent_properties
 )
 
 print("Stepping through simulation...")
 for _ in range(SIMULATION_BEGIN_NEW_ROLLOUT):
-    response = log_reader.drive()
-    scene_plotter_new.record_step(response.agent_states,response.traffic_lights_states)
+    log_reader.drive()
+    scene_plotter_new.record_step(log_reader.agent_states,log_reader.traffic_lights_states)
+
+agent_states = log_reader.agent_states
+recurrent_states = log_reader.recurrent_states
+traffic_lights_states = log_reader.traffic_lights_states
 for _ in range(SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT): 
     response = iai.drive(
         location=log_reader.scenario_log.location,
         agent_properties=agent_properties,
-        agent_states=response.agent_states,
-        recurrent_states=response.recurrent_states,
-        traffic_lights_states=response.traffic_lights_states,
+        agent_states=agent_states,
+        recurrent_states=recurrent_states,
+        traffic_lights_states=traffic_lights_states,
         random_seed=randint(1,100000)
     )
 
-    scene_plotter_new.record_step(response.agent_states,response.traffic_lights_states)
+    agent_states = response.agent_states
+    recurrent_states = response.recurrent_states
+    traffic_lights_states = response.traffic_lights_states
+
+    scene_plotter_new.record_step(agent_states,traffic_lights_states)
 
 gif_path_branched = os.path.join(os.getcwd(),f"scenario_log_example_branched.gif")
 fig_new, ax_new = plt.subplots(constrained_layout=True, figsize=(50, 50))

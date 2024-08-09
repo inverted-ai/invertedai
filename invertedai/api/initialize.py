@@ -35,8 +35,8 @@ class InitializeResponse(BaseModel):
     """
 
     agent_states: List[AgentState] #: Initial states of all initialized agents.
-    recurrent_states: Optional[List[RecurrentState]] #: To pass to :func:`iai.drive` at the first time step.
-    agent_attributes: Optional[List[AgentAttributes]] #: Static attributes of all initialized agents.
+    recurrent_states: List[Optional[RecurrentState]] #: To pass to :func:`iai.drive` at the first time step.
+    agent_attributes: List[Optional[AgentAttributes]] #: Static attributes of all initialized agents.
     agent_properties: List[AgentProperties]  #: Static agent properties of all initialized agents.
     birdview: Optional[Image] #: If `get_birdview` was set, this contains the resulting image.
     infractions: Optional[List[InfractionIndicators]] #: If `get_infractions` was set, they are returned here.

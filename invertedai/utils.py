@@ -1764,22 +1764,28 @@ class LogReader(LogHandler):
 
         self.simulation_length = len(all_agent_states)
 
+        self.agent_states = None
+        self.recurrent_states = None
+        self.agent_properties = None
+        self.traffic_lights_states = None
+        self.light_recurrent_states = None
+
+        self.init_api_model_version = None
+        self.drive_api_model_version = None
+
     def return_state_at_timestep(self,timestep):
         if timestep == 0:
             return self.initialize()
         elif timestep >= self.simulation_length:
-            return None
+            return False
 
-        return DriveResponse(
-            agent_states=self.scenario_log.agent_states[timestep],
-            traffic_lights_states=None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[timestep],
-            recurrent_states=None,
-            light_recurrent_states=self.scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None,
-            api_model_version=self.scenario_log.drive_model_version,
-            birdview=None,
-            infractions=None,
-            is_inside_supported_area=None
-        )
+        self.agent_states = self.scenario_log.agent_states[timestep]
+        self.recurrent_states = None
+        self.traffic_lights_states = None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[timestep]
+        self.light_recurrent_states = self.scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None
+        self.drive_api_model_version = self.scenario_log.drive_model_version
+
+        return True
 
     def return_last_state(self):
         return self.return_state_at_timestep(timestep=self.simulation_length-1)
@@ -1798,24 +1804,22 @@ class LogReader(LogHandler):
     def initialize(self):
         current_timestep = 0
 
-        return InitializeResponse(
-            agent_states=self.scenario_log.agent_states[current_timestep],
-            recurrent_states=None,
-            agent_properties=self.scenario_log.agent_properties,
-            agent_attributes=None,
-            traffic_lights_states=None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[current_timestep],
-            light_recurrent_states=self.scenario_log if current_timestep == (len(self.scenario_log.agent_states) - 1) else None,
-            api_model_version=self.scenario_log.initialize_model_version,
-            birdview=None,
-            infractions=None
-        )
+        self.agent_states = self.scenario_log.agent_states[current_timestep]
+        self.recurrent_states = None
+        self.agent_properties = self.scenario_log.agent_properties
+        self.traffic_lights_states = None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[current_timestep]
+        self.light_recurrent_states = self.scenario_log if current_timestep == (len(self.scenario_log.agent_states) - 1) else None
+        self.init_api_model_version = self.scenario_log.initialize_model_version
+
+        return True
+
 
     def drive(self):
         if self.current_timestep >= self.simulation_length:
-            return None
+            return False
 
         drive_response = self.return_state_at_timestep(timestep=self.current_timestep)
         self.current_timestep += 1
 
-        return drive_response
+        return True
 
