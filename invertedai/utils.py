@@ -1416,7 +1416,10 @@ class ScenePlotter():
 
 
 class LogHandler():
-    
+    """
+    A class for containing features relevant to both log reading and writing such as visualization.
+    """
+
     def __init__(self):
         self.scenario_log = None
         self.simulation_length = None
@@ -1493,8 +1496,8 @@ class LogHandler():
 class LogWriter(LogHandler):
     """
     A class for conveniently writing a log to a JSON log format.
-
     """
+
     def __init__(self):
         super().__init__()
 
@@ -1632,7 +1635,6 @@ class LogWriter(LogHandler):
     ):
         cls.write_scenario_log_to_json(cls,log_path,scenario_log)
 
-
     def initialize(
         self,
         location,
@@ -1687,8 +1689,8 @@ class LogWriter(LogHandler):
 class LogReader(LogHandler):
     """
     A class for conveniently reading in a log file then rendering it and/or plugging it into a simulation.
-
     """
+
     def __init__(self,log_path):
         super().__init__()
         self.current_timestep = 1
@@ -1773,6 +1775,12 @@ class LogReader(LogHandler):
         self.init_api_model_version = None
         self.drive_api_model_version = None
 
+        self.location_info_response = iai.location_info(
+            location=self.scenario_log.location,
+            rendering_fov=self.scenario_log.rendering_fov,
+            rendering_center=self.scenario_log.rendering_center,
+        )
+
     def return_state_at_timestep(self,timestep):
         if timestep == 0:
             return self.initialize()
@@ -1790,13 +1798,6 @@ class LogReader(LogHandler):
     def return_last_state(self):
         return self.return_state_at_timestep(timestep=self.simulation_length-1)
 
-    def location_info(self):
-        return iai.location_info(
-            location=self.scenario_log.location,
-            rendering_fov=self.scenario_log.rendering_fov,
-            rendering_center=self.scenario_log.rendering_center,
-        )
-
     def reset_log(self):
         self.scenario_log = self._scenario_log_original
         self.current_timestep = 1
@@ -1812,7 +1813,6 @@ class LogReader(LogHandler):
         self.init_api_model_version = self.scenario_log.initialize_model_version
 
         return True
-
 
     def drive(self):
         if self.current_timestep >= self.simulation_length:

@@ -77,7 +77,7 @@ log_reader.visualize(
 
 print("Extending read log...")
 
-location_info_response_replay = log_reader.location_info()
+location_info_response_replay = log_reader.location_info_response
 log_reader.initialize()
 agent_properties = log_reader.agent_properties
 
@@ -135,7 +135,7 @@ scene_plotter.animate_scene(
 print("Re-reading the log...")
 log_reader.reset_log()
 
-location_info_response_replay = log_reader.location_info()
+location_info_response_replay = log_reader.location_info_response
 log_reader.initialize()
 agent_properties = log_reader.agent_properties
 
