@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai.utils import get_default_agent_properties, LogWriter, LogReader
+from invertedai.utils import get_default_agent_properties
 
 import os
 from random import randint
@@ -22,7 +22,7 @@ response = iai.initialize(
 )
 agent_properties = response.agent_properties  # get dimension and other attributes of NPCs
 
-log_writer = LogWriter()
+log_writer = iai.LogWriter()
 log_writer.initialize(
     location=LOCATION,
     location_info_response=location_info_response,
@@ -62,7 +62,7 @@ log_writer.visualize(
 # Replay original log
 print("Reading log...")
 
-log_reader = LogReader(log_path)
+log_reader = iai.LogReader(log_path)
 gif_path_replay = os.path.join(os.getcwd(),f"scenario_log_example_replay.gif")
 log_reader.visualize(
     gif_path=gif_path_replay,

@@ -311,31 +311,3 @@ class StaticMapActor(BaseModel):
 
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
 LightRecurrentStates = List[LightRecurrentState]
-
-
-class ScenarioLog(BaseModel):
-    """
-    A log containing simulation information for storage, replay, or an initial state from which a simulation 
-    can be continued. Some data fields contain data for all historic time steps while others contain information
-    for the most recent time step to be used to continue a simulation.
-    """
-
-    agent_states: List[List[AgentState]] #: Historic data for all agents states up until the most recent time step.
-    agent_properties: List[AgentProperties] #: Agent properties data for all agents in this scenario/log.
-    traffic_lights_states: Optional[List[TrafficLightStatesDict]] = None #: Historic data for all TrafficLightStatesDict up until the most recent time step.
-
-    location: str #: Location name in IAI format.
-    rendering_center: Optional[Tuple[float, float]] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
-    rendering_fov: Optional[int] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
-
-    lights_random_seed: Optional[int] = None #: Controls the stochastic aspects of the the traffic lights states.
-    initialize_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`initialize` for information on the random_seed parameter.
-    drive_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`drive` for information on the random_seed parameter.
-
-    initialize_model_version: Optional[str] = "best" #: Please refer to the documentation of :func:`initialize` for information on the api_model_version parameter.
-    drive_model_version: Optional[str] = "best" #: Please refer to the documentation of :func:`drive` for information on the api_model_version parameter.
-    
-    light_recurrent_states: Optional[LightRecurrentStates] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
-    recurrent_states: Optional[List[RecurrentState]] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
-
-    waypoints: Optional[Dict[str,List[Point]]] = None #: As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
