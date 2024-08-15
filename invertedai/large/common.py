@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from invertedai.common import AgentAttributes, AgentProperties, AgentState, RecurrentState, Point
 from invertedai.utils import convert_attributes_to_properties
 
-REGION_MAX_SIZE = 100
+REGION_MAX_SIZE = 100.0
 
 class Region(BaseModel):
     """

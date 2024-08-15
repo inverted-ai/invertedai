@@ -288,11 +288,10 @@ def _get_all_existing_agents_from_regions(
             if nearby_region is not None:
                 if sqrt((nearby_region.center.x-region.center.x)**2+(nearby_region.center.y-region.center.y)**2) > (REGION_MAX_SIZE + AGENT_SCOPE_FOV_BUFFER):
                     continue
-            else:
-                region_agent_states = region.agent_states
-                agent_states = agent_states + region_agent_states
-                agent_properties = agent_properties + region.agent_properties[:len(region_agent_states)]
-                recurrent_states = recurrent_states + region.recurrent_states
+            region_agent_states = region.agent_states
+            agent_states = agent_states + region_agent_states
+            agent_properties = agent_properties + region.agent_properties[:len(region_agent_states)]
+            recurrent_states = recurrent_states + region.recurrent_states
     
     return agent_states, agent_properties, recurrent_states
 
