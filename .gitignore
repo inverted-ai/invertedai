@@ -183,3 +183,4 @@ bazel-*
 examples/*.png
 examples/output/
 examples/*.csv
+examples/*.json
