@@ -179,3 +179,4 @@ bazel-*
 # Demos
 *.avi
 *.gif
+examples/*.json
