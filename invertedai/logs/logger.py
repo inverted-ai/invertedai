@@ -70,6 +70,11 @@ class LogBase():
         velocity_vec: bool = False,
         plot_frame_number: bool = True
     ):
+        """
+        Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
+        an invalid time step range is given, the function will fail. Please refer to ScenePlotter for details on the visualization tool.
+        """
+
         for timestep in timestep_range:
             assert timestep >= 0 or timestep <= (self.simulation_length - 1), "Visualization time range valid."
         assert timestep_range[1] >= timestep_range[0], "Visualization time range valid."
@@ -118,6 +123,11 @@ class LogBase():
         velocity_vec: bool = False,
         plot_frame_number: bool = True
     ):
+        """
+        Use the available internal tools to visualize the entire log and save it to a given location. Please refer to ScenePlotter for details on 
+        the visualization tool.
+        """
+
         self.visualize_range(
             timestep_range = tuple([0,self.simulation_length-1]),
             gif_path = gif_path,
@@ -138,7 +148,7 @@ class LogBase():
 
 class LogWriter(LogBase):
     """
-    A class for conveniently writing a log to a JSON log format.
+    A class for conveniently writing a log to a JSON log format. 
     """
 
     def __init__(self):
@@ -150,6 +160,11 @@ class LogWriter(LogBase):
         log_path: str,
         scenario_log: Optional[ScenarioLog] = None
     ):  
+        """
+        Convert the data currently contained within the log into a JSON format and export it to a given file. This function can furthermore be 
+        used to export a given scenario log instead of the log contained within the object.
+        """
+
         if scenario_log is None:
             scenario_log = self._scenario_log
         num_cars, num_pedestrians = 0, 0
@@ -277,6 +292,10 @@ class LogWriter(LogBase):
         log_path: str,
         scenario_log: ScenarioLog
     ):
+        """
+        Class function to convert a given log data type into a JSON format and export it to a given file.
+        """
+
         cls.export_to_file(log_path,scenario_log)
 
     @validate_arguments
@@ -289,6 +308,10 @@ class LogWriter(LogBase):
         initialize_random_seed: Optional[int] = None,
         drive_random_seed: Optional[int] = None
     ): 
+        """
+        Consume and store all initial information within a ScenarioLog data object. If random seed information is desired to be stored, it 
+        must be given separately but is not mandatory.
+        """
 
         agent_properties = init_response.agent_properties
         if type(agent_properties[0]) == AgentAttributes:
@@ -320,6 +343,10 @@ class LogWriter(LogBase):
         self,
         drive_response: DriveResponse
     ): 
+        """
+        Consume and store driving response information from a single timestep and append it to the end of the log.  
+        """
+
         self._scenario_log.agent_states.append(drive_response.agent_states)
         if drive_response.traffic_lights_states is not None:
             self._scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
@@ -332,15 +359,21 @@ class LogWriter(LogBase):
 
 class LogReader(LogBase):
     """
-    A class for conveniently reading in a log file then rendering it and/or plugging it into a simulation.
+    A class for conveniently reading in a log file then rendering it and/or plugging it into a simulation. Once the log is read, it is 
+    intended to be used in place of calling the API.
     """
 
     def __init__(
         self,
         log_path: str
     ):
+        """
+        The initialization of this object must be given the path to a JSON file in the IAI format. Assume that the 0th time step is taken
+        from the output of :func:`initialize` and set the time step to the 1st time step whic correlates to the first time step produced 
+        by :func:`drive`.
+        """
+
         super().__init__()
-        self.current_timestep = 1
 
         with open(log_path) as f:
             LOG_DATA = json.load(f)
@@ -411,18 +444,13 @@ class LogReader(LogBase):
         )
         self._scenario_log_original = self._scenario_log
 
+        self.reset_log()
+
         self.simulation_length = len(all_agent_states)
-
         self.location = location
-        self.agent_states = None
-        self.recurrent_states = None
-        self.agent_properties = None
-        self.traffic_lights_states = None
-        self.light_recurrent_states = None
-
-        self.init_api_model_version = None
-        self.drive_api_model_version = None
-
+        self.initialize_model_version = self._scenario_log.initialize_model_version
+        self.drive_model_version = self._scenario_log.drive_model_version
+        
         self.location_info_response = location_info(
             location=self._scenario_log.location,
             rendering_fov=self._scenario_log.rendering_fov,
@@ -434,6 +462,10 @@ class LogReader(LogBase):
         self,
         timestep: int
     ):
+        """
+        Populate all state data from the given time step into the relevant member variables. 
+        """
+
         if timestep >= self.simulation_length:
             return False
 
@@ -441,29 +473,37 @@ class LogReader(LogBase):
         self.recurrent_states = None
         self.traffic_lights_states = None if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states[timestep]
         self.light_recurrent_states = self._scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None
-        self.drive_api_model_version = self._scenario_log.drive_model_version
 
         return True
 
     @validate_arguments
-    def reset_log(self):
-        self._scenario_log = self._scenario_log_original
-        self.current_timestep = 1
-
-    @validate_arguments
     def return_last_state(self):
+        """
+        Read and make available state data from the final time step contained within the log which is useful as a launching point for another simulation.
+        """
+
         return self._return_state_at_timestep(timestep=self.simulation_length-1)
 
     @validate_arguments
     def initialize(self):
+        """
+        Read and make available state data from the 0th time step into the relevant state member variables e.g. agent_states. Furthermore, set the 
+        agent_properties state variable here analogously to how :func:`initialize` returns this information through the API.
+        """
+
         self.agent_properties = self._scenario_log.agent_properties
-        self.initialize_model_version = self._scenario_log.initialize_model_version
         is_init_response = self._return_state_at_timestep(timestep=0)
+        self.current_timestep = 1
 
         return is_init_response
 
     @validate_arguments
     def drive(self):
+        """
+        Read and make available state data from the current time step into the relevant member variables then increment the current time step so that this 
+        function may be called again. If the end of the log has been reached, return False otherwise return True.
+        """
+
         if self.current_timestep >= self.simulation_length:
             return False
 
@@ -471,5 +511,21 @@ class LogReader(LogBase):
         self.current_timestep += 1
 
         return is_drive_response
+
+    @validate_arguments
+    def reset_log(self):
+        """
+        In the case the log was modified, revert the log to its initial state after being read and clear all state data. Furthermore, change the current 
+        time step such that the first :func:`drive` time step can be read.
+        """
+        
+        self._scenario_log = self._scenario_log_original
+
+        self.agent_states = None
+        self.agent_properties = None
+        self.recurrent_states = None
+        self.traffic_lights_states = None
+        self.light_recurrent_states = None
+        self.current_timestep = 1
 
 
