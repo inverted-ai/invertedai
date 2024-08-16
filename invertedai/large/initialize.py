@@ -8,7 +8,7 @@ from random import choices, seed
 from math import sqrt
 
 import invertedai as iai
-from invertedai.large.common import Region
+from invertedai.large.common import Region, REGION_MAX_SIZE
 from invertedai.api.initialize import InitializeResponse
 from invertedai.common import TrafficLightStatesDict, Point, AgentProperties, AgentState
 from invertedai.utils import get_default_agent_properties
@@ -194,8 +194,8 @@ def get_number_of_agents_per_region_by_drivable_area(
     :func:`location_info`, then creates a new Region object with copied location and shape data and 
     inserts a number of default AgentProperties objects into it porportional to its drivable surface 
     area relative to the other regions. Regions with no or a relatively small amount of drivable 
-    surfaces will be assigned zero agents. If a region is at its capacity (e.g. due to pre-existing
-    agents), no more agents will be added to it. 
+    surfaces will be removed. If a region is at its capacity (e.g. due to pre-existing agents), no 
+    more agents will be added to it. 
 
     Arguments
     ----------
@@ -267,14 +267,27 @@ def get_number_of_agents_per_region_by_drivable_area(
         if len(new_regions[ind].agent_properties) < number_sampled_agents[ind]:
             new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({"car":1})
 
-    return new_regions
+    filtered_regions = []
+    for region in new_regions:
+        if len(region.agent_properties) > 0:
+            filtered_regions.append(region)
 
-def _get_all_existing_agents_from_regions(regions,exclude_index=None):
+    return filtered_regions
+
+def _get_all_existing_agents_from_regions(
+    regions: List[Region],
+    exclude_index: Optional[int] = None,
+    nearby_region: Optional[Region] = None
+):
     agent_states = []
     agent_properties = []
     recurrent_states = []
+    
     for ind, region in enumerate(regions):
         if not ind == exclude_index:
+            if nearby_region is not None:
+                if sqrt((nearby_region.center.x-region.center.x)**2+(nearby_region.center.y-region.center.y)**2) > (REGION_MAX_SIZE + AGENT_SCOPE_FOV_BUFFER):
+                    continue
             region_agent_states = region.agent_states
             agent_states = agent_states + region_agent_states
             agent_properties = agent_properties + region.agent_properties[:len(region_agent_states)]
@@ -365,7 +378,7 @@ def large_initialize(
         region_center = region.center
         region_size = region.size
 
-        existing_agent_states, existing_agent_properties, _ = _get_all_existing_agents_from_regions(regions,i)
+        existing_agent_states, existing_agent_properties, _ = _get_all_existing_agents_from_regions(regions,i,region)
 
         # Acquire agents that exist in other regions that must be passed as conditional to avoid collisions
         out_of_region_conditional_agents = list(filter(

@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from invertedai.common import AgentAttributes, AgentProperties, AgentState, RecurrentState, Point
 from invertedai.utils import convert_attributes_to_properties
 
+REGION_MAX_SIZE = 100.0
+
 class Region(BaseModel):
     """
     A region in a map used to divide a large simulation into smaller parts.
@@ -23,7 +25,7 @@ class Region(BaseModel):
     def create_square_region(
         cls, 
         center: Point, 
-        size: Optional[float] = 100, 
+        size: Optional[float] = REGION_MAX_SIZE, 
         agent_states: Optional[List[AgentState]] = [], 
         agent_properties: Optional[List[Union[AgentAttributes,AgentProperties]]] = [], 
         recurrent_states: Optional[List[RecurrentState]] = []
