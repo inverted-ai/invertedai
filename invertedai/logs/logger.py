@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validate_arguments
 from typing import List, Optional, Dict, Tuple
 
 import matplotlib.pyplot as plt
@@ -16,6 +16,9 @@ from invertedai.common import (
     RecurrentState,
     TrafficLightStatesDict 
 )
+from invertedai.api.location import LocationResponse
+from invertedai.api.initialize import InitializeResponse
+from invertedai.api.drive import DriveResponse
 
 class ScenarioLog(BaseModel):
     """
@@ -45,30 +48,33 @@ class ScenarioLog(BaseModel):
     waypoints: Optional[Dict[str,List[Point]]] = None #: As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
 
 
-class LogHandler():
+class LogBase():
     """
     A class for containing features relevant to both log reading and writing such as visualization.
     """
 
     def __init__(self):
-        self.scenario_log = None
+        self._scenario_log = None
         self.simulation_length = None
 
-    def visualize_up_to_timestep(
+    @validate_arguments
+    def visualize_range(
         self,
-        timestep,
-        gif_path,
-        fov = 200,
-        resolution = (2048,2048),
-        dpi = 300,
-        map_center = None,
-        direction_vec = False,
-        velocity_vec = False,
-        plot_frame_number = True
+        timestep_range: Tuple[int,int],
+        gif_path: str,
+        fov: int = 200,
+        resolution: Tuple[int,int] = (2048,2048),
+        dpi: int = 300,
+        map_center: Optional[Tuple[float,float]] = None,
+        direction_vec: bool = False,
+        velocity_vec: bool = False,
+        plot_frame_number: bool = True
     ):
-        assert timestep >= 1 or timestep <= (self.simulation_length - 1), "Simulation period to plot is invalid."
+        for timestep in timestep_range:
+            assert timestep >= 0 or timestep <= (self.simulation_length - 1), "Visualization time range valid."
+        assert timestep_range[1] >= timestep_range[0], "Visualization time range valid."
 
-        location_info_response = location_info(location=self.scenario_log.location)
+        location_info_response = location_info(location=self._scenario_log.location)
         rendered_static_map = location_info_response.birdview_image.decode()
         map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
 
@@ -81,13 +87,13 @@ class LogHandler():
             dpi=dpi
         )
         scene_plotter.initialize_recording(
-            agent_states=self.scenario_log.agent_states[0],
-            agent_properties=self.scenario_log.agent_properties,
-            traffic_light_states=None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[0]
+            agent_states=self._scenario_log.agent_states[timestep_range[0]],
+            agent_properties=self._scenario_log.agent_properties,
+            traffic_light_states=None if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states[timestep_range[0]]
         )
 
-        traffic_lights_states = [None]*(timestep-1) if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[1:timestep]
-        for states, lights in zip(self.scenario_log.agent_states[1:timestep],traffic_lights_states):
+        traffic_lights_states = [None]*(timestep_range[1]-timestep_range[0]-1) if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states[timestep_range[0]:timestep_range[1]]
+        for states, lights in zip(self._scenario_log.agent_states[1:timestep],traffic_lights_states):
             scene_plotter.record_step(states,lights)
 
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
@@ -100,19 +106,20 @@ class LogHandler():
             plot_frame_number=plot_frame_number,
         )
 
+    @validate_arguments
     def visualize(
         self,
-        gif_path,
-        fov = 200,
-        resolution = (2048,2048),
-        dpi = 300,
-        map_center = None,
-        direction_vec = False,
-        velocity_vec = False,
-        plot_frame_number = True
+        gif_path: str,
+        fov: int = 200,
+        resolution: Tuple[int,int] = (2048,2048),
+        dpi: int = 300,
+        map_center: Optional[Tuple[float,float]] = None,
+        direction_vec: bool = False,
+        velocity_vec: bool = False,
+        plot_frame_number: bool = True
     ):
-        self.visualize_up_to_timestep(
-            timestep = self.simulation_length-1,
+        self.visualize_range(
+            timestep_range = tuple([0,self.simulation_length-1]),
             gif_path = gif_path,
             fov = fov,
             resolution = resolution,
@@ -123,7 +130,13 @@ class LogHandler():
             plot_frame_number = plot_frame_number
         )
 
-class LogWriter(LogHandler):
+    def initialize(self):
+        pass
+
+    def drive(self):
+        pass
+
+class LogWriter(LogBase):
     """
     A class for conveniently writing a log to a JSON log format.
     """
@@ -131,13 +144,14 @@ class LogWriter(LogHandler):
     def __init__(self):
         super().__init__()
 
-    def write_scenario_log_to_json(
+    @validate_arguments
+    def export_to_file(
         self,
-        log_path,
-        scenario_log = None
+        log_path: str,
+        scenario_log: Optional[ScenarioLog] = None
     ):  
         if scenario_log is None:
-            scenario_log = self.scenario_log
+            scenario_log = self._scenario_log
         num_cars, num_pedestrians = 0, 0
         for prop in scenario_log.agent_properties:
             if prop.agent_type == "car":
@@ -258,37 +272,36 @@ class LogWriter(LogHandler):
             json.dump(output_dict, outfile)
 
     @classmethod
-    def write_json_from_scenario_log(
+    def export_log_to_file(
         cls, 
-        log_path,
-        scenario_log
+        log_path: str,
+        scenario_log: ScenarioLog
     ):
-        cls.write_scenario_log_to_json(cls,log_path,scenario_log)
+        cls.export_to_file(log_path,scenario_log)
 
+    @validate_arguments
     def initialize(
         self,
-        location,
-        location_info_response,
-        init_response,
-        lights_random_seed = None,
-        initialize_random_seed = None,
-        drive_random_seed = None
+        location: str,
+        location_info_response: LocationResponse,
+        init_response: InitializeResponse,
+        lights_random_seed: Optional[int] = None,
+        initialize_random_seed: Optional[int] = None,
+        drive_random_seed: Optional[int] = None
     ): 
 
         agent_properties = init_response.agent_properties
         if type(agent_properties[0]) == AgentAttributes:
             agent_properties = [convert_attributes_to_properties(attr) for attr in agent_properties]
 
-        self.init_response = init_response
-        self.location_info_response = location_info_response
-        self.scenario_log = ScenarioLog(
+        self._scenario_log = ScenarioLog(
             agent_states=[init_response.agent_states], 
             agent_properties=agent_properties, 
             traffic_lights_states=[init_response.traffic_lights_states] if init_response.traffic_lights_states is not None else None, 
             location=location,
             rendering_center=[
-                self.location_info_response.map_center.x,
-                self.location_info_response.map_center.y
+                location_info_response.map_center.x,
+                location_info_response.map_center.y
             ],
             lights_random_seed=lights_random_seed,
             initialize_random_seed=initialize_random_seed,
@@ -302,26 +315,30 @@ class LogWriter(LogHandler):
 
         self.simulation_length = 1
 
+    @validate_arguments
     def drive(
         self,
-        drive_response
+        drive_response: DriveResponse
     ): 
-        self.scenario_log.agent_states.append(drive_response.agent_states)
+        self._scenario_log.agent_states.append(drive_response.agent_states)
         if drive_response.traffic_lights_states is not None:
-            self.scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
+            self._scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
         
-        self.scenario_log.drive_model_version = drive_response.api_model_version
-        self.scenario_log.light_recurrent_states = drive_response.light_recurrent_states
-        self.scenario_log.recurrent_states = drive_response.recurrent_states
+        self._scenario_log.drive_model_version = drive_response.api_model_version
+        self._scenario_log.light_recurrent_states = drive_response.light_recurrent_states
+        self._scenario_log.recurrent_states = drive_response.recurrent_states
 
         self.simulation_length += 1
 
-class LogReader(LogHandler):
+class LogReader(LogBase):
     """
     A class for conveniently reading in a log file then rendering it and/or plugging it into a simulation.
     """
 
-    def __init__(self,log_path):
+    def __init__(
+        self,
+        log_path: str
+    ):
         super().__init__()
         self.current_timestep = 1
 
@@ -376,7 +393,7 @@ class LogReader(LogHandler):
         if not agent_waypoints:
             agent_waypoints = None
 
-        self.scenario_log = ScenarioLog(
+        self._scenario_log = ScenarioLog(
             agent_states=all_agent_states, 
             agent_properties=all_agent_properties, 
             traffic_lights_states=all_traffic_light_states, 
@@ -392,10 +409,11 @@ class LogReader(LogHandler):
             recurrent_states=None,
             waypoints=agent_waypoints
         )
-        self._scenario_log_original = self.scenario_log
+        self._scenario_log_original = self._scenario_log
 
         self.simulation_length = len(all_agent_states)
 
+        self.location = location
         self.agent_states = None
         self.recurrent_states = None
         self.agent_properties = None
@@ -406,51 +424,52 @@ class LogReader(LogHandler):
         self.drive_api_model_version = None
 
         self.location_info_response = location_info(
-            location=self.scenario_log.location,
-            rendering_fov=self.scenario_log.rendering_fov,
-            rendering_center=self.scenario_log.rendering_center,
+            location=self._scenario_log.location,
+            rendering_fov=self._scenario_log.rendering_fov,
+            rendering_center=self._scenario_log.rendering_center,
         )
 
-    def return_state_at_timestep(self,timestep):
-        if timestep == 0:
-            return self.initialize()
-        elif timestep >= self.simulation_length:
+    @validate_arguments
+    def _return_state_at_timestep(
+        self,
+        timestep: int
+    ):
+        if timestep >= self.simulation_length:
             return False
 
-        self.agent_states = self.scenario_log.agent_states[timestep]
+        self.agent_states = self._scenario_log.agent_states[timestep]
         self.recurrent_states = None
-        self.traffic_lights_states = None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[timestep]
-        self.light_recurrent_states = self.scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None
-        self.drive_api_model_version = self.scenario_log.drive_model_version
+        self.traffic_lights_states = None if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states[timestep]
+        self.light_recurrent_states = self._scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None
+        self.drive_api_model_version = self._scenario_log.drive_model_version
 
         return True
 
-    def return_last_state(self):
-        return self.return_state_at_timestep(timestep=self.simulation_length-1)
-
+    @validate_arguments
     def reset_log(self):
-        self.scenario_log = self._scenario_log_original
+        self._scenario_log = self._scenario_log_original
         self.current_timestep = 1
 
+    @validate_arguments
+    def return_last_state(self):
+        return self._return_state_at_timestep(timestep=self.simulation_length-1)
+
+    @validate_arguments
     def initialize(self):
-        current_timestep = 0
+        self.agent_properties = self._scenario_log.agent_properties
+        self.initialize_model_version = self._scenario_log.initialize_model_version
+        is_init_response = self._return_state_at_timestep(timestep=0)
 
-        self.agent_states = self.scenario_log.agent_states[current_timestep]
-        self.recurrent_states = None
-        self.agent_properties = self.scenario_log.agent_properties
-        self.traffic_lights_states = None if self.scenario_log.traffic_lights_states is None else self.scenario_log.traffic_lights_states[current_timestep]
-        self.light_recurrent_states = self.scenario_log if current_timestep == (len(self.scenario_log.agent_states) - 1) else None
-        self.init_api_model_version = self.scenario_log.initialize_model_version
+        return is_init_response
 
-        return True
-
+    @validate_arguments
     def drive(self):
         if self.current_timestep >= self.simulation_length:
             return False
 
-        drive_response = self.return_state_at_timestep(timestep=self.current_timestep)
+        is_drive_response = self._return_state_at_timestep(timestep=self.current_timestep)
         self.current_timestep += 1
 
-        return True
+        return is_drive_response
 
 

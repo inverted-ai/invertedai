@@ -12,7 +12,7 @@ from invertedai.cosimulation import BasicCosimulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
 from invertedai.large.initialize import get_regions_in_grid, get_number_of_agents_per_region_by_drivable_area, insert_agents_into_nearest_region, get_regions_default, large_initialize
 from invertedai.large.drive import large_drive
-from invertedai.logs.common import LogWriter, LogReader
+from invertedai.logs.logger import LogWriter, LogReader
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
 if dev:

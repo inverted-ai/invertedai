@@ -45,7 +45,7 @@ for _ in range(SIMULATION_LENGTH):
 
 
 log_path = os.path.join(os.getcwd(),f"scenario_log_example.json")
-log_writer.write_scenario_log_to_json(log_path=log_path)
+log_writer.export_to_file(log_path=log_path)
 gif_path_original = os.path.join(os.getcwd(),f"scenario_log_example_original.gif")
 log_writer.visualize(
     gif_path=gif_path_original,
@@ -105,7 +105,7 @@ recurrent_states = log_reader.recurrent_states
 traffic_lights_states = log_reader.traffic_lights_states
 for _ in range(SIMULATION_LENGTH_EXTEND): 
     response = iai.drive(
-        location=log_reader.scenario_log.location,
+        location=log_reader.location,
         agent_properties=agent_properties,
         agent_states=agent_states,
         recurrent_states=recurrent_states,
@@ -161,7 +161,7 @@ recurrent_states = log_reader.recurrent_states
 traffic_lights_states = log_reader.traffic_lights_states
 for _ in range(SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT): 
     response = iai.drive(
-        location=log_reader.scenario_log.location,
+        location=log_reader.location,
         agent_properties=agent_properties,
         agent_states=agent_states,
         recurrent_states=recurrent_states,
