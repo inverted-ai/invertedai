@@ -296,7 +296,7 @@ class LogWriter(LogBase):
         Class function to convert a given log data type into a JSON format and export it to a given file.
         """
 
-        cls.export_to_file(log_path,scenario_log)
+        cls.export_to_file(cls,log_path,scenario_log)
 
     @validate_arguments
     def initialize(
