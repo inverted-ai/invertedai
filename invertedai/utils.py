@@ -31,10 +31,13 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import AgentState, AgentAttributes, AgentProperties, StaticMapActor, TrafficLightState, TrafficLightStatesDict, Point, RecurrentState
+from invertedai.common import AgentState, AgentAttributes, AgentProperties, StaticMapActor,\
+                                TrafficLightState, TrafficLightStatesDict, Point, RecurrentState,\
+                                LightRecurrentState
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
 from invertedai.api.initialize import InitializeResponse
+from invertedai.api.drive import DriveResponse
 from invertedai.api.location import LocationResponse
 
 
@@ -1409,3 +1412,4 @@ class ScenePlotter():
                 )
 
         return None
+
