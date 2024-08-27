@@ -3,6 +3,7 @@ dev/
 dev.py
 img/
 gifs/
+examples/output
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -179,3 +180,7 @@ bazel-*
 # Demos
 *.avi
 *.gif
+examples/*.png
+examples/output/
+examples/*.csv
+examples/*.json
