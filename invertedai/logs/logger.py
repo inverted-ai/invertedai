@@ -79,7 +79,11 @@ class LogBase():
             assert timestep >= 0 or timestep <= (self.simulation_length - 1), "Visualization time range valid."
         assert timestep_range[1] >= timestep_range[0], "Visualization time range valid."
 
-        location_info_response = location_info(location=self._scenario_log.location)
+        location_info_response = location_info(
+            location=self._scenario_log.location,
+            rendering_fov=fov,
+            rendering_center=map_center
+        )
         rendered_static_map = location_info_response.birdview_image.decode()
         map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
 
@@ -110,6 +114,7 @@ class LogBase():
             velocity_vec=velocity_vec,
             plot_frame_number=plot_frame_number,
         )
+        plt.close(fig)
 
     @validate_arguments
     def visualize(
