@@ -310,7 +310,7 @@ def _insert_agents_into_nearest_regions(
     return regions, region_map
 
 def _consolidate_all_responses(
-    all_responses: List[InitializeResponse] = None,
+    all_responses: List[InitializeResponse],
     region_map: Optional[List[Tuple[int,int]]] = None,
     return_exact_agents: bool = False,
     get_infractions: bool = False
