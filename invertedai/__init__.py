@@ -14,8 +14,7 @@ from invertedai.large.initialize import (
     get_regions_in_grid, 
     get_number_of_agents_per_region_by_drivable_area, 
     get_regions_default, 
-    large_initialize,
-    indexed_conditional_large_initialize
+    large_initialize
 )
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriter, LogReader
