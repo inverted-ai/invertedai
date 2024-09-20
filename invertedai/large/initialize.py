@@ -245,7 +245,7 @@ def _insert_agents_into_nearest_regions(
     regions: List[Region],
     agent_properties: List[AgentProperties],
     agent_states: List[AgentState],
-    is_return_map: Optional[bool] = False,
+    return_region_index: Optional[bool] = False,
     random_seed: Optional[int] = None
 ) -> Union[List[Region],Tuple[List[Region],List[Tuple[int,int]]]]:
     """
@@ -255,8 +255,8 @@ def _insert_agents_into_nearest_regions(
     it is not within the bounds of the region. The length of the agent_states list must be
     equal or less than the length of agent_properties. To remain compliant with :func:`initialize`, 
     agents with defined agent states are placed at the beginning of the list. Optionally 
-    using the is_return_map parameter will return a list indicating in which region the 
-    agent is placed to preserve agent indexing. A random seed parameter is included for 
+    using the return_region_index parameter will return a list indicating in which region 
+    the agent is placed to preserve agent indexing. A random seed parameter is included for 
     repeatability.
 
     Arguments
@@ -270,7 +270,7 @@ def _insert_agents_into_nearest_regions(
     agent_properties:
         Please refer to the documentation of :func:`drive` for information on this parameter.
 
-    is_return_map:
+    return_region_index:
         Whether to map the region in which agents of the same index have been placed. Returns 
         a list of the same size as the agent_properties parameter.
     """
@@ -279,29 +279,33 @@ def _insert_agents_into_nearest_regions(
     assert num_regions > 0, "Invalid parameter: number of regions must be greater than zero."
     assert len(agent_properties) >= num_agent_states, "Invalid parameters: number of agent properties must be larger than number agent states."
 
-    if is_return_map: 
+    if return_region_index: 
         region_map = []
     else:
         region_map = None
 
-    for i, (prop, state) in enumerate(zip(agent_properties[:num_agent_states],agent_states)):
-        region_distances = []
-        for region in regions:
-            region_distances.append(sqrt((state.center.x-region.center.x)**2 + (state.center.y-region.center.y)**2))
+    if len(agent_states) > 0: 
+        region_agent_states_lengths = [len(region.agent_states) for region in regions]
 
-        closest_region_index = region_distances.index(min(region_distances))
-        insert_index = len(regions[closest_region_index].agent_states)
-        regions[closest_region_index].agent_properties.insert(insert_index,prop)
-        regions[closest_region_index].agent_states.insert(insert_index,state)
+        for i, (prop, state) in enumerate(zip(agent_properties[:num_agent_states],agent_states)):
+            region_distances = []
+            for region in regions:
+                region_distances.append(sqrt((state.center.x-region.center.x)**2 + (state.center.y-region.center.y)**2))
 
-        if is_return_map: region_map.append(tuple([closest_region_index,insert_index]))
+            closest_region_index = region_distances.index(min(region_distances))
+            insert_index = region_agent_states_lengths[closest_region_index]
+            region_agent_states_lengths[closest_region_index] += 1
+            regions[closest_region_index].agent_properties.insert(insert_index,prop)
+            regions[closest_region_index].agent_states.insert(insert_index,state)
+
+            if return_region_index: region_map.append(tuple([closest_region_index,insert_index]))
 
     if random_seed is not None: seed(random_seed)
     for prop in agent_properties[num_agent_states:]:
         random_region_index = randint(0,num_regions-1)
         regions[random_region_index].agent_properties.append(prop)
 
-        if is_return_map: region_map.append(tuple([random_region_index,len(regions[random_region_index].agent_properties)-1]))
+        if return_region_index: region_map.append(tuple([random_region_index,len(regions[random_region_index].agent_properties)-1]))
 
     return regions, region_map
 
@@ -559,7 +563,7 @@ def large_initialize(
         regions = regions,
         agent_properties = [] if agent_properties is None else agent_properties,
         agent_states = [] if agent_states is None else agent_states,
-        is_return_map = True,
+        return_region_index = True,
         random_seed = random_seed
     )
 
