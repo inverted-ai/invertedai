@@ -40,7 +40,7 @@ def main(args):
             regions = regions,
             random_seed = initialize_seed
         )
-        
+
         print(f"Set up simulation.")
         if args.save_sim_gif:
             rendered_static_map = location_info_response.birdview_image.decode()
