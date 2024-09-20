@@ -331,6 +331,7 @@ class LogWriter(LogBase):
                 location_info_response.map_center.x,
                 location_info_response.map_center.y
             ],
+            rendering_fov=location_info_response.map_fov,
             lights_random_seed=lights_random_seed,
             initialize_random_seed=initialize_random_seed,
             drive_random_seed=drive_random_seed,

@@ -310,7 +310,7 @@ def _insert_agents_into_nearest_regions(
     return regions, region_map
 
 def _consolidate_all_responses(
-    all_responses: Optional[InitializeResponse] = None,
+    all_responses: List[InitializeResponse] = None,
     region_map: Optional[List[Tuple[int,int]]] = None,
     return_exact_agents: bool = False,
     get_infractions: bool = False
@@ -375,7 +375,7 @@ def _get_all_existing_agents_from_regions(
                 if sqrt((nearby_region.center.x-region.center.x)**2+(nearby_region.center.y-region.center.y)**2) > (REGION_MAX_SIZE + AGENT_SCOPE_FOV_BUFFER):
                     continue
             region_agent_states = region.agent_states
-            agent_states = agent_states + [state for state in region_agent_states]
+            agent_states = agent_states + region_agent_states
             agent_properties = agent_properties + [prop for prop in region.agent_properties[:len(region_agent_states)]]
 
     return agent_states, agent_properties
