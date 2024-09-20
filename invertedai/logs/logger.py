@@ -33,7 +33,7 @@ class ScenarioLog(BaseModel):
 
     location: str #: Location name in IAI format.
     rendering_center: Optional[Tuple[float, float]] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
-    rendering_fov: Optional[int] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
+    rendering_fov: Optional[int] = 100 #: Please refer to the documentation of :func:`location_info` for information on this parameter.
 
     lights_random_seed: Optional[int] = None #: Controls the stochastic aspects of the the traffic lights states.
     initialize_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`initialize` for information on the random_seed parameter.
@@ -331,6 +331,7 @@ class LogWriter(LogBase):
                 location_info_response.map_center.x,
                 location_info_response.map_center.y
             ],
+            rendering_fov=location_info_response.map_fov,
             lights_random_seed=lights_random_seed,
             initialize_random_seed=initialize_random_seed,
             drive_random_seed=drive_random_seed,
