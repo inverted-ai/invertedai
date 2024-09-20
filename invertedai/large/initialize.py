@@ -1,12 +1,11 @@
 import time
 from pydantic import BaseModel, validate_call
-from typing import Union, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from itertools import product
 from tqdm.contrib import tenumerate
 import numpy as np
-from random import choices, seed, randint
+from random import choices, seed
 from math import sqrt
-from copy import deepcopy
 
 import invertedai as iai
 from invertedai.large.common import Region, REGION_MAX_SIZE
@@ -148,6 +147,41 @@ def get_regions_in_grid(
     return regions
 
 @validate_call
+def insert_agents_into_nearest_region(
+    regions: List[Region],
+    agent_properties: List[AgentProperties],
+    agent_states: List[AgentState]
+) -> List[Region]:
+    """
+    Helper function to place pre-existing agents into a group of regions. If agents exist 
+    within the bounds of multiple regions, it is placed within the region to which whose 
+    center it is closest. Agents will be placed "into" the region that is closest even if 
+    it is not within the bounds of the region.
+
+    Arguments
+    ----------
+    regions:
+        A list of Regions with bounds and centre defined for which agents are associated. 
+
+    agent_states:
+        Please refer to the documentation of :func:`drive` for information on this parameter.
+
+    agent_properties:
+        Please refer to the documentation of :func:`drive` for information on this parameter.
+    """
+
+    for state, prop in zip (agent_states,agent_properties):
+        region_distances = []
+        for region in regions:
+            region_distances.append(sqrt((state.center.x-region.center.x)**2 + (state.center.y-region.center.y)**2))
+
+        closest_region_index = region_distances.index(min(region_distances))
+        regions[closest_region_index].agent_properties.append(prop)
+
+    return regions
+
+
+@validate_call
 def get_number_of_agents_per_region_by_drivable_area(
     location: str,
     regions: List[Region],
@@ -240,102 +274,14 @@ def get_number_of_agents_per_region_by_drivable_area(
 
     return filtered_regions
 
-@validate_call
-def _insert_agents_into_nearest_regions(
-    regions: List[Region],
-    agent_properties: List[AgentProperties],
-    agent_states: List[AgentState],
-    return_region_index: Optional[bool] = False,
-    random_seed: Optional[int] = None
-) -> Union[List[Region],Tuple[List[Region],List[Tuple[int,int]]]]:
-    """
-    Helper function to place pre-existing agents into a group of regions. If agents exist 
-    within the bounds of multiple regions, it is placed within the region to which whose 
-    center it is closest. Agents will be placed "into" the region that is closest even if 
-    it is not within the bounds of the region. The length of the agent_states list must be
-    equal or less than the length of agent_properties. To remain compliant with :func:`initialize`, 
-    agents with defined agent states are placed at the beginning of the list. Optionally 
-    using the return_region_index parameter will return a list indicating in which region 
-    the agent is placed to preserve agent indexing. A random seed parameter is included for 
-    repeatability.
-
-    Arguments
-    ----------
-    regions:
-        A list of Regions with bounds and centre defined for which agents are associated. 
-
-    agent_states:
-        Please refer to the documentation of :func:`drive` for information on this parameter.
-
-    agent_properties:
-        Please refer to the documentation of :func:`drive` for information on this parameter.
-
-    return_region_index:
-        Whether to map the region in which agents of the same index have been placed. Returns 
-        a list of the same size as the agent_properties parameter.
-    """
-    num_agent_states = len(agent_states)
-    num_regions = len(regions)
-    assert num_regions > 0, "Invalid parameter: number of regions must be greater than zero."
-    assert len(agent_properties) >= num_agent_states, "Invalid parameters: number of agent properties must be larger than number agent states."
-
-    if return_region_index: 
-        region_map = []
-    else:
-        region_map = None
-
-    if len(agent_states) > 0: 
-        region_agent_states_lengths = [len(region.agent_states) for region in regions]
-
-        for i, (prop, state) in enumerate(zip(agent_properties[:num_agent_states],agent_states)):
-            region_distances = []
-            for region in regions:
-                region_distances.append(sqrt((state.center.x-region.center.x)**2 + (state.center.y-region.center.y)**2))
-
-            closest_region_index = region_distances.index(min(region_distances))
-            insert_index = region_agent_states_lengths[closest_region_index]
-            region_agent_states_lengths[closest_region_index] += 1
-            regions[closest_region_index].agent_properties.insert(insert_index,prop)
-            regions[closest_region_index].agent_states.insert(insert_index,state)
-
-            if return_region_index: region_map.append(tuple([closest_region_index,insert_index]))
-
-    if random_seed is not None: seed(random_seed)
-    for prop in agent_properties[num_agent_states:]:
-        random_region_index = randint(0,num_regions-1)
-        regions[random_region_index].agent_properties.append(prop)
-
-        if return_region_index: region_map.append(tuple([random_region_index,len(regions[random_region_index].agent_properties)-1]))
-
-    return regions, region_map
-
 def _get_all_existing_agents_from_regions(
     regions: List[Region],
     exclude_index: Optional[int] = None,
-    nearby_region: Optional[Region] = None,
-    region_map: Optional[List[Tuple[int,int]]] = None,
-    return_exact_agents: bool = False
+    nearby_region: Optional[Region] = None
 ):
     agent_states = []
     agent_properties = []
     recurrent_states = []
-
-    region_agent_remove_map = {i: [] for i in range(len(regions))}
-
-    if region_map is not None:
-        for (region_id, agent_id) in region_map:
-            try:
-                agent_states.append(regions[region_id].agent_states[agent_id])
-                agent_properties.append(regions[region_id].agent_properties[agent_id])
-                recurrent_states.append(regions[region_id].recurrent_states[agent_id])
-
-                region_agent_remove_map[region_id].append(agent_id)
-            except IndexError as e: 
-                exception_message = f"Warning: Unable to fetch specified agent ID {agent_id} in region {region_id}."
-                if not return_exact_agents: 
-                    iai.logger.debug(exception_message)
-                else:
-                    raise InvertedAIError(message=exception_message)
     
     for ind, region in enumerate(regions):
         if not ind == exclude_index:
@@ -343,13 +289,14 @@ def _get_all_existing_agents_from_regions(
                 if sqrt((nearby_region.center.x-region.center.x)**2+(nearby_region.center.y-region.center.y)**2) > (REGION_MAX_SIZE + AGENT_SCOPE_FOV_BUFFER):
                     continue
             region_agent_states = region.agent_states
-            agent_states = agent_states + [state for i, state in enumerate(region_agent_states) if i not in region_agent_remove_map[ind]]
-            agent_properties = agent_properties + [prop for i, prop in enumerate(region.agent_properties[:len(region_agent_states)]) if i not in region_agent_remove_map[ind]]
-            recurrent_states = recurrent_states + [recurr for i, recurr in enumerate(region.recurrent_states) if i not in region_agent_remove_map[ind]]
+            agent_states = agent_states + region_agent_states
+            agent_properties = agent_properties + region.agent_properties[:len(region_agent_states)]
+            recurrent_states = recurrent_states + region.recurrent_states
     
     return agent_states, agent_properties, recurrent_states
 
-def _initialize_regions(
+@validate_call
+def large_initialize(
     location: str,
     regions: List[Region],
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
@@ -358,8 +305,56 @@ def _initialize_regions(
     api_model_version: Optional[str] = None,
     display_progress_bar: bool = True,
     return_exact_agents: bool = False
-) -> Tuple[List[Region],List[InitializeResponse]]:
+) -> InitializeResponse:
+    """
+    A utility function to initialize an area larger than 100x100m. This function takes in a 
+    list of Region objects on each of which :func:`initialize` is run and each initialize 
+    response is combined into a single response which is returned. While looping over all
+    regions, if there are agents in other regions that are near enough to the region of
+    interest, they will be passed as conditional to :func:`initialize`. :func:`initialize` 
+    will not be called if no agent_states or agent_properties are specified in the region. 
+    As well, predefined agents may be passed via the regions and will be considered as 
+    conditional. A boolean flag can be used to control failure behaviour if :func:`initialize` 
+    is unable to produce viable vehicle placements if the initialization should continue or 
+    raise an exception.
+
+    Arguments
+    ----------
+    location:
+        Please refer to the documentation of :func:`initialize` for information on this parameter.
+
+    regions:
+        List of regions that contains information about the center, size, and agent_states and 
+        agent_properties formatted to align with :func:`initialize`. Please refer to the 
+        documentation for :func:`initialize` for more details. The Region objects are not 
+        modified, rather they are used 
     
+    traffic_light_state_history:
+        Please refer to the documentation of :func:`initialize` for information on this parameter.
+
+    get_infractions:
+        Please refer to the documentation of :func:`initialize` for information on this parameter.
+    
+    random_seed:
+        Please refer to the documentation of :func:`initialize` for information on this parameter.
+
+    api_model_version:
+        Please refer to the documentation of :func:`initialize` for information on this parameter.
+
+    display_progress_bar:
+        If True, a bar is displayed showing the progress of all relevant processes.
+
+    return_exact_agents:
+        If set to True, this function will raise an InvertedAIError exception if it cannot fit 
+        the requested number of agents in any single region. If set to False, a region that 
+        fails to return the number of requested agents will be skipped and only its predefined 
+        agents (if any) will be returned with respective RecurrentState's. 
+    
+    See Also
+    --------
+    :func:`initialize`
+    """
+
     agent_states_sampled = []
     agent_properties_sampled = []
     agent_rs_sampled = []
@@ -383,11 +378,7 @@ def _initialize_regions(
         region_center = region.center
         region_size = region.size
 
-        existing_agent_states, existing_agent_properties, _ = _get_all_existing_agents_from_regions(
-            regions = regions,
-            exclude_index = i,
-            nearby_region = region
-        )
+        existing_agent_states, existing_agent_properties, _ = _get_all_existing_agents_from_regions(regions,i,region)
 
         # Acquire agents that exist in other regions that must be passed as conditional to avoid collisions
         out_of_region_conditional_agents = list(filter(
@@ -431,7 +422,7 @@ def _initialize_regions(
                 break
             
             else:
-                exception_string = f"Unable to initialize region {i} at {region.center} with size {region.size} after {num_attempts} attempts."
+                exception_string = f"Unable to initialize region at {region.center} with size {region.size} after {num_attempts} attempts."
                 if return_exact_agents: 
                     raise InvertedAIError(message=exception_string)
                 else:
@@ -449,26 +440,18 @@ def _initialize_regions(
                         )
             
             if response is not None:
+                all_responses.append(response)
                 # Filter out conditional agents from other regions
-                infractions = []
-                for j, (state, attrs, r_state) in enumerate(zip(
+                for state, attrs, r_state in zip(
                     response.agent_states[num_out_of_region_conditional_agents:],
                     response.agent_properties[num_out_of_region_conditional_agents:],
                     response.recurrent_states[num_out_of_region_conditional_agents:]
-                )):
+                ):
                     if not return_exact_agents:
                         if not inside_fov(center=region_center, agent_scope_fov=region_size, point=state.center):
                             continue
 
                     regions[i].insert_all_agent_details(state,attrs,r_state)
-                    if get_infractions:
-                        infractions.append(response.infractions[num_out_of_region_conditional_agents:][j])
-
-                response.infractions = infractions
-                response.agent_states = regions[i].agent_states
-                response.agent_properties = regions[i].agent_properties
-                response.recurrent_states = regions[i].recurrent_states
-                all_responses.append(response)
 
                 if traffic_light_state_history is None and response.traffic_lights_states is not None:
                     traffic_light_state_history = [response.traffic_lights_states]
@@ -476,124 +459,17 @@ def _initialize_regions(
             #There are no agents to initialize within this region, proceed to the next region
             continue
 
-    return regions, all_responses
 
-@validate_call
-def large_initialize(
-    location: str,
-    regions: List[Region],
-    agent_properties: Optional[List[AgentProperties]] = None,
-    agent_states: Optional[List[AgentState]] = None,
-    traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
-    get_infractions: bool = False,
-    random_seed: Optional[int] = None,
-    api_model_version: Optional[str] = None,
-    display_progress_bar: bool = True,
-    return_exact_agents: bool = False
-) -> InitializeResponse:
-    """
-    A utility function to initialize an area larger than 100x100m. This function takes in a 
-    list of Region objects on each of which :func:`initialize` is run and each initialize 
-    response is combined into a single response which is returned. While looping over all
-    regions, if there are agents in other regions that are near enough to the region of
-    interest, they will be passed as conditional to :func:`initialize`. :func:`initialize` 
-    will not be called if no agent_states or agent_properties are specified in the region. 
-    A boolean flag can be used to control failure behaviour if :func:`initialize` is unable 
-    to produce viable vehicle placements if the initialization should continue or raise an 
-    exception.
-
-    As well, predefined agents may be passed to this function in 2 different ways. If the index
-    of the predefined agents must be preserved, pass these agents' data into the agent_properties 
-    and agent_states parameters. Each agent for which its states is defined MUST have its respective
-    agent properties defined as well but an agent is permitted to be defined by its properties only
-    and :func:`initialize` will fill in the state information. If the index of the predefined agents
-    does not matter, they may be placed directly into the region objects or passed into the parameters
-    mentioned previously, but make sure to avoid adding these agents twice.
-
-    Arguments
-    ----------
-    location:
-        Please refer to the documentation of :func:`initialize` for information on this parameter.
-
-    regions:
-        List of regions that contains information about the center, size, agent states and 
-        agent properties formatted to align with :func:`initialize`. Please refer to the 
-        documentation for :func:`initialize` for more details. 
-
-    agent_properties:
-        The properties of the agents that will have their indexes preserved within the response 
-        output. Please refer to the documentation of :func:`initialize` for information on this 
-        parameter.
-
-    agent_states:
-        One timestep worth of agent states that will have their indexes preserved within the response 
-        output. Please refer to the documentation of :func:`initialize` for more information on this 
-        parameter.
-    
-    traffic_light_state_history:
-        Please refer to the documentation of :func:`initialize` for information on this parameter.
-
-    get_infractions:
-        Please refer to the documentation of :func:`initialize` for information on this parameter.
-    
-    random_seed:
-        Please refer to the documentation of :func:`initialize` for information on this parameter.
-
-    api_model_version:
-        Please refer to the documentation of :func:`initialize` for information on this parameter.
-
-    display_progress_bar:
-        If True, a bar is displayed showing the progress of all relevant processes.
-
-    return_exact_agents:
-        If set to True, this function will raise an InvertedAIError exception if it cannot fit 
-        the requested number of agents in any single region. If set to False, a region that 
-        fails to return the number of requested agents will be skipped and only its predefined 
-        agents (if any) will be returned with respective RecurrentState's. 
-    
-    See Also
-    --------
-    :func:`initialize`
-    """
-
-    if (agent_properties is not None and agent_states is not None) or (agent_properties is None and agent_states is not None):
-        assert len(agent_properties) >= len(agent_states), "Invalid parameters: number of agent properties must be larger than number agent states."
-
-    regions, region_map = _insert_agents_into_nearest_regions(
-        regions = regions,
-        agent_properties = [] if agent_properties is None else agent_properties,
-        agent_states = [] if agent_states is None else agent_states,
-        return_region_index = True,
-        random_seed = random_seed
-    )
-
-    regions, all_responses = _initialize_regions(
-        location = location,
-        regions = regions,
-        traffic_light_state_history = traffic_light_state_history,
-        get_infractions = get_infractions,
-        random_seed = random_seed,
-        api_model_version = api_model_version,
-        display_progress_bar = display_progress_bar,
-        return_exact_agents = return_exact_agents
-    )
-
-    all_agent_states, all_agent_properties, all_recurrent_states = _get_all_existing_agents_from_regions(
-        regions = regions,
-        region_map = region_map,
-        return_exact_agents = return_exact_agents
-    )
+    all_agent_states, all_agent_properties, all_recurrent_states = _get_all_existing_agents_from_regions(regions)
 
     if len(all_responses) > 0:
         # Get non-region-specific values such as api_model_version and traffic_light_states from an existing response
-        response = deepcopy(all_responses[0]) 
+        response = all_responses[0] 
         # Set agent information with all agent information from every region
         response.agent_states = all_agent_states
         response.agent_properties = all_agent_properties
         response.recurrent_states = all_recurrent_states 
     else:
-        raise InvertedAIError(message=f"Unable to initialize any given region. Please check the input parameters.")
+        raise InvertedAIError(message=f"Unable to initialize all given regions. Please check the input parameters.")
     
     return response
-
-

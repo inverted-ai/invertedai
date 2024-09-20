@@ -10,7 +10,6 @@ SIMULATION_LENGTH = 100
 SIMULATION_LENGTH_EXTEND = 100
 SIMULATION_BEGIN_NEW_ROLLOUT = 50
 
-
 ######################################################################################
 # Produce a log and write it
 print("Producing log...")
@@ -18,10 +17,10 @@ location_info_response = iai.location_info(location=LOCATION)
 
 # initialize the simulation by spawning NPCs
 response = iai.initialize(
-    location=LOCATION,
-    agent_properties=get_default_agent_properties({"car":5}),
+    location=LOCATION,  # select one of available locations
+    agent_properties=get_default_agent_properties({"car":5}),    # number of NPCs to spawn
 )
-agent_properties = response.agent_properties
+agent_properties = response.agent_properties  # get dimension and other attributes of NPCs
 
 log_writer = iai.LogWriter()
 log_writer.initialize(
@@ -38,11 +37,12 @@ for _ in range(SIMULATION_LENGTH):
         agent_properties=agent_properties,
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
-        light_recurrent_states=response.light_recurrent_states,
+        traffic_lights_states=response.traffic_lights_states,
         random_seed=randint(1,100000)
     )
 
     log_writer.drive(drive_response=response)
+
 
 log_path = os.path.join(os.getcwd(),f"scenario_log_example.json")
 log_writer.export_to_file(log_path=log_path)
@@ -57,7 +57,6 @@ log_writer.visualize(
     velocity_vec = False,
     plot_frame_number = True
 )
-
 
 ######################################################################################
 # Replay original log
@@ -103,21 +102,21 @@ while True: # Log reader will return None when it has run out of simulation data
 
 agent_states = log_reader.agent_states
 recurrent_states = log_reader.recurrent_states
-light_recurrent_states = log_reader.light_recurrent_states
+traffic_lights_states = log_reader.traffic_lights_states
 for _ in range(SIMULATION_LENGTH_EXTEND): 
     response = iai.drive(
         location=log_reader.location,
         agent_properties=agent_properties,
         agent_states=agent_states,
         recurrent_states=recurrent_states,
-        light_recurrent_states=light_recurrent_states,
+        traffic_lights_states=traffic_lights_states
     )
 
     agent_states = response.agent_states
     recurrent_states = response.recurrent_states
-    light_recurrent_states = response.light_recurrent_states
+    traffic_lights_states = response.traffic_lights_states
 
-    scene_plotter.record_step(agent_states,response.traffic_lights_states)
+    scene_plotter.record_step(agent_states,traffic_lights_states)
 
 gif_path_extended = os.path.join(os.getcwd(),f"scenario_log_example_extended.gif")
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
@@ -159,22 +158,22 @@ for _ in range(SIMULATION_BEGIN_NEW_ROLLOUT):
 
 agent_states = log_reader.agent_states
 recurrent_states = log_reader.recurrent_states
-light_recurrent_states = log_reader.light_recurrent_states
+traffic_lights_states = log_reader.traffic_lights_states
 for _ in range(SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT): 
     response = iai.drive(
         location=log_reader.location,
         agent_properties=agent_properties,
         agent_states=agent_states,
         recurrent_states=recurrent_states,
-        light_recurrent_states=light_recurrent_states,
+        traffic_lights_states=traffic_lights_states,
         random_seed=randint(1,100000)
     )
 
     agent_states = response.agent_states
     recurrent_states = response.recurrent_states
-    light_recurrent_states = response.light_recurrent_states
+    traffic_lights_states = response.traffic_lights_states
 
-    scene_plotter_new.record_step(agent_states,response.traffic_lights_states)
+    scene_plotter_new.record_step(agent_states,traffic_lights_states)
 
 gif_path_branched = os.path.join(os.getcwd(),f"scenario_log_example_branched.gif")
 fig_new, ax_new = plt.subplots(constrained_layout=True, figsize=(50, 50))
