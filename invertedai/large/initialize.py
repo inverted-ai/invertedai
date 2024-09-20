@@ -309,45 +309,76 @@ def _insert_agents_into_nearest_regions(
 
     return regions, region_map
 
+def _consolidate_all_responses(
+    all_responses: Optional[InitializeResponse] = None,
+    region_map: Optional[List[Tuple[int,int]]] = None,
+    return_exact_agents: bool = False,
+    get_infractions: bool = False
+):
+    if len(all_responses) > 0:
+        # Get non-region-specific values such as api_model_version and traffic_light_states from an existing response
+        response = deepcopy(all_responses[0]) 
+
+        agent_states = []
+        agent_properties = []
+        recurrent_states = []
+        infractions = []
+
+        region_agent_keep_map = {i: [True]*len(res.agent_properties) for i, res in enumerate(all_responses)}
+
+        if region_map is not None:
+            for (region_id, agent_id) in region_map:
+                try:
+                    agent_states.append(all_responses[region_id].agent_states[agent_id])
+                    agent_properties.append(all_responses[region_id].agent_properties[agent_id])
+                    recurrent_states.append(all_responses[region_id].recurrent_states[agent_id])
+
+                    if get_infractions:
+                        infractions.append(all_responses[region_id].infractions[agent_id])
+
+                    region_agent_keep_map[region_id][agent_id] = False
+                except IndexError as e: 
+                    exception_message = f"Warning: Unable to fetch specified agent ID {agent_id} in region {region_id}."
+                    if not return_exact_agents: 
+                        iai.logger.debug(exception_message)
+                    else:
+                        raise InvertedAIError(message=exception_message)
+        
+        for ind, response in enumerate(all_responses):
+            response_agent_states = response.agent_states
+            agent_states = agent_states + [state for i, state in enumerate(response_agent_states) if region_agent_keep_map[ind][i]]
+            agent_properties = agent_properties + [prop for i, prop in enumerate(response.agent_properties[:len(response_agent_states)]) if region_agent_keep_map[ind][i]]
+            recurrent_states = recurrent_states + [recurr for i, recurr in enumerate(response.recurrent_states) if region_agent_keep_map[ind][i]]
+            if get_infractions:
+                infractions = infractions + [infr for i, infr in enumerate(response.infractions) if region_agent_keep_map[ind][i]]
+        
+        response.infractions = infractions
+        response.agent_states = agent_states
+        response.agent_properties = agent_properties
+        response.recurrent_states = recurrent_states 
+    else:
+        raise InvertedAIError(message=f"Unable to initialize any given region. Please check the input parameters.")
+
+    return response
+
 def _get_all_existing_agents_from_regions(
     regions: List[Region],
     exclude_index: Optional[int] = None,
     nearby_region: Optional[Region] = None,
-    region_map: Optional[List[Tuple[int,int]]] = None,
-    return_exact_agents: bool = False
 ):
     agent_states = []
     agent_properties = []
-    recurrent_states = []
 
-    region_agent_remove_map = {i: [] for i in range(len(regions))}
-
-    if region_map is not None:
-        for (region_id, agent_id) in region_map:
-            try:
-                agent_states.append(regions[region_id].agent_states[agent_id])
-                agent_properties.append(regions[region_id].agent_properties[agent_id])
-                recurrent_states.append(regions[region_id].recurrent_states[agent_id])
-
-                region_agent_remove_map[region_id].append(agent_id)
-            except IndexError as e: 
-                exception_message = f"Warning: Unable to fetch specified agent ID {agent_id} in region {region_id}."
-                if not return_exact_agents: 
-                    iai.logger.debug(exception_message)
-                else:
-                    raise InvertedAIError(message=exception_message)
-    
     for ind, region in enumerate(regions):
         if not ind == exclude_index:
             if nearby_region is not None:
                 if sqrt((nearby_region.center.x-region.center.x)**2+(nearby_region.center.y-region.center.y)**2) > (REGION_MAX_SIZE + AGENT_SCOPE_FOV_BUFFER):
                     continue
             region_agent_states = region.agent_states
-            agent_states = agent_states + [state for i, state in enumerate(region_agent_states) if i not in region_agent_remove_map[ind]]
-            agent_properties = agent_properties + [prop for i, prop in enumerate(region.agent_properties[:len(region_agent_states)]) if i not in region_agent_remove_map[ind]]
-            recurrent_states = recurrent_states + [recurr for i, recurr in enumerate(region.recurrent_states) if i not in region_agent_remove_map[ind]]
-    
-    return agent_states, agent_properties, recurrent_states
+            agent_states = agent_states + [state for state in region_agent_states]
+            agent_properties = agent_properties + [prop for prop in region.agent_properties[:len(region_agent_states)]]
+
+    return agent_states, agent_properties
 
 def _initialize_regions(
     location: str,
@@ -383,7 +414,7 @@ def _initialize_regions(
         region_center = region.center
         region_size = region.size
 
-        existing_agent_states, existing_agent_properties, _ = _get_all_existing_agents_from_regions(
+        existing_agent_states, existing_agent_properties = _get_all_existing_agents_from_regions(
             regions = regions,
             exclude_index = i,
             nearby_region = region
@@ -578,21 +609,12 @@ def large_initialize(
         return_exact_agents = return_exact_agents
     )
 
-    all_agent_states, all_agent_properties, all_recurrent_states = _get_all_existing_agents_from_regions(
-        regions = regions,
+    response = _consolidate_all_responses(
+        all_responses = all_responses,
         region_map = region_map,
-        return_exact_agents = return_exact_agents
+        return_exact_agents = return_exact_agents,
+        get_infractions = get_infractions
     )
-
-    if len(all_responses) > 0:
-        # Get non-region-specific values such as api_model_version and traffic_light_states from an existing response
-        response = deepcopy(all_responses[0]) 
-        # Set agent information with all agent information from every region
-        response.agent_states = all_agent_states
-        response.agent_properties = all_agent_properties
-        response.recurrent_states = all_recurrent_states 
-    else:
-        raise InvertedAIError(message=f"Unable to initialize any given region. Please check the input parameters.")
     
     return response
 
