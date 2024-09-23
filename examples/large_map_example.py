@@ -1,4 +1,7 @@
 import invertedai as iai
+from invertedai.large.common import Region
+from invertedai.common import AgentAttributes
+from invertedai.utils import get_default_agent_properties
 
 import argparse
 from tqdm import tqdm
@@ -35,23 +38,24 @@ def main(args):
         response = iai.large_initialize(
             location = args.location,
             regions = regions,
-            random_seed = initialize_seed
+            random_seed = initialize_seed,
+            get_infractions = args.get_infractions
         )
         
         print(f"Set up simulation.")
         if args.save_sim_gif:
             rendered_static_map = location_info_response.birdview_image.decode()
             scene_plotter = iai.utils.ScenePlotter(
-                rendered_static_map,
-                args.fov,
-                map_center,
-                location_info_response.static_actors,
+                map_image=rendered_static_map,
+                fov=args.fov,
+                xy_offset=map_center,
+                static_actors=location_info_response.static_actors,
                 resolution=(2048,2048),
                 dpi=300
             )
             scene_plotter.initialize_recording(
                 agent_states=response.agent_states,
-                agent_attributes=response.agent_attributes,
+                agent_properties=response.agent_properties,
                 traffic_light_states=response.traffic_lights_states
             )
 
@@ -59,16 +63,17 @@ def main(args):
         print(f"Number of agents in simulation: {total_num_agents}")
 
         print(f"Begin stepping through simulation.")
-        agent_attributes = response.agent_attributes
+        agent_properties = response.agent_properties
         for _ in tqdm(range(args.sim_length)):
             response = iai.large_drive(
                 location = args.location,
                 agent_states = response.agent_states,
-                agent_attributes = agent_attributes,
+                agent_properties = agent_properties,
                 recurrent_states = response.recurrent_states,
                 light_recurrent_states = response.light_recurrent_states,
                 random_seed = drive_seed,
                 api_model_version = model_version,
+                get_infractions = args.get_infractions,
                 single_call_agent_limit = args.capacity,
                 async_api_calls = args.is_async
             )
@@ -155,6 +160,12 @@ if __name__ == '__main__':
         type=bool,
         help=f"Should the simulation be saved with visualization tool.",
         default=True
+    )
+    argparser.add_argument(
+        '--get-infractions',
+        type=bool,
+        help=f"Should the simulation capture infractions data.",
+        default=False
     )
     argparser.add_argument(
         '--num-simulations',

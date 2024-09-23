@@ -1,10 +1,12 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 from enum import Enum
 from pydantic import BaseModel, model_validator
 import math
 from PIL import Image as PImage
 import numpy as np
 import io
+import json
+
 import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 

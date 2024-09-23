@@ -68,10 +68,12 @@ agent_attributes = response.agent_attributes  # get dimension and other attribut
 
 location_info_response = iai.location_info(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(rendered_static_map,
-                                       location_info_response.map_fov,
-                                       (location_info_response.map_center.x, location_info_response.map_center.y),
-                                       location_info_response.static_actors)
+scene_plotter = iai.utils.ScenePlotter(
+    rendered_static_map,
+    location_info_response.map_fov,
+    (location_info_response.map_center.x, location_info_response.map_center.y),
+    location_info_response.static_actors
+)
 scene_plotter.initialize_recording(
     agent_states=response.agent_states,
     agent_attributes=agent_attributes,
@@ -163,10 +165,12 @@ iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for In
 
 location_info_response = iai.location_info(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(rendered_static_map,
-                                       location_info_response.map_fov,
-                                       (location_info_response.map_center.x, location_info_response.map_center.y),
-                                       location_info_response.static_actors)
+scene_plotter = iai.utils.ScenePlotter(
+    rendered_static_map,
+    location_info_response.map_fov,
+    (location_info_response.map_center.x, location_info_response.map_center.y),
+    location_info_response.static_actors
+)
 scene_plotter.initialize_recording(
     agent_states=iai_simulation.agent_states,
     agent_attributes=iai_simulation.agent_attributes,
@@ -196,7 +200,6 @@ scene_plotter.animate_scene(
     plot_frame_number=True
 )
 print("Done")
-
 ```
 To quickly check out how Inverted AI NPCs
 behave, try our

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 import invertedai as iai
 from invertedai.large.common import Region
-from invertedai.common import Point, AgentState, AgentAttributes, RecurrentState
+from invertedai.common import Point, AgentState, AgentProperties, RecurrentState
 
 BUFFER_FOV = 35
 QUADTREE_SIZE_BUFFER = 1
@@ -16,22 +16,22 @@ class QuadTreeAgentInfo(BaseModel):
     See Also
     --------
     AgentState
-    AgentAttributes
+    AgentProperties
     RecurrentState
     """
 
     agent_state: AgentState
-    agent_attributes: AgentAttributes
     recurrent_state: Optional[RecurrentState] = None
+    agent_properties: AgentProperties
     agent_id: int
 
     def tolist(self):
-        return [self.agent_state, self.agent_attributes, self.recurrent_state, self.agent_id]
+        return [self.agent_state, self.agent_properties, self.recurrent_state, self.agent_id]
 
     @classmethod
     def fromlist(cls, l):
-        agent_state, agent_attributes, recurrent_state, agent_id = l
-        return cls(agent_state=agent_state, agent_attributes=agent_attributes, recurrent_state=recurrent_state, agent_id=agent_id)
+        agent_state, agent_properties, recurrent_state, agent_id = l
+        return cls(agent_state=agent_state, agent_properties=agent_properties, recurrent_state=recurrent_state, agent_id=agent_id)
 
 class QuadTree:
     def __init__(
