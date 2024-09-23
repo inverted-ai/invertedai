@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 import invertedai as iai
@@ -20,7 +22,7 @@ class QuadTreeAgentInfo(BaseModel):
 
     agent_state: AgentState
     agent_attributes: AgentAttributes
-    recurrent_state: RecurrentState
+    recurrent_state: Optional[RecurrentState] = None
     agent_id: int
 
     def tolist(self):

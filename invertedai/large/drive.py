@@ -21,7 +21,7 @@ def large_drive(
     location: str,
     agent_states: List[AgentState],
     agent_attributes: List[AgentAttributes],
-    recurrent_states: List[RecurrentState],
+    recurrent_states: Optional[List[RecurrentState]] = None,
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[List[LightRecurrentState]] = None,
     get_infractions: bool = False,
@@ -86,8 +86,10 @@ def large_drive(
     if single_call_agent_limit > DRIVE_MAXIMUM_NUM_AGENTS:
         single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS
         iai.logger.warning(f"Single Call Agent Limit cannot be more than {DRIVE_MAXIMUM_NUM_AGENTS}, limiting this value to {DRIVE_MAXIMUM_NUM_AGENTS} and proceeding.")
-    if not (len(agent_states) == len(agent_attributes) == len(recurrent_states)):
-        raise InvalidRequestError(message="Input lists are not of equal size.")
+    num_agents = len(agent_states)
+    if not (num_agents == len(agent_attributes)):
+        if recurrent_states is not None and not (num_agents == len(recurrent_states)):
+            raise InvalidRequestError(message="Input lists are not of equal size.")
 
     # Generate quadtree
     agent_x = [agent.center.x for agent in agent_states]
@@ -103,7 +105,12 @@ def large_drive(
             size=region_size
         ),
     )
-    for i, (agent, attrs, recurr_state) in enumerate(zip(agent_states,agent_attributes,recurrent_states)):
+    for i, (agent, attrs) in enumerate(zip(agent_states,agent_attributes)):
+        if recurrent_states is None:
+            recurr_state = None
+        else:
+            recurr_state = recurrent_states[i]
+
         agent_info = QuadTreeAgentInfo.fromlist([agent, attrs, recurr_state, i])
         is_inserted = quadtree.insert(agent_info)
 
@@ -130,7 +137,7 @@ def large_drive(
                     "location":location,
                     "agent_attributes":region.agent_attributes+region_buffer.agent_attributes,
                     "agent_states":region.agent_states+region_buffer.agent_states,
-                    "recurrent_states":region.recurrent_states+region_buffer.recurrent_states,
+                    "recurrent_states":None if recurrent_states is None else region.recurrent_states+region_buffer.recurrent_states,
                     "light_recurrent_states":light_recurrent_states,
                     "traffic_lights_states":traffic_lights_states,
                     "get_birdview":False,
