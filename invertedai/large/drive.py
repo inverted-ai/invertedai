@@ -21,13 +21,8 @@ async def async_drive_all(async_input_params):
 def large_drive(
     location: str,
     agent_states: List[AgentState],
-<<<<<<< HEAD
-    agent_attributes: List[AgentAttributes],
-    recurrent_states: Optional[List[RecurrentState]] = None,
-=======
     agent_properties: List[Union[AgentAttributes,AgentProperties]],
-    recurrent_states: List[RecurrentState],
->>>>>>> develop
+    recurrent_states: Optional[List[RecurrentState]] = None,
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[List[LightRecurrentState]] = None,
     get_infractions: bool = False,
@@ -93,7 +88,7 @@ def large_drive(
         single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS
         iai.logger.warning(f"Single Call Agent Limit cannot be more than {DRIVE_MAXIMUM_NUM_AGENTS}, limiting this value to {DRIVE_MAXIMUM_NUM_AGENTS} and proceeding.")
     num_agents = len(agent_states)
-    if not (num_agents == len(agent_attributes)):
+    if not (num_agents == len(agent_properties)):
         if recurrent_states is not None and not (num_agents == len(recurrent_states)):
             raise InvalidRequestError(message="Input lists are not of equal size.")
     if not num_agents > 0:
@@ -122,7 +117,7 @@ def large_drive(
             size=region_size
         ),
     )
-    for i, (agent, attrs) in enumerate(zip(agent_states,agent_attributes)):
+    for i, (agent, attrs) in enumerate(zip(agent_states,agent_properties)):
         if recurrent_states is None:
             recurr_state = None
         else:
