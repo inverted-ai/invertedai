@@ -1150,12 +1150,6 @@ class ScenePlotter():
             marker_data = (3, 0, (-90+180*psi/math.pi))
 
             if agent_idx not in self.dir_lines:
-                # self.dir_lines[agent_idx] = self.current_ax.plot(
-                #     box[0:2, 0],
-                #     box[0:2, 1], 
-                #     lw=2.0, 
-                #     c=self.dir_c
-                # )[0]  # plot the direction vector
                 self.dir_lines[agent_idx] = self.current_ax.plot(
                     x_data,
                     y_data,
