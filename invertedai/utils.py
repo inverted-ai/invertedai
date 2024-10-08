@@ -796,10 +796,10 @@ class ScenePlotter():
             "yellow": (1.0, 0.8, 0.0),
         }
 
-        self.agent_c = (0.2, 0.2, 0.7)
+        self.agent_c = (0.125,0.29,0.529)
         self.agent_ped_c = (1.0, 0.75, 0.8)
-        self.cond_c = (0.75, 0.35, 0.35)
-        self.dir_c = (0.9, 0.9, 0.9)
+        self.cond_c = (0.78, 0.0, 0.0)
+        self.dir_c = (0.392,1.0,1.0)
         self.v_c = (0.2, 0.75, 0.2)
 
         self.dir_lines = {}
@@ -1044,7 +1044,7 @@ class ScenePlotter():
 
         return t_x, t_orientation
 
-    def _plot_frame(self, idx, ax=None, numbers=None, direction_vec=False,
+    def _plot_frame(self, idx, ax=None, numbers=None, direction_vec=True,
                    velocity_vec=False, plot_frame_number=False):
         self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
                               velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
@@ -1149,16 +1149,24 @@ class ScenePlotter():
 
         box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
         if self.direction_vec:
+            marker_offset = agent_attribute.length/4
+            x_data = x + marker_offset*math.cos(psi)
+            y_data = y + marker_offset*math.sin(psi)
+            marker_data = (3, 0, (-90+180*psi/math.pi))
+
             if agent_idx not in self.dir_lines:
                 self.dir_lines[agent_idx] = self.current_ax.plot(
-                    box[0:2, 0],
-                    box[0:2, 1], 
-                    lw=2.0, 
+                    x_data,
+                    y_data,
+                    marker=marker_data,
+                    markersize=agent_attribute.width*400/self.fov, 
+                    linestyle='None',
                     c=self.dir_c
-                )[0]  # plot the direction vector
+                )
             else:
-                self.dir_lines[agent_idx].set_xdata(box[0:2, 0])
-                self.dir_lines[agent_idx].set_ydata(box[0:2, 1])
+                self.dir_lines[agent_idx][0].set_xdata(x_data)
+                self.dir_lines[agent_idx][0].set_ydata(y_data)
+                self.dir_lines[agent_idx][0].set_marker(marker_data)
 
         if self.velocity_vec:
             if agent_idx not in self.v_lines:
