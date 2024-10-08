@@ -451,6 +451,11 @@ class Session:
         return data
 
 @validate_call
+def interpolation_manager(
+):
+    pass
+
+@validate_call
 def get_default_agent_properties(
     agent_count_dict: Dict[str,int],
     use_agent_properties: Optional[bool] = True
