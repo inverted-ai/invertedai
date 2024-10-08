@@ -90,10 +90,11 @@ def main(args):
             scene_plotter.animate_scene(
                 output_name=gif_name,
                 ax=ax,
-                direction_vec=False,
+                direction_vec=True,
                 velocity_vec=False,
                 plot_frame_number=True,
             )
+            plt.close(fig)
         print("Done")
 
 if __name__ == '__main__':
