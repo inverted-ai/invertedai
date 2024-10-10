@@ -22,6 +22,9 @@ from invertedai.common import (
     TrafficLightStatesDict,
     LightRecurrentStates,
     LightRecurrentState,
+    Scenario,
+    LeaderFollow,
+    DenseRightMerge
 )
 
 
@@ -54,7 +57,8 @@ def drive(
     rendering_fov: Optional[float] = None,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
-    api_model_version: Optional[str] = None
+    api_model_version: Optional[str] = None,
+    scenario: Optional[Scenario] = None
 ) -> DriveResponse:
     """
     Parameters
@@ -122,6 +126,9 @@ def drive(
 
     api_model_version:
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
+
+    scenario:
+        Optional scenario to be used for the simulation. Currently supports 'leader_follow' and 'dense_right_merge'.
     See Also
     --------
     :func:`initialize`
@@ -168,7 +175,8 @@ def drive(
         random_seed=random_seed,
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
-        model_version=api_model_version
+        model_version=api_model_version,
+        scenario=scenario.serialize() if scenario is not None else None
     )
     start = time.time()
     timeout = TIMEOUT
@@ -229,7 +237,8 @@ async def async_drive(
     rendering_fov: Optional[float] = None,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
-    api_model_version: Optional[str] = None
+    api_model_version: Optional[str] = None,
+    scenario: Optional[Scenario] = None
 ) -> DriveResponse:
     """
     A light async version of :func:`drive`
@@ -256,7 +265,8 @@ async def async_drive(
         random_seed=random_seed,
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
-        model_version=api_model_version
+        model_version=api_model_version,
+        scenario=scenario.serialize() if scenario is not None else None
     )
     response = await iai.session.async_request(model="drive", data=model_inputs)
 
