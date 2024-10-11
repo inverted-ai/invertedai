@@ -7,6 +7,7 @@ import math
 import logging
 import random
 import time
+import asyncio
 
 
 from typing import Dict, Optional, List, Tuple, Union, Any
@@ -708,6 +709,138 @@ class IAILogger(logging.Logger):
 def rot(rot):
     """Rotate in 2d"""
     return np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
+
+
+class InterpolationManager():
+
+    def __init__(
+        self,
+        ext_agent_states: List[AgentState],
+        iai_agent_states: List[AgentState],
+        num_interpolation_steps: Optional[int] = 1,
+        drive_function,
+        drive_function_kwargs
+    ): 
+        assert num_interpolation_steps > 0, "Number of steps to interpolate must be larger than 0."
+
+        self._t = 0 #current time step
+        self._num_interp_steps = num_interpolation_steps
+        self._IAI_TIMESTEP_LENGTH = 0.1 #seconds
+        self._PI = math.pi
+        self._num_agents_ext = len(ext_agent_states)
+        self._num_agents_iai = len(iai_agent_states)
+
+        self.ext_agent_states = [ext_agent_states]
+        self.iai_agent_states = [iai_agent_states]
+        self._extrapolated_ext_states = []
+        self.interpolated_iai_states = []
+
+        self.response = drive_function(
+            agent_states = ext_agent_states+iai_agent_states,
+            **drive_function_kwargs
+        )
+        self.iai_agent_states.append(self.response.agent_states[self._num_agents_ext:])
+
+
+    def _extrapolate_external_agents(self,curr_states,prev_states):
+        self._extrapolated_ext_states = []
+        for curr_state, prev_state in zip(curr_states,prev_states):
+            curr_orientation = self._angle_wrap(curr_state.orientation)
+            orientation_diff = self._get_angle_difference(curr_orientation,self._angle_wrap(prev_state.orientation))
+
+            next_speed = curr_state.speed + (curr_state.speed-prev_state.speed)
+            avg_speed = (curr_state.speed + next_speed)/2
+
+            self._extrapolated_ext_states.append(
+                AgentState(
+                    center=Point(
+                        x=curr_state.center.x + avg_speed*math.sin(curr_orientation)/self._IAI_TIMESTEP_LENGTH, 
+                        y=curr_state.center.y + avg_speed*math.cos(curr_orientation)/self._IAI_TIMESTEP_LENGTH
+                    ), 
+                    orientation=self._angle_wrap(curr_state.orientation+orientation_diff), 
+                    speed=next_speed
+                )
+            )
+
+    def interpolate_iai_agents(
+        self,
+        current_states,
+        next_states
+    ):
+        self.interpolated_iai_states = []
+        for ts in range(self._num_interp_steps):
+            self.ts_states = []
+            for next_state, curr_state in zip(next_states,current_states):
+                self.ts_states.append(
+                    AgentState(
+                        center=Point(
+                            x=curr_state.center.x + (next_state.center.x - curr_state.center.x)*(ts/self._num_interp_steps), 
+                            y=curr_state.center.y + (next_state.center.y - curr_state.center.y)*(ts/self._num_interp_steps), 
+                        ), 
+                        orientation=curr_state.orientation + (next_state.orientation - curr_state.orientation)*(ts/self._num_interp_steps),
+                        speed=curr_state.speed + (next_state.speed - curr_state.speed)*(ts/self._num_interp_steps),
+                    )
+                )
+            self.interpolated_iai_states.append(self.ts_states)
+
+    async def _get_next_iai_state(
+        self,
+        drive_function,
+        drive_function_kwargs
+    ):
+
+        response = drive_function(
+            agent_states = self.iai_agent_states[-1]+self._extrapolated_ext_states,
+            **drive_function_kwargs
+        )
+        return response
+
+    async def async_step(
+        self,
+        drive_function,
+        drive_function_kwargs
+    ):
+        self._extrapolate_external_agents(self.ext_agent_states[self._t],self.ext_agent_states[max(self._t-1,0)]) #For the first time step, extrapolate using just the first time step
+        self.interpolate_iai_agents(self.iai_agent_states[self._t+1],self.iai_agent_states[self._t])
+        self._t += 1
+
+        response = await self._get_next_iai_state(drive_function,drive_function_kwargs)
+
+        return True
+
+    def add_external_agent_states_at_iai_timestep(self,ext_agent_states):
+        self.ext_agent_states.append(ext_agent_states)
+
+    def _angle_wrap(self,ang):
+        MAX_ITERATIONS = 1000
+        num_attempts = 0
+
+        while ang > self._PI or ang < -self._PI:
+            if ang > self._PI:
+                ang -= 2*self._PI
+
+            elif ang < -self._PI:
+                ang += 2*self._PI
+
+            else:
+                return ang
+
+            num_attempts += 1
+
+            if num_attempts >= MAX_ITERATIONS:
+                raise Exception(f"Surpassed maxmimum number of iterations while wrapping angle.")
+
+    def _get_angle_difference(self,a,b):
+        diff = a - b
+
+        if diff > self._PI:
+            diff = 2*self._PI - diff
+
+        elif diff < -self._PI:
+            diff = -2*self._PI + diff
+
+        return diff
+
 
 
 class ScenePlotter():
