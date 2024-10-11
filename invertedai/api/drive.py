@@ -126,7 +126,7 @@ def drive(
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
 
     scenario:
-        Optional scenario to be used for the simulation. Currently supports 'leader_follow' and 'dense_right_merge'.
+        Optional scenario to be used for the simulation. Currently supports 'dense_right_merge'.
     See Also
     --------
     :func:`initialize`
