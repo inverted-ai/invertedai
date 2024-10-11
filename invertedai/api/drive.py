@@ -22,9 +22,7 @@ from invertedai.common import (
     TrafficLightStatesDict,
     LightRecurrentStates,
     LightRecurrentState,
-    Scenario,
-    LeaderFollow,
-    DenseRightMerge
+    Scenario
 )
 
 
@@ -176,7 +174,7 @@ def drive(
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
         model_version=api_model_version,
-        scenario=scenario.serialize() if scenario is not None else None
+        scenario=scenario.dict() if scenario is not None else None
     )
     start = time.time()
     timeout = TIMEOUT
@@ -266,7 +264,7 @@ async def async_drive(
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
         model_version=api_model_version,
-        scenario=scenario.serialize() if scenario is not None else None
+        scenario=scenario.dict() if scenario is not None else None
     )
     response = await iai.session.async_request(model="drive", data=model_inputs)
 

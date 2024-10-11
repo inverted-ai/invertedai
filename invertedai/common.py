@@ -313,11 +313,13 @@ class Scenario(BaseModel):
 
 
 class LeaderFollow(Scenario):
+    name: str =  "leader_follower"
     leader_id: int
     follower_id: int
     gap_in_seconds: float = 1.5
 
 class DenseRightMerge(Scenario):
+    name: str =  "dense_right_merge"
     merger_id: int
 
 
