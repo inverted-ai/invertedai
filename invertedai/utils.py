@@ -10,7 +10,7 @@ import time
 import asyncio
 
 
-from typing import Dict, Optional, List, Tuple, Union, Any
+from typing import Dict, Optional, List, Tuple, Union, Any, Callable
 from tqdm.contrib import tmap
 from itertools import product
 from copy import deepcopy
@@ -712,19 +712,18 @@ def rot(rot):
 
 
 class InterpolationManager():
-
     def __init__(
         self,
         ext_agent_states: List[AgentState],
         iai_agent_states: List[AgentState],
-        num_interpolation_steps: Optional[int] = 1,
-        drive_function,
-        drive_function_kwargs
+        drive_function: Callable,
+        drive_function_kwargs: Dict[str,Any],
+        num_between_steps: Optional[int] = 1
     ): 
-        assert num_interpolation_steps > 0, "Number of steps to interpolate must be larger than 0."
+        assert num_between_steps > 0, "Number of steps to interpolate must be larger than 0."
 
         self._t = 0 #current time step
-        self._num_interp_steps = num_interpolation_steps
+        self._num_interp_points = num_between_steps + 1
         self._IAI_TIMESTEP_LENGTH = 0.1 #seconds
         self._PI = math.pi
         self._num_agents_ext = len(ext_agent_states)
@@ -754,8 +753,8 @@ class InterpolationManager():
             self._extrapolated_ext_states.append(
                 AgentState(
                     center=Point(
-                        x=curr_state.center.x + avg_speed*math.sin(curr_orientation)/self._IAI_TIMESTEP_LENGTH, 
-                        y=curr_state.center.y + avg_speed*math.cos(curr_orientation)/self._IAI_TIMESTEP_LENGTH
+                        x=curr_state.center.x + avg_speed*math.cos(curr_orientation)/self._IAI_TIMESTEP_LENGTH, 
+                        y=curr_state.center.y + avg_speed*math.sin(curr_orientation)/self._IAI_TIMESTEP_LENGTH
                     ), 
                     orientation=self._angle_wrap(curr_state.orientation+orientation_diff), 
                     speed=next_speed
@@ -764,21 +763,21 @@ class InterpolationManager():
 
     def interpolate_iai_agents(
         self,
-        current_states,
-        next_states
+        next_states,
+        current_states
     ):
         self.interpolated_iai_states = []
-        for ts in range(self._num_interp_steps):
+        for ts in range(self._num_interp_points):
             self.ts_states = []
             for next_state, curr_state in zip(next_states,current_states):
                 self.ts_states.append(
                     AgentState(
                         center=Point(
-                            x=curr_state.center.x + (next_state.center.x - curr_state.center.x)*(ts/self._num_interp_steps), 
-                            y=curr_state.center.y + (next_state.center.y - curr_state.center.y)*(ts/self._num_interp_steps), 
+                            x=curr_state.center.x + (next_state.center.x - curr_state.center.x)*(ts/self._num_interp_points), 
+                            y=curr_state.center.y + (next_state.center.y - curr_state.center.y)*(ts/self._num_interp_points), 
                         ), 
-                        orientation=curr_state.orientation + (next_state.orientation - curr_state.orientation)*(ts/self._num_interp_steps),
-                        speed=curr_state.speed + (next_state.speed - curr_state.speed)*(ts/self._num_interp_steps),
+                        orientation=curr_state.orientation + (next_state.orientation - curr_state.orientation)*(ts/self._num_interp_points),
+                        speed=curr_state.speed + (next_state.speed - curr_state.speed)*(ts/self._num_interp_points)
                     )
                 )
             self.interpolated_iai_states.append(self.ts_states)
@@ -788,11 +787,11 @@ class InterpolationManager():
         drive_function,
         drive_function_kwargs
     ):
-
         response = drive_function(
             agent_states = self.iai_agent_states[-1]+self._extrapolated_ext_states,
             **drive_function_kwargs
         )
+
         return response
 
     async def async_step(
@@ -804,7 +803,8 @@ class InterpolationManager():
         self.interpolate_iai_agents(self.iai_agent_states[self._t+1],self.iai_agent_states[self._t])
         self._t += 1
 
-        response = await self._get_next_iai_state(drive_function,drive_function_kwargs)
+        self.response = await self._get_next_iai_state(drive_function,drive_function_kwargs)
+        self.iai_agent_states.append(self.response.agent_states[self._num_agents_ext:])
 
         return True
 
@@ -829,6 +829,8 @@ class InterpolationManager():
 
             if num_attempts >= MAX_ITERATIONS:
                 raise Exception(f"Surpassed maxmimum number of iterations while wrapping angle.")
+
+        return ang
 
     def _get_angle_difference(self,a,b):
         diff = a - b
@@ -942,6 +944,11 @@ class ScenePlotter():
 
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
+
+        if "interval" in kwargs:
+            self.interval = kwargs["interval"]
+        else:
+            self.interval = 100
 
         self.reset_recording()
 
@@ -1148,8 +1155,13 @@ class ScenePlotter():
 
         self._validate_agent_style_data(agent_face_colors,agent_edge_colors)
 
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+        self._initialize_plot(
+            ax=ax, 
+            numbers=numbers, 
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec, 
+            plot_frame_number=plot_frame_number
+        )
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
@@ -1158,7 +1170,11 @@ class ScenePlotter():
             self._update_frame_to(i)
 
         ani = FuncAnimation(
-            fig, animate, np.arange(start_idx, end_idx), interval=100)
+            fig, 
+            animate, 
+            np.arange(start_idx, end_idx), 
+            interval=self.interval
+        )
         if output_name is not None:
             ani.save(f'{output_name}', writer='pillow', dpi=self._dpi)
         return ani
@@ -1172,13 +1188,29 @@ class ScenePlotter():
 
         return t_x, t_orientation
 
-    def _plot_frame(self, idx, ax=None, numbers=None, direction_vec=False,
-                   velocity_vec=False, plot_frame_number=False):
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+    def _plot_frame(
+        self, 
+        idx, 
+        ax=None, 
+        numbers=None, 
+        direction_vec=False,
+        velocity_vec=False, 
+        plot_frame_number=False
+    ):
+        self._initialize_plot(
+            ax=ax, 
+            numbers=numbers, 
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec, 
+            plot_frame_number=plot_frame_number
+        )
         self._update_frame_to(idx)
 
-    def _validate_agent_style_data(self,agent_face_colors,agent_edge_colors):
+    def _validate_agent_style_data(
+        self,
+        agent_face_colors,
+        agent_edge_colors
+    ):
         if self.agent_properties is not None: 
             if agent_face_colors is not None:
                 if len(agent_face_colors) != len(self.agent_properties):
@@ -1190,8 +1222,14 @@ class ScenePlotter():
         self.agent_face_colors = agent_face_colors
         self.agent_edge_colors = agent_edge_colors
 
-    def _initialize_plot(self, ax=None, numbers=None, direction_vec=True,
-                         velocity_vec=False, plot_frame_number=False):
+    def _initialize_plot(
+        self, 
+        ax=None, 
+        numbers=None, 
+        direction_vec=True,
+        velocity_vec=False, 
+        plot_frame_number=False
+    ):
         if ax is None:
             plt.clf()
             ax = plt.gca()
@@ -1259,7 +1297,12 @@ class ScenePlotter():
             self.current_ax.set_xlim(*self.extent[0:2])
             self.current_ax.set_ylim(*self.extent[2:4])
 
-    def _update_agent(self, agent_idx, agent, agent_attribute):
+    def _update_agent(
+        self, 
+        agent_idx, 
+        agent, 
+        agent_attribute
+    ):
         l, w = agent_attribute.length, agent_attribute.width
         if agent_attribute.agent_type == "pedestrian":
             l, w = 1.5, 1.5
