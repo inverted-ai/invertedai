@@ -147,6 +147,31 @@ def get_regions_in_grid(
 
     return regions
 
+def _get_drivable_areas(iterable_regions,location):
+    
+    total_drivable_area_ratio = 0
+    region_road_area = []
+    driveable_areas = []
+
+    for i, region in iterable_regions:
+        center_tuple = (region.center.x, region.center.y)
+        birdview = iai.location_info(
+            location=location,
+            rendering_fov=int(region.size),
+            rendering_center=center_tuple
+        ).birdview_image.decode()
+
+        birdview_arr_shape = birdview.shape
+        total_num_pixels = birdview_arr_shape[0]*birdview_arr_shape[1]
+        number_of_black_pix = np.sum(birdview.sum(axis=-1) == 0)
+
+        drivable_area_ratio = (total_num_pixels-number_of_black_pix)/total_num_pixels 
+        total_drivable_area_ratio += drivable_area_ratio
+        region_road_area.append(drivable_area_ratio)
+        driveable_areas.append(drivable_area_ratio*region.size*region.size) #Assume square area
+
+    return region_road_area, sum(driveable_areas), total_drivable_area_ratio
+
 @validate_call
 def get_number_of_agents_per_region_by_drivable_area(
     location: str,
@@ -185,9 +210,6 @@ def get_number_of_agents_per_region_by_drivable_area(
     """
 
     new_regions = [Region.copy(region) for region in regions]
-    region_road_area = []
-    total_drivable_area_ratio = 0
-
     if random_seed is not None:
         seed(random_seed)
     
@@ -200,21 +222,7 @@ def get_number_of_agents_per_region_by_drivable_area(
     else:
         iterable_regions = enumerate(new_regions)
 
-    for i, region in iterable_regions:
-        center_tuple = (region.center.x, region.center.y)
-        birdview = iai.location_info(
-            location=location,
-            rendering_fov=int(region.size),
-            rendering_center=center_tuple
-        ).birdview_image.decode()
-
-        birdview_arr_shape = birdview.shape
-        total_num_pixels = birdview_arr_shape[0]*birdview_arr_shape[1]
-        number_of_black_pix = np.sum(birdview.sum(axis=-1) == 0)
-
-        drivable_area_ratio = (total_num_pixels-number_of_black_pix)/total_num_pixels 
-        total_drivable_area_ratio += drivable_area_ratio
-        region_road_area.append(drivable_area_ratio)
+    region_road_area, _, total_drivable_area_ratio = _get_drivable_areas(iterable_regions,location)
 
     # Select region in which to assign agents using drivable area as weight
     all_region_weights = [0]*len(new_regions)

@@ -162,7 +162,7 @@ class LogWriter(LogBase):
     @validate_arguments
     def export_to_file(
         self,
-        log_path: str,
+        log_path: Optional[str] = None,
         scenario_log: Optional[ScenarioLog] = None
     ):  
         """
@@ -244,14 +244,14 @@ class LogWriter(LogBase):
                     "states": {
                         "0": {
                             "center": {
-                                "x": wp.center.x,
-                                "y": wp.center.y
+                                "x": wp.x,
+                                "y": wp.y
                             }
                         }
                     }
                 }
 
-        output_dict = {
+        self.output_dict = {
             "location": {
                 "identifier": scenario_log.location
             },
@@ -288,8 +288,9 @@ class LogWriter(LogBase):
             ]
         }
 
-        with open(log_path, "w") as outfile:
-            json.dump(output_dict, outfile)
+        if log_path is not None:
+            with open(log_path, "w") as outfile:
+                json.dump(self.output_dict, outfile)
 
     @classmethod
     def export_log_to_file(
@@ -341,6 +342,7 @@ class LogWriter(LogBase):
             recurrent_states=init_response.recurrent_states,
             waypoints=None
         )
+        self.output_dict = {}
 
         self.simulation_length = 1
 

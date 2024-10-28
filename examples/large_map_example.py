@@ -94,6 +94,7 @@ def main(args):
                 velocity_vec=False,
                 plot_frame_number=True,
             )
+            plt.close(fig)
         print("Done")
 
 if __name__ == '__main__':
