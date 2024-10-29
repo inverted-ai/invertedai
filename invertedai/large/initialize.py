@@ -617,5 +617,3 @@ def large_initialize(
     )
     
     return response
-
-
