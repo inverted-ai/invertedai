@@ -40,8 +40,9 @@ private:
   double jitter_factor = 0.5;
 
   const char *iai_logger_path_char = std::getenv("IAI_LOGGER_PATH");
-  const std::string iai_logger_path = iai_logger_path_char;
-  const bool is_logging = (iai_logger_path_char != NULL) && (std::filesystem::is_directory(std::filesystem::path(iai_logger_path)));
+  bool is_log_path_null = iai_logger_path_char == NULL;
+  const std::string iai_logger_path = !is_log_path_null ? iai_logger_path_char : "./";
+  const bool is_logging = (!is_log_path_null) && (std::filesystem::is_directory(std::filesystem::path(iai_logger_path)));
   
   invertedai::LogWriter logger;
 
@@ -54,7 +55,7 @@ public:
   explicit Session(net::io_context &ioc, ssl::context &ctx)
       : resolver_(ioc), ssl_stream_(ioc, ctx), tcp_stream_(ioc){
         tcp_stream_.expires_never();
-        if (((this->iai_logger_path_char != NULL)) && (!std::filesystem::is_directory(std::filesystem::path(this->iai_logger_path)))){
+        if (((!this->is_log_path_null)) && (!std::filesystem::is_directory(std::filesystem::path(this->iai_logger_path)))){
           std::cout << "WARNING: IAI_LOGGER_PATH environment variable is not a directory." << std::endl;
         }
       };
