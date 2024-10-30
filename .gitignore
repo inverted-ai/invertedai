@@ -176,6 +176,8 @@ invertedai_cpp/Docxygen/gen_docs/
 
 # Bazel
 bazel-*
+*.bazel.lock
+*.bazel
 
 # Demos
 *.avi

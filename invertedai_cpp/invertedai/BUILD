@@ -124,6 +124,22 @@ cc_library(
 )
 
 cc_library(
+    name = "logger",
+    srcs = ["logger.cc"],
+    hdrs = ["logger.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":drive_request",
+        ":drive_response",
+        ":initialize_request",
+        ":initialize_response",
+        ":location_info_request",
+        ":location_info_response",
+        "//invertedai/externals:json",
+    ],
+)
+
+cc_library(
     name = "version",
     hdrs = ["version.h"],
     visibility = ["//visibility:public"],
