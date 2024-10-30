@@ -10,7 +10,10 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/ssl.hpp>
+#include <boost/filesystem.hpp>
+
 #include "version.h"
+#include "logger.h"
 
 namespace beast = boost::beast; // from <boost/beast.hpp>
 namespace net = boost::asio;    // from <boost/asio.hpp>
@@ -36,6 +39,12 @@ private:
   double max_backoff = 0; // No max backoff by default, 0 signifies no limit
   double jitter_factor = 0.5;
 
+  const char *iai_logger_path_char = std::getenv("IAI_LOGGER_PATH");
+  const std::string iai_logger_path = iai_logger_path_char;
+  const bool is_logging = (iai_logger_path_char != NULL) && (std::filesystem::is_directory(std::filesystem::path(iai_logger_path)));
+  
+  invertedai::LogWriter logger;
+
 public:
   const char* host_ = local_mode ? "localhost" : "api.inverted.ai";
   const char* port_ = local_mode ? "8000" : "443";
@@ -45,7 +54,12 @@ public:
   explicit Session(net::io_context &ioc, ssl::context &ctx)
       : resolver_(ioc), ssl_stream_(ioc, ctx), tcp_stream_(ioc){
         tcp_stream_.expires_never();
+        if (((this->iai_logger_path_char != NULL)) && (!std::filesystem::is_directory(std::filesystem::path(this->iai_logger_path)))){
+          std::cout << "WARNING: IAI_LOGGER_PATH environment variable is not a directory." << std::endl;
+        }
       };
+
+  ~Session();
 
   /**
    * Set your own api key here.

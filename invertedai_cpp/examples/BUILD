@@ -47,22 +47,6 @@ cc_binary(
 )
 
 cc_binary(
-    name = "logger_example",
-    srcs = ["logger_example.cc"],
-    data = [
-        "drive_body.json",
-        "initialize_body.json",
-        "location_info_body.json",
-    ],
-    deps = [
-        "//invertedai:api",
-        "//invertedai:logger",
-        "@boost//:beast",
-        "@opencv",
-    ],
-)
-
-cc_binary(
     name = "initialize_tests",
     srcs = ["initialize_tests.cc"],
     data = [

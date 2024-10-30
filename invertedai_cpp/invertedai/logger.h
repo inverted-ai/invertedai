@@ -11,44 +11,56 @@
 #include <string>
 #include <memory>
 
-typedef unsigned long ul;
+typedef unsigned long UL;
 
 namespace invertedai {
 
     class LogWriter {
         private:
-            std::vector<LocationInfoRequest> loc_request_;
-            std::vector<LocationInfoResponse> loc_response_;
-            ul loc_request_time_;
-            ul loc_response_time_;
+            // std::vector<LocationInfoRequest> loc_requests_;
+            // std::vector<LocationInfoResponse> loc_responses_;
+            std::vector<std::string> loc_requests_;
+            std::vector<std::string> loc_responses_;
+            std::vector<UL> loc_request_times_;
+            std::vector<UL> loc_response_times_;
 
-            std::vector<InitializeRequest> init_request_;
-            std::vector<InitializeResponse> init_response_;
-            ul init_request_time_;
-            ul init_response_time_;
+            // std::vector<InitializeRequest> init_requests_;
+            // std::vector<InitializeResponse> init_responses_;
+            std::vector<std::string> init_requests_;
+            std::vector<std::string> init_responses_;
+            std::vector<UL> init_request_times_;
+            std::vector<UL> init_response_times_;
 
-            std::vector<DriveRequest> drive_requests_;
-            std::vector<DriveResponse> drive_responses_;
-            std::vector<ul> drive_request_times_;
-            std::vector<ul> drive_response_times_;
+            // std::vector<DriveRequest> drive_requests_;
+            // std::vector<DriveResponse> drive_responses_;
+            std::vector<std::string> drive_requests_;
+            std::vector<std::string> drive_responses_;
+            std::vector<UL> drive_request_times_;
+            std::vector<UL> drive_response_times_;
 
-            ul get_current_time_in_milliseconds_();
+            UL get_current_time_in_milliseconds_();
+
+            // template <typename T> std::vector<std::string> write_iai_data_vector_to_log_(std::vector<T> data);
 
         public:
 
-            void set_loc_request(const LocationInfoRequest &loc_request);
+            // void append_loc_request(const LocationInfoRequest &loc_request);
 
-            void set_loc_response(const LocationInfoResponse &loc_response);
+            // void append_loc_response(const LocationInfoResponse &loc_response);
 
-            void set_init_request(const InitializeRequest &init_request);
+            // void append_init_request(const InitializeRequest &init_request);
 
-            void set_init_response(const InitializeResponse &init_response);
+            // void append_init_response(const InitializeResponse &init_response);
 
-            void append_drive_request(const DriveRequest &drive_request);
+            // void append_drive_request(const DriveRequest &drive_request);
 
-            void append_drive_response(const DriveResponse &drive_response);
+            // void append_drive_response(const DriveResponse &drive_response);
 
-            void write_log_to_file(std::string file_path);
+            void append_request(const std::string &req, const std::string &mode);
+
+            void append_response(const std::string &res, const std::string &mode);
+
+            void write_log_to_file(const std::string &file_path);
     };
 }
 

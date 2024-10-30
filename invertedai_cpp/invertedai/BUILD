@@ -102,6 +102,7 @@ cc_library(
         "//invertedai/externals:root-certificates",
         "@boost//:beast",
         ":version",
+        ":logger",
     ],
 )
 
@@ -127,7 +128,6 @@ cc_library(
     name = "logger",
     srcs = ["logger.cc"],
     hdrs = ["logger.h"],
-    visibility = ["//visibility:public"],
     deps = [
         ":drive_request",
         ":drive_response",
