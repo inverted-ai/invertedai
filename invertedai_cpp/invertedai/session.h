@@ -4,6 +4,7 @@
 #include <limits>
 #include <chrono>
 #include <thread>
+#include <cstring>
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/stream.hpp>
@@ -40,9 +41,11 @@ private:
   double jitter_factor = 0.5;
 
   const char *iai_logger_path_char = std::getenv("IAI_LOGGER_PATH");
-  bool is_log_path_null = iai_logger_path_char == NULL;
-  const std::string iai_logger_path = !is_log_path_null ? iai_logger_path_char : "./";
-  const bool is_logging = (!is_log_path_null) && (std::filesystem::is_directory(std::filesystem::path(iai_logger_path)));
+  const bool is_log_path_null = iai_logger_path_char == NULL;
+  std::string str_path = iai_logger_path_char;
+  //Check if path is NULL as well as checking if it ends in a "/"
+  const std::filesystem::path iai_logger_path = !is_log_path_null ? (std::strcmp(&str_path.back(),"/") != 0 ? str_path + "/" : str_path) : "./";
+  bool is_logging = false;
   
   invertedai::LogWriter logger;
 
@@ -55,8 +58,16 @@ public:
   explicit Session(net::io_context &ioc, ssl::context &ctx)
       : resolver_(ioc), ssl_stream_(ioc, ctx), tcp_stream_(ioc){
         tcp_stream_.expires_never();
-        if (((!this->is_log_path_null)) && (!std::filesystem::is_directory(std::filesystem::path(this->iai_logger_path)))){
-          std::cout << "WARNING: IAI_LOGGER_PATH environment variable is not a directory." << std::endl;
+        if (!this->is_log_path_null){
+          try {
+              if (std::filesystem::create_directory(this->iai_logger_path)) {
+                  std::cout << "INFO: Directory created at: " << this->iai_logger_path << std::endl;
+              }
+              this->is_logging = true;
+          } catch (const std::filesystem::filesystem_error& e) {
+              std::cout << "WARNING: Could not create a directory for the given path: " << this->iai_logger_path << ". No IAI log will be produced." << std::endl;
+          }
+          
         }
       };
 

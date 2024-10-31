@@ -11,28 +11,26 @@
 #include <string>
 #include <memory>
 
-typedef unsigned long UL;
-
 namespace invertedai {
 
     class LogWriter {
         private:
             std::vector<std::string> loc_requests_;
             std::vector<std::string> loc_responses_;
-            std::vector<UL> loc_request_times_;
-            std::vector<UL> loc_response_times_;
+            std::vector<std::string> loc_request_timestamps_;
+            std::vector<std::string> loc_response_timestamps_;
 
             std::vector<std::string> init_requests_;
             std::vector<std::string> init_responses_;
-            std::vector<UL> init_request_times_;
-            std::vector<UL> init_response_times_;
+            std::vector<std::string> init_request_timestamps_;
+            std::vector<std::string> init_response_timestamps_;
 
             std::vector<std::string> drive_requests_;
             std::vector<std::string> drive_responses_;
-            std::vector<UL> drive_request_times_;
-            std::vector<UL> drive_response_times_;
+            std::vector<std::string> drive_request_timestamps_;
+            std::vector<std::string> drive_response_timestamps_;
 
-            UL get_current_time_in_milliseconds_();
+            std::string get_current_time_UTC_();
 
         public:
 

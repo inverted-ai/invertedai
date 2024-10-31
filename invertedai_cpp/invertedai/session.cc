@@ -186,7 +186,7 @@ const std::string Session::request(
 
       const std::string output = strstream.str();
       if (this->is_logging){
-        this->logger.append_request(output,mode);
+        this->logger.append_response(output,mode);
       }
 
       return output;
