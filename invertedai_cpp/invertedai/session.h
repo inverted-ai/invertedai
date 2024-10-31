@@ -42,7 +42,7 @@ private:
 
   const char *iai_logger_path_char = std::getenv("IAI_LOGGER_PATH");
   const bool is_log_path_null = iai_logger_path_char == NULL;
-  std::string str_path = iai_logger_path_char;
+  std::string str_path = !is_log_path_null ? iai_logger_path_char : "";
   //Check if path is NULL as well as checking if it ends in a "/"
   const std::filesystem::path iai_logger_path = !is_log_path_null ? (std::strcmp(&str_path.back(),"/") != 0 ? str_path + "/" : str_path) : "./";
   bool is_logging = false;

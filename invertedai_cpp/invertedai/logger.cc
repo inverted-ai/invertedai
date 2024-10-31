@@ -22,7 +22,7 @@ namespace invertedai {
         char buf[42];
         std::strftime(buf, 42, "%Y-%m-%d_%H:%M:%S", now_tm);
         std::string date_time = buf;
-        date_time += ":" + std::to_string(milliseconds % 1000) + "UTC";
+        date_time += ":" + std::to_string(milliseconds % 1000) + "_UTC";
 
         return date_time;
     };
