@@ -141,6 +141,7 @@ _out/
 
 ## C++
 invertedai_cpp/Docxygen/gen_docs/
+invertedai_cpp/examples/logs/
 # Prerequisites
 *.d
 
@@ -176,6 +177,8 @@ invertedai_cpp/Docxygen/gen_docs/
 
 # Bazel
 bazel-*
+*.bazel.lock
+*.bazel
 
 # Demos
 *.avi
