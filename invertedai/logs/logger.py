@@ -68,7 +68,8 @@ class LogBase():
         map_center: Optional[Tuple[float,float]] = None,
         direction_vec: bool = False,
         velocity_vec: bool = False,
-        plot_frame_number: bool = True
+        plot_frame_number: bool = True,
+        left_hand_coordinates: bool = False
     ):
         """
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
@@ -128,7 +129,8 @@ class LogBase():
         map_center: Optional[Tuple[float,float]] = None,
         direction_vec: bool = False,
         velocity_vec: bool = False,
-        plot_frame_number: bool = True
+        plot_frame_number: bool = True,
+        left_hand_coordinates: bool = False
     ):
         """
         Use the available internal tools to visualize the entire log and save it to a given location. Please refer to ScenePlotter for details on 
