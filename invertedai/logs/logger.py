@@ -79,7 +79,11 @@ class LogBase():
             assert timestep >= 0 or timestep <= (self.simulation_length - 1), "Visualization time range valid."
         assert timestep_range[1] >= timestep_range[0], "Visualization time range valid."
 
-        location_info_response = location_info(location=self._scenario_log.location)
+        location_info_response = location_info(
+            location=self._scenario_log.location,
+            rendering_fov=fov,
+            rendering_center=map_center
+        )
         rendered_static_map = location_info_response.birdview_image.decode()
         map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
 
@@ -89,7 +93,8 @@ class LogBase():
             xy_offset=map_center,
             static_actors=location_info_response.static_actors,
             resolution=resolution,
-            dpi=dpi
+            dpi=dpi,
+            left_hand_coordinates=left_hand_coordinates
         )
         scene_plotter.initialize_recording(
             agent_states=self._scenario_log.agent_states[timestep_range[0]],
@@ -108,7 +113,7 @@ class LogBase():
             ax=ax,
             direction_vec=direction_vec,
             velocity_vec=velocity_vec,
-            plot_frame_number=plot_frame_number,
+            plot_frame_number=plot_frame_number
         )
 
         plt.close(fig)
@@ -241,14 +246,14 @@ class LogWriter(LogBase):
                     "states": {
                         "0": {
                             "center": {
-                                "x": wp.center.x,
-                                "y": wp.center.y
+                                "x": wp.x,
+                                "y": wp.y
                             }
                         }
                     }
                 }
 
-        output_dict = {
+        self.output_dict = {
             "location": {
                 "identifier": scenario_log.location
             },
@@ -286,7 +291,7 @@ class LogWriter(LogBase):
         }
 
         with open(log_path, "w") as outfile:
-            json.dump(output_dict, outfile)
+            json.dump(self.output_dict, outfile)
 
     @classmethod
     def export_log_to_file(
