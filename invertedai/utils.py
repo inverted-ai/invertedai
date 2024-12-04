@@ -61,7 +61,7 @@ STATUS_MESSAGE = {
 
 
 class Session:
-    def __init__(self):
+    def __init__(self,debug_logger=None):
         self.session = requests.Session()
         self.session.mount(
             "https://",
@@ -87,6 +87,8 @@ class Session:
         self._jitter_factor = 0.5
         self._current_backoff = self._base_backoff
         self._max_backoff = None
+
+        self._debug_logger = debug_logger
 
     @property
     def base_url(self):
@@ -243,12 +245,19 @@ class Session:
         self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
     ):
         method, relative_path = iai.model_resources[model]
+        
+        if self._debug_logger is not None:
+            self._debug_logger.append_request(model,data)
+
         response = self._request(
             method=method,
             relative_path=relative_path,
             params=params,
             json_body=data,
         )
+
+        if self._debug_logger is not None:
+            self._debug_logger.append_response(model,response)
 
         return response
 
@@ -1036,7 +1045,7 @@ class ScenePlotter():
         return ani
 
     def _transform_point_to_left_hand_coordinate_frame(self,x,orientation):
-        t_x = 2*self.location_response.map_center.x - x
+        t_x = 2*self.xy_offset[0] - x
         if orientation >= 0:
             t_orientation = -orientation + math.pi
         else:

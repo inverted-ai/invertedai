@@ -18,6 +18,7 @@ from invertedai.large.initialize import (
 )
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriter, LogReader
+from invertedai.logs.debug_logger import DebugLogger
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
 if dev:
@@ -29,11 +30,14 @@ log_level = os.environ.get("IAI_LOG_LEVEL", "WARNING")
 log_console = strtobool(os.environ.get("IAI_LOG_CONSOLE", "true"))
 log_file = strtobool(os.environ.get("IAI_LOG_FILE", "false"))
 api_key = os.environ.get("IAI_API_KEY", "")
+debug_logger_path = os.environ.get("IAI_LOGGER_PATH", None)
 
-
+debug_logger = None
+if debug_logger_path is not None:
+    debug_logger = DebugLogger(debug_logger_path)
 logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log_file))
 
-session = Session()
+session = Session(debug_logger)
 if api_key:
     session.add_apikey(api_key)
 add_apikey = session.add_apikey
