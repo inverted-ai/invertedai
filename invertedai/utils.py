@@ -247,7 +247,7 @@ class Session:
         method, relative_path = iai.model_resources[model]
         
         if self._debug_logger is not None:
-            self._debug_logger.append_request(model,json.dumps(data))
+            self._debug_logger.append_request(model,data)
 
         response = self._request(
             method=method,
@@ -257,7 +257,7 @@ class Session:
         )
 
         if self._debug_logger is not None:
-            self._debug_logger.append_response(model,json.dumps(response))
+            self._debug_logger.append_response(model,response)
 
         return response
 
