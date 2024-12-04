@@ -32,7 +32,7 @@ class DebugLogger:
     def append_request(
         self,
         model: str,
-        data_dict: dict
+        data_dict: Optional[dict] = None
     ):
         ts = self._get_current_time_human_readable_UTC()
         data_str = json.dumps(data_dict)
@@ -54,7 +54,7 @@ class DebugLogger:
     def append_response(
         self,
         model: str,
-        data_dict: dict
+        data_dict: Optional[dict] = None
     ):
         ts = self._get_current_time_human_readable_UTC()
         data_str = json.dumps(data_dict)
