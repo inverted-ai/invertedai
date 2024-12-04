@@ -1,19 +1,16 @@
 import json
 import os
 import re
-import numpy as np
 import csv
 import math
 import logging
 import random
 import time
-
+import numpy as np
 
 from typing import Dict, Optional, List, Tuple, Union, Any
-from tqdm.contrib import tmap
-from itertools import product
 from copy import deepcopy
-from pydantic import validate_call, validate_arguments, BaseModel, ConfigDict
+from pydantic import validate_call, validate_arguments
 
 import requests
 from requests import Response
@@ -31,15 +28,17 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import AgentState, AgentAttributes, AgentProperties, StaticMapActor,\
-                                TrafficLightState, TrafficLightStatesDict, Point, RecurrentState,\
-                                LightRecurrentState
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
-from invertedai.api.initialize import InitializeResponse
-from invertedai.api.drive import DriveResponse
-from invertedai.api.location import LocationResponse
-
+from invertedai.common import (
+    AgentState, 
+    AgentAttributes, 
+    AgentProperties, 
+    RecurrentState,
+    StaticMapActor,
+    TrafficLightState, 
+    TrafficLightStatesDict 
+)
 
 H_SCALE = 10
 text_x_offset = 0
@@ -58,7 +57,6 @@ STATUS_MESSAGE = {
     504: "The server took too long to respond. Please try again later.",
     500: "The server encountered an unexpected issue. We're working to resolve this. Please try again later.",
 }
-
 
 class Session:
     def __init__(self):
@@ -160,7 +158,11 @@ class Session:
     def base_url(self, value):
         self._base_url = value
 
-    def _verify_api_key(self, api_token: str, verifying_url: str):
+    def _verify_api_key(
+        self, 
+        api_token: str, 
+        verifying_url: str
+    ):
         """
         Verifies the API key by making a request to the verifying URL.
 
@@ -229,18 +231,28 @@ class Session:
             request_url = url
         self.base_url = self._verify_api_key(api_token, request_url)
 
-    def use_mock_api(self, use_mock: bool = True) -> None:
+    def use_mock_api(
+        self, 
+        use_mock: bool = True
+    ) -> None:
         invertedai.api.config.mock_api = use_mock
         if use_mock:
             iai.logger.warning(
                 "Using mock Inverted AI API - predictions will be trivial"
             )
 
-    async def async_request(self, *args, **kwargs):
+    async def async_request(
+        self, 
+        *args, 
+        **kwargs
+    ):
         return await to_thread(self.request, *args, **kwargs)
 
     def request(
-        self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
+        self, 
+        model: str, 
+        params: Optional[dict] = None, 
+        data: Optional[dict] = None
     ):
         method, relative_path = iai.model_resources[model]
         response = self._request(
@@ -369,7 +381,14 @@ class Session:
         # TODO: Add endpoint option and versioning to base_url
         return base_url
 
-    def _handle_error_response(self, rbody, rcode, resp, rheaders, stream_error=False):
+    def _handle_error_response(
+        self, 
+        rbody, 
+        rcode, 
+        resp, 
+        rheaders, 
+        stream_error=False
+    ):
         try:
             error_data = resp["error"]
         except (KeyError, TypeError):
@@ -427,7 +446,10 @@ class Session:
                 error_data.get("message"), rbody, rcode, resp, rheaders
             )
 
-    def _interpret_response_line(self, result):
+    def _interpret_response_line(
+        self, 
+        result
+    ):
         rbody = result.content
         rcode = result.status_code
         rheaders = result.headers
@@ -482,7 +504,9 @@ def get_default_agent_properties(
     return agent_attributes_list
 
 @validate_call
-def convert_attributes_to_properties(attributes: AgentAttributes) -> AgentProperties:
+def convert_attributes_to_properties(
+    attributes: AgentAttributes
+) -> AgentProperties:
     """
     Convert deprecated AgentAttributes data type to AgentProperties.
     """
@@ -593,10 +617,16 @@ def iai_conditional_initialize(
 
 
 class APITokenAuth(AuthBase):
-    def __init__(self, api_token):
+    def __init__(
+        self, 
+        api_token
+    ):
         self.api_token = api_token
 
-    def __call__(self, r):
+    def __call__(
+        self, 
+        r
+    ):
         r.headers["x-api-key"] = self.api_token
         r.headers["api-key"] = self.api_token
         return r
@@ -649,11 +679,17 @@ def Jupyter_Render():
             self.int_slider.observe(self.update, "value")
             self.children = [controls, output]
 
-        def update(self, change):
+        def update(
+            self, 
+            change
+        ):
             self.im.set_data(self.buffer[self.int_slider.value])
             self.fig.canvas.draw()
 
-        def add_frame(self, frame):
+        def add_frame(
+            self, 
+            frame
+        ):
             self.buffer.append(frame)
             self.int_slider.max += 1
             self.play.max += 1
@@ -690,7 +726,10 @@ class IAILogger(logging.Logger):
             self.addHandler(file_handler)
 
     @staticmethod
-    def logfmt(message, **params):
+    def logfmt(
+        message, 
+        **params
+    ):
         props = dict(message=message, **params)
 
         def fmt(key, val):
