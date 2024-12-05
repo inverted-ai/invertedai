@@ -3,10 +3,11 @@ from invertedai.large.common import Region
 from invertedai.common import AgentAttributes, AgentType
 
 import argparse
-from tqdm import tqdm
 import matplotlib.pyplot as plt
-import time
 import random
+import time
+
+from tqdm import tqdm
 
 def main(args):
     if args.model_version_drive == "None": 

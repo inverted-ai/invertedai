@@ -3,8 +3,9 @@ from invertedai.utils import get_default_agent_properties
 from invertedai.common import AgentType
 
 import os
-from random import randint
 import matplotlib.pyplot as plt
+
+from random import randint
 
 LOCATION = "canada:drake_street_and_pacific_blvd"  # select one of available locations
 SIMULATION_LENGTH = 100
