@@ -59,6 +59,7 @@ STATUS_MESSAGE = {
     500: "The server encountered an unexpected issue. We're working to resolve this. Please try again later.",
 }
 
+
 class Session:
     def __init__(self,debug_logger=None):
         self.session = requests.Session()
@@ -482,6 +483,7 @@ class Session:
 
         return data
 
+
 @validate_call
 def get_default_agent_properties(
     agent_count_dict: Dict[AgentType,int],
@@ -508,6 +510,7 @@ def get_default_agent_properties(
 
     return agent_attributes_list
 
+
 @validate_call
 def convert_attributes_to_properties(
     attributes: AgentAttributes
@@ -525,6 +528,7 @@ def convert_attributes_to_properties(
     )
 
     return properties
+
 
 @validate_call
 def iai_conditional_initialize(

@@ -6,6 +6,9 @@ import json
 
 from invertedai import location_info
 from invertedai.utils import ScenePlotter
+from invertedai.api.location import LocationResponse
+from invertedai.api.initialize import InitializeResponse
+from invertedai.api.drive import DriveResponse
 from invertedai.common import ( 
     AgentAttributes, 
     AgentProperties,
@@ -16,9 +19,7 @@ from invertedai.common import (
     RecurrentState,
     TrafficLightStatesDict 
 )
-from invertedai.api.location import LocationResponse
-from invertedai.api.initialize import InitializeResponse
-from invertedai.api.drive import DriveResponse
+
 
 class ScenarioLog(BaseModel):
     """
@@ -154,6 +155,7 @@ class LogBase():
 
     def drive(self):
         pass
+
 
 class LogWriter(LogBase):
     """
@@ -366,6 +368,7 @@ class LogWriter(LogBase):
         self._scenario_log.recurrent_states = drive_response.recurrent_states
 
         self.simulation_length += 1
+
 
 class LogReader(LogBase):
     """

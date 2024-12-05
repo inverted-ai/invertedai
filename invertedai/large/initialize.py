@@ -25,6 +25,7 @@ from invertedai.common import (
 AGENT_SCOPE_FOV_BUFFER = 60
 ATTEMPT_PER_NUM_REGIONS = 15
 
+
 @validate_call
 def get_regions_default(
     location: str,
@@ -103,6 +104,7 @@ def get_regions_default(
 
     return new_regions
 
+
 @validate_call
 def get_regions_in_grid(
     width: float,
@@ -160,6 +162,7 @@ def get_regions_in_grid(
         regions[i] = Region.create_square_region(center=Point.fromlist(list(center)))
 
     return regions
+
 
 @validate_call
 def get_number_of_agents_per_region_by_drivable_area(
@@ -267,6 +270,7 @@ def get_number_of_agents_per_region_by_drivable_area(
 
     return filtered_regions
 
+
 @validate_call
 def _insert_agents_into_nearest_regions(
     regions: List[Region],
@@ -336,6 +340,7 @@ def _insert_agents_into_nearest_regions(
 
     return regions, region_map
 
+
 def _consolidate_all_responses(
     all_responses: List[InitializeResponse],
     region_map: Optional[List[Tuple[int,int]]] = None,
@@ -388,6 +393,7 @@ def _consolidate_all_responses(
 
     return response
 
+
 def _get_all_existing_agents_from_regions(
     regions: List[Region],
     exclude_index: Optional[int] = None,
@@ -406,6 +412,7 @@ def _get_all_existing_agents_from_regions(
             agent_properties = agent_properties + [prop for prop in region.agent_properties[:len(region_agent_states)]]
 
     return agent_states, agent_properties
+
 
 def _initialize_regions(
     location: str,
@@ -535,6 +542,7 @@ def _initialize_regions(
             continue
 
     return regions, all_responses
+
 
 @validate_call
 def large_initialize(

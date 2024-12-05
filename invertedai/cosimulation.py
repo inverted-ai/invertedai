@@ -1,16 +1,30 @@
-from typing import List, Tuple, Optional, Union
 import random
+import numpy as np
+import asyncio
 from collections import deque
 from queue import Queue
 from itertools import product
-import numpy as np
-import asyncio
+from typing import List, Tuple, Optional, Union
 from itertools import chain
 
 import invertedai as iai
-from invertedai import drive, initialize, location_info, light, async_drive, async_initialize
-from invertedai.common import (AgentState, InfractionIndicators, Image,
-                               TrafficLightStatesDict, AgentAttributes, RecurrentState, Point)
+from invertedai import (
+    async_drive, 
+    async_initialize
+    drive, 
+    initialize,
+    light, 
+    location_info
+)
+from invertedai.common import (
+    AgentProperties,
+    AgentState, 
+    Image,
+    InfractionIndicators, 
+    Point,
+    RecurrentState,
+    TrafficLightStatesDict
+)
 
 
 class BasicCosimulation:
@@ -117,7 +131,7 @@ class BasicCosimulation:
         return self._agent_states
 
     @property
-    def agent_properties(self) -> List[AgentAttributes]:
+    def agent_properties(self) -> List[AgentProperties]:
         """
         The attributes (length, width, rear_axis_offset) for all agents, including ego.
         """
