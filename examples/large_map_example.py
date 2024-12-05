@@ -30,7 +30,7 @@ def main(args):
         regions = iai.get_regions_default(
             location = args.location,
             agent_count_dict = {AgentType.car: args.num_agents},
-            area_shape = (int(args.width),int(args.height)),
+            area_shape = (int(args.width/2),int(args.height/2)),
             map_center = map_center, 
         )
 

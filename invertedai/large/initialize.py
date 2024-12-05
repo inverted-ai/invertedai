@@ -51,9 +51,9 @@ def get_regions_default(
         The number of agents to place within the regions per specified agent type.
 
     area_shape:
-        Contains the [width, height] of the rectangular area to be broken into smaller regions. If
-        this argument is not provided, a bounding box around the location polygon from :func:`location_info`
-        will be used.
+        Contains the [width, height] to either side of the center of the rectangular area to be broken into 
+        smaller regions (i.e. half of full width and height of the region). If this argument is not provided, 
+        a bounding box around the location polygon from :func:`location_info` will be used.
 
     map_center:
         The coordinates of the center of the rectangular area to be broken into smaller regions. If
@@ -118,10 +118,10 @@ def get_regions_in_grid(
     Arguments
     ----------
     width:
-        The horizontal size of the area which will be broken into smaller regions.
+        Half of the horizontal size of the area which will be broken into smaller regions.
 
     height:
-        The vertical size of the area which will be broken into smaller regions.
+        Half of the vertical size of the area which will be broken into smaller regions.
 
     map_center:
         The coordinates of the center of the rectangular area to be broken into smaller regions. If
@@ -132,12 +132,9 @@ def get_regions_in_grid(
         best results and if no argument is provided, a value of 50 is used.
     """
 
-    width_half = width/2
-    height_half = height/2
-
     def check_valid_center(center):
-        return (map_center[0] - width_half) < center[0] < (map_center[0] + width_half) and \
-            (map_center[1] - height_half) < center[1] < (map_center[1] + height_half)
+        return (map_center[0] - width) < center[0] < (map_center[0] + width) and \
+            (map_center[1] - height) < center[1] < (map_center[1] + height)
 
     def get_neighbors(center):
         return [
