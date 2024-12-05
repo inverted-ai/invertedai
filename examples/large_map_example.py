@@ -1,7 +1,6 @@
 import invertedai as iai
 from invertedai.large.common import Region
-from invertedai.common import AgentAttributes
-from invertedai.utils import get_default_agent_properties
+from invertedai.common import AgentAttributes, AgentType
 
 import argparse
 from tqdm import tqdm
@@ -30,8 +29,8 @@ def main(args):
         print(f"Begin initialization.") 
         regions = iai.get_regions_default(
             location = args.location,
-            total_num_agents = args.num_agents,
-            area_shape = (int(args.width/2),int(args.height/2)),
+            agent_count_dict = {AgentType.car: args.num_agents},
+            area_shape = (int(args.width),int(args.height)),
             map_center = map_center, 
         )
 

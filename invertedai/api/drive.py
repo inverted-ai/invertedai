@@ -57,6 +57,8 @@ def drive(
     api_model_version: Optional[str] = None
 ) -> DriveResponse:
     """
+    Update the state of all given agents forward one time step. Agents are identified by their list index.
+
     Parameters
     ----------
     location:
@@ -69,7 +71,7 @@ def drive(
         speed: [float] in m/s.
 
     agent_attributes:
-        Static attributes of all agents.
+        Deprecated. Static attributes of all agents.
         List of agent attributes. Each agent requires, length: [float]
         width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
         currently supports 'car' and 'pedestrian'.

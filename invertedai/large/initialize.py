@@ -1,19 +1,26 @@
 import time
-from pydantic import BaseModel, validate_call
-from typing import Union, List, Optional, Tuple
-from itertools import product
-from tqdm.contrib import tenumerate
 import numpy as np
+
 from random import choices, seed, randint
 from math import sqrt
 from copy import deepcopy
+from pydantic import BaseModel, validate_call
+from typing import Union, List, Optional, Tuple, Dict
+from itertools import product
+from tqdm.contrib import tenumerate
 
 import invertedai as iai
 from invertedai.large.common import Region, REGION_MAX_SIZE
 from invertedai.api.initialize import InitializeResponse
-from invertedai.common import TrafficLightStatesDict, Point, AgentProperties, AgentState
 from invertedai.utils import get_default_agent_properties
 from invertedai.error import InvertedAIError
+from invertedai.common import (
+    AgentProperties, 
+    AgentState, 
+    AgentType,
+    Point,
+    TrafficLightStatesDict   
+)
 
 AGENT_SCOPE_FOV_BUFFER = 60
 ATTEMPT_PER_NUM_REGIONS = 15
@@ -22,6 +29,7 @@ ATTEMPT_PER_NUM_REGIONS = 15
 def get_regions_default(
     location: str,
     total_num_agents: Optional[int] = None,
+    agent_count_dict: Optional[Dict[AgentType,int]] = None,
     area_shape: Optional[Tuple[float,float]] = None,
     map_center: Optional[Tuple[float,float]] = (0.0,0.0),
     random_seed: Optional[int] = None, 
@@ -37,7 +45,10 @@ def get_regions_default(
         Location name in IAI format.
 
     total_num_agents:
-        The total number of agents to initialize across all regions.
+        Deprecated. The total number of agents to initialize across all regions.
+
+    agent_count_dict:
+        The number of agents to place within the regions per specified agent type.
 
     area_shape:
         Contains the [width, height] of the rectangular area to be broken into smaller regions. If
@@ -56,6 +67,12 @@ def get_regions_default(
         A flag to control whether a command line progress bar is displayed for convenience.
     
     """
+    if agent_count_dict is None:
+        if total_num_agents is None:
+            raise InvertedAIError(message=f"Error: Must specify a number of agents within the regions.")
+        else:
+            agent_count_dict = {AgentType.car: total_num_agents}
+
     if area_shape is None:
         location_response = iai.location_info(
             location = location,
@@ -76,13 +93,10 @@ def get_regions_default(
         map_center = map_center
     )
 
-    if total_num_agents is None:
-        total_num_agents = 10*len(regions)
-
     new_regions = iai.get_number_of_agents_per_region_by_drivable_area(
         location = location,
         regions = regions,
-        total_num_agents = total_num_agents,
+        agent_count_dict = agent_count_dict,
         random_seed = random_seed,
         display_progress_bar = display_progress_bar
     )
@@ -116,11 +130,14 @@ def get_regions_in_grid(
     stride:
         How far apart the centers of the 100x100m regions should be. Some overlap is recommended for 
         best results and if no argument is provided, a value of 50 is used.
-    
     """
+
+    width_half = width/2
+    height_half = height/2
+
     def check_valid_center(center):
-        return (map_center[0] - width) < center[0] < (map_center[0] + width) and \
-            (map_center[1] - height) < center[1] < (map_center[1] + height)
+        return (map_center[0] - width_half) < center[0] < (map_center[0] + width_half) and \
+            (map_center[1] - height_half) < center[1] < (map_center[1] + height_half)
 
     def get_neighbors(center):
         return [
@@ -151,14 +168,15 @@ def get_regions_in_grid(
 def get_number_of_agents_per_region_by_drivable_area(
     location: str,
     regions: List[Region],
-    total_num_agents: Optional[int] = 10,
+    total_num_agents: Optional[int] = None,
+    agent_count_dict: Optional[Dict[AgentType,int]] = None,
     random_seed: Optional[int] = None,
     display_progress_bar: Optional[bool] = True
 ) -> List[Region]:
     """
     This function takes in a list of regions, calculates the driveable area for each of them using 
     :func:`location_info`, then creates a new Region object with copied location and shape data and 
-    inserts a number of default AgentProperties objects into it porportional to its drivable surface 
+    inserts a number of car agents to be **sampled** into it porportional to its drivable surface 
     area relative to the other regions. Regions with no or a relatively small amount of drivable 
     surfaces will be removed. If a region is at its capacity (e.g. due to pre-existing agents), no 
     more agents will be added to it. 
@@ -173,7 +191,10 @@ def get_number_of_agents_per_region_by_drivable_area(
         agents to initialize is calculated. 
 
     total_num_agents:
-        The total number of agents to initialize throughout all the regions.
+        Deprecated. The total number of agents to initialize across all regions.
+
+    agent_count_dict:
+        The number of agents to place within the regions per specified agent type.
 
     random_seed:
         Controls the stochastic aspects of assigning agents to regions for reproducibility. If this
@@ -181,8 +202,17 @@ def get_number_of_agents_per_region_by_drivable_area(
 
     display_progress_bar:
         A flag to control whether a command line progress bar is displayed for convenience.
-    
     """
+
+    if agent_count_dict is None:
+        if total_num_agents is None:
+            raise InvertedAIError(message=f"Error: Must specify a number of agents within the regions.")
+        else:
+            agent_count_dict = {AgentType.car: total_num_agents}
+
+    agent_list_types = []
+    for agent_type, num_agents in agent_count_dict.items():
+        agent_list_types = agent_list_types + [agent_type]*num_agents
 
     new_regions = [Region.copy(region) for region in regions]
     region_road_area = []
@@ -220,7 +250,7 @@ def get_number_of_agents_per_region_by_drivable_area(
     all_region_weights = [0]*len(new_regions)
     for i, drivable_ratio in enumerate(region_road_area):
         all_region_weights[i] = drivable_ratio/total_drivable_area_ratio
-    random_indexes = choices(list(range(len(new_regions))), weights=all_region_weights, k=total_num_agents)
+    random_indexes = choices(list(range(len(new_regions))), weights=all_region_weights, k=len(agent_list_types))
 
     number_sampled_agents = {}
     for ind in random_indexes:
@@ -229,9 +259,9 @@ def get_number_of_agents_per_region_by_drivable_area(
         else:
             number_sampled_agents[ind] += 1
 
-    for ind in random_indexes:
+    for agent_id, ind in enumerate(random_indexes):
         if len(new_regions[ind].agent_properties) < number_sampled_agents[ind]:
-            new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({"car":1})
+            new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({agent_list_types[agent_id]:1})
 
     filtered_regions = []
     for region in new_regions:

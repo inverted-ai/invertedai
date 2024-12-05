@@ -34,6 +34,7 @@ from invertedai.common import (
     AgentState, 
     AgentAttributes, 
     AgentProperties, 
+    AgentType,
     RecurrentState,
     StaticMapActor,
     TrafficLightState, 
@@ -482,13 +483,8 @@ class Session:
         return data
 
 @validate_call
-def interpolation_manager(
-):
-    pass
-
-@validate_call
 def get_default_agent_properties(
-    agent_count_dict: Dict[str,int],
+    agent_count_dict: Dict[AgentType,int],
     use_agent_properties: Optional[bool] = True
 ) -> List[Union[AgentAttributes,AgentProperties]]:
     """
