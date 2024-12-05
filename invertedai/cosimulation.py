@@ -10,7 +10,7 @@ from itertools import chain
 import invertedai as iai
 from invertedai import (
     async_drive, 
-    async_initialize
+    async_initialize,
     drive, 
     initialize,
     light, 
