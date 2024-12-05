@@ -259,7 +259,7 @@ class AgentState(BaseModel):
 
     See Also
     --------
-    AgentAttributes
+    AgentProperties
     """
 
     center: Point  #: The center point of the agent's bounding box.

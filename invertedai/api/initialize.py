@@ -1,7 +1,8 @@
 import time
+import asyncio
+import warnings
 from pydantic import BaseModel, validate_call
 from typing import List, Optional, Dict, Tuple
-import asyncio
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -153,6 +154,9 @@ def initialize(
             light_recurrent_states=get_mock_light_recurrent_states(len(traffic_light_state_history[0])) if traffic_light_state_history is not None else None
         )
         return response
+
+    if agent_attributes is not None:
+        warnings.warn('Warning: agent_attributes is deprecated. Please use agent_properties.')
 
     model_inputs = dict(
         location=location,

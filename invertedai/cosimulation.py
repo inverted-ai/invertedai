@@ -32,7 +32,7 @@ class BasicCosimulation:
     Stateful wrapper around the Inverted AI API to simplify co-simulation.
     All arguments to :func:`initialize` can be passed to the constructor here
     and a sufficient combination of them must be passed as required by :func:`initialize`.
-    This wrapper caches static agent attributes and propagates the recurrent state,
+    This wrapper caches static agent properties and propagates the recurrent state,
     so that only states of ego agents and NPCs need to be exchanged with it to
     perform co-simulation. Typically, each time step requires a single call to
     :func:`self.npc_states` and a single call to :func:`self.step`.
@@ -133,7 +133,7 @@ class BasicCosimulation:
     @property
     def agent_properties(self) -> List[AgentProperties]:
         """
-        The attributes (length, width, rear_axis_offset) for all agents, including ego.
+        The properties (length, width, rear_axis_offset, max_speed) for all agents, including ego.
         """
         return self._agent_properties
 
@@ -159,12 +159,12 @@ class BasicCosimulation:
         return [d for d, s in zip(self._agent_states, self._ego_agent_mask) if s]
 
     @property
-    def ego_attributes(self):
+    def ego_properties(self):
         """
-        Returns the attributes of ego agents in order.
+        Returns the properties of ego agents in order.
         The NPC agents are excluded.
         """
-        return [attr for attr, s in zip(self._agent_properties, self._ego_agent_mask) if s]
+        return [prop for prop, s in zip(self._agent_properties, self._ego_agent_mask) if s]
 
     @property
     def infractions(self) -> Optional[List[InfractionIndicators]]:

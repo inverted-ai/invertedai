@@ -1,7 +1,8 @@
+import asyncio
+import warnings
 from typing import Tuple, Optional, List, Union
 from pydantic import BaseModel, validate_call
 from math import ceil
-import asyncio
 
 import invertedai as iai
 from invertedai.large.common import Region
@@ -97,12 +98,17 @@ def large_drive(
 
     # Convert any AgentAttributes to AgentProperties for backwards compatibility 
     agent_properties_new = []
+    is_using_attributes = False
     for properties in agent_properties:
         properties_new = properties
         if isinstance(properties,AgentAttributes):
             properties_new = convert_attributes_to_properties(properties)
+            is_using_attributes = True
         agent_properties_new.append(properties_new)
     agent_properties = agent_properties_new
+
+    if is_using_attributes:
+        warnings.warn('Warning: AgentAttributes data type is deprecated. Please use AgentProperties.')
 
     # Generate quadtree
     agent_x = [agent.center.x for agent in agent_states]

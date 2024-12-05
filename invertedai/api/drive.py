@@ -1,5 +1,6 @@
 import time
 import asyncio
+import warnings
 from typing import List, Optional, Tuple
 from pydantic import BaseModel, validate_call
 
@@ -148,6 +149,9 @@ def drive(
             api_model_version=api_model_version if api_model_version is not None else "best"
         )
         return response
+
+    if agent_attributes is not None:
+        warnings.warn('Warning: agent_attributes is deprecated. Please use agent_properties.') 
 
     def _tolist(input_data: List):
         if not isinstance(input_data, list):

@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 
 iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
 
-
 class LocalSimulator:
     """
     Mock up of a local simulator, where you control the ego vehicle. This example only supports single ego vehicle.

@@ -536,7 +536,7 @@ def iai_conditional_initialize(
     agent_type_count: Dict[str,int],
     location_of_interest: Tuple[float] = (0,0),
     recurrent_states: Optional[List[RecurrentState]] = None,
-    agent_attributes: Optional[List[AgentAttributes]] = None,
+    agent_properties: Optional[List[AgentProperties]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None, 
     get_birdview: Optional[bool] = False,
@@ -568,11 +568,11 @@ def iai_conditional_initialize(
     :func:`initialize`
     """
 
-    conditional_agent_attributes = []
+    conditional_agent_properties = []
     conditional_agent_states_indexes = []
     conditional_recurrent_states = []
     outside_agent_states = []
-    outside_agent_attributes = []
+    outside_agent_properties = []
     outside_recurrent_states = []
 
     current_agent_states = states_history[-1]
@@ -582,10 +582,10 @@ def iai_conditional_initialize(
         dist = math.dist(location_of_interest, (agent_state.center.x, agent_state.center.y))
         if dist < AGENT_SCOPE_FOV:
             conditional_agent_states_indexes.append(i)
-            conditional_agent_attributes.append(agent_attributes[i])
+            conditional_agent_properties.append(agent_properties[i])
             conditional_recurrent_states.append(recurrent_states[i])
 
-            conditional_agent_type = agent_attributes[i].agent_type
+            conditional_agent_type = agent_properties[i].agent_type
             if conditional_agent_type in conditional_agent_type_count:
                 conditional_agent_type_count[conditional_agent_type] -= 1
                 if conditional_agent_type_count[conditional_agent_type] <= 0:
@@ -593,14 +593,14 @@ def iai_conditional_initialize(
 
         else:
             outside_agent_states.append(agent_state)
-            outside_agent_attributes.append(agent_attributes[i])
+            outside_agent_properties.append(agent_properties[i])
             outside_recurrent_states.append(recurrent_states[i])
 
     if not conditional_agent_type_count: #The dictionary is empty.
         iai.logger.warning("Agent count requirement already satisfied, no new agents initialized.")
 
-    padded_agent_attributes = get_default_agent_attributes(conditional_agent_type_count)
-    conditional_agent_attributes.extend(padded_agent_attributes)
+    padded_agent_properties = get_default_agent_properties(conditional_agent_type_count)
+    conditional_agent_properties.extend(padded_agent_properties)
 
     conditional_agent_states = [[]*len(conditional_agent_states_indexes)]
     for ts in range(len(conditional_agent_states)):
@@ -609,7 +609,7 @@ def iai_conditional_initialize(
 
     response = invertedai.api.initialize(
         location = location,
-        agent_attributes = conditional_agent_attributes,
+        agent_properties = conditional_agent_properties,
         states_history = conditional_agent_states,
         location_of_interest = location_of_interest,
         traffic_light_state_history = traffic_light_state_history,
@@ -618,7 +618,7 @@ def iai_conditional_initialize(
         random_seed = random_seed,
         api_model_version = api_model_version
     )
-    response.agent_attributes = response.agent_attributes + outside_agent_attributes
+    response.agent_properties = response.agent_properties + outside_agent_properties
     response.agent_states = response.agent_states + outside_agent_states
     response.recurrent_states = response.recurrent_states + outside_recurrent_states
 
@@ -900,6 +900,7 @@ class ScenePlotter():
 
         if agent_attributes is not None:
             self.agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+            warnings.warn('Warning: agent_attributes is deprecated. Please use agent_properties.')
         else:
             self.agent_properties = agent_properties
 
@@ -999,6 +1000,7 @@ class ScenePlotter():
 
         if agent_attributes is not None:
             agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+            warnings.warn('Warning: agent_attributes is deprecated. Please use agent_properties.')
 
         self.initialize_recording(
             agent_states=agent_states, 

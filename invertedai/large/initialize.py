@@ -516,7 +516,7 @@ def _initialize_regions(
             if response is not None:
                 # Filter out conditional agents from other regions
                 infractions = []
-                for j, (state, attrs, r_state) in enumerate(zip(
+                for j, (state, props, r_state) in enumerate(zip(
                     response.agent_states[num_out_of_region_conditional_agents:],
                     response.agent_properties[num_out_of_region_conditional_agents:],
                     response.recurrent_states[num_out_of_region_conditional_agents:]
@@ -525,7 +525,7 @@ def _initialize_regions(
                         if not inside_fov(center=region_center, agent_scope_fov=region_size, point=state.center):
                             continue
 
-                    regions[i].insert_all_agent_details(state,attrs,r_state)
+                    regions[i].insert_all_agent_details(state,props,r_state)
                     if get_infractions:
                         infractions.append(response.infractions[num_out_of_region_conditional_agents:][j])
 
