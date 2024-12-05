@@ -1,6 +1,9 @@
+import invertedai as iai
+from invertedai.utils import get_default_agent_properties
+from invertedai.common import AgentType
+
 from typing import List
 import numpy as np
-import invertedai as iai
 import matplotlib.pyplot as plt
 
 iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
@@ -36,10 +39,10 @@ class LocalSimulator:
         return self.ego_state
 
 print("Begin initialization.")
-location = 'iai:ubc_roundabout'
+location = "canada:drake_street_and_pacific_blvd"
 iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for Inverted AI API
     location=location,  # select one of available locations
-    agent_count=5,  # how many vehicles in total to use in the simulation
+    agent_properties=get_default_agent_properties({AgentType.car:5}),  # how many vehicles in total to use in the simulation
     ego_agent_mask=[True, False, False, False, False],  # first vehicle is ego, rest are NPCs
     get_birdview=False,  # provides simple visualization - don't use in production
     traffic_lights=True,  # gets the traffic light states and used for initialization and steping the simulation
@@ -47,13 +50,15 @@ iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for In
 
 location_info_response = iai.location_info(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(rendered_static_map,
-                                       location_info_response.map_fov,
-                                       (location_info_response.map_center.x, location_info_response.map_center.y),
-                                       location_info_response.static_actors)
+scene_plotter = iai.utils.ScenePlotter(
+    rendered_static_map,
+    location_info_response.map_fov,
+    (location_info_response.map_center.x, location_info_response.map_center.y),
+    location_info_response.static_actors
+)
 scene_plotter.initialize_recording(
     agent_states=iai_simulation.agent_states,
-    agent_attributes=iai_simulation.agent_attributes,
+    agent_properties=iai_simulation.agent_properties,
 )
 
 print("Begin stepping through simulation.")
@@ -66,7 +71,7 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
     # execute predictions in your simulator, using your actions for the ego vehicle
     updated_ego_agent_state = local_simulation.step(predicted_npc_behavior)
     # save the visualization with ScenePlotter
-    scene_plotter.record_step(iai_simulation.agent_states)
+    scene_plotter.record_step(iai_simulation.agent_states,iai_simulation.light_states)
 
 print("Simulation finished, save visualization.")
 # save the visualization to disk

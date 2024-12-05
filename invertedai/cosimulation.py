@@ -75,9 +75,9 @@ class BasicCosimulation:
         else:
             self._infractions = None
         self._agent_count = len(
-            response.agent_attributes
+            response.agent_properties
         )  # initialize may produce different agent count
-        self._agent_attributes = response.agent_attributes
+        self._agent_properties = response.agent_properties
         self._agent_states = response.agent_states
         self._recurrent_states = response.recurrent_states
         self._monitor_infractions = monitor_infractions
@@ -117,11 +117,11 @@ class BasicCosimulation:
         return self._agent_states
 
     @property
-    def agent_attributes(self) -> List[AgentAttributes]:
+    def agent_properties(self) -> List[AgentAttributes]:
         """
         The attributes (length, width, rear_axis_offset) for all agents, including ego.
         """
-        return self._agent_attributes
+        return self._agent_properties
 
     @property
     def ego_agent_mask(self) -> List[bool]:
@@ -150,7 +150,7 @@ class BasicCosimulation:
         Returns the attributes of ego agents in order.
         The NPC agents are excluded.
         """
-        return [attr for attr, s in zip(self._agent_attributes, self._ego_agent_mask) if s]
+        return [attr for attr, s in zip(self._agent_properties, self._ego_agent_mask) if s]
 
     @property
     def infractions(self) -> Optional[List[InfractionIndicators]]:
@@ -200,7 +200,7 @@ class BasicCosimulation:
         
         response = drive(
             location=self.location,
-            agent_attributes=self._agent_attributes,
+            agent_properties=self._agent_properties,
             agent_states=self.agent_states,
             recurrent_states=self._recurrent_states,
             get_infractions=self._monitor_infractions,
