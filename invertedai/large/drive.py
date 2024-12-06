@@ -72,8 +72,8 @@ def large_drive(
     single_call_agent_limit:
         The number of agents allowed in a region before it must subdivide. Currently this value 
         represents the capacity of a quadtree leaf node that will subdivide if the number of vehicles 
-        in the region passes this threshold. In any case, this will be limited to the maximum currently 
-        supported by :func:`drive`.
+        in the region, plus relevant neighbouring regions, passes this threshold. In any case, this 
+        will be limited to the maximum currently supported by :func:`drive`.
 
     async_api_calls:
         A flag to control whether to use asynchronous DRIVE calls.

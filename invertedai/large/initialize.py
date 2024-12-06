@@ -68,9 +68,10 @@ def get_regions_default(
         A flag to control whether a command line progress bar is displayed for convenience.
     
     """
+    
     if agent_count_dict is None:
         if total_num_agents is None:
-            raise InvertedAIError(message=f"Error: Must specify a number of agents within the regions.")
+            raise InvertedAIError(message=f"Must specify a number of agents within the regions.")
         else:
             agent_count_dict = {AgentType.car: total_num_agents}
 
@@ -86,7 +87,7 @@ def get_regions_default(
         width = max(polygon_x) - min(polygon_x)
         height = max(polygon_y) - min(polygon_y)
 
-        area_shape = (width,height)
+        area_shape = (width/2,height/2)
 
     regions = iai.get_regions_in_grid(
         width = area_shape[0], 
@@ -174,12 +175,11 @@ def get_number_of_agents_per_region_by_drivable_area(
     display_progress_bar: Optional[bool] = True
 ) -> List[Region]:
     """
-    This function takes in a list of regions, calculates the driveable area for each of them using 
+    Takes a list of regions, calculates the driveable area for each of them using output from
     :func:`location_info`, then creates a new Region object with copied location and shape data and 
-    inserts a number of car agents to be **sampled** into it porportional to its drivable surface 
+    inserts a number of car agents to be **sampled** into it proportional to its drivable surface 
     area relative to the other regions. Regions with no or a relatively small amount of drivable 
-    surfaces will be removed. If a region is at its capacity (e.g. due to pre-existing agents), no 
-    more agents will be added to it. 
+    surface will be removed.
 
     Arguments
     ----------
@@ -187,8 +187,7 @@ def get_number_of_agents_per_region_by_drivable_area(
         Location name in IAI format.
 
     regions:
-        A list of empty Regions (i.e. no pre-existing agent information) for which the number of 
-        agents to initialize is calculated. 
+        A list of Regions which may or may not contain pre-existing agents. 
 
     total_num_agents:
         Deprecated. The total number of agents to initialize across all regions.
@@ -206,7 +205,7 @@ def get_number_of_agents_per_region_by_drivable_area(
 
     if agent_count_dict is None:
         if total_num_agents is None:
-            raise InvertedAIError(message=f"Error: Must specify a number of agents within the regions.")
+            raise InvertedAIError(message=f"Must specify a number of agents within the regions.")
         else:
             agent_count_dict = {AgentType.car: total_num_agents}
 
@@ -252,16 +251,8 @@ def get_number_of_agents_per_region_by_drivable_area(
         all_region_weights[i] = drivable_ratio/total_drivable_area_ratio
     random_indexes = choices(list(range(len(new_regions))), weights=all_region_weights, k=len(agent_list_types))
 
-    number_sampled_agents = {}
-    for ind in random_indexes:
-        if ind not in number_sampled_agents:
-            number_sampled_agents[ind] = 1
-        else:
-            number_sampled_agents[ind] += 1
-
     for agent_id, ind in enumerate(random_indexes):
-        if len(new_regions[ind].agent_properties) < number_sampled_agents[ind]:
-            new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({agent_list_types[agent_id]:1})
+        new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({agent_list_types[agent_id]:1})
 
     filtered_regions = []
     for region in new_regions:
@@ -305,6 +296,7 @@ def _insert_agents_into_nearest_regions(
         Whether to map the region in which agents of the same index have been placed. Returns 
         a list of the same size as the agent_properties parameter.
     """
+
     num_agent_states = len(agent_states)
     num_regions = len(regions)
     assert num_regions > 0, "Invalid parameter: number of regions must be greater than zero."
@@ -563,10 +555,10 @@ def large_initialize(
     response is combined into a single response which is returned. While looping over all
     regions, if there are agents in other regions that are near enough to the region of
     interest, they will be passed as conditional to :func:`initialize`. :func:`initialize` 
-    will not be called if no agent_states or agent_properties are specified in the region. 
+    will not be called if no agents are specified in the region. 
     A boolean flag can be used to control failure behaviour if :func:`initialize` is unable 
-    to produce viable vehicle placements if the initialization should continue or raise an 
-    exception.
+    to produce viable vehicle placements, specifically whether the initialization should 
+    continue initializing other regions or raise an exception.
 
     As well, predefined agents may be passed to this function in 2 different ways. If the index
     of the predefined agents must be preserved, pass these agents' data into the agent_properties 
@@ -574,7 +566,7 @@ def large_initialize(
     agent properties defined as well but an agent is permitted to be defined by its properties only
     and :func:`initialize` will fill in the state information. If the index of the predefined agents
     does not matter, they may be placed directly into the region objects or passed into the parameters
-    mentioned previously, but make sure to avoid adding these agents twice.
+    mentioned previously, but make sure to avoid adding these agents more than once.
 
     Arguments
     ----------
