@@ -1,9 +1,11 @@
 import invertedai as iai
 from invertedai.utils import get_default_agent_properties
+from invertedai.common import AgentType
 
 import os
-from random import randint
 import matplotlib.pyplot as plt
+
+from random import randint
 
 LOCATION = "canada:drake_street_and_pacific_blvd"  # select one of available locations
 SIMULATION_LENGTH = 100
@@ -18,7 +20,7 @@ location_info_response = iai.location_info(location=LOCATION)
 # initialize the simulation by spawning NPCs
 response = iai.initialize(
     location=LOCATION,  # select one of available locations
-    agent_properties=get_default_agent_properties({"car":5}),    # number of NPCs to spawn
+    agent_properties=get_default_agent_properties({AgentType.car:5}),    # number of NPCs to spawn
 )
 agent_properties = response.agent_properties  # get dimension and other attributes of NPCs
 

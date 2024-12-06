@@ -9,6 +9,7 @@ from invertedai.common import Point, AgentState, AgentProperties, RecurrentState
 BUFFER_FOV = 35
 QUADTREE_SIZE_BUFFER = 1
 
+
 class QuadTreeAgentInfo(BaseModel):
     """
     All information relevant to a single agent.
@@ -32,6 +33,7 @@ class QuadTreeAgentInfo(BaseModel):
     def fromlist(cls, l):
         agent_state, agent_properties, recurrent_state, agent_id = l
         return cls(agent_state=agent_state, agent_properties=agent_properties, recurrent_state=recurrent_state, agent_id=agent_id)
+
 
 class QuadTree:
     def __init__(

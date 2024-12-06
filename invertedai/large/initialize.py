@@ -1,27 +1,36 @@
 import time
-from pydantic import BaseModel, validate_call
-from typing import Union, List, Optional, Tuple
-from itertools import product
-from tqdm.contrib import tenumerate
 import numpy as np
+
 from random import choices, seed, randint
 from math import sqrt
 from copy import deepcopy
+from pydantic import BaseModel, validate_call
+from typing import Union, List, Optional, Tuple, Dict
+from itertools import product
+from tqdm.contrib import tenumerate
 
 import invertedai as iai
 from invertedai.large.common import Region, REGION_MAX_SIZE
 from invertedai.api.initialize import InitializeResponse
-from invertedai.common import TrafficLightStatesDict, Point, AgentProperties, AgentState
 from invertedai.utils import get_default_agent_properties
 from invertedai.error import InvertedAIError
+from invertedai.common import (
+    AgentProperties, 
+    AgentState, 
+    AgentType,
+    Point,
+    TrafficLightStatesDict   
+)
 
 AGENT_SCOPE_FOV_BUFFER = 60
 ATTEMPT_PER_NUM_REGIONS = 15
+
 
 @validate_call
 def get_regions_default(
     location: str,
     total_num_agents: Optional[int] = None,
+    agent_count_dict: Optional[Dict[AgentType,int]] = None,
     area_shape: Optional[Tuple[float,float]] = None,
     map_center: Optional[Tuple[float,float]] = (0.0,0.0),
     random_seed: Optional[int] = None, 
@@ -37,12 +46,15 @@ def get_regions_default(
         Location name in IAI format.
 
     total_num_agents:
-        The total number of agents to initialize across all regions.
+        Deprecated. The total number of agents to initialize across all regions.
+
+    agent_count_dict:
+        The number of agents to place within the regions per specified agent type.
 
     area_shape:
-        Contains the [width, height] of the rectangular area to be broken into smaller regions. If
-        this argument is not provided, a bounding box around the location polygon from :func:`location_info`
-        will be used.
+        Contains the [width, height] to either side of the center of the rectangular area to be broken into 
+        smaller regions (i.e. half of full width and height of the region). If this argument is not provided, 
+        a bounding box around the location polygon from :func:`location_info` will be used.
 
     map_center:
         The coordinates of the center of the rectangular area to be broken into smaller regions. If
@@ -56,6 +68,13 @@ def get_regions_default(
         A flag to control whether a command line progress bar is displayed for convenience.
     
     """
+    
+    if agent_count_dict is None:
+        if total_num_agents is None:
+            raise InvertedAIError(message=f"Must specify a number of agents within the regions.")
+        else:
+            agent_count_dict = {AgentType.car: total_num_agents}
+
     if area_shape is None:
         location_response = iai.location_info(
             location = location,
@@ -68,7 +87,7 @@ def get_regions_default(
         width = max(polygon_x) - min(polygon_x)
         height = max(polygon_y) - min(polygon_y)
 
-        area_shape = (width,height)
+        area_shape = (width/2,height/2)
 
     regions = iai.get_regions_in_grid(
         width = area_shape[0], 
@@ -76,18 +95,16 @@ def get_regions_default(
         map_center = map_center
     )
 
-    if total_num_agents is None:
-        total_num_agents = 10*len(regions)
-
     new_regions = iai.get_number_of_agents_per_region_by_drivable_area(
         location = location,
         regions = regions,
-        total_num_agents = total_num_agents,
+        agent_count_dict = agent_count_dict,
         random_seed = random_seed,
         display_progress_bar = display_progress_bar
     )
 
     return new_regions
+
 
 @validate_call
 def get_regions_in_grid(
@@ -104,10 +121,10 @@ def get_regions_in_grid(
     Arguments
     ----------
     width:
-        The horizontal size of the area which will be broken into smaller regions.
+        Half of the horizontal size of the area which will be broken into smaller regions.
 
     height:
-        The vertical size of the area which will be broken into smaller regions.
+        Half of the vertical size of the area which will be broken into smaller regions.
 
     map_center:
         The coordinates of the center of the rectangular area to be broken into smaller regions. If
@@ -116,8 +133,8 @@ def get_regions_in_grid(
     stride:
         How far apart the centers of the 100x100m regions should be. Some overlap is recommended for 
         best results and if no argument is provided, a value of 50 is used.
-    
     """
+
     def check_valid_center(center):
         return (map_center[0] - width) < center[0] < (map_center[0] + width) and \
             (map_center[1] - height) < center[1] < (map_center[1] + height)
@@ -147,21 +164,22 @@ def get_regions_in_grid(
 
     return regions
 
+
 @validate_call
 def get_number_of_agents_per_region_by_drivable_area(
     location: str,
     regions: List[Region],
-    total_num_agents: Optional[int] = 10,
+    total_num_agents: Optional[int] = None,
+    agent_count_dict: Optional[Dict[AgentType,int]] = None,
     random_seed: Optional[int] = None,
     display_progress_bar: Optional[bool] = True
 ) -> List[Region]:
     """
-    This function takes in a list of regions, calculates the driveable area for each of them using 
+    Takes a list of regions, calculates the driveable area for each of them using output from
     :func:`location_info`, then creates a new Region object with copied location and shape data and 
-    inserts a number of default AgentProperties objects into it porportional to its drivable surface 
+    inserts a number of car agents to be **sampled** into it proportional to its drivable surface 
     area relative to the other regions. Regions with no or a relatively small amount of drivable 
-    surfaces will be removed. If a region is at its capacity (e.g. due to pre-existing agents), no 
-    more agents will be added to it. 
+    surface will be removed.
 
     Arguments
     ----------
@@ -169,11 +187,13 @@ def get_number_of_agents_per_region_by_drivable_area(
         Location name in IAI format.
 
     regions:
-        A list of empty Regions (i.e. no pre-existing agent information) for which the number of 
-        agents to initialize is calculated. 
+        A list of Regions which may or may not contain pre-existing agents. 
 
     total_num_agents:
-        The total number of agents to initialize throughout all the regions.
+        Deprecated. The total number of agents to initialize across all regions.
+
+    agent_count_dict:
+        The number of agents to place within the regions per specified agent type.
 
     random_seed:
         Controls the stochastic aspects of assigning agents to regions for reproducibility. If this
@@ -181,8 +201,17 @@ def get_number_of_agents_per_region_by_drivable_area(
 
     display_progress_bar:
         A flag to control whether a command line progress bar is displayed for convenience.
-    
     """
+
+    if agent_count_dict is None:
+        if total_num_agents is None:
+            raise InvertedAIError(message=f"Must specify a number of agents within the regions.")
+        else:
+            agent_count_dict = {AgentType.car: total_num_agents}
+
+    agent_list_types = []
+    for agent_type, num_agents in agent_count_dict.items():
+        agent_list_types = agent_list_types + [agent_type]*num_agents
 
     new_regions = [Region.copy(region) for region in regions]
     region_road_area = []
@@ -220,18 +249,10 @@ def get_number_of_agents_per_region_by_drivable_area(
     all_region_weights = [0]*len(new_regions)
     for i, drivable_ratio in enumerate(region_road_area):
         all_region_weights[i] = drivable_ratio/total_drivable_area_ratio
-    random_indexes = choices(list(range(len(new_regions))), weights=all_region_weights, k=total_num_agents)
+    random_indexes = choices(list(range(len(new_regions))), weights=all_region_weights, k=len(agent_list_types))
 
-    number_sampled_agents = {}
-    for ind in random_indexes:
-        if ind not in number_sampled_agents:
-            number_sampled_agents[ind] = 1
-        else:
-            number_sampled_agents[ind] += 1
-
-    for ind in random_indexes:
-        if len(new_regions[ind].agent_properties) < number_sampled_agents[ind]:
-            new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({"car":1})
+    for agent_id, ind in enumerate(random_indexes):
+        new_regions[ind].agent_properties = new_regions[ind].agent_properties + get_default_agent_properties({agent_list_types[agent_id]:1})
 
     filtered_regions = []
     for region in new_regions:
@@ -239,6 +260,7 @@ def get_number_of_agents_per_region_by_drivable_area(
             filtered_regions.append(region)
 
     return filtered_regions
+
 
 @validate_call
 def _insert_agents_into_nearest_regions(
@@ -274,6 +296,7 @@ def _insert_agents_into_nearest_regions(
         Whether to map the region in which agents of the same index have been placed. Returns 
         a list of the same size as the agent_properties parameter.
     """
+
     num_agent_states = len(agent_states)
     num_regions = len(regions)
     assert num_regions > 0, "Invalid parameter: number of regions must be greater than zero."
@@ -308,6 +331,7 @@ def _insert_agents_into_nearest_regions(
         if return_region_index: region_map.append(tuple([random_region_index,len(regions[random_region_index].agent_properties)-1]))
 
     return regions, region_map
+
 
 def _consolidate_all_responses(
     all_responses: List[InitializeResponse],
@@ -361,6 +385,7 @@ def _consolidate_all_responses(
 
     return response
 
+
 def _get_all_existing_agents_from_regions(
     regions: List[Region],
     exclude_index: Optional[int] = None,
@@ -379,6 +404,7 @@ def _get_all_existing_agents_from_regions(
             agent_properties = agent_properties + [prop for prop in region.agent_properties[:len(region_agent_states)]]
 
     return agent_states, agent_properties
+
 
 def _initialize_regions(
     location: str,
@@ -482,7 +508,7 @@ def _initialize_regions(
             if response is not None:
                 # Filter out conditional agents from other regions
                 infractions = []
-                for j, (state, attrs, r_state) in enumerate(zip(
+                for j, (state, props, r_state) in enumerate(zip(
                     response.agent_states[num_out_of_region_conditional_agents:],
                     response.agent_properties[num_out_of_region_conditional_agents:],
                     response.recurrent_states[num_out_of_region_conditional_agents:]
@@ -491,7 +517,7 @@ def _initialize_regions(
                         if not inside_fov(center=region_center, agent_scope_fov=region_size, point=state.center):
                             continue
 
-                    regions[i].insert_all_agent_details(state,attrs,r_state)
+                    regions[i].insert_all_agent_details(state,props,r_state)
                     if get_infractions:
                         infractions.append(response.infractions[num_out_of_region_conditional_agents:][j])
 
@@ -508,6 +534,7 @@ def _initialize_regions(
             continue
 
     return regions, all_responses
+
 
 @validate_call
 def large_initialize(
@@ -528,10 +555,10 @@ def large_initialize(
     response is combined into a single response which is returned. While looping over all
     regions, if there are agents in other regions that are near enough to the region of
     interest, they will be passed as conditional to :func:`initialize`. :func:`initialize` 
-    will not be called if no agent_states or agent_properties are specified in the region. 
+    will not be called if no agents are specified in the region. 
     A boolean flag can be used to control failure behaviour if :func:`initialize` is unable 
-    to produce viable vehicle placements if the initialization should continue or raise an 
-    exception.
+    to produce viable vehicle placements, specifically whether the initialization should 
+    continue initializing other regions or raise an exception.
 
     As well, predefined agents may be passed to this function in 2 different ways. If the index
     of the predefined agents must be preserved, pass these agents' data into the agent_properties 
@@ -539,7 +566,7 @@ def large_initialize(
     agent properties defined as well but an agent is permitted to be defined by its properties only
     and :func:`initialize` will fill in the state information. If the index of the predefined agents
     does not matter, they may be placed directly into the region objects or passed into the parameters
-    mentioned previously, but make sure to avoid adding these agents twice.
+    mentioned previously, but make sure to avoid adding these agents more than once.
 
     Arguments
     ----------

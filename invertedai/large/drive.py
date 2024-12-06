@@ -1,7 +1,8 @@
+import asyncio
+import warnings
 from typing import Tuple, Optional, List, Union
 from pydantic import BaseModel, validate_call
 from math import ceil
-import asyncio
 
 import invertedai as iai
 from invertedai.large.common import Region
@@ -16,6 +17,7 @@ DRIVE_MAXIMUM_NUM_AGENTS = 100
 async def async_drive_all(async_input_params):
     all_responses = await asyncio.gather(*[iai.async_drive(**input_params) for input_params in async_input_params])
     return all_responses
+
 
 @validate_call
 def large_drive(
@@ -70,8 +72,8 @@ def large_drive(
     single_call_agent_limit:
         The number of agents allowed in a region before it must subdivide. Currently this value 
         represents the capacity of a quadtree leaf node that will subdivide if the number of vehicles 
-        in the region passes this threshold. In any case, this will be limited to the maximum currently 
-        supported by :func:`drive`.
+        in the region, plus relevant neighbouring regions, passes this threshold. In any case, this 
+        will be limited to the maximum currently supported by :func:`drive`.
 
     async_api_calls:
         A flag to control whether to use asynchronous DRIVE calls.
@@ -96,12 +98,17 @@ def large_drive(
 
     # Convert any AgentAttributes to AgentProperties for backwards compatibility 
     agent_properties_new = []
+    is_using_attributes = False
     for properties in agent_properties:
         properties_new = properties
         if isinstance(properties,AgentAttributes):
             properties_new = convert_attributes_to_properties(properties)
+            is_using_attributes = True
         agent_properties_new.append(properties_new)
     agent_properties = agent_properties_new
+
+    if is_using_attributes:
+        warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
     # Generate quadtree
     agent_x = [agent.center.x for agent in agent_states]

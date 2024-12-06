@@ -1,19 +1,17 @@
 import json
 import os
 import re
-import numpy as np
 import csv
 import math
 import logging
 import random
 import time
-
+import numpy as np
+import warnings
 
 from typing import Dict, Optional, List, Tuple, Union, Any
-from tqdm.contrib import tmap
-from itertools import product
 from copy import deepcopy
-from pydantic import validate_call, validate_arguments, BaseModel, ConfigDict
+from pydantic import validate_call, validate_arguments
 
 import requests
 from requests import Response
@@ -31,15 +29,18 @@ import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import AgentState, AgentAttributes, AgentProperties, StaticMapActor,\
-                                TrafficLightState, TrafficLightStatesDict, Point, RecurrentState,\
-                                LightRecurrentState
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
-from invertedai.api.initialize import InitializeResponse
-from invertedai.api.drive import DriveResponse
-from invertedai.api.location import LocationResponse
-
+from invertedai.common import (
+    AgentState, 
+    AgentAttributes, 
+    AgentProperties, 
+    AgentType,
+    RecurrentState,
+    StaticMapActor,
+    TrafficLightState, 
+    TrafficLightStatesDict 
+)
 
 H_SCALE = 10
 text_x_offset = 0
@@ -162,7 +163,11 @@ class Session:
     def base_url(self, value):
         self._base_url = value
 
-    def _verify_api_key(self, api_token: str, verifying_url: str):
+    def _verify_api_key(
+        self, 
+        api_token: str, 
+        verifying_url: str
+    ):
         """
         Verifies the API key by making a request to the verifying URL.
 
@@ -231,18 +236,28 @@ class Session:
             request_url = url
         self.base_url = self._verify_api_key(api_token, request_url)
 
-    def use_mock_api(self, use_mock: bool = True) -> None:
+    def use_mock_api(
+        self, 
+        use_mock: bool = True
+    ) -> None:
         invertedai.api.config.mock_api = use_mock
         if use_mock:
             iai.logger.warning(
                 "Using mock Inverted AI API - predictions will be trivial"
             )
 
-    async def async_request(self, *args, **kwargs):
+    async def async_request(
+        self, 
+        *args, 
+        **kwargs
+    ):
         return await to_thread(self.request, *args, **kwargs)
 
     def request(
-        self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
+        self, 
+        model: str, 
+        params: Optional[dict] = None, 
+        data: Optional[dict] = None
     ):
         method, relative_path = iai.model_resources[model]
         
@@ -378,7 +393,14 @@ class Session:
         # TODO: Add endpoint option and versioning to base_url
         return base_url
 
-    def _handle_error_response(self, rbody, rcode, resp, rheaders, stream_error=False):
+    def _handle_error_response(
+        self, 
+        rbody, 
+        rcode, 
+        resp, 
+        rheaders, 
+        stream_error=False
+    ):
         try:
             error_data = resp["error"]
         except (KeyError, TypeError):
@@ -436,7 +458,10 @@ class Session:
                 error_data.get("message"), rbody, rcode, resp, rheaders
             )
 
-    def _interpret_response_line(self, result):
+    def _interpret_response_line(
+        self, 
+        result
+    ):
         rbody = result.content
         rcode = result.status_code
         rheaders = result.headers
@@ -459,14 +484,10 @@ class Session:
 
         return data
 
-@validate_call
-def interpolation_manager(
-):
-    pass
 
 @validate_call
 def get_default_agent_properties(
-    agent_count_dict: Dict[str,int],
+    agent_count_dict: Dict[AgentType,int],
     use_agent_properties: Optional[bool] = True
 ) -> List[Union[AgentAttributes,AgentProperties]]:
     """
@@ -490,8 +511,11 @@ def get_default_agent_properties(
 
     return agent_attributes_list
 
+
 @validate_call
-def convert_attributes_to_properties(attributes: AgentAttributes) -> AgentProperties:
+def convert_attributes_to_properties(
+    attributes: AgentAttributes
+) -> AgentProperties:
     """
     Convert deprecated AgentAttributes data type to AgentProperties.
     """
@@ -506,13 +530,14 @@ def convert_attributes_to_properties(attributes: AgentAttributes) -> AgentProper
 
     return properties
 
+
 @validate_call
 def iai_conditional_initialize(
     location: str, 
     agent_type_count: Dict[str,int],
     location_of_interest: Tuple[float] = (0,0),
     recurrent_states: Optional[List[RecurrentState]] = None,
-    agent_attributes: Optional[List[AgentAttributes]] = None,
+    agent_properties: Optional[List[AgentProperties]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None, 
     get_birdview: Optional[bool] = False,
@@ -544,11 +569,11 @@ def iai_conditional_initialize(
     :func:`initialize`
     """
 
-    conditional_agent_attributes = []
+    conditional_agent_properties = []
     conditional_agent_states_indexes = []
     conditional_recurrent_states = []
     outside_agent_states = []
-    outside_agent_attributes = []
+    outside_agent_properties = []
     outside_recurrent_states = []
 
     current_agent_states = states_history[-1]
@@ -558,10 +583,10 @@ def iai_conditional_initialize(
         dist = math.dist(location_of_interest, (agent_state.center.x, agent_state.center.y))
         if dist < AGENT_SCOPE_FOV:
             conditional_agent_states_indexes.append(i)
-            conditional_agent_attributes.append(agent_attributes[i])
+            conditional_agent_properties.append(agent_properties[i])
             conditional_recurrent_states.append(recurrent_states[i])
 
-            conditional_agent_type = agent_attributes[i].agent_type
+            conditional_agent_type = agent_properties[i].agent_type
             if conditional_agent_type in conditional_agent_type_count:
                 conditional_agent_type_count[conditional_agent_type] -= 1
                 if conditional_agent_type_count[conditional_agent_type] <= 0:
@@ -569,14 +594,14 @@ def iai_conditional_initialize(
 
         else:
             outside_agent_states.append(agent_state)
-            outside_agent_attributes.append(agent_attributes[i])
+            outside_agent_properties.append(agent_properties[i])
             outside_recurrent_states.append(recurrent_states[i])
 
     if not conditional_agent_type_count: #The dictionary is empty.
         iai.logger.warning("Agent count requirement already satisfied, no new agents initialized.")
 
-    padded_agent_attributes = get_default_agent_attributes(conditional_agent_type_count)
-    conditional_agent_attributes.extend(padded_agent_attributes)
+    padded_agent_properties = get_default_agent_properties(conditional_agent_type_count)
+    conditional_agent_properties.extend(padded_agent_properties)
 
     conditional_agent_states = [[]*len(conditional_agent_states_indexes)]
     for ts in range(len(conditional_agent_states)):
@@ -585,7 +610,7 @@ def iai_conditional_initialize(
 
     response = invertedai.api.initialize(
         location = location,
-        agent_attributes = conditional_agent_attributes,
+        agent_properties = conditional_agent_properties,
         states_history = conditional_agent_states,
         location_of_interest = location_of_interest,
         traffic_light_state_history = traffic_light_state_history,
@@ -594,7 +619,7 @@ def iai_conditional_initialize(
         random_seed = random_seed,
         api_model_version = api_model_version
     )
-    response.agent_attributes = response.agent_attributes + outside_agent_attributes
+    response.agent_properties = response.agent_properties + outside_agent_properties
     response.agent_states = response.agent_states + outside_agent_states
     response.recurrent_states = response.recurrent_states + outside_recurrent_states
 
@@ -602,10 +627,16 @@ def iai_conditional_initialize(
 
 
 class APITokenAuth(AuthBase):
-    def __init__(self, api_token):
+    def __init__(
+        self, 
+        api_token
+    ):
         self.api_token = api_token
 
-    def __call__(self, r):
+    def __call__(
+        self, 
+        r
+    ):
         r.headers["x-api-key"] = self.api_token
         r.headers["api-key"] = self.api_token
         return r
@@ -658,11 +689,17 @@ def Jupyter_Render():
             self.int_slider.observe(self.update, "value")
             self.children = [controls, output]
 
-        def update(self, change):
+        def update(
+            self, 
+            change
+        ):
             self.im.set_data(self.buffer[self.int_slider.value])
             self.fig.canvas.draw()
 
-        def add_frame(self, frame):
+        def add_frame(
+            self, 
+            frame
+        ):
             self.buffer.append(frame)
             self.int_slider.max += 1
             self.play.max += 1
@@ -699,7 +736,10 @@ class IAILogger(logging.Logger):
             self.addHandler(file_handler)
 
     @staticmethod
-    def logfmt(message, **params):
+    def logfmt(
+        message, 
+        **params
+    ):
         props = dict(message=message, **params)
 
         def fmt(key, val):
@@ -861,6 +901,7 @@ class ScenePlotter():
 
         if agent_attributes is not None:
             self.agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+            warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
         else:
             self.agent_properties = agent_properties
 
@@ -960,6 +1001,7 @@ class ScenePlotter():
 
         if agent_attributes is not None:
             agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+            warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
         self.initialize_recording(
             agent_states=agent_states, 

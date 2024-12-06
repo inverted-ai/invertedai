@@ -12,6 +12,8 @@ sdk-drive
 sdk-initialize
 sdk-light
 sdk-location-info
+sdk-large-drive
+sdk-large-initialize
 sdk-common
 sdk-simulation
 sdk-env-var
