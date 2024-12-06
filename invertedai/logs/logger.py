@@ -6,6 +6,9 @@ import json
 
 from invertedai import location_info
 from invertedai.utils import ScenePlotter
+from invertedai.api.location import LocationResponse
+from invertedai.api.initialize import InitializeResponse
+from invertedai.api.drive import DriveResponse
 from invertedai.common import ( 
     AgentAttributes, 
     AgentProperties,
@@ -16,9 +19,7 @@ from invertedai.common import (
     RecurrentState,
     TrafficLightStatesDict 
 )
-from invertedai.api.location import LocationResponse
-from invertedai.api.initialize import InitializeResponse
-from invertedai.api.drive import DriveResponse
+
 
 class ScenarioLog(BaseModel):
     """
@@ -68,7 +69,8 @@ class LogBase():
         map_center: Optional[Tuple[float,float]] = None,
         direction_vec: bool = False,
         velocity_vec: bool = False,
-        plot_frame_number: bool = True
+        plot_frame_number: bool = True,
+        left_hand_coordinates: bool = False
     ):
         """
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
@@ -79,7 +81,11 @@ class LogBase():
             assert timestep >= 0 or timestep <= (self.simulation_length - 1), "Visualization time range valid."
         assert timestep_range[1] >= timestep_range[0], "Visualization time range valid."
 
-        location_info_response = location_info(location=self._scenario_log.location)
+        location_info_response = location_info(
+            location=self._scenario_log.location,
+            rendering_fov=fov,
+            rendering_center=map_center
+        )
         rendered_static_map = location_info_response.birdview_image.decode()
         map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
 
@@ -89,7 +95,8 @@ class LogBase():
             xy_offset=map_center,
             static_actors=location_info_response.static_actors,
             resolution=resolution,
-            dpi=dpi
+            dpi=dpi,
+            left_hand_coordinates=left_hand_coordinates
         )
         scene_plotter.initialize_recording(
             agent_states=self._scenario_log.agent_states[timestep_range[0]],
@@ -108,8 +115,10 @@ class LogBase():
             ax=ax,
             direction_vec=direction_vec,
             velocity_vec=velocity_vec,
-            plot_frame_number=plot_frame_number,
+            plot_frame_number=plot_frame_number
         )
+
+        plt.close(fig)
 
     @validate_arguments
     def visualize(
@@ -121,7 +130,8 @@ class LogBase():
         map_center: Optional[Tuple[float,float]] = None,
         direction_vec: bool = False,
         velocity_vec: bool = False,
-        plot_frame_number: bool = True
+        plot_frame_number: bool = True,
+        left_hand_coordinates: bool = False
     ):
         """
         Use the available internal tools to visualize the entire log and save it to a given location. Please refer to ScenePlotter for details on 
@@ -145,6 +155,7 @@ class LogBase():
 
     def drive(self):
         pass
+
 
 class LogWriter(LogBase):
     """
@@ -239,14 +250,14 @@ class LogWriter(LogBase):
                     "states": {
                         "0": {
                             "center": {
-                                "x": wp.center.x,
-                                "y": wp.center.y
+                                "x": wp.x,
+                                "y": wp.y
                             }
                         }
                     }
                 }
 
-        output_dict = {
+        self.output_dict = {
             "location": {
                 "identifier": scenario_log.location
             },
@@ -284,7 +295,7 @@ class LogWriter(LogBase):
         }
 
         with open(log_path, "w") as outfile:
-            json.dump(output_dict, outfile)
+            json.dump(self.output_dict, outfile)
 
     @classmethod
     def export_log_to_file(
@@ -326,6 +337,7 @@ class LogWriter(LogBase):
                 location_info_response.map_center.x,
                 location_info_response.map_center.y
             ],
+            rendering_fov=location_info_response.map_fov,
             lights_random_seed=lights_random_seed,
             initialize_random_seed=initialize_random_seed,
             drive_random_seed=drive_random_seed,
@@ -356,6 +368,7 @@ class LogWriter(LogBase):
         self._scenario_log.recurrent_states = drive_response.recurrent_states
 
         self.simulation_length += 1
+
 
 class LogReader(LogBase):
     """

@@ -24,8 +24,8 @@ bare-bones access mode that offers maximum flexibility to deploy in any environm
 For convenience, we also provide a {ref}`Python SDK`, freely available on PyPI with minimal dependencies, which provides an abstraction layer on top of the REST API. Recently, we also released {ref}`C++ SDK` and in the future we intend to release similar libraries for other languages.
 
 ## Maps and geofencing
-The API operates on a pre-defined collection of maps and currently there is no programmatic way to add additional
-locations. For each location there is a map, represented internally in the
+The API operates on a pre-defined collection of maps and currently a programmatic way to add additional locations is in development.
+For each location there is a map, represented internally in the
 [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, which specifies
 lanelets, traffic lights, and a selection of static traffic signs (along with their relationship to specific lanelets).
 Each map comes with a canonical Euclidean coordinate frame in meters, which for OSM files is obtained by applying a
@@ -43,8 +43,8 @@ access, LOCATION_INFO provides all the relevant information. Please contact us w
 locations.
 
 ## Agent types and representations
-At the moment the API only supports vehicles, but future releases will also support pedestrians, bicycles, etc.. We
-assume that each vehicle is a rigid rectangle with a fixed length and width. The motion of each vehicle is constrained
+At the moment the API only supports vehicles and pedestrians, but future releases will also support more agents and vulnerable road users.
+We assume that each vehicle is a rigid rectangle with a fixed length and width. The motion of each vehicle is constrained
 by the kinematic bicycle model, which further requires specifying the rear axis offset, that is the distance between the
 center of the vehicle and its rear axis. Front axis offset is not relevant, because it can not be fit from observational
 data, so we omit it. The three static agent attributes are: length, width, and rear offset.
@@ -65,26 +65,26 @@ Each traffic light can be green, yellow, or red at any given point.
 Traffic light IDs are fixed and can be derived from the map, but for convenience we also provide traffic light IDs 
 and the corresponding locations in LOCATION_INFO.
 For maps with traffic lights, on a call to INITIALIZE, the server generates a realistic configuration of all traffic lights,
-and returns the associated light states via 'light_recurrent_states'. On each call to DRIVE, traffic lights' states can be automatically managed by the server with 'light_recurrent_states'. 
+and returns the associated light states via 'light_recurrent_states'. On each call to {ref}`DRIVE`, traffic lights' states can be automatically managed by the server with 'light_recurrent_states'. 
 There is also the option to manually set light states with 'traffic_lights_states', but once this path is taken,
-it is on the client to continually provide 'traffic_lights_states' on all calls to DRIVE.
+it is on the client to continually provide 'traffic_lights_states' on all calls to {ref}`DRIVE`.
 
 ## Handling agents and NPCs
 In the API, there is no distinction between agents, controlled by you, and NPCs, controlled by us, so we refer to them
-collectively as agents. In any simulation there can be zero or more characters of either kind. When calling DRIVE, the
+collectively as agents. In any simulation there can be zero or more characters of either kind. When calling {ref}`DRIVE`, the
 client needs to list all agents in simulation and we predict the next states for all of them. It is up to the client to
 decide which of those agents are NPCs and use the corresponding predictions in the local simulator. However, it is
 important to specify all agents when calling the API, since otherwise NPCs will not be able to react to omitted agents.
-Due to the recurrent nature of ITRA, we generally recommend that the customer is consistent about this choice throughout
+Due to the recurrent nature of ITRA, we generally recommend that the user is consistent about this choice throughout
 the simulation - predictions for agents whose state is updated differently from ITRA predictions may not be as good as
 when ITRA fully controls them.
 
 ## Consistent simulation with a stateless API
-The API is stateless, so each call to DRIVE requires specifying both the static attributes and the dynamic state of each
+The API is stateless, so each call to {ref}`DRIVE` requires specifying both the static attributes and the dynamic state of each
 agent. However, ITRA is a recurrent model that uses the simulation’s history to make predictions, which we facilitate
 through the stateless API by passing around a recurrent state, which is a vector with unspecified semantics from the
-client’s perspective. Each call to DRIVE returns a new recurrent state for each agent, which must be passed for this
-agent to DRIVE on the subsequent call. Providing an incorrect recurrent state may silently lead to deteriorating
+client’s perspective. Each call to {ref}`DRIVE` returns a new recurrent state for each agent, which must be passed for this
+agent to {ref}`DRIVE` on the subsequent call. Providing an incorrect recurrent state may silently lead to deteriorating
 performance, and in order to obtain valid values for the initial recurrent state, the simulation must always start with
 INITIALIZE. To initialize the simulation to a specific state, you can provide a sequence of historical states for all
 agents that will be used to construct the matching recurrent state. For best performance, at least 10 time steps should
@@ -96,18 +96,18 @@ Python library that handles this internally.
 In the simple case there is a fixed number of agents present throughout the entire simulation. However, it is also
 possible to dynamically introduce and remove agents, which is typically done when they enter and exit the supported
 area. Removing agents is easy, all it takes is removing the information for a given agent from the lists of agent
-attributes, agent states, and recurrent states. For convenience, DRIVE returns a boolean vector indicating which agents
+attributes, agent states, and recurrent states. For convenience, {ref}`DRIVE` returns a boolean vector indicating which agents
 are within the supported area after the predicted step.
 Introducing agents into a running simulation is more complicated, due to the requirement to construct their recurrent
 state. When predictions for the new agents are not going to be consumed, its state can simply be appended to the
 relevant lists, with the recurrent state set to zeros. To obtain good predictions for such an agent, another call to
 INITIALIZE needs to be made, providing the recent history of all agents, including the new agent. This correctly
-initializes the recurrent state and DRIVE can be called from that point on normally. For best performance, each agent
+initializes the recurrent state and {ref}`DRIVE` can be called from that point on normally. For best performance, each agent
 should initially be controlled by the client for at least 10 time steps before being handed off to ITRA as an NPC by
 calling INITIALIZE.
 
 ## Reproducibility and control over predictions
-INITIALIZE and DRIVE optionally accept a random seed, which controls their stochastic behavior. With the same seed and
+INITIALIZE and {ref}`DRIVE` optionally accept a random seed, which controls their stochastic behavior. With the same seed and
 the same inputs, the outputs will be approximately the same with high accuracy.
 Other than for the random seed, there is currently no mechanism to influence the behavior of predicted agents, such as
 by directing them to certain exits or setting their speed, but such mechanisms will be included in future releases.
@@ -119,6 +119,6 @@ formats, including checking lengths of lists and bounds for numeric values, and 
 performed on the client side before paid API calls. All those features are only available in the Python library and not
 in the REST API.
 To enable the mock API, just set the environment variable `IAI_MOCK_API` to true according to {ref}`Environment Variables`.
-For further debugging and visualization, both INITIALIZE and DRIVE optionally return a rendered birdview image showing
+For further debugging and visualization, both INITIALIZE and {ref}`DRIVE` optionally return a rendered birdview image showing
 the simulation state after the call to them. This significantly increases the payload size and latency, so it should not
 be done in real integrations.

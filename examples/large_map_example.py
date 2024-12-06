@@ -1,13 +1,13 @@
 import invertedai as iai
 from invertedai.large.common import Region
-from invertedai.common import AgentAttributes
-from invertedai.utils import get_default_agent_properties
+from invertedai.common import AgentAttributes, AgentType
 
 import argparse
-from tqdm import tqdm
 import matplotlib.pyplot as plt
-import time
 import random
+import time
+
+from tqdm import tqdm
 
 def main(args):
     if args.model_version_drive == "None": 
@@ -30,7 +30,7 @@ def main(args):
         print(f"Begin initialization.") 
         regions = iai.get_regions_default(
             location = args.location,
-            total_num_agents = args.num_agents,
+            agent_count_dict = {AgentType.car: args.num_agents},
             area_shape = (int(args.width/2),int(args.height/2)),
             map_center = map_center, 
         )
@@ -38,7 +38,8 @@ def main(args):
         response = iai.large_initialize(
             location = args.location,
             regions = regions,
-            random_seed = initialize_seed
+            random_seed = initialize_seed,
+            get_infractions = args.get_infractions
         )
         
         print(f"Set up simulation.")
@@ -72,6 +73,7 @@ def main(args):
                 light_recurrent_states = response.light_recurrent_states,
                 random_seed = drive_seed,
                 api_model_version = model_version,
+                get_infractions = args.get_infractions,
                 single_call_agent_limit = args.capacity,
                 async_api_calls = args.is_async
             )
@@ -88,10 +90,11 @@ def main(args):
             scene_plotter.animate_scene(
                 output_name=gif_name,
                 ax=ax,
-                direction_vec=False,
+                direction_vec=True,
                 velocity_vec=False,
                 plot_frame_number=True,
             )
+            plt.close(fig)
         print("Done")
 
 if __name__ == '__main__':
@@ -158,6 +161,12 @@ if __name__ == '__main__':
         type=bool,
         help=f"Should the simulation be saved with visualization tool.",
         default=True
+    )
+    argparser.add_argument(
+        '--get-infractions',
+        type=bool,
+        help=f"Should the simulation capture infractions data.",
+        default=False
     )
     argparser.add_argument(
         '--num-simulations',

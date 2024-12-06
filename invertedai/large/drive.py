@@ -1,7 +1,8 @@
+import asyncio
+import warnings
 from typing import Tuple, Optional, List, Union
 from pydantic import BaseModel, validate_call
 from math import ceil
-import asyncio
 
 import invertedai as iai
 from invertedai.large.common import Region
@@ -17,12 +18,13 @@ async def async_drive_all(async_input_params):
     all_responses = await asyncio.gather(*[iai.async_drive(**input_params) for input_params in async_input_params])
     return all_responses
 
+
 @validate_call
 def large_drive(
     location: str,
     agent_states: List[AgentState],
     agent_properties: List[Union[AgentAttributes,AgentProperties]],
-    recurrent_states: List[RecurrentState],
+    recurrent_states: Optional[List[RecurrentState]] = None,
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[List[LightRecurrentState]] = None,
     get_infractions: bool = False,
@@ -70,8 +72,8 @@ def large_drive(
     single_call_agent_limit:
         The number of agents allowed in a region before it must subdivide. Currently this value 
         represents the capacity of a quadtree leaf node that will subdivide if the number of vehicles 
-        in the region passes this threshold. In any case, this will be limited to the maximum currently 
-        supported by :func:`drive`.
+        in the region, plus relevant neighbouring regions, passes this threshold. In any case, this 
+        will be limited to the maximum currently supported by :func:`drive`.
 
     async_api_calls:
         A flag to control whether to use asynchronous DRIVE calls.
@@ -87,19 +89,26 @@ def large_drive(
     if single_call_agent_limit > DRIVE_MAXIMUM_NUM_AGENTS:
         single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS
         iai.logger.warning(f"Single Call Agent Limit cannot be more than {DRIVE_MAXIMUM_NUM_AGENTS}, limiting this value to {DRIVE_MAXIMUM_NUM_AGENTS} and proceeding.")
-    if not (len(agent_states) == len(agent_properties) == len(recurrent_states)):
-        raise InvalidRequestError(message="Input lists are not of equal size.")
-    if not len(agent_states) > 0:
+    num_agents = len(agent_states)
+    if not (num_agents == len(agent_properties)):
+        if recurrent_states is not None and not (num_agents == len(recurrent_states)):
+            raise InvalidRequestError(message="Input lists are not of equal size.")
+    if not num_agents > 0:
         raise InvalidRequestError(message="Valid call must contain at least 1 agent.")
 
     # Convert any AgentAttributes to AgentProperties for backwards compatibility 
     agent_properties_new = []
+    is_using_attributes = False
     for properties in agent_properties:
         properties_new = properties
         if isinstance(properties,AgentAttributes):
             properties_new = convert_attributes_to_properties(properties)
+            is_using_attributes = True
         agent_properties_new.append(properties_new)
     agent_properties = agent_properties_new
+
+    if is_using_attributes:
+        warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
     # Generate quadtree
     agent_x = [agent.center.x for agent in agent_states]
@@ -115,7 +124,12 @@ def large_drive(
             size=region_size
         ),
     )
-    for i, (agent, attrs, recurr_state) in enumerate(zip(agent_states,agent_properties,recurrent_states)):
+    for i, (agent, attrs) in enumerate(zip(agent_states,agent_properties)):
+        if recurrent_states is None:
+            recurr_state = None
+        else:
+            recurr_state = recurrent_states[i]
+
         agent_info = QuadTreeAgentInfo.fromlist([agent, attrs, recurr_state, i])
         is_inserted = quadtree.insert(agent_info)
 
@@ -141,8 +155,8 @@ def large_drive(
                 input_params = {
                     "location":location,
                     "agent_states":region.agent_states+region_buffer.agent_states,
+                    "recurrent_states":None if recurrent_states is None else region.recurrent_states+region_buffer.recurrent_states,
                     "agent_properties":region.agent_properties+region_buffer.agent_properties,
-                    "recurrent_states":region.recurrent_states+region_buffer.recurrent_states,
                     "light_recurrent_states":light_recurrent_states,
                     "traffic_lights_states":traffic_lights_states,
                     "get_birdview":False,

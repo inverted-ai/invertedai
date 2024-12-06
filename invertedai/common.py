@@ -13,7 +13,6 @@ from invertedai.error import InvalidInputType, InvalidInput
 RECURRENT_SIZE = 152
 TrafficLightId = int
 
-
 class RecurrentState(BaseModel):
     """
     Recurrent state used in :func:`iai.drive`.
@@ -49,6 +48,7 @@ class Point(BaseModel):
 class Origin(Point):
     # lat/lon of the origin point use to project the OSM map to UTM
     pass
+
 
 
 class LocationMap(BaseModel):
@@ -184,7 +184,13 @@ class AgentAttributes(BaseModel):
             else:
                 agent_type, = l        
         assert type(waypoint) is list if waypoint is not None else True, "waypoint must be a list of two floats"
-        return cls(length=length, width=width, rear_axis_offset=rear_axis_offset, agent_type=agent_type, waypoint=Point(x=waypoint[0], y=waypoint[1]) if waypoint is not None else None)
+        return cls(
+            length=length, 
+            width=width, 
+            rear_axis_offset=rear_axis_offset, 
+            agent_type=agent_type, 
+            waypoint=Point(x=waypoint[0], y=waypoint[1]) if waypoint is not None else None
+        )
 
     def tolist(self):
         """
@@ -203,6 +209,7 @@ class AgentAttributes(BaseModel):
         if self.waypoint is not None:
             attr_list.append([self.waypoint.x, self.waypoint.y])
         return attr_list
+
 
 class AgentProperties(BaseModel):
     """
@@ -224,15 +231,27 @@ class AgentProperties(BaseModel):
 
     @classmethod
     def deserialize(cls, val):
-        return cls(length=val['length'], width=val['width'], rear_axis_offset=val['rear_axis_offset'], agent_type=val['agent_type'], 
-                   waypoint=Point(x=val['waypoint'][0], y=val['waypoint'][1]) if val['waypoint'] else None, max_speed=val['max_speed'])
+        return cls(
+            length=val['length'], 
+            width=val['width'], 
+            rear_axis_offset=val['rear_axis_offset'], 
+            agent_type=val['agent_type'], 
+            waypoint=Point(x=val['waypoint'][0], y=val['waypoint'][1]) if val['waypoint'] else None, max_speed=val['max_speed']
+        )
     
     def serialize(self):
         """
         Convert AgentProperties to a valid request format in json
         """
-        return {"length": self.length, "width": self.width, "rear_axis_offset": self.rear_axis_offset, "agent_type": self.agent_type, 
-                 "waypoint": [self.waypoint.x, self.waypoint.y] if self.waypoint else None, "max_speed": self.max_speed}
+        return {
+            "length": self.length, 
+            "width": self.width, 
+            "rear_axis_offset": self.rear_axis_offset, 
+            "agent_type": self.agent_type, 
+            "waypoint": [self.waypoint.x, self.waypoint.y] if self.waypoint else None, 
+            "max_speed": self.max_speed
+        }
+    
     
 class AgentState(BaseModel):
     """
@@ -240,7 +259,7 @@ class AgentState(BaseModel):
 
     See Also
     --------
-    AgentAttributes
+    AgentProperties
     """
 
     center: Point  #: The center point of the agent's bounding box.
@@ -260,7 +279,11 @@ class AgentState(BaseModel):
         Build AgentState from a list with this order: [x, y, orientation, speed]
         """
         x, y, psi, v = l
-        return cls(center=Point(x=x, y=y), orientation=psi, speed=v)
+        return cls(
+            center=Point(x=x, y=y), 
+            orientation=psi, 
+            speed=v
+        )
 
 
 class InfractionIndicators(BaseModel):
@@ -275,7 +298,11 @@ class InfractionIndicators(BaseModel):
     @classmethod
     def fromlist(cls, l):
         collisions, offroad, wrong_way = l
-        return cls(collisions=collisions, offroad=offroad, wrong_way=wrong_way)
+        return cls(
+            collisions=collisions, 
+            offroad=offroad, 
+            wrong_way=wrong_way
+        )
 
 
 class StaticMapActor(BaseModel):

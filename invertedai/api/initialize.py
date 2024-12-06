@@ -1,7 +1,8 @@
 import time
+import asyncio
+import warnings
 from pydantic import BaseModel, validate_call
 from typing import List, Optional, Dict, Tuple
-import asyncio
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -17,15 +18,15 @@ from invertedai.api.mock import (
     get_mock_light_recurrent_states
 )
 from invertedai.common import (
-    RecurrentState,
-    AgentState,
     AgentAttributes,
     AgentProperties,
-    TrafficLightStatesDict,
+    AgentState,
     Image,
     InfractionIndicators,
-    LightRecurrentStates,
     LightRecurrentState,
+    LightRecurrentStates,
+    RecurrentState,
+    TrafficLightStatesDict
 )
 
 
@@ -33,7 +34,6 @@ class InitializeResponse(BaseModel):
     """
     Response returned from an API call to :func:`iai.initialize`.
     """
-
     agent_states: List[AgentState] #: Initial states of all initialized agents.
     recurrent_states: List[Optional[RecurrentState]] #: To pass to :func:`iai.drive` at the first time step.
     agent_attributes: List[Optional[AgentAttributes]] #: Static attributes of all initialized agents.
@@ -61,18 +61,16 @@ def initialize(
 ) -> InitializeResponse:
     """
     Initializes a simulation in a given location, using a combination of **user-defined** and **sampled** agents.
-    **User-defined** agents are placed in a scene first, after which a number of agents are sampled conditionally 
-    inferred from the `agent_count` argument.
-    If **user-defined** agents are desired, `states_history` must contain a list of `AgentState's` of all **user-defined** 
-    agents per historical time step.
-    Any **user-defined** agent must have a corresponding fully specified static `AgentAttribute` in `agent_attributes`. 
-    Any **sampled** agents not specified in `agent_attributes` will be generated with default static attribute values however **sampled** 
-    agents may be defined by specifying `agent_type` only. 
-    Agents are identified by their list index, so ensure the indices of each agent match in `states_history` and
-    `agent_attributes` when applicable. 
-    If traffic lights are present in the scene, their states history can be specified with a list of `TrafficLightStatesDict`, each represent light states for one timestep, 
-    with the last element representing the current time step. It is legal to omit the traffic light state specification, 
-    and the scene will be initialized with a light state configuration consistent with agent states.
+    The `agent_properties` parameter is used to determine the agents that are placed into the given `location`. 
+    **User-defined** agents are placed into a scene first, after which a number of agents are sampled conditionally.
+    Any **user-defined** agent must have a corresponding fully specified static `AgentProperties` object in `agent_properties`.
+    Furthermore for all **user-defined** agents, `states_history` must contain a list of `AgentState's` of all **user-defined** agents per historical time step. 
+    Per desired **sampled** agent, an `AgentProperties` object must be provided at the end of `agent_properties` with only its `agent_type` specified.
+    Agents are identified by their list index, so ensure the indices of each agent match in `states_history` and`agent_properties` when applicable. 
+    The `agent_attributes` and `agent_count` parameters are deprecated.
+    If traffic lights are present in the scene, their states history can be specified with a list of `TrafficLightStatesDict`, each 
+    represent light states for one timestep, with the last element representing the current time step. It is legal to omit the traffic 
+    light state specification, and the scene will be initialized with a light state configuration consistent with agent states.
     Every simulation must start with a call to this function in order to obtain correct recurrent states for :func:`drive`.
 
     Parameters
@@ -81,11 +79,11 @@ def initialize(
         Location name in IAI format.
 
     agent_attributes:
-        Static attributes for all agents.
+        Deprecated. Static attributes for all agents.
         The pre-defined agents should be specified first, followed by the sampled agents.
         The optional waypoint passed will be ignored for Initialize.
     agent_properties:
-        Agent properties for all agents, replacing soon to be deprecated `agent_attributes`.
+        Agent properties for all agents, replacing the deprecated `agent_attributes`.
         The pre-defined agents should be specified first, followed by the sampled agents.
         The optional waypoint passed will be ignored for Initialize.
         max_speed: optional [float], the desired maximum speed of the agent in m/s.
@@ -156,6 +154,9 @@ def initialize(
             light_recurrent_states=get_mock_light_recurrent_states(len(traffic_light_state_history[0])) if traffic_light_state_history is not None else None
         )
         return response
+
+    if agent_attributes is not None:
+        warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
     model_inputs = dict(
         location=location,

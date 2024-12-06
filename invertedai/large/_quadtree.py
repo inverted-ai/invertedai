@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 import invertedai as iai
@@ -6,6 +8,7 @@ from invertedai.common import Point, AgentState, AgentProperties, RecurrentState
 
 BUFFER_FOV = 35
 QUADTREE_SIZE_BUFFER = 1
+
 
 class QuadTreeAgentInfo(BaseModel):
     """
@@ -19,8 +22,8 @@ class QuadTreeAgentInfo(BaseModel):
     """
 
     agent_state: AgentState
+    recurrent_state: Optional[RecurrentState] = None
     agent_properties: AgentProperties
-    recurrent_state: RecurrentState
     agent_id: int
 
     def tolist(self):
@@ -30,6 +33,7 @@ class QuadTreeAgentInfo(BaseModel):
     def fromlist(cls, l):
         agent_state, agent_properties, recurrent_state, agent_id = l
         return cls(agent_state=agent_state, agent_properties=agent_properties, recurrent_state=recurrent_state, agent_id=agent_id)
+
 
 class QuadTree:
     def __init__(
