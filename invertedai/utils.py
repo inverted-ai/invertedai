@@ -899,10 +899,9 @@ class ScenePlotter():
         assert (agent_attributes is not None) ^ (agent_properties is not None), \
             "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
 
-        warnings.simplefilter("once")
         if agent_attributes is not None:
             self.agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
-            warnings.warn('Warning: agent_attributes is deprecated. Please use agent_properties.', category=DeprecationWarning)
+            warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
         else:
             self.agent_properties = agent_properties
 
