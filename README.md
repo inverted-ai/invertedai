@@ -44,11 +44,13 @@ so you can also download it and build locally.
 ## Minimal example
 
 ``` python
-import numpy as np
-import matplotlib.pyplot as plt
 import invertedai as iai
+from invertedai.utils import get_default_agent_properties
+from invertedai.common import AgentType
 
-location = "iai:drake_street_and_pacific_blvd"  # select one of available locations
+import matplotlib.pyplot as plt
+
+location = "canada:drake_street_and_pacific_blvd"  # select one of available locations
 
 iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
 
@@ -60,21 +62,20 @@ location_info_response = iai.location_info(location=location)
 # initialize the simulation by spawning NPCs
 response = iai.initialize(
     location=location,  # select one of available locations
-    agent_count=10,    # number of NPCs to spawn
-    get_birdview=True,  # provides simple visualization - don't use in production
-    traffic_light_state_history=None
+    agent_properties=get_default_agent_properties({AgentType.car:10}),  # number of NPCs to spawn
 )
-agent_attributes = response.agent_attributes  # get dimension and other attributes of NPCs
+agent_properties = response.agent_properties  # get dimension and other attributes of NPCs
 
-location_info_response = iai.location_info(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(rendered_static_map,
-                                       location_info_response.map_fov,
-                                       (location_info_response.map_center.x, location_info_response.map_center.y),
-                                       location_info_response.static_actors)
+scene_plotter = iai.utils.ScenePlotter(
+    rendered_static_map,
+    location_info_response.map_fov,
+    (location_info_response.map_center.x, location_info_response.map_center.y),
+    location_info_response.static_actors
+)
 scene_plotter.initialize_recording(
     agent_states=response.agent_states,
-    agent_attributes=agent_attributes,
+    agent_properties=agent_properties,
 )
 
 print("Begin stepping through simulation.")
@@ -83,10 +84,9 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
     # query the API for subsequent NPC predictions
     response = iai.drive(
         location=location,
-        agent_attributes=agent_attributes,
+        agent_properties=agent_properties,
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
-        get_birdview=True,
         light_recurrent_states=response.light_recurrent_states,
     )
 
@@ -114,9 +114,12 @@ Conceptually, the API is used to establish synchronous co-simulation between you
 your machine and the NPC engine running on Inverted AI servers. The basic integration in Python looks like this.
 
 ```python
+import invertedai as iai
+from invertedai.utils import get_default_agent_properties
+from invertedai.common import AgentType
+
 from typing import List
 import numpy as np
-import invertedai as iai
 import matplotlib.pyplot as plt
 
 iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
@@ -152,10 +155,10 @@ class LocalSimulator:
         return self.ego_state
 
 print("Begin initialization.")
-location = 'iai:ubc_roundabout'
+location = "canada:drake_street_and_pacific_blvd"
 iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for Inverted AI API
     location=location,  # select one of available locations
-    agent_count=5,  # how many vehicles in total to use in the simulation
+    agent_properties=get_default_agent_properties({AgentType.car:5}),  # how many vehicles in total to use in the simulation
     ego_agent_mask=[True, False, False, False, False],  # first vehicle is ego, rest are NPCs
     get_birdview=False,  # provides simple visualization - don't use in production
     traffic_lights=True,  # gets the traffic light states and used for initialization and steping the simulation
@@ -163,13 +166,15 @@ iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for In
 
 location_info_response = iai.location_info(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(rendered_static_map,
-                                       location_info_response.map_fov,
-                                       (location_info_response.map_center.x, location_info_response.map_center.y),
-                                       location_info_response.static_actors)
+scene_plotter = iai.utils.ScenePlotter(
+    rendered_static_map,
+    location_info_response.map_fov,
+    (location_info_response.map_center.x, location_info_response.map_center.y),
+    location_info_response.static_actors
+)
 scene_plotter.initialize_recording(
     agent_states=iai_simulation.agent_states,
-    agent_attributes=iai_simulation.agent_attributes,
+    agent_properties=iai_simulation.agent_properties,
 )
 
 print("Begin stepping through simulation.")
@@ -182,7 +187,7 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
     # execute predictions in your simulator, using your actions for the ego vehicle
     updated_ego_agent_state = local_simulation.step(predicted_npc_behavior)
     # save the visualization with ScenePlotter
-    scene_plotter.record_step(iai_simulation.agent_states)
+    scene_plotter.record_step(iai_simulation.agent_states,iai_simulation.light_states)
 
 print("Simulation finished, save visualization.")
 # save the visualization to disk
@@ -196,7 +201,6 @@ scene_plotter.animate_scene(
     plot_frame_number=True
 )
 print("Done")
-
 ```
 To quickly check out how Inverted AI NPCs
 behave, try our

@@ -1,17 +1,18 @@
 import time
+import asyncio
+import warnings
 from typing import List, Optional, Tuple
 from pydantic import BaseModel, validate_call
-import asyncio
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
+from invertedai.error import APIConnectionError, InvalidInput
 from invertedai.api.mock import (
     mock_update_agent_state,
     get_mock_birdview,
     get_mock_infractions,
     get_mock_light_recurrent_states
 )
-from invertedai.error import APIConnectionError, InvalidInput
 from invertedai.common import (
     AgentState,
     RecurrentState,
@@ -30,32 +31,22 @@ class DriveResponse(BaseModel):
     Response returned from an API call to :func:`iai.drive`.
     """
 
-    agent_states: List[
-        AgentState
-    ]  #: Predicted states for all agents at the next time step.
-    recurrent_states: List[
-        RecurrentState
-    ]  #: To pass to :func:`iai.drive` at the subsequent time step.
-    birdview: Optional[
-        Image
-    ]  #: If `get_birdview` was set, this contains the resulting image.
-    infractions: Optional[
-        List[InfractionIndicators]
-    ]  #: If `get_infractions` was set, they are returned here.
-    is_inside_supported_area: List[
-        bool
-    ]  #: For each agent, indicates whether the predicted state is inside supported area.
+    agent_states: List[AgentState] #: Predicted states for all agents at the next time step.
+    recurrent_states: List[RecurrentState] #: To pass to :func:`iai.drive` at the subsequent time step.
+    birdview: Optional[Image] #: If `get_birdview` was set, this contains the resulting image.
+    infractions: Optional[List[InfractionIndicators]]  #: If `get_infractions` was set, they are returned here.
+    is_inside_supported_area: List[bool] #: For each agent, indicates whether the predicted state is inside supported area.
     traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, as seen by the agents before they performed their actions resulting in the returned state. Each key-value pair corresponds to one particular traffic light.
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group. Pass this to the next call of :func:`iai.drive` for the server to realistically update the traffic light states.
-    api_model_version: str  # Model version used for this API call
+    api_model_version: str # Model version used for this API call
 
 
 @validate_call
 def drive(
     location: str,
     agent_states: List[AgentState],
-    agent_attributes: Optional[List[AgentAttributes]]=None,
-    agent_properties: Optional[List[AgentProperties]]=None,
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    agent_properties: Optional[List[AgentProperties]] = None,
     recurrent_states: Optional[List[RecurrentState]] = None,
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[LightRecurrentStates] = None,
@@ -67,6 +58,8 @@ def drive(
     api_model_version: Optional[str] = None
 ) -> DriveResponse:
     """
+    Update the state of all given agents forward one time step. Agents are identified by their list index.
+
     Parameters
     ----------
     location:
@@ -79,7 +72,7 @@ def drive(
         speed: [float] in m/s.
 
     agent_attributes:
-        Static attributes of all agents.
+        Deprecated. Static attributes of all agents.
         List of agent attributes. Each agent requires, length: [float]
         width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
         currently supports 'car' and 'pedestrian'.
@@ -156,6 +149,9 @@ def drive(
             api_model_version=api_model_version if api_model_version is not None else "best"
         )
         return response
+
+    if agent_attributes is not None:
+        warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning) 
 
     def _tolist(input_data: List):
         if not isinstance(input_data, list):

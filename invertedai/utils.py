@@ -1,20 +1,17 @@
-import asyncio
 import json
 import os
 import re
-import numpy as np
 import csv
 import math
 import logging
 import random
-
 import time
+import numpy as np
+import warnings
 
-from typing import Dict, Optional, List, Tuple
-from tqdm.contrib import tmap
-from itertools import product
+from typing import Dict, Optional, List, Tuple, Union, Any
 from copy import deepcopy
-from pydantic import validate_call
+from pydantic import validate_call, validate_arguments
 
 import requests
 from requests import Response
@@ -22,17 +19,28 @@ from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter, Retry
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 from matplotlib import animation
+from matplotlib.patches import Rectangle
+from matplotlib.animation import FuncAnimation
+from matplotlib.axes import Axes
+from matplotlib import transforms
 
 import invertedai as iai
 import invertedai.api
 import invertedai.api.config
 from invertedai import error
-from invertedai.common import AgentState, AgentAttributes, StaticMapActor, TrafficLightStatesDict, Point, RecurrentState
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
-from invertedai.api.initialize import InitializeResponse
+from invertedai.common import (
+    AgentState, 
+    AgentAttributes, 
+    AgentProperties, 
+    AgentType,
+    RecurrentState,
+    StaticMapActor,
+    TrafficLightState, 
+    TrafficLightStatesDict 
+)
 
 H_SCALE = 10
 text_x_offset = 0
@@ -40,7 +48,6 @@ text_y_offset = 0.7
 text_size = 7
 TIMEOUT_SECS = 600
 MAX_RETRIES = 10
-SLACK = 2
 AGENT_SCOPE_FOV = 120
 
 logger = logging.getLogger(__name__)
@@ -55,7 +62,7 @@ STATUS_MESSAGE = {
 
 
 class Session:
-    def __init__(self):
+    def __init__(self,debug_logger=None):
         self.session = requests.Session()
         self.session.mount(
             "https://",
@@ -81,6 +88,8 @@ class Session:
         self._jitter_factor = 0.5
         self._current_backoff = self._base_backoff
         self._max_backoff = None
+
+        self._debug_logger = debug_logger
 
     @property
     def base_url(self):
@@ -154,7 +163,11 @@ class Session:
     def base_url(self, value):
         self._base_url = value
 
-    def _verify_api_key(self, api_token: str, verifying_url: str):
+    def _verify_api_key(
+        self, 
+        api_token: str, 
+        verifying_url: str
+    ):
         """
         Verifies the API key by making a request to the verifying URL.
 
@@ -200,7 +213,8 @@ class Session:
         Args:
             api_token (str): The API key to be added. Defaults to an empty string.
             key_type (str, optional): The type of API key. Defaults to None. When passed, the base_url will be set according to the key_type.
-            url (str, optional): The URL to be used for the request. Defaults to None. When passed, the base_rul will be set to the passed value and the key_type will be ignored.
+            url (str, optional): The URL to be used for the request. Defaults to None. When passed, the base_rul will be set to the passed value 
+            and the key_type will be ignored.
 
         Raises:
             InvalidAPIKeyError: If the API key is empty and not in development mode.
@@ -222,26 +236,43 @@ class Session:
             request_url = url
         self.base_url = self._verify_api_key(api_token, request_url)
 
-    def use_mock_api(self, use_mock: bool = True) -> None:
+    def use_mock_api(
+        self, 
+        use_mock: bool = True
+    ) -> None:
         invertedai.api.config.mock_api = use_mock
         if use_mock:
             iai.logger.warning(
                 "Using mock Inverted AI API - predictions will be trivial"
             )
 
-    async def async_request(self, *args, **kwargs):
+    async def async_request(
+        self, 
+        *args, 
+        **kwargs
+    ):
         return await to_thread(self.request, *args, **kwargs)
 
     def request(
-        self, model: str, params: Optional[dict] = None, data: Optional[dict] = None
+        self, 
+        model: str, 
+        params: Optional[dict] = None, 
+        data: Optional[dict] = None
     ):
         method, relative_path = iai.model_resources[model]
+        
+        if self._debug_logger is not None:
+            self._debug_logger.append_request(model,data)
+
         response = self._request(
             method=method,
             relative_path=relative_path,
             params=params,
             json_body=data,
         )
+
+        if self._debug_logger is not None:
+            self._debug_logger.append_response(model,response)
 
         return response
 
@@ -362,7 +393,14 @@ class Session:
         # TODO: Add endpoint option and versioning to base_url
         return base_url
 
-    def _handle_error_response(self, rbody, rcode, resp, rheaders, stream_error=False):
+    def _handle_error_response(
+        self, 
+        rbody, 
+        rcode, 
+        resp, 
+        rheaders, 
+        stream_error=False
+    ):
         try:
             error_data = resp["error"]
         except (KeyError, TypeError):
@@ -420,7 +458,10 @@ class Session:
                 error_data.get("message"), rbody, rcode, resp, rheaders
             )
 
-    def _interpret_response_line(self, result):
+    def _interpret_response_line(
+        self, 
+        result
+    ):
         rbody = result.content
         rcode = result.status_code
         rheaders = result.headers
@@ -443,324 +484,52 @@ class Session:
 
         return data
 
+
 @validate_call
-def get_default_agent_attributes(agent_count_dict: Dict[str,int]) -> List[AgentAttributes]:
-    # Function that outputs a list a AgentAttributes with minimal default settings. 
-    # Mainly meant to be used to pad a list of AgentAttributes to send as input to
-    # initialize(). This list is created by reading a dictionary containing the
-    # desired agent types with the agent count for each type respectively.
+def get_default_agent_properties(
+    agent_count_dict: Dict[AgentType,int],
+    use_agent_properties: Optional[bool] = True
+) -> List[Union[AgentAttributes,AgentProperties]]:
+    """
+    Function that outputs a list a AgentAttributes with minimal default settings. 
+    Mainly meant to be used to pad a list of AgentAttributes to send as input to
+    initialize(). This list is created by reading a dictionary containing the
+    desired agent types with the agent count for each type respectively.
+    If desired to use deprecate AgentAttributes instead of AgentProperties, set the
+    use_agent_properties flag to False.
+    """
 
     agent_attributes_list = []
 
     for agent_type, agent_count in agent_count_dict.items():
         for _ in range(agent_count):
-            agent_attributes_list.append(AgentAttributes.fromlist([agent_type]))
+            if use_agent_properties:
+                agent_properties = AgentProperties(agent_type=agent_type)
+                agent_attributes_list.append(agent_properties)
+            else:
+                agent_attributes_list.append(AgentAttributes.fromlist([agent_type]))
 
     return agent_attributes_list
 
-def _get_centers(map_center, height, width, stride):
-    def check_valid_center(center):
-        return (map_center[0] - width) < center[0] < (map_center[0] + width) and \
-            (map_center[1] - height) < center[1] < (map_center[1] + height)
-
-    def get_neighbors(center):
-        return [
-            (center[0] + (i * stride), center[1] + (j * stride))
-            for i, j in list(product(*[(-1, 1),]* 2))
-        ]
-
-    queue, centers = [map_center], []
-
-    while queue:
-        center = queue.pop(0)
-        neighbors = filter(check_valid_center, get_neighbors(center))
-        queue.extend([
-            neighbor
-            for neighbor in neighbors
-            if neighbor not in queue and neighbor not in centers
-        ])
-        if center not in centers and check_valid_center(center):
-            centers.append(center)
-    return centers
-
-def _get_agent_density_per_region(centers,location,agent_density,scaling_factor,display_progress_bar):
-    #Get fraction of image that is a drivable surface (assume all non-black pixels are drivable)
-    center_road_area_dict = {}
-    max_drivable_area_ratio = 0
-    
-    iterable_regions = None
-    if display_progress_bar:
-        iterable_regions = tmap(
-            Point.fromlist, 
-            centers, 
-            total=len(centers),
-            desc=f"Calculating drivable surface areas"
-        )
-    else:
-        iterable_regions = [Point.fromlist(list(center)) for center in centers]
-
-    for area_center in iterable_regions:
-        #Naively check every square within requested area
-        center_tuple = (area_center.x, area_center.y)
-        birdview = iai.location_info(
-            location=location,
-            rendering_fov=100,
-            rendering_center=center_tuple
-        ).birdview_image.decode()
-
-        ## Get number of black pixels
-        birdview_arr_shape = birdview.shape
-        total_num_pixels = birdview_arr_shape[0]*birdview_arr_shape[1]
-        # Convert to grayscale using Luminosity Method: gray = 0.114*B + 0.587*G + 0.299*R
-        # Image should be in BGR color pixel format
-        birdview_grayscale = np.matmul(birdview.reshape(total_num_pixels,3),np.array([[0.114],[0.587],[0.299]]))
-        number_of_black_pix = np.sum(birdview_grayscale == 0)
-
-        drivable_area_ratio = (total_num_pixels-number_of_black_pix)/total_num_pixels 
-        center_road_area_dict[center_tuple] = drivable_area_ratio
-
-        if drivable_area_ratio > max_drivable_area_ratio:
-            max_drivable_area_ratio = drivable_area_ratio
-
-    agent_density_list = []
-    for area_center, drivable_ratio in center_road_area_dict.items():
-        agent_density_list.append(_calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio))
-
-    return agent_density_list
-
-def _calculate_agent_density_max_scaled(agent_density,scaling_factor,drivable_ratio,max_drivable_area_ratio):
-
-    return round(agent_density*(1-scaling_factor*(max_drivable_area_ratio-drivable_ratio)/max_drivable_area_ratio)) if drivable_ratio > 0.0 else 0
 
 @validate_call
-def area_initialization(
-    location: str, 
-    agent_density: int, 
-    agent_attributes: Optional[List[AgentAttributes]] = None,
-    states_history: Optional[List[List[AgentState]]] = None,
-    traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None, 
-    random_seed: Optional[int] = None, 
-    map_center: Optional[Tuple[float,float]] = (0.0,0.0),
-    width: Optional[float] = 100.0, 
-    height: Optional[float] = 100.0, 
-    stride: Optional[float] = 50.0, 
-    scaling_factor: Optional[float] = 1.0, 
-    save_birdviews_to: Optional[str] = None,
-    display_progress_bar: Optional[bool] = True
-):
+def convert_attributes_to_properties(
+    attributes: AgentAttributes
+) -> AgentProperties:
     """
-    A utility function to initialize an area larger than 100x100m. This function breaks up an 
-    area into a grid of 100x100m regions and runs initialize on them all. For any particular 
-    region of interest, existing agents in overlapping, neighbouring regions are passed as 
-    conditional agents to :func:`initialize`. Regions will be rejected and :func:`initialize` 
-    will not be called if it is not possible for agents to exist there (e.g. there are no 
-    drivable surfaces present) or if the agent density criterion is already satisfied. As well,
-    predefined agents may be passed and will be considered as conditional within the 
-    appropriate region.
-
-    Arguments
-    ----------
-    location:
-        Location name in IAI format.
-    
-    agent_density:
-        Maximum agents per 100x100m region to be scaled based on heuristic.
-    
-    agent_attributes:
-        Static attributes for all pre-defined agents ONLY. Use the agent_density argument to 
-        specify the number of agents to be sampled. 
-    
-    states_history:
-        History of pre-defined agent states - the outer list is over time and the inner over agents,
-        in chronological order, i.e., index 0 is the oldest state and index -1 is the current state.
-        The order of agents should be the same as in `agent_attributes`.
-        For best results, provide at least 10 historical states for each agent.
-    
-    traffic_light_state_history:
-        History of traffic light states - the list is over time, in chronological order, i.e.
-        the last element is the current state. If there are traffic lights in the map, 
-        not specifying traffic light state is equivalent to using iai generated light states.
-    
-    random_seed:
-        Controls the stochastic aspects of initialization for reproducibility.
-    
-    map_center:
-        The x,y coordinate of the center of the area to be initialized.
-    
-    width:
-        Distance along the x-axis from the area center to edge of the rectangular area (total 
-        width of the region is 2X the value of this parameter).
-    
-    height:
-        Distance along the y-axis from the area center to edge of the rectangular area (total 
-        height of the region is 2X the value of this parameter).
-    
-    stride:
-        Distance between the centers of the 100x100m regions.
-    
-    scaling_factor:
-        A factor between [0,1] weighting the heuristic for number of agents to spawn in a region. 
-        For example, a value of 0 ignores the heuristic and results in requesting the same number 
-        of agents for all regions.
-    
-    save_birdviews_to:
-        If this variable is not None, the birdview images will be saved to this specified path.
-    
-    display_progress_bar:
-        If True, a bar is displayed showing the progress of all relevant processes.
-    
-    See Also
-    --------
-    :func:`initialize`
+    Convert deprecated AgentAttributes data type to AgentProperties.
     """
-    get_birdview = save_birdviews_to is not None
 
-    agent_states_sampled = []
-    agent_attributes_sampled = []
-    agent_rs_sampled = []
-
-    def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
-        return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
-                (center.y - (agent_scope_fov / 2) < point.y < center.y + (agent_scope_fov / 2)))
-
-    centers = _get_centers(
-        map_center, 
-        height, 
-        width, 
-        stride
+    properties = AgentProperties(
+        length=attributes.length,
+        width=attributes.width,
+        rear_axis_offset=attributes.rear_axis_offset,
+        agent_type=attributes.agent_type,
+        waypoint=attributes.waypoint
     )
 
-    agent_density_list = _get_agent_density_per_region(centers,location,agent_density,scaling_factor,display_progress_bar)
+    return properties
 
-    predefined_agent_recurrent_state_dict = {}
-    if states_history is None: states_history = [[]]
-    if agent_attributes is None: agent_attributes = []
-    for agent in states_history[-1]:
-        predefined_agent_recurrent_state_dict[(agent.center.x,agent.center.y)] = None
-
-    iterable_regions = None
-    if display_progress_bar:
-        iterable_regions = tmap(
-            Point.fromlist, 
-            centers, 
-            total=len(centers),
-            desc=f"Initializing {location.split(':')[1]}"
-        )
-    else:
-        iterable_regions = [Point.fromlist(list(center)) for center in centers]
-
-    for i, region_center in enumerate(iterable_regions):
-
-        # Separate all sampled agents into agents within the region of interest vs remaining outside of the region
-        conditional_agents_sampled = list(filter(
-            lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
-            zip(agent_states_sampled,agent_attributes_sampled,agent_rs_sampled)
-        ))
-
-        remaining_agents = list(filter(
-            lambda x: not inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
-            zip(agent_states_sampled,agent_attributes_sampled,agent_rs_sampled)
-        ))
-
-        states_history_sampled = [x[0] for x in conditional_agents_sampled]
-        agent_attributes_sampled_conditional = [x[1] for x in conditional_agents_sampled]
-        agent_recurrent_states_sampled = [x[2] for x in conditional_agents_sampled]
-        remaining_agents_states = [x[0] for x in remaining_agents]
-        remaining_agents_attrs = [x[1] for x in remaining_agents]
-        remaining_agents_rs = [x[2] for x in remaining_agents]
-
-        # Separate all predefined agents into agents within the region of interest vs not
-        # Contactenate predefined and samped agents within the region of interest, these are now considered conditional to initialize()
-        conditional_agents_predefined = list(filter(
-            lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV, point=x[0].center), 
-            zip(states_history[-1],agent_attributes)
-        ))
-
-        states_history_predefined = [x[0] for x in conditional_agents_predefined]
-        states_history_region_conditional = states_history_predefined + states_history_sampled
-        states_history_region_conditional = [states_history_region_conditional] if len(states_history_region_conditional) > 0 else None
-
-        agent_attributes_predefined_conditional = [x[1] for x in conditional_agents_predefined]
-        agent_attributes_region_conditional = agent_attributes_predefined_conditional + agent_attributes_sampled_conditional
-        num_conditional_agents = len(agent_attributes_region_conditional)
-        agent_attributes_region_conditional = agent_attributes_region_conditional if num_conditional_agents > 0 else None
-
-        agent_density_region = agent_density_list[i]
-        num_agents_to_spawn = agent_density_region - num_conditional_agents
-
-        # Check if this initialization call can be skipped
-        if len(agent_attributes_predefined_conditional) <= 0:
-            if agent_density_region <= 0:
-                #Skip if no agents are requested (e.g. in regions with no drivable surfaces)
-                continue
-            elif num_agents_to_spawn <= 0:
-                #Skip if the calculated number of agents has been satisfied or surpassed
-                continue
-
-        try:
-            all_agents_attributes_in_region = deepcopy(agent_attributes_region_conditional) if agent_attributes_region_conditional is not None else []
-            
-            padded_agent_attributes = get_default_agent_attributes({"car": num_agents_to_spawn})
-            all_agents_attributes_in_region.extend(padded_agent_attributes)
-
-            # Initialize simulation with an API call
-            response = iai.initialize(
-                location=location,
-                states_history=states_history_region_conditional,
-                agent_attributes=all_agents_attributes_in_region,
-                agent_count=agent_density_region,
-                get_infractions=False,
-                traffic_light_state_history=traffic_light_state_history,
-                location_of_interest=(region_center.x, region_center.y),
-                random_seed=random_seed,
-                get_birdview=get_birdview,
-            )
-
-            if traffic_light_state_history is None and response.traffic_lights_states is not None:
-                # If no traffic light states are given, take the first non-None traffic light states output as the consistent traffic light states across all areas
-                traffic_light_state_history = [response.traffic_lights_states]
-
-        except InvertedAIError as e:
-            iai.logger.warning(e)
-
-        # Get the recurrent state for any predefined agents in this region
-        for s, rs in zip(response.agent_states[:len(states_history_predefined)],response.recurrent_states[:len(states_history_predefined)]):
-            predefined_agent_recurrent_state_dict[(s.center.x,s.center.y)] = rs
-
-        # Remove all predefined agents before filtering at the edges
-        response_agent_states_sampled = response.agent_states[len(states_history_predefined):]
-        response_agent_attributes_sampled = response.agent_attributes[len(states_history_predefined):]
-        response_recurrent_states_sampled = response.recurrent_states[len(states_history_predefined):]
-
-        # Filter out agents that are not inside the ROI to avoid collision with other agents not passed as conditional
-        # SLACK is for removing the agents that are very close to the boundary and
-        # they may collide agents not filtered as conditional
-        valid_agents = list(filter(
-            lambda x: inside_fov(center=region_center, agent_scope_fov=AGENT_SCOPE_FOV - SLACK, point=x[0].center),
-            zip(response_agent_states_sampled, response_agent_attributes_sampled, response_recurrent_states_sampled)
-        ))
-
-        valid_agent_state = [x[0] for x in valid_agents]
-        valid_agent_attrs = [x[1] for x in valid_agents]
-        valid_agent_rs = [x[2] for x in valid_agents]
-
-        agent_states_sampled = remaining_agents_states + valid_agent_state
-        agent_attributes_sampled = remaining_agents_attrs + valid_agent_attrs
-        agent_rs_sampled = remaining_agents_rs + valid_agent_rs
-
-        if get_birdview:
-            file_path = f"{save_birdviews_to}_{(region_center.x, region_center.y)}.jpg"
-            response.birdview.decode_and_save(file_path)
-
-    predefined_agent_recurrent_states = []
-    for s in states_history[-1]:
-        predefined_agent_recurrent_states.append(predefined_agent_recurrent_state_dict[(s.center.x,s.center.y)])
-
-    response.agent_states = states_history[-1] + agent_states_sampled
-    response.recurrent_states = predefined_agent_recurrent_states + agent_rs_sampled
-    response.agent_attributes = agent_attributes + agent_attributes_sampled
-
-    return response
 
 @validate_call
 def iai_conditional_initialize(
@@ -768,7 +537,7 @@ def iai_conditional_initialize(
     agent_type_count: Dict[str,int],
     location_of_interest: Tuple[float] = (0,0),
     recurrent_states: Optional[List[RecurrentState]] = None,
-    agent_attributes: Optional[List[AgentAttributes]] = None,
+    agent_properties: Optional[List[AgentProperties]] = None,
     states_history: Optional[List[List[AgentState]]] = None,
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None, 
     get_birdview: Optional[bool] = False,
@@ -800,11 +569,11 @@ def iai_conditional_initialize(
     :func:`initialize`
     """
 
-    conditional_agent_attributes = []
+    conditional_agent_properties = []
     conditional_agent_states_indexes = []
     conditional_recurrent_states = []
     outside_agent_states = []
-    outside_agent_attributes = []
+    outside_agent_properties = []
     outside_recurrent_states = []
 
     current_agent_states = states_history[-1]
@@ -814,10 +583,10 @@ def iai_conditional_initialize(
         dist = math.dist(location_of_interest, (agent_state.center.x, agent_state.center.y))
         if dist < AGENT_SCOPE_FOV:
             conditional_agent_states_indexes.append(i)
-            conditional_agent_attributes.append(agent_attributes[i])
+            conditional_agent_properties.append(agent_properties[i])
             conditional_recurrent_states.append(recurrent_states[i])
 
-            conditional_agent_type = agent_attributes[i].agent_type
+            conditional_agent_type = agent_properties[i].agent_type
             if conditional_agent_type in conditional_agent_type_count:
                 conditional_agent_type_count[conditional_agent_type] -= 1
                 if conditional_agent_type_count[conditional_agent_type] <= 0:
@@ -825,14 +594,14 @@ def iai_conditional_initialize(
 
         else:
             outside_agent_states.append(agent_state)
-            outside_agent_attributes.append(agent_attributes[i])
+            outside_agent_properties.append(agent_properties[i])
             outside_recurrent_states.append(recurrent_states[i])
 
     if not conditional_agent_type_count: #The dictionary is empty.
         iai.logger.warning("Agent count requirement already satisfied, no new agents initialized.")
 
-    padded_agent_attributes = get_default_agent_attributes(conditional_agent_type_count)
-    conditional_agent_attributes.extend(padded_agent_attributes)
+    padded_agent_properties = get_default_agent_properties(conditional_agent_type_count)
+    conditional_agent_properties.extend(padded_agent_properties)
 
     conditional_agent_states = [[]*len(conditional_agent_states_indexes)]
     for ts in range(len(conditional_agent_states)):
@@ -841,7 +610,7 @@ def iai_conditional_initialize(
 
     response = invertedai.api.initialize(
         location = location,
-        agent_attributes = conditional_agent_attributes,
+        agent_properties = conditional_agent_properties,
         states_history = conditional_agent_states,
         location_of_interest = location_of_interest,
         traffic_light_state_history = traffic_light_state_history,
@@ -850,7 +619,7 @@ def iai_conditional_initialize(
         random_seed = random_seed,
         api_model_version = api_model_version
     )
-    response.agent_attributes = response.agent_attributes + outside_agent_attributes
+    response.agent_properties = response.agent_properties + outside_agent_properties
     response.agent_states = response.agent_states + outside_agent_states
     response.recurrent_states = response.recurrent_states + outside_recurrent_states
 
@@ -858,10 +627,16 @@ def iai_conditional_initialize(
 
 
 class APITokenAuth(AuthBase):
-    def __init__(self, api_token):
+    def __init__(
+        self, 
+        api_token
+    ):
         self.api_token = api_token
 
-    def __call__(self, r):
+    def __call__(
+        self, 
+        r
+    ):
         r.headers["x-api-key"] = self.api_token
         r.headers["api-key"] = self.api_token
         return r
@@ -914,11 +689,17 @@ def Jupyter_Render():
             self.int_slider.observe(self.update, "value")
             self.children = [controls, output]
 
-        def update(self, change):
+        def update(
+            self, 
+            change
+        ):
             self.im.set_data(self.buffer[self.int_slider.value])
             self.fig.canvas.draw()
 
-        def add_frame(self, frame):
+        def add_frame(
+            self, 
+            frame
+        ):
             self.buffer.append(frame)
             self.int_slider.max += 1
             self.play.max += 1
@@ -955,7 +736,10 @@ class IAILogger(logging.Logger):
             self.addHandler(file_handler)
 
     @staticmethod
-    def logfmt(message, **params):
+    def logfmt(
+        message, 
+        **params
+    ):
         props = dict(message=message, **params)
 
         def fmt(key, val):
@@ -980,39 +764,80 @@ def rot(rot):
     return np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
 
 
-class ScenePlotter:
+class ScenePlotter():
+    """
+    A class providing features for handling the data visualization of a scene involving IAI data.
+    """
     def __init__(
         self,
-        map_image=None,
-        fov=None,
-        xy_offset=None,
-        static_actors=None,
-        open_drive=None,
-        resolution=(640, 480),
-        dpi=100,
+        map_image: Optional[np.array] = None,
+        fov: Optional[float] = None,
+        xy_offset: Optional[Tuple[float,float]] = None,
+        static_actors: Optional[List[StaticMapActor]] = None,
+        open_drive: Optional[str] = None, 
+        resolution: Tuple[int,int] = (640, 480), 
+        dpi: float = 100,
+        left_hand_coordinates: bool = False,
+        **kwargs
     ):
+        """
+        Arguments
+        ----------
+        map_image:
+            An image used as the background for the visualization decoded from the birdview map taken from location info.
+        fov:
+            A single float value representing the field of view of the visualization that can be taken from location info.
+        xy_offset:
+            A tuple coordinate of the center of the map in metres that can be taken from location info.
+        static_actors:
+            A list of StaticMapActor objects representing objects such as traffic lights that can be taken from location info.
+        open_drive: 
+            If using an ASAM OpenDRIVE format map for visualization, this string parameter is used to indicate the path to the corresponding CSV file.
+        resolution: 
+            The desired resolution of the map image expressed as a Tuple with two integers for the width and height respectively.
+        dpi:
+            Dots per inch to define the level of detail in the image.
+        left_hand_coordinates:
+            Boolean flag dictating whether the X-coordinates of all agents and actors should be reversed to fit a left hand coordinate system.
+
+        Keyword Arguments
+        -----------------
+        map_image:
+            Base image onto which the scene is visualized. This parameter must be provided if using an ASAM OpenDRIVE format map.
+        fov: float
+            The field of view in meters corresponding to the map_image attribute. This parameter must be provided if using an ASAM OpenDRIVE format map.
+        xy_offset:
+            The left-hand offset for the center of the map image. This parameter must be provided if using an ASAM OpenDRIVE format map.
+        static_actors:
+            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided
+             if using an ASAM OpenDRIVE format map.
+        
+        See Also
+        --------
+        :func:`location_info`
+        """
+
+        self._left_hand_coordinates = left_hand_coordinates
+
         self.conditional_agents = None
-        self.agent_attributes = None
+        self.agent_properties = None
         self.traffic_lights_history = None
         self.agent_states_history = None
-        self.open_drive = open_drive
-        self.dpi = dpi
-        self.resolution = resolution
-        self.fov = fov
+        
+        self._open_drive = open_drive
+        self._dpi = dpi
+        self._resolution = resolution
+        
         self.map_image = map_image
-        if not open_drive:
-            self.extent = (
-                -self.fov / 2 + xy_offset[0],
-                self.fov / 2 + xy_offset[0],
-            ) + (-self.fov / 2 + xy_offset[1], self.fov / 2 + xy_offset[1])
-        else:
-            self.map_center = xy_offset
+        self.fov = fov
+        self.xy_offset = xy_offset
+        self.static_actors = static_actors
 
-        self.traffic_lights = {
-            static_actor.actor_id: static_actor
-            for static_actor in static_actors
-            if static_actor.agent_type == "traffic_light"
-        }
+        self.traffic_lights = {static_actor.actor_id: static_actor for static_actor in self.static_actors if static_actor.agent_type == 'traffic_light'}
+
+        if self._open_drive is None:
+            self.extent = (- self.fov / 2 + self.xy_offset[0], self.fov / 2 + self.xy_offset[0]) + \
+                (- self.fov / 2 + self.xy_offset[1], self.fov / 2 + self.xy_offset[1])
 
         self.traffic_light_colors = {
             "red": (1.0, 0.0, 0.0),
@@ -1020,9 +845,10 @@ class ScenePlotter:
             "yellow": (1.0, 0.8, 0.0),
         }
 
-        self.agent_c = (0.2, 0.2, 0.7)
-        self.cond_c = (0.75, 0.35, 0.35)
-        self.dir_c = (0.9, 0.9, 0.9)
+        self.agent_c = (0.125,0.29,0.529)
+        self.agent_ped_c = (1.0, 0.75, 0.8)
+        self.cond_c = (0.78, 0.0, 0.0)
+        self.dir_c = (0.392,1.0,1.0)
         self.v_c = (0.2, 0.75, 0.2)
 
         self.dir_lines = {}
@@ -1033,135 +859,272 @@ class ScenePlotter:
         self.frame_label = None
         self.current_ax = None
 
+        self.numbers = None
+
+        self.agent_face_colors = None 
+        self.agent_edge_colors = None 
+
         self.reset_recording()
 
-        self.numbers = False
-
+    @validate_arguments
     def initialize_recording(
         self,
-        agent_states,
-        agent_attributes,
-        traffic_light_states=None,
-        conditional_agents=None,
+        agent_states: List[AgentState], 
+        agent_attributes: Optional[List[AgentAttributes]] = None, 
+        agent_properties: Optional[List[AgentProperties]] = None,
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
+        conditional_agents: Optional[List[int]] = None
     ):
+        """
+        Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous 
+        agent state, agent attribute, conditional agent, traffic light, and agent style data.
+
+        Arguments
+        ----------
+        agent_states:
+            A list of AgentState objects corresponding to the initial time step to be visualized.
+        agent_attributes:
+            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a 
+            kinematic bicycle model.
+        agent_properties:
+            Static attributes of the agent (with the AgentProperties data type), which don’t change over the course of a simulation. We assume every 
+            agent is a rectangle obeying a kinematic bicycle model.
+        traffic_light_states:
+            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter 
+            should only be used if the corresponding map contains traffic light static actors.
+        conditional_agents:
+            Optional parameter containing a list of agent IDs corresponding to conditional agents to be visualized to distinguish themselves.
+        """
+
+        assert (agent_attributes is not None) ^ (agent_properties is not None), \
+            "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
+
+        if agent_attributes is not None:
+            self.agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+            warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
+        else:
+            self.agent_properties = agent_properties
+
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
-        self.agent_attributes = agent_attributes
         if conditional_agents is not None:
             self.conditional_agents = conditional_agents
         else:
             self.conditional_agents = []
 
+        self.agent_face_colors = None
+        self.agent_edge_colors = None
+
     def reset_recording(self):
+        """
+        Explicitly reset the recording and remove the previous agent state, agent attribute, conditional agent, traffic light, and agent style data.
+        """
         self.agent_states_history = []
         self.traffic_lights_history = []
-        self.agent_attributes = None
+        self.agent_properties = None
         self.conditional_agents = []
+        self.agent_properties = None
+        self.agent_face_colors = None 
+        self.agent_edge_colors = None 
 
-    def record_step(self, agent_states, traffic_light_states=None):
+    @validate_arguments
+    def record_step(
+        self,
+        agent_states: List[AgentState], 
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
+    ):
+        """
+        Record a single timestep of scene data to be used in a visualization
+
+        Arguments
+        ----------
+        agent_states:
+            A list of AgentState objects corresponding to the initial time step to be visualized.
+        traffic_light_states:
+            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should
+            only be used if the corresponding map contains traffic light static actors.
+        """
         self.agent_states_history.append(agent_states)
         self.traffic_lights_history.append(traffic_light_states)
 
+    @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def plot_scene(
         self,
-        agent_states,
-        agent_attributes,
-        traffic_light_states=None,
-        conditional_agents=None,
-        ax=None,
-        numbers=False,
-        direction_vec=True,
-        velocity_vec=False,
+        agent_states: List[AgentState], 
+        agent_attributes: Optional[List[AgentAttributes]] = None, 
+        agent_properties: Optional[List[AgentProperties]] = None, 
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
+        conditional_agents: Optional[List[int]] = None,
+        ax: Optional[Axes] = None,
+        numbers: Optional[List[int]] = None, 
+        direction_vec: bool = True, 
+        velocity_vec: bool = False,
+        agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None,
+        agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
     ):
+        """
+        Plot a single timestep of data then reset the recording. 
+
+        Arguments
+        ----------
+        agent_states:
+            A list of agents to be visualized in the image.
+        agent_attributes: 
+            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic
+            bicycle model.
+        agent_properties:
+            Static attributes of the agent (with the AgentProperties data type), which don’t change over the course of a simulation. We assume every 
+            agent is a rectangle obeying a kinematic bicycle model.
+        traffic_light_states: 
+            Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the 
+            corresponding map contains traffic light static actors.
+        conditional_agents:
+            Optional parameter containing a list of agent IDs of conditional agents to be visualized in the image to distinguish themselves.
+        ax: 
+            A matplotlib Axes object used to plot the image. By default, an Axes object is created if a value of None is passed.
+        numbers: 
+            A list of agent ID's that should be plotted in the image. By default this value is set to None.
+        direction_vec:
+            Flag to determine if a vector showing the vehicles direction should be plotted in the image. By default this flag is set to True.
+        velocity_vec: 
+            Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
+        agent_face_colors:
+            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
+            of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+        agent_edge_colors:
+            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding 
+            index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+
+        """
+        assert (agent_attributes is not None) ^ (agent_properties is not None), \
+            "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
+
+        if agent_attributes is not None:
+            agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+            warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
+
         self.initialize_recording(
-            agent_states,
-            agent_attributes,
+            agent_states=agent_states, 
+            agent_properties=agent_properties,
             traffic_light_states=traffic_light_states,
-            conditional_agents=conditional_agents,
+            conditional_agents=conditional_agents
         )
 
-        self.plot_frame(
-            idx=0,
-            ax=ax,
-            numbers=numbers,
+        self._validate_agent_style_data(
+            agent_face_colors=agent_face_colors,
+            agent_edge_colors=agent_edge_colors
+        )
+
+        self._plot_frame(
+            idx=0, 
+            ax=ax, 
+            numbers=numbers, 
             direction_vec=direction_vec,
-            velocity_vec=velocity_vec,
-            plot_frame_number=False,
+            velocity_vec=velocity_vec, 
+            plot_frame_number=False
         )
 
         self.reset_recording()
 
-    def plot_frame(
-        self,
-        idx,
-        ax=None,
-        numbers=False,
-        direction_vec=False,
-        velocity_vec=False,
-        plot_frame_number=False,
-    ):
-        self._initialize_plot(
-            ax=ax,
-            numbers=numbers,
-            direction_vec=direction_vec,
-            velocity_vec=velocity_vec,
-            plot_frame_number=plot_frame_number,
-        )
-        self._update_frame_to(idx)
-
+    @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def animate_scene(
         self,
-        output_name=None,
-        start_idx=0,
-        end_idx=-1,
-        ax=None,
-        numbers=False,
-        direction_vec=True,
-        velocity_vec=False,
-        plot_frame_number=False,
-    ):
-        self._initialize_plot(
-            ax=ax,
-            numbers=numbers,
-            direction_vec=direction_vec,
-            velocity_vec=velocity_vec,
-            plot_frame_number=plot_frame_number,
-        )
+        output_name: Optional[str] = None,
+        start_idx: int = 0, 
+        end_idx: int = -1,
+        ax: Optional[Axes] = None,
+        numbers: Optional[List[int]] = None, 
+        direction_vec: bool = True, 
+        velocity_vec: bool = False,
+        plot_frame_number: bool = False, 
+        agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None,
+        agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
+    ) -> FuncAnimation:
+        """
+        Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
+
+        Parameters
+        ----------
+        output_name: 
+            File name of the gif to which the animation will be saved.
+        start_idx:
+            The index of the time step from which the animation will begin. By default it is assumed all recorded steps are desired to be animated.
+        end_idx:
+            The index of the time step from which the animation will end. By default it is assumed all recorded steps are desired to be animated.
+        ax: 
+            A matplotlib Axes object used to plot the animation. By default, an Axes object is created if a value of None is passed.
+        numbers: 
+            A list of agent ID's that should be plotted in the image. By default this value is set to None.
+        direction_vec: 
+            Flag to determine if a vector showing the vehicles direction should be plotted in the animation. By default this flag is set to True.
+        velocity_vec:
+            Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
+        plot_frame_number: 
+            Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
+        agent_face_colors:
+            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
+            of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+        agent_edge_colors:
+            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index 
+            ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+        """
+
+        self._validate_agent_style_data(agent_face_colors,agent_edge_colors)
+
+        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
+                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
-        fig.set_size_inches(
-            self.resolution[0] / self.dpi, self.resolution[1] / self.dpi, True
-        )
+        fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
 
         def animate(i):
             self._update_frame_to(i)
 
-        ani = animation.FuncAnimation(
-            fig, animate, np.arange(start_idx, end_idx), interval=100
-        )
+        ani = FuncAnimation(
+            fig, animate, np.arange(start_idx, end_idx), interval=100)
         if output_name is not None:
-            ani.save(f"{output_name}", writer="pillow", dpi=self.dpi)
+            ani.save(f'{output_name}', writer='pillow', dpi=self._dpi)
         return ani
 
-    def _initialize_plot(
-        self,
-        ax=None,
-        numbers=False,
-        direction_vec=True,
-        velocity_vec=False,
-        plot_frame_number=False,
-    ):
+    def _transform_point_to_left_hand_coordinate_frame(self,x,orientation):
+        t_x = 2*self.xy_offset[0] - x
+        if orientation >= 0:
+            t_orientation = -orientation + math.pi
+        else:
+            t_orientation = -orientation - math.pi
+
+        return t_x, t_orientation
+
+    def _plot_frame(self, idx, ax=None, numbers=None, direction_vec=True,
+                   velocity_vec=False, plot_frame_number=False):
+        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
+                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+        self._update_frame_to(idx)
+
+    def _validate_agent_style_data(self,agent_face_colors,agent_edge_colors):
+        if self.agent_properties is not None: 
+            if agent_face_colors is not None:
+                if len(agent_face_colors) != len(self.agent_properties):
+                    raise Exception("Number of agent face colors does not match number of agents.")
+            if agent_edge_colors is not None:
+                if len(agent_edge_colors) != len(self.agent_properties):
+                    raise Exception("Number of agent edge colors does not match number of agents.")
+
+        self.agent_face_colors = agent_face_colors
+        self.agent_edge_colors = agent_edge_colors
+
+    def _initialize_plot(self, ax=None, numbers=None, direction_vec=True,
+                         velocity_vec=False, plot_frame_number=False):
         if ax is None:
             plt.clf()
             ax = plt.gca()
-        if not self.open_drive:
+        if self._open_drive is None:
             ax.imshow(self.map_image, extent=self.extent)
         else:
-            self._draw_xord_map(ax)
-            self.extent = (
-                self.map_center[0] - self.fov / 2,
-                self.map_center[0] + self.fov / 2,
-            ) + (self.map_center[1] - self.fov / 2, self.map_center[1] + self.fov / 2)
+            self._draw_xodr_map(ax)
+            self.extent = (self.xy_offset[0] - self.fov / 2, self.xy_offset[0] + self.fov / 2) +\
+                (self.xy_offset[1] - self.fov / 2, self.xy_offset[1] + self.fov / 2)
+
             ax.set_xlim((self.extent[0], self.extent[1]))
             ax.set_ylim((self.extent[2], self.extent[3]))
         self.current_ax = ax
@@ -1180,9 +1143,22 @@ class ScenePlotter:
 
         self._update_frame_to(0)
 
+    def _get_color(self,agent_idx,color_list):
+        c = None
+        if color_list and color_list[agent_idx]:
+            is_good_color_format = isinstance(color_list[agent_idx],tuple)
+            for pc in color_list[agent_idx]:
+                is_good_color_format *= isinstance(pc,float) and (0.0 <= pc <= 1.0)
+            
+            if not is_good_color_format:
+                raise Exception(f"Expected color format is Tuple[float,float,float] with 0 <= float <= 1 but received {color_list[agent_idx]}.")
+            c = color_list[agent_idx]
+
+        return c
+
     def _update_frame_to(self, frame_idx):
         for i, (agent, agent_attribute) in enumerate(
-            zip(self.agent_states_history[frame_idx], self.agent_attributes)
+            zip(self.agent_states_history[frame_idx], self.agent_properties)
         ):
             self._update_agent(i, agent, agent_attribute)
 
@@ -1193,76 +1169,105 @@ class ScenePlotter:
         if self.plot_frame_number:
             if self.frame_label is None:
                 self.frame_label = self.current_ax.text(
-                    self.extent[0], self.extent[2], str(frame_idx), c="r", fontsize=18
+                    self.extent[0], 
+                    self.extent[2], 
+                    str(frame_idx), 
+                    c="r", 
+                    fontsize=18
                 )
             else:
                 self.frame_label.set_text(str(frame_idx))
 
-        if not self.open_drive:
+        if self._open_drive is None:
             self.current_ax.set_xlim(*self.extent[0:2])
             self.current_ax.set_ylim(*self.extent[2:4])
 
     def _update_agent(self, agent_idx, agent, agent_attribute):
         l, w = agent_attribute.length, agent_attribute.width
+        if agent_attribute.agent_type == "pedestrian":
+            l, w = 1.5, 1.5
         x, y = agent.center.x, agent.center.y
         v = agent.speed
         psi = agent.orientation
-        box = np.array(
-            [
-                [0, 0],
-                [l * 0.5, 0],  # direction vector
-                [0, 0],
-                [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
-            ]
-        )
+
+        if self._left_hand_coordinates:
+            x, psi = self._transform_point_to_left_hand_coordinate_frame(x,psi)
+
+        box = np.array([
+            [0, 0], [l * 0.5, 0],  # direction vector
+            [0, 0], [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
+        ])
+
         box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
         if self.direction_vec:
+            marker_offset = agent_attribute.length/4
+            x_data = x + marker_offset*math.cos(psi)
+            y_data = y + marker_offset*math.sin(psi)
+            marker_data = (3, 0, (-90+180*psi/math.pi))
+
             if agent_idx not in self.dir_lines:
                 self.dir_lines[agent_idx] = self.current_ax.plot(
-                    box[0:2, 0], box[0:2, 1], lw=2.0, c=self.dir_c
-                )[
-                    0
-                ]  # plot the direction vector
+                    x_data,
+                    y_data,
+                    marker=marker_data,
+                    markersize=agent_attribute.width*400/self.fov, 
+                    linestyle='None',
+                    c=self.dir_c
+                )
             else:
-                self.dir_lines[agent_idx].set_xdata(box[0:2, 0])
-                self.dir_lines[agent_idx].set_ydata(box[0:2, 1])
+                self.dir_lines[agent_idx][0].set_xdata(x_data)
+                self.dir_lines[agent_idx][0].set_ydata(y_data)
+                self.dir_lines[agent_idx][0].set_marker(marker_data)
 
         if self.velocity_vec:
             if agent_idx not in self.v_lines:
                 self.v_lines[agent_idx] = self.current_ax.plot(
-                    box[2:4, 0], box[2:4, 1], lw=1.5, c=self.v_c
-                )[
-                    0
-                ]  # plot the speed
+                    box[2:4, 0], 
+                    box[2:4, 1], 
+                    lw=1.5, 
+                    c=self.v_c
+                )[0]  # plot the speed
             else:
                 self.v_lines[agent_idx].set_xdata(box[2:4, 0])
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
-        if (type(self.numbers) == bool and self.numbers) or (
-            type(self.numbers) == list and agent_idx in self.numbers
-        ):
+        
+        if self.numbers is not None and agent_idx in self.numbers:
             if agent_idx not in self.box_labels:
                 self.box_labels[agent_idx] = self.current_ax.text(
-                    x, y, str(agent_idx), c="r", fontsize=18
+                    x, 
+                    y, 
+                    str(agent_idx), 
+                    c="r", 
+                    fontsize=18
                 )
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
                 self.box_labels[agent_idx].set_x(x)
                 self.box_labels[agent_idx].set_y(y)
 
-        if agent_idx in self.conditional_agents:
-            c = self.cond_c
-        else:
-            c = self.agent_c
+        lw = 1
+        fc = self._get_color(agent_idx,self.agent_face_colors)
+        if fc is None:
+            if agent_idx in self.conditional_agents:
+                fc = self.cond_c
+            else:
+                fc = self.agent_c
+        ec = self._get_color(agent_idx,self.agent_edge_colors)
+        if ec is None:
+            lw = 0
+            ec = fc
 
         rect = Rectangle(
-            (x - l / 2, y - w / 2),
-            l,
-            w,
-            angle=psi * 180 / np.pi,
-            rotation_point="center",
-            fc=c,
-            lw=0,
+            (x - l / 2, y - w / 2), 
+            l, 
+            w, 
+            angle=psi * 180 / np.pi, 
+            rotation_point='center', 
+            fc=fc, 
+            ec=ec, 
+            lw=lw
         )
+
         if agent_idx in self.actor_boxes:
             self.actor_boxes[agent_idx].remove()
         self.actor_boxes[agent_idx] = rect
@@ -1273,7 +1278,10 @@ class ScenePlotter:
         light = self.traffic_lights[light_id]
         x, y = light.center.x, light.center.y
         psi = light.orientation
-        l, w = light.length, light.width
+        l, w = max(light.length,1.0), max(light.width,1.0)
+
+        if self._left_hand_coordinates:
+            x, psi = self._transform_point_to_left_hand_coordinate_frame(x,psi)
 
         rect = Rectangle(
             (x - l / 2, y - w / 2),
@@ -1289,13 +1297,13 @@ class ScenePlotter:
         self.current_ax.add_patch(rect)
         self.traffic_light_boxes[light_id] = rect
 
-    def _draw_xord_map(self, ax, extras=False):
+    def _draw_xodr_map(self, ax, extras=False):
         """
         This function plots the parsed xodr map
-        the `odrplot` of `esmini` is used for plotting and parsing xord
+        the `odrplot` of `esmini` is used for plotting and parsing xodr
         https: // esmini.github.io/  # _tools_overview
         """
-        with open(self.open_drive) as f:
+        with open(self._open_drive) as f:
             reader = csv.reader(f, skipinitialspace=True)
             positions = list(reader)
 
@@ -1468,3 +1476,4 @@ class ScenePlotter:
                 )
 
         return None
+

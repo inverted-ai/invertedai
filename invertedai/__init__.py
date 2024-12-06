@@ -1,4 +1,5 @@
 import os
+import warnings
 import importlib.metadata
 __version__ = importlib.metadata.version("invertedai")
 from distutils.util import strtobool
@@ -10,6 +11,17 @@ from invertedai.api.drive import drive, async_drive
 from invertedai.api.blame import blame, async_blame
 from invertedai.cosimulation import BasicCosimulation
 from invertedai.utils import Jupyter_Render, IAILogger, Session
+from invertedai.large.initialize import (
+    get_regions_in_grid, 
+    get_number_of_agents_per_region_by_drivable_area, 
+    get_regions_default, 
+    large_initialize
+)
+from invertedai.large.drive import large_drive
+from invertedai.logs.logger import LogWriter, LogReader
+from invertedai.logs.debug_logger import DebugLogger
+
+warnings.filterwarnings(action="once",message=".*agent_attributes.*")
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
 if dev:
@@ -21,11 +33,14 @@ log_level = os.environ.get("IAI_LOG_LEVEL", "WARNING")
 log_console = strtobool(os.environ.get("IAI_LOG_CONSOLE", "true"))
 log_file = strtobool(os.environ.get("IAI_LOG_FILE", "false"))
 api_key = os.environ.get("IAI_API_KEY", "")
+debug_logger_path = os.environ.get("IAI_LOGGER_PATH", None)
 
-
+debug_logger = None
+if debug_logger_path is not None:
+    debug_logger = DebugLogger(debug_logger_path)
 logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log_file))
 
-session = Session()
+session = Session(debug_logger)
 if api_key:
     session.add_apikey(api_key)
 add_apikey = session.add_apikey
