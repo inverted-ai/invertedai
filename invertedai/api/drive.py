@@ -151,7 +151,7 @@ def drive(
         return response
 
     if agent_attributes is not None:
-        warnings.warn('Warning: agent_attributes is deprecated. Please use agent_properties.') 
+        warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning) 
 
     def _tolist(input_data: List):
         if not isinstance(input_data, list):

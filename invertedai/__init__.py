@@ -1,4 +1,5 @@
 import os
+import warnings
 import importlib.metadata
 __version__ = importlib.metadata.version("invertedai")
 from distutils.util import strtobool
@@ -19,6 +20,8 @@ from invertedai.large.initialize import (
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriter, LogReader
 from invertedai.logs.debug_logger import DebugLogger
+
+warnings.filterwarnings(action="once",message=".*agent_attributes.*")
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
 if dev:

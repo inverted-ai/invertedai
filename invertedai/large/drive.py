@@ -108,7 +108,7 @@ def large_drive(
     agent_properties = agent_properties_new
 
     if is_using_attributes:
-        warnings.warn('Warning: AgentAttributes data type is deprecated. Please use AgentProperties.')
+        warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
     # Generate quadtree
     agent_x = [agent.center.x for agent in agent_states]

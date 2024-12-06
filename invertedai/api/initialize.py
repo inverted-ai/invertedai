@@ -156,7 +156,7 @@ def initialize(
         return response
 
     if agent_attributes is not None:
-        warnings.warn('Warning: agent_attributes is deprecated. Please use agent_properties.')
+        warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
     model_inputs = dict(
         location=location,
