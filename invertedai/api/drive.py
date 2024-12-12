@@ -1,17 +1,18 @@
 import time
+import asyncio
+import warnings
 from typing import List, Optional, Tuple
 from pydantic import BaseModel, validate_call
-import asyncio
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
+from invertedai.error import APIConnectionError, InvalidInput
 from invertedai.api.mock import (
     mock_update_agent_state,
     get_mock_birdview,
     get_mock_infractions,
     get_mock_light_recurrent_states
 )
-from invertedai.error import APIConnectionError, InvalidInput
 from invertedai.common import (
     AgentState,
     RecurrentState,
@@ -57,6 +58,8 @@ def drive(
     api_model_version: Optional[str] = None
 ) -> DriveResponse:
     """
+    Update the state of all given agents forward one time step. Agents are identified by their list index.
+
     Parameters
     ----------
     location:
@@ -69,7 +72,7 @@ def drive(
         speed: [float] in m/s.
 
     agent_attributes:
-        Static attributes of all agents.
+        Deprecated. Static attributes of all agents.
         List of agent attributes. Each agent requires, length: [float]
         width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
         currently supports 'car' and 'pedestrian'.
@@ -146,6 +149,9 @@ def drive(
             api_model_version=api_model_version if api_model_version is not None else "best"
         )
         return response
+
+    if agent_attributes is not None:
+        warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning) 
 
     def _tolist(input_data: List):
         if not isinstance(input_data, list):
