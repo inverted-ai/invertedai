@@ -262,9 +262,8 @@ class Session:
         method, relative_path = iai.model_resources[model]
         
         if self._debug_logger is not None:
-            if data is not None:
-                request_data = data
-            elif params is not None:
+            request_data = data
+            if model == "location_info":
                 request_data = params
             self._debug_logger.append_request(model,request_data)
 
