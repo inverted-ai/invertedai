@@ -263,7 +263,7 @@ class Session:
         
         if self._debug_logger is not None:
             request_data = data
-            if model == "location_info":
+            if params is not None:
                 request_data = params
             self._debug_logger.append_request(model,request_data)
 
