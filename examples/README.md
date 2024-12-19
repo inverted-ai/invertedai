@@ -9,8 +9,6 @@ python -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install --upgrade -r requirements.txt
-# optionally install carla, if you want to run carla demos 
-pip install carla==0.9.13
 ```
 *If you run into an issue like`ERROR: No matching distribution found for carla==0.9.13`, your Python version may not
 be CARLA-compatible.
@@ -43,10 +41,6 @@ the generated gif as `iai-example.gif` in the current directory.
 
 ## CARLA
 
-Finally, as a realistic example, we provide a basic integration with CARLA.
-This example is meant to provide a comprehensive illustration of co-simulation logic
-and to be a starting point for creating custom scenarios with Inverted AI NPCs,
-both in CARLA and in other simulators. Running CARLA requires additional setup,
-which is documented within the corresponding subfolder.
+Please go to the following link to see an example of how the Inverted AI API can integrate with the Carla SDK: [Carla Python SDK Github]https://github.com/carla-simulator/carla/blob/ue5-dev/PythonAPI/examples/invertedai_traffic.py
 
 <!-- end exampels -->
