@@ -124,7 +124,7 @@ import matplotlib.pyplot as plt
 
 from typing import List
 
-iai.add_apikey('5RE3ho3Yhx7njlN0m5fna32MAKp0FNdR1MQWPZ8Z')  # Specify your key here or through the IAI_API_KEY variable
+iai.add_apikey('')  # Specify your key here or through the IAI_API_KEY variable
 
 print("Begin initialization.")
 LOCATION = "canada:drake_street_and_pacific_blvd"
