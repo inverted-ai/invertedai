@@ -169,18 +169,14 @@ class BasicCosimulation:
         """
         self._update_ego_states(current_ego_agent_states)
         
-        try:
-            self._response = large_drive(
-                location=self.location,
-                agent_properties=self._agent_properties,
-                agent_states=self._agent_states,
-                recurrent_states=self._recurrent_states,
-                light_recurrent_states=self._light_recurrent_state,
-                **kwargs
-            )
-        except Exception as e:
-            print(e)
-            breakpoint()
+        self._response = large_drive(
+            location=self.location,
+            agent_properties=self._agent_properties,
+            agent_states=self._agent_states,
+            recurrent_states=self._recurrent_states,
+            light_recurrent_states=self._light_recurrent_state,
+            **kwargs
+        )
         self._agent_states = self._response.agent_states
         self._recurrent_states = self._response.recurrent_states
         self._light_state = self._response.traffic_lights_states
