@@ -812,8 +812,8 @@ class ScenePlotter():
         xy_offset:
             The left-hand offset for the center of the map image. This parameter must be provided if using an ASAM OpenDRIVE format map.
         static_actors:
-            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided
-             if using an ASAM OpenDRIVE format map.
+            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided 
+            if using an ASAM OpenDRIVE format map.
         
         See Also
         --------
