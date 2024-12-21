@@ -34,7 +34,7 @@ def get_regions_default(
     area_shape: Optional[Tuple[float,float]] = None,
     map_center: Optional[Tuple[float,float]] = (0.0,0.0),
     random_seed: Optional[int] = None, 
-    display_progress_bar: Optional[bool] = True
+    display_progress_bar: Optional[bool] = False
 ) -> List[Region]:
     """
     A utility function to create a set of Regions to be passed into :func:`large_initialize` in
@@ -76,18 +76,7 @@ def get_regions_default(
             agent_count_dict = {AgentType.car: total_num_agents}
 
     if area_shape is None:
-        location_response = iai.location_info(
-            location = location,
-            rendering_center = map_center
-        )
-        polygon_x, polygon_y = [], []
-        for pt in location_response.bounding_polygon:
-            polygon_x.append(pt.x)
-            polygon_y.append(pt.y)
-        width = max(polygon_x) - min(polygon_x)
-        height = max(polygon_y) - min(polygon_y)
-
-        area_shape = (width/2,height/2)
+        area_shape = (100/2,100/2)
 
     regions = iai.get_regions_in_grid(
         width = area_shape[0], 
