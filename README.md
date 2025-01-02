@@ -6,6 +6,7 @@
 [colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai/blob/develop/examples/IAI_full_demo.ipynb
 [rest-link]: https://app.swaggerhub.com/apis-docs/InvertedAI/InvertedAI
 [examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
+[website-link]: https://www.inverted.ai/home
 
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
 [![PyPI][pypi-badge]][pypi-link]
@@ -40,6 +41,18 @@ pip install --upgrade invertedai
 The Python client SDK is [open source](https://github.com/inverted-ai/invertedai),
 so you can also download it and build locally.
 
+To make calls through the Inverted AI API end points, an API key must be obtained and set (please go to [this link][website-link] to sign up and receive your API key). 
+
+To set this API key in the python SDK, there are 2 methods. The first method is to explicitly set the API key string within a python script using the below function:
+``` python
+iai.add_apikey('<INSERT_KEY_HERE>')
+```
+The second method is to set the following environment variable with your API key string via the appropriate method according to your relevant operating system:
+```bash
+export IAI_API_KEY="<INSERT_KEY_HERE>"
+```
+
+To set the API key in the C++ SDK, please review the executables in the examples folder.
 
 ## Minimal example
 
@@ -49,10 +62,13 @@ from invertedai.utils import get_default_agent_properties
 from invertedai.common import AgentType
 
 import matplotlib.pyplot as plt
+import os
 
 location = "canada:drake_street_and_pacific_blvd"  # select one of available locations
 
-iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
+api_key = os.environ.get("IAI_API_KEY", None)
+if api_key is None:
+    iai.add_apikey('<INSERT_KEY_HERE>')  # specify your key here or through the IAI_API_KEY variable
 
 print("Begin initialization.")
 # get static information about a given location including map in osm
