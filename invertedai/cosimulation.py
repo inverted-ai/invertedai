@@ -70,7 +70,7 @@ class BasicCosimulation:
             self.init_response.agent_properties
         )  # initialize may produce different agent count
         self._conditional_agent_count = len(self._conditional_agent_agent_states) - num_non_ego_conditional_agents
-        assert self._conditional_agent_count > 0, "Invalid number of ego and conditional agents."
+        assert self._conditional_agent_count >= 0, "Invalid number of ego and conditional agents."
         self._npc_agent_count = self._total_agent_count - self._conditional_agent_count
         
         self._agent_properties = self.init_response.agent_properties
