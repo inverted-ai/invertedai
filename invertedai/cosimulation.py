@@ -66,12 +66,10 @@ class BasicCosimulation:
         self._light_state = self.init_response.traffic_lights_states
         self._light_recurrent_state = self.init_response.light_recurrent_states
 
-        self._total_agent_count = len(
-            self.init_response.agent_properties
-        )  # initialize may produce different agent count
+        self._total_agent_count = len(self.init_response.agent_properties)  # initialize may produce different agent count
         self._conditional_agent_count = len(self._conditional_agent_agent_states) - num_non_ego_conditional_agents
-        assert self._conditional_agent_count >= 0, "Invalid number of ego and conditional agents."
         self._npc_agent_count = self._total_agent_count - self._conditional_agent_count
+        assert self._conditional_agent_count >= 0, "Invalid number of ego and conditional agents."
         
         self._agent_properties = self.init_response.agent_properties
         self._agent_states = self.init_response.agent_states
@@ -173,9 +171,9 @@ class BasicCosimulation:
         All remaining keyword arguments to :func:`large_drive` can be passed 
         to this function here to receive the desired information from the API.
 
-
-        :param current_conditional_agent_states:  States of ego agents before the step
-            which must match the number of given ego, conditional agents during initialization.
+        :param current_conditional_agent_states:  
+            States of ego agents before the step which must match the number of 
+            given ego, conditional agents during initialization.
         :return: None - call :func:`self.npc_states` to retrieve predictions.
         """
         self._update_conditional_states(current_conditional_agent_states)
