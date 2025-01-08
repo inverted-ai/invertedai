@@ -25,19 +25,19 @@ class BasicCosimulation:
     This wrapper only supports a minimal co-simulation functionality.
     For more advanced use cases, call :func:`large_initialize` and :func:`large_drive` directly.
 
-    :param location: 
+    location: 
         Location name as expected by :func:`large_initialize` and :func:`large_drive`.
-    :param conditional_agent_properties: 
+    conditional_agent_properties: 
         Agent properties for all conditional agents that must be given to the API so the NPC agents are aware of them. 
         Please refer to the documentation for :func:`large_initialize` for more information on how to format this parameter (treating the
         conditional agents as "predefined agents"). Furthermore, any predefined agents for which the user
         wishes the IAI API to control must be defined at the end of this list.
-    :param conditional_agent_agent_states: 
+    conditional_agent_agent_states: 
         Agent states for all conditional agents that must be given to the API so the NPC agents are aware of their states. 
         Please refer to the documentation for :func:`large_initialize` for more information on how to format this parameter (treating the
         ego agents as "predefined agents"). Furthermore, any predefined agents for which the user
         wishes the IAI API to control must be defined at the end of this list.
-    :param num_non_ego_conditional_agents: 
+    num_non_ego_conditional_agents: 
         The ego agents are the subset of the conditional agents that are NOT controlled by the Inverted AI API. This
         parameter allows some of the conditional agents with predefined states and properties to nonetheless be 
         controlled by the Inverted AI API. The non-ego conditional agents must be placed at the end of the conditional
@@ -171,10 +171,9 @@ class BasicCosimulation:
         All remaining keyword arguments to :func:`large_drive` can be passed 
         to this function here to receive the desired information from the API.
 
-        :param current_conditional_agent_states:  
+        current_conditional_agent_states:  
             States of ego agents before the step which must match the number of 
             given ego, conditional agents during initialization.
-        :return: None - call :func:`self.npc_states` to retrieve predictions.
         """
         self._update_conditional_states(current_conditional_agent_states)
         
