@@ -6,6 +6,7 @@
 [colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai/blob/develop/examples/IAI_full_demo.ipynb
 [rest-link]: https://app.swaggerhub.com/apis-docs/InvertedAI/InvertedAI
 [examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
+[website-link]: https://www.inverted.ai/home
 
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
 [![PyPI][pypi-badge]][pypi-link]
@@ -40,6 +41,18 @@ pip install --upgrade invertedai
 The Python client SDK is [open source](https://github.com/inverted-ai/invertedai),
 so you can also download it and build locally.
 
+To make calls through the Inverted AI API end points, an API key must be obtained and set (please go to [this link][website-link] to sign up and receive your API key). 
+
+To set this API key in the python SDK, there are 2 methods. The first method is to explicitly set the API key string within a python script using the below function:
+``` python
+iai.add_apikey('<INSERT_KEY_HERE>')
+```
+The second method is to set the following environment variable with your API key string via the appropriate method according to your relevant operating system:
+```bash
+export IAI_API_KEY="<INSERT_KEY_HERE>"
+```
+
+To set the API key in the C++ SDK, please review the executables in the examples folder.
 
 ## Minimal example
 
@@ -49,10 +62,13 @@ from invertedai.utils import get_default_agent_properties
 from invertedai.common import AgentType
 
 import matplotlib.pyplot as plt
+import os
 
 location = "canada:drake_street_and_pacific_blvd"  # select one of available locations
 
-iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
+api_key = os.environ.get("IAI_API_KEY", None)
+if api_key is None:
+    iai.add_apikey('<INSERT_KEY_HERE>')  # specify your key here or through the IAI_API_KEY variable
 
 print("Begin initialization.")
 # get static information about a given location including map in osm
@@ -115,56 +131,49 @@ your machine and the NPC engine running on Inverted AI servers. The basic integr
 
 ```python
 import invertedai as iai
-from invertedai.utils import get_default_agent_properties
 from invertedai.common import AgentType
+from invertedai import get_regions_default
+from invertedai.utils import get_default_agent_properties
 
-from typing import List
 import numpy as np
 import matplotlib.pyplot as plt
 
-iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
+from typing import List
 
-
-class LocalSimulator:
-    """
-    Mock up of a local simulator, where you control the ego vehicle. This example only supports single ego vehicle.
-    """
-
-    def __init__(self, ego_state: iai.common.AgentState, npc_states: List[iai.common.AgentState]):
-        self.ego_state = ego_state
-        self.npc_states = npc_states
-
-    def _step_ego(self):
-        """
-        The simple motion model drives forward with constant speed.
-        The ego agent ignores the map and NPCs for simplicity.
-        """
-        dt = 0.1
-        dx = self.ego_state.speed * dt * np.cos(self.ego_state.orientation)
-        dy = self.ego_state.speed * dt * np.sin(self.ego_state.orientation)
-
-        self.ego_state = iai.common.AgentState(
-            center=iai.common.Point(x=self.ego_state.center.x + dx, y=self.ego_state.center.y + dy),
-            orientation=self.ego_state.orientation,
-            speed=self.ego_state.speed,
-        )
-
-    def step(self, predicted_npc_states):
-        self._step_ego()  # ego vehicle moves first so that it doesn't see future NPC movement
-        self.npc_states = predicted_npc_states
-        return self.ego_state
+iai.add_apikey('')  # Specify your key here or through the IAI_API_KEY variable
 
 print("Begin initialization.")
-location = "canada:drake_street_and_pacific_blvd"
-iai_simulation = iai.BasicCosimulation(  # instantiate a stateful wrapper for Inverted AI API
-    location=location,  # select one of available locations
-    agent_properties=get_default_agent_properties({AgentType.car:5}),  # how many vehicles in total to use in the simulation
-    ego_agent_mask=[True, False, False, False, False],  # first vehicle is ego, rest are NPCs
-    get_birdview=False,  # provides simple visualization - don't use in production
-    traffic_lights=True,  # gets the traffic light states and used for initialization and steping the simulation
+LOCATION = "canada:drake_street_and_pacific_blvd"
+
+NUM_EGO_AGENTS = 1
+NUM_NPC_AGENTS = 10
+NUM_TIME_STEPS = 100
+
+##########################################################################################################
+# INSERT YOUR OWN EGO PREDICTIONS FOR THE INITIALIZATION
+ego_response = iai.initialize(
+    location = LOCATION,
+    agent_properties = get_default_agent_properties({AgentType.car:NUM_EGO_AGENTS}),
+)
+ego_agent_properties = ego_response.agent_properties  # get dimension and other attributes of NPCs
+##########################################################################################################
+
+# Generate the region objects for large_initialization
+regions = get_regions_default(
+    location = LOCATION,
+    agent_count_dict = {AgentType.car: NUM_NPC_AGENTS}
+)
+# Instantiate a stateful wrapper for Inverted AI API
+iai_simulation = iai.BasicCosimulation(  
+    location = LOCATION,
+    ego_agent_properties = ego_agent_properties,
+    ego_agent_agent_states = ego_response.agent_states,
+    regions = regions,
+    traffic_light_state_history = [ego_response.traffic_lights_states]
 )
 
-location_info_response = iai.location_info(location=location)
+# Initialize the ScenePlotter for scene visualization
+location_info_response = iai.location_info(location=LOCATION)
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_plotter = iai.utils.ScenePlotter(
     rendered_static_map,
@@ -173,32 +182,47 @@ scene_plotter = iai.utils.ScenePlotter(
     location_info_response.static_actors
 )
 scene_plotter.initialize_recording(
-    agent_states=iai_simulation.agent_states,
-    agent_properties=iai_simulation.agent_properties,
+    agent_states = iai_simulation.agent_states,
+    agent_properties = iai_simulation.agent_properties,
+    conditional_agents = list(range(NUM_EGO_AGENTS)),
+    traffic_light_states = ego_response.traffic_lights_states
 )
 
 print("Begin stepping through simulation.")
-local_simulation = LocalSimulator(iai_simulation.ego_states[0], iai_simulation.npc_states)
-for _ in range(100):  # how many simulation steps to execute (10 steps is 1 second)
-    # query the API for subsequent NPC predictions, informing it how the ego vehicle acted
-    iai_simulation.step([local_simulation.ego_state])
-    # collect predictions for the next time step
-    predicted_npc_behavior = iai_simulation.npc_states
-    # execute predictions in your simulator, using your actions for the ego vehicle
-    updated_ego_agent_state = local_simulation.step(predicted_npc_behavior)
-    # save the visualization with ScenePlotter
+for _ in range(NUM_TIME_STEPS):  # How many simulation time steps to execute (10 steps is 1 second)
+##########################################################################################################    
+    # INSERT YOUR OWN EGO PREDICTIONS FOR THIS TIME STEP
+    ego_response = iai.drive(
+        location = LOCATION,
+        agent_properties = ego_agent_properties+iai_simulation.npc_properties,
+        agent_states = ego_response.agent_states+iai_simulation.npc_states,
+        recurrent_states = ego_response.recurrent_states+iai_simulation.npc_recurrent_states,
+        light_recurrent_states = ego_response.light_recurrent_states,
+    )
+    ego_response.agent_states = ego_response.agent_states[:NUM_EGO_AGENTS]
+    ego_response.recurrent_states = ego_response.recurrent_states[:NUM_EGO_AGENTS]
+##########################################################################################################
+
+    # Query the API for subsequent NPC predictions, informing it how the ego vehicle acted
+    iai_simulation.step(
+        current_ego_agent_states = ego_response.agent_states,
+        traffic_lights_states = ego_response.traffic_lights_states
+    )
+
+    # Save the visualization with ScenePlotter
     scene_plotter.record_step(iai_simulation.agent_states,iai_simulation.light_states)
 
+# Save the visualization to disk
 print("Simulation finished, save visualization.")
-# save the visualization to disk
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
+plt.axis('off')
 gif_name = 'cosimulation_minimal_example.gif'
 scene_plotter.animate_scene(
-    output_name=gif_name,
-    ax=ax,
-    direction_vec=False,
-    velocity_vec=False,
-    plot_frame_number=True
+    output_name = gif_name,
+    ax = ax,
+    direction_vec = False,
+    velocity_vec = False,
+    plot_frame_number = True
 )
 print("Done")
 ```

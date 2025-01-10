@@ -3,10 +3,13 @@ from invertedai.utils import get_default_agent_properties
 from invertedai.common import AgentType
 
 import matplotlib.pyplot as plt
+import os
 
 location = "canada:drake_street_and_pacific_blvd"  # select one of available locations
 
-iai.add_apikey('')  # specify your key here or through the IAI_API_KEY variable
+api_key = os.environ.get("IAI_API_KEY", None)
+if api_key is None:
+    iai.add_apikey('<INSERT_KEY_HERE>')  # specify your key here or through the IAI_API_KEY variable
 
 print("Begin initialization.")
 # get static information about a given location including map in osm
