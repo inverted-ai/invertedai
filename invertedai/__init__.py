@@ -2,7 +2,6 @@ import os
 import warnings
 import importlib.metadata
 __version__ = importlib.metadata.version("invertedai")
-from distutils.util import strtobool
 
 from invertedai.api.light import light
 from invertedai.api.location import location_info
@@ -22,6 +21,12 @@ from invertedai.logs.logger import LogWriter, LogReader
 from invertedai.logs.debug_logger import DebugLogger
 
 warnings.filterwarnings(action="once",message=".*agent_attributes.*")
+
+def strtobool(value: str) -> bool:
+  value = value.lower()
+  if value in ("y", "yes", "on", "1", "true", "t"):
+    return True
+  return False
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
 if dev:
