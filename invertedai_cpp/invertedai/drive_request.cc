@@ -300,6 +300,10 @@ void DriveRequest::set_agent_attributes(const std::vector<AgentAttributes> &agen
   this->agent_attributes_ = agent_attributes;
 }
 
+void DriveRequest::set_agent_properties(const std::vector<AgentProperties> &agent_properties) {
+  this->agent_properties_ = agent_properties;
+}
+
 void DriveRequest::set_traffic_lights_states(const std::map<std::string, std::string> &traffic_lights_states) {
   this->traffic_lights_states_ = traffic_lights_states;
 }

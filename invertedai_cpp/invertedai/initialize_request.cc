@@ -224,6 +224,10 @@ void InitializeRequest::set_agent_attributes(const std::vector<AgentAttributes> 
   this->agent_attributes_ = agent_attributes;
 }
 
+void InitializeRequest::set_agent_properties(const std::vector<AgentProperties> &agent_properties) {
+  this->agent_properties_ = agent_properties;
+}
+
 void InitializeRequest::set_traffic_light_state_history(const std::vector<std::map<std::string, std::string>>&traffic_light_state_history) {
   this->traffic_light_state_history_ = traffic_light_state_history;
 }

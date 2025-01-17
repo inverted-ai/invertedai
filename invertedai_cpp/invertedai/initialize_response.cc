@@ -228,6 +228,10 @@ void InitializeResponse::set_agent_attributes(const std::vector<AgentAttributes>
   this->agent_attributes_ = agent_attributes;
 }
 
+void InitializeResponse::set_agent_properties(const std::vector<AgentProperties> &agent_properties) {
+  this->agent_properties_ = agent_properties;
+}
+
 void InitializeResponse::set_recurrent_states(const std::vector<std::vector<double>> &recurrent_states) {
   this->recurrent_states_ = recurrent_states;
 }

@@ -336,6 +336,8 @@ struct AgentProperties {
             }   
         }
     }
+
+    AgentProperties() = default;
 };
 
 /**
