@@ -18,7 +18,7 @@ private:
   std::string location_;
   std::pair<int, int> colliding_agents_;
   std::vector<std::vector<AgentState>> agent_state_history_;
-  std::vector<AgentAttributes> agent_attributes_;
+  std::vector<AgentProperties> agent_properties_;
   std::optional<std::vector<std::vector<TrafficLightState>>>traffic_light_state_history_;
   bool get_birdviews_;
   bool get_reasons_;
@@ -63,11 +63,11 @@ public:
    */
   std::vector<std::vector<AgentState>> agent_state_history() const;
   /**
-   * Get static attributes for all agents.
+   * Get static properties for all agents.
    * Each agent requires, length: [float], width: [float], and rear_axis_offset:
    * [float] all in meters.
    */
-  std::vector<AgentAttributes> agent_attributes() const;
+  std::vector<AgentProperties> agent_properties() const;
   /**
    * Get the state history of traffic lights.
    * List of TrafficLightStatesDict objects containing the state of all traffic
@@ -116,12 +116,12 @@ public:
   void set_agent_state_history(
       const std::vector<std::vector<AgentState>> &agent_state_history);
   /**
-   * Set static attributes for all agents.
+   * Set static properties for all agents.
    * Each agent requires, length: [float], width: [float], and rear_axis_offset:
    * [float] all in meters.
    */
   void
-  set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes);
+  set_agent_properties(const std::vector<AgentProperties> &agent_properties);
   /**
    * Set the list of TrafficLightStatesDict objects containing the state of all
    * traffic lights for every time step. The dictionary keys are the

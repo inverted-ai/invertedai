@@ -29,25 +29,7 @@ InitializeResponse::InitializeResponse(const std::string &body_str) {
 
   this->agent_properties_ = std::vector<AgentProperties>();
   for (const auto &element : this->body_json_["agent_properties"]) {
-    AgentProperties ap;
-    if (element.contains("length")) {
-      ap.length = element["length"];
-    }
-    if (element.contains("width")) {
-      ap.width = element["width"];
-    }
-    if (element.contains("rear_axis_offset") && !element["rear_axis_offset"].is_null()) {
-      ap.rear_axis_offset = element["rear_axis_offset"];
-    }
-    if (element.contains("agent_type")) {
-      ap.agent_type = element["agent_type"];
-    }
-    if (element.contains("waypoint") && !element["waypoint"].is_null() ) {
-      ap.waypoint = {element["waypoint"][0], element["waypoint"][1]};
-    }
-    if (element.contains("max_speed") && !element["max_speed"].is_null()) {
-      ap.max_speed = element["max_speed"];
-    }
+    AgentProperties ap(element);
     this->agent_properties_.push_back(ap);
   }
   this->recurrent_states_.clear();
