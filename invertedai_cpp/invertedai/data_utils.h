@@ -212,6 +212,8 @@ struct AgentAttributes {
         waypoint = {element[4][0], element[4][1]};
     }
   }
+
+  AgentAttributes() = default;
 };
 
 /**

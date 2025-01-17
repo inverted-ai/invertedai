@@ -27,10 +27,30 @@ BlameRequest::BlameRequest(const std::string &body_str) {
     }
     this->agent_state_history_.push_back(agent_states);
   }
-  this->agent_properties_.clear();
-  for (const auto &element : this->body_json_["agent_properties"]) {
-    AgentProperties agent_property(element);
-    this->agent_properties_.push_back(agent_property);
+  this->agent_attributes_.clear();
+  if (this->body_json_.contains(std::string{"agent_attributes"})){
+      for (const auto &element : this->body_json_["agent_attributes"]) {
+        AgentAttributes agent_attribute(element);
+        this->agent_attributes_.push_back(agent_attribute);
+      }
+  }
+  if (this->body_json_.contains(std::string{"agent_properties"})){
+      for (const auto &element : this->body_json_["agent_properties"]) {
+        AgentAttributes agent_attribute;
+        agent_attribute.length = element["length"];
+        agent_attribute.width = element["width"];
+        agent_attribute.rear_axis_offset = element["rear_axis_offset"];
+        agent_attribute.agent_type = element["agent_type"];
+        json element_new = {
+          agent_attribute.length.value(),
+          agent_attribute.width.value(),
+          agent_attribute.rear_axis_offset.value(),
+          agent_attribute.agent_type.value()
+        };
+        this->body_json_["agent_attributes"].push_back(element_new);
+        this->agent_attributes_.push_back(agent_attribute);
+      }
+      this->body_json_["agent_properties"].clear();
   }
   if (this->body_json_["traffic_light_state_history"].is_null()) {
     this->traffic_light_state_history_ = std::nullopt;
@@ -79,10 +99,10 @@ void BlameRequest::refresh_body_json_() {
     }
     this->body_json_["agent_state_history"].push_back(elements);
   }
-  this->body_json_["agent_properties"].clear();
-  for (const AgentProperties &agent_property : this->agent_properties_) {
-    json element = agent_property.toJson();
-    this->body_json_["agent_properties"].push_back(element);
+  this->body_json_["agent_attributes"].clear();
+  for (const AgentAttributes &agent_attribute : this->agent_attributes_) {
+    json element = agent_attribute.toJson();
+    this->body_json_["agent_attributes"].push_back(element);
   }
   if (this->traffic_light_state_history_.has_value()) {
     this->body_json_["traffic_light_state_history"].clear();
@@ -123,8 +143,8 @@ std::vector<std::vector<AgentState>> BlameRequest::agent_state_history() const {
   return this->agent_state_history_;
 }
 
-std::vector<AgentProperties> BlameRequest::agent_properties() const {
-  return this->agent_properties_;
+std::vector<AgentAttributes> BlameRequest::agent_attributes() const {
+  return this->agent_attributes_;
 }
 
 std::optional<std::vector<std::vector<TrafficLightState>>> BlameRequest::traffic_light_state_history() const {
@@ -155,8 +175,8 @@ void BlameRequest::set_agent_state_history(const std::vector<std::vector<AgentSt
   this->agent_state_history_ = agent_state_history;
 }
 
-void BlameRequest::set_agent_properties(const std::vector<AgentProperties> &agent_properties) {
-  this->agent_properties_ = agent_properties;
+void BlameRequest::set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes) {
+  this->agent_attributes_ = agent_attributes;
 }
 
 void BlameRequest::set_traffic_light_state_history(const std::optional<std::vector<std::vector<TrafficLightState>>>&traffic_light_state_history) {
