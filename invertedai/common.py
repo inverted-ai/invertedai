@@ -236,7 +236,8 @@ class AgentProperties(BaseModel):
             width=val['width'], 
             rear_axis_offset=val['rear_axis_offset'], 
             agent_type=val['agent_type'], 
-            waypoint=Point(x=val['waypoint'][0], y=val['waypoint'][1]) if val['waypoint'] else None, max_speed=val['max_speed']
+            waypoint=Point(x=val['waypoint'][0], y=val['waypoint'][1]) if val['waypoint'] else None, 
+            max_speed=val['max_speed']
         )
     
     def serialize(self):

@@ -24,7 +24,7 @@ const unsigned int IAI_FPS = 10;
 
 struct EgoAgentInput {
     std::vector<invertedai::AgentState> ego_states;
-    std::vector<invertedai::AgentAttributes> ego_attributes;
+    std::vector<invertedai::AgentProperties> ego_properties;
 };
 
 json get_ego_log(const std::string& file_path) {
@@ -43,12 +43,13 @@ EgoAgentInput get_ego_agents(const json& example_ego_agent_log){
   current_ego_state.speed = example_ego_agent_log.at(0)["json"]["agent_states"][0][3];
   output_struct.ego_states = {current_ego_state};
 
-  invertedai::AgentAttributes ego_attributes;
-  ego_attributes.length = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][0];
-  ego_attributes.width = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][1];
-  ego_attributes.rear_axis_offset = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][2];
-  ego_attributes.agent_type = example_ego_agent_log.at(0)["json"]["agent_attributes"][0][3];
-  output_struct.ego_attributes = {ego_attributes};
+  invertedai::AgentProperties ego_properties;
+  ego_properties.length = example_ego_agent_log.at(0)["json"]["agent_properties"][0]["length"];
+  ego_properties.width = example_ego_agent_log.at(0)["json"]["agent_properties"][0]["width"];
+  ego_properties.rear_axis_offset = example_ego_agent_log.at(0)["json"]["agent_properties"][0]["rear_axis_offset"];
+  ego_properties.agent_type = example_ego_agent_log.at(0)["json"]["agent_properties"][0]["agent_type"];
+  output_struct.ego_properties = {ego_properties};
+  ego_properties.printFields();
 
   return output_struct;
 }
@@ -191,13 +192,13 @@ int main(int argc, char **argv) {
     
     //////////////////////////////////////////////////////////////////////////////
     //REPLACE THIS BLOCK OF CODE WITH YOUR OWN EGO AGENT MODEL 
-    //Get ego agent initial state and attributes to set into initial conditions
+    //Get ego agent initial state and properties to set into initial conditions
     json example_ego_agent_log = get_ego_log("examples/ubc_roundabout_ego_agent_log.json");
     EgoAgentInput ego_agent_struct = get_ego_agents(example_ego_agent_log);
     std::vector<invertedai::AgentState> current_ego_states = ego_agent_struct.ego_states;
-    std::vector<invertedai::AgentAttributes> all_ego_attributes = ego_agent_struct.ego_attributes;
+    std::vector<invertedai::AgentProperties> all_ego_properties = ego_agent_struct.ego_properties;
     //////////////////////////////////////////////////////////////////////////////
-    const int NUMBER_EGO_AGENTS = (int)all_ego_attributes.size();
+    const int NUMBER_EGO_AGENTS = (int)all_ego_properties.size();
 
     // construct request for initializing the simulation (placing NPCs on the map)
     invertedai::InitializeRequest init_req(invertedai::read_file("examples/conditional_initialize_body.json"));
@@ -207,7 +208,7 @@ int main(int argc, char **argv) {
     init_req.set_num_agents_to_spawn(agent_num);
     std::vector<std::vector<invertedai::AgentState>> current_ego_states_history = {current_ego_states};
     init_req.set_states_history(current_ego_states_history);
-    init_req.set_agent_attributes(all_ego_attributes);
+    init_req.set_agent_properties(all_ego_properties);
 
     // get the response of simulation initialization
     invertedai::InitializeResponse init_res =

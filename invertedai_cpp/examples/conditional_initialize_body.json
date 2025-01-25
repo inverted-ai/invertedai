@@ -16,12 +16,12 @@
             6.62
         ]
     ],
-    "conditional_agent_attributes": [
-        [
-            4.4,
-            1.94,
-            1.41,
-            "car"
-        ]
+    "conditional_agent_properties": [
+        {
+            "length": 4.4,
+            "width": 1.94,
+            "rear_axis_offset": 1.41,
+            "agent_type": "car"
+        }
     ]
 }
