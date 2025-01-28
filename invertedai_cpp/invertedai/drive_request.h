@@ -139,6 +139,11 @@ public:
   void
   set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes);
   /**
+   * Set static properties for all agents.
+   */
+  void
+  set_agent_properties(const std::vector<AgentProperties> &agent_properties);
+  /**
    * Set the states of traffic lights. If the location contains traffic lights
    * within the supported area, their current state should be provided here. Any
    * traffic light for which no state is provided will be ignored by the agents.

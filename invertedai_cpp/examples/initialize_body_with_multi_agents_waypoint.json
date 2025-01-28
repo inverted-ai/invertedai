@@ -2,16 +2,56 @@
     "location": "canada:drake_street_and_pacific_blvd",
     "num_agents_to_spawn": 10,
     "states_history": [[[-10, -10, 0.5 ,2], [16, 7, -2.5 ,2], [26, -20, 2.3 ,2], [-13, 15, -0.7 ,2], [33, -11, 2.3 ,2]]],
-    "agent_attributes": [
-        [4.55,1.94,1.73,"car", [-9, 15]],
-        [4.55,1.94,1.73,"car", [18, -20]],
-        [4.55,1.94,1.73,"car", [-12, 3]],
-        [4.55,1.94,1.73,"car", [25, 1.5]],
-        [0.79, 0.78, null, "pedestrian", [12.5, -19.4]],
-        ["pedestrian", [0, 0]],
-        ["car", [1, 0]],
-        [[2, 0]],
-        ["pedestrian"]
+    "agent_properties": [
+        {
+            "length": 4.55,
+            "width": 1.94,
+            "rear_axis_offset": 1.73,
+            "agent_type": "car",
+            "waypoint":[-9, 15]
+        },
+        {
+            "length": 4.55,
+            "width": 1.94,
+            "rear_axis_offset": 1.73,
+            "agent_type": "car",
+            "waypoint": [18, -20]
+        },
+        {
+            "length": 4.55,
+            "width": 1.94,
+            "rear_axis_offset": 1.73,
+            "agent_type": "car",
+            "waypoint": [-12, 3]
+        },
+        {
+            "length": 4.55,
+            "width": 1.94,
+            "rear_axis_offset": 1.73,
+            "agent_type": "car",
+            "waypoint": [25, 1.5]
+        },
+        {
+            "length": 0.79,
+            "width": 0.78,
+            "rear_axis_offset": null,
+            "agent_type": "pedestrian",
+            "waypoint": [12.5, -19.4]
+        },
+        {
+            "agent_type": "pedestrian",
+            "waypoint": [0, 0]
+        },
+        {
+            "agent_type": "car",
+            "waypoint": [1, 0]
+        },
+        {
+            "waypoint": [2, 0]
+        },
+        {
+            "agent_type": "pedestrian"
+        }
     ],
     "traffic_light_state_history": null,
     "get_birdview": true,
