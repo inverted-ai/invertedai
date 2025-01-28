@@ -63,7 +63,7 @@ public:
    */
   std::vector<std::vector<AgentState>> agent_state_history() const;
   /**
-   * Get static attributes for all agents.
+   * Get static properties for all agents.
    * Each agent requires, length: [float], width: [float], and rear_axis_offset:
    * [float] all in meters.
    */
@@ -116,7 +116,7 @@ public:
   void set_agent_state_history(
       const std::vector<std::vector<AgentState>> &agent_state_history);
   /**
-   * Set static attributes for all agents.
+   * Set static properties for all agents.
    * Each agent requires, length: [float], width: [float], and rear_axis_offset:
    * [float] all in meters.
    */

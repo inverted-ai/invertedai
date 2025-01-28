@@ -6,7 +6,6 @@ import invertedai as iai
 from invertedai.api.initialize import initialize
 from invertedai.api.drive import drive, DriveResponse
 from invertedai.api.location import location_info
-from invertedai.api.light import light
 from invertedai.common import Point, AgentProperties
 from invertedai.error import InvalidRequestError
 
@@ -15,7 +14,6 @@ def recurrent_states_helper(states_to_extend):
     result = [0.0] * 128
     result.extend(states_to_extend)
     return result
-
 
 positive_tests_old = [
     ("carla:Town04",
@@ -126,9 +124,15 @@ negative_tests_old = [
      False),
 ]
 
-
-def run_initialize_drive_flow(location, states_history, agent_attributes, agent_properties, get_infractions, agent_count,
-                              simulation_length: int = 20):
+def run_initialize_drive_flow(
+    location, 
+    states_history, 
+    agent_attributes, 
+    agent_properties, 
+    get_infractions, 
+    agent_count,
+    simulation_length: int = 20
+):
     location_info_response = location_info(location=location, rendering_fov=200)
     scene_has_lights = any(actor.agent_type == "traffic_light" for actor in location_info_response.static_actors)
     
@@ -156,8 +160,7 @@ def run_initialize_drive_flow(location, states_history, agent_attributes, agent_
             location=location,
             get_infractions=get_infractions,
         )
-        assert isinstance(updated_state,
-                          DriveResponse) and updated_state.agent_states is not None and updated_state.recurrent_states is not None
+        assert isinstance(updated_state,DriveResponse) and updated_state.agent_states is not None and updated_state.recurrent_states is not None
         if scene_has_lights:
             assert updated_state.traffic_lights_states is not None
             assert updated_state.light_recurrent_states is not None
@@ -173,28 +176,65 @@ def run_direct_drive(location, agent_states, agent_attributes, agent_properties,
         location=location,
         get_infractions=get_infractions
     )
-    assert isinstance(drive_response,
-                      DriveResponse) and drive_response.agent_states is not None and drive_response.recurrent_states is not None
+    assert isinstance(drive_response,DriveResponse) and drive_response.agent_states is not None and drive_response.recurrent_states is not None
 
 
 @pytest.mark.parametrize("location, agent_states, agent_attributes, recurrent_states, get_infractions", negative_tests_old)
-def test_negative_old(location, agent_states, agent_attributes, recurrent_states, get_infractions):
+def test_negative_old(
+    location, 
+    agent_states, 
+    agent_attributes, 
+    recurrent_states, 
+    get_infractions
+):
     with pytest.raises(InvalidRequestError):
-        run_direct_drive(location, agent_states, agent_attributes, None, recurrent_states, get_infractions)
-
+        run_direct_drive(
+            location, 
+            agent_states, 
+            agent_attributes, 
+            None, 
+            recurrent_states, 
+            get_infractions
+        )
 
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests_old)
-def test_positive_old(location, states_history, agent_attributes, get_infractions, agent_count,
-                  simulation_length: int = 20):
-    run_initialize_drive_flow(location, states_history, agent_attributes, None, get_infractions, agent_count,
-                              simulation_length)
+def test_positive_old(
+    location, 
+    states_history, 
+    agent_attributes, 
+    get_infractions, 
+    agent_count,
+    simulation_length: int = 20
+):
+    run_initialize_drive_flow(
+        location, 
+        states_history, 
+        agent_attributes, 
+        None, 
+        get_infractions, 
+        agent_count,
+        simulation_length
+    )
 
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests_old)
-def test_mock_drive_old(location, states_history, agent_attributes, get_infractions, agent_count,
-                  simulation_length: int = 20):
+def test_mock_drive_old(
+    location, 
+    states_history, 
+    agent_attributes, 
+    get_infractions, 
+    agent_count,
+    simulation_length: int = 20
+):
     iai.api.config.mock_api = True
-    run_initialize_drive_flow(location, states_history, agent_attributes, None, get_infractions, agent_count,
-                              simulation_length)
+    run_initialize_drive_flow(
+        location, 
+        states_history, 
+        agent_attributes, 
+        None, 
+        get_infractions, 
+        agent_count,
+        simulation_length
+    )
     iai.api.config.mock_api = False
 
 positive_tests = [
@@ -306,23 +346,60 @@ negative_tests = [
      False),
 ]
 
-
 @pytest.mark.parametrize("location, agent_states, agent_properties, recurrent_states, get_infractions", negative_tests)
-def test_negative(location, agent_states, agent_properties, recurrent_states, get_infractions):
+def test_negative(
+    location, 
+    agent_states, 
+    agent_properties, 
+    recurrent_states, 
+    get_infractions
+):
     with pytest.raises(InvalidRequestError):
-        run_direct_drive(location, agent_states, None, agent_properties, recurrent_states, get_infractions)
-
+        run_direct_drive(
+            location, 
+            agent_states, 
+            None, 
+            agent_properties, 
+            recurrent_states, 
+            get_infractions
+        )
 
 @pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", positive_tests)
-def test_positive(location, states_history, agent_properties, get_infractions, agent_count,
-                  simulation_length: int = 20):
-    run_initialize_drive_flow(location, states_history, None, agent_properties, get_infractions, agent_count,
-                              simulation_length)
+def test_positive(
+    location, 
+    states_history, 
+    agent_properties, 
+    get_infractions, 
+    agent_count,
+    simulation_length: int = 20
+):
+    run_initialize_drive_flow(
+        location, 
+        states_history, 
+        None, 
+        agent_properties, 
+        get_infractions, 
+        agent_count,
+        simulation_length
+    )
     
 @pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", positive_tests)
-def test_mock_drive(location, states_history, agent_properties, get_infractions, agent_count,
-                  simulation_length: int = 20):
+def test_mock_drive(
+    location, 
+    states_history, 
+    agent_properties, 
+    get_infractions, 
+    agent_count,
+    simulation_length: int = 20
+):
     iai.api.config.mock_api = True
-    run_initialize_drive_flow(location, states_history, None, agent_properties, get_infractions, agent_count,
-                              simulation_length)
+    run_initialize_drive_flow(
+        location, 
+        states_history, 
+        None, 
+        agent_properties, 
+        get_infractions, 
+        agent_count,
+        simulation_length
+    )
     iai.api.config.mock_api = False
