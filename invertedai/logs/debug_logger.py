@@ -85,7 +85,7 @@ class DebugLogger:
         self,
         log_data: Dict,
         fov: int = 100,
-        map_center: Tuple[float] = None
+        map_center: Tuple[float,float] = None
     ):
         location_info_response = None
         location = None
@@ -146,7 +146,7 @@ class DebugLogger:
         log_data: Dict,
         gif_name: str = "./debug_log_visualization.gif",
         fov: int = 100,
-        map_center: Tuple[float] = None
+        map_center: Tuple[float,float] = None
     ):
         scene_plotter, _ = cls._get_scene_plotter(
             cls,
@@ -177,7 +177,7 @@ class DebugLogger:
         log_data: Dict,
         gif_name: str = "./debug_log_reproduction.gif",
         fov: int = 100,
-        map_center: Tuple[float] = None,
+        map_center: Tuple[float,float] = None,
         use_log_seed: bool = True
     ):
         scene_plotter, response_data = cls._get_scene_plotter(
