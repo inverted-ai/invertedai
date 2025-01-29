@@ -3,7 +3,7 @@ import json
 import os
 
 import invertedai as iai
-from invertedai.common import AgentState, AgentProperties, TrafficLightState, RecurrentState
+from invertedai.common import AgentState, AgentProperties, TrafficLightState, RecurrentState, LightRecurrentState
 
 from collections import defaultdict
 from typing import List, Optional, Dict, Tuple
@@ -111,19 +111,22 @@ class DebugLogger:
             raise Exception("No initialize responses to visualize.")
         rendered_static_map = location_info_response.birdview_image.decode()
 
-        scene_plotter = iai.utils.ScenePlotter(
-            map_image=rendered_static_map,
-            fov=fov,
-            xy_offset=map_center,
-            static_actors=location_info_response.static_actors,
-            resolution=(2048,2048),
-            dpi=300
-        )
-        all_properties = [AgentProperties(length=s["length"],width=s["width"],rear_axis_offset=s["rear_axis_offset"],agent_type=s["agent_type"],waypoint=s["waypoint"],max_speed=s["max_speed"]) for s in json.loads(log_data["initialize_responses"][-1])["agent_properties"]]
+        all_properties = [AgentProperties(
+            length=s["length"],
+            width=s["width"],
+            rear_axis_offset=s["rear_axis_offset"],
+            agent_type=s["agent_type"],
+            waypoint=s["waypoint"],
+            max_speed=s["max_speed"]) for s in json.loads(log_data["initialize_responses"][-1])["agent_properties"]
+        ]
         agent_states = [AgentState.fromlist(s) for s in json.loads(log_data["initialize_responses"][-1])["agent_states"]]
         recurrent_states = [RecurrentState.fromval(s) for s in json.loads(log_data["initialize_responses"][-1])["recurrent_states"]]
         traffic_light_states = json.loads(log_data["initialize_responses"][-1])["traffic_lights_states"]
-        light_recurrent_states = json.loads(log_data["initialize_responses"][-1])["light_recurrent_states"]
+        lrs = json.loads(log_data["initialize_responses"][-1])["light_recurrent_states"]
+        light_recurrent_states = [LightRecurrentState(
+            state=s[0], 
+            time_remaining=s[1]) for s in lrs
+        ] if lrs is not None else lrs
         response_data = {
             "location": location,
             "agent_properties": all_properties,
@@ -132,6 +135,15 @@ class DebugLogger:
             "traffic_light_states": traffic_light_states,
             "light_recurrent_states": light_recurrent_states
         }
+
+        scene_plotter = iai.utils.ScenePlotter(
+            map_image=rendered_static_map,
+            fov=fov,
+            xy_offset=map_center,
+            static_actors=location_info_response.static_actors,
+            resolution=(2048,2048),
+            dpi=300
+        )
         scene_plotter.initialize_recording(
             agent_states=agent_states,
             agent_properties=all_properties,
