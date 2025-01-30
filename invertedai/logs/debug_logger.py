@@ -3,7 +3,8 @@ import json
 import os
 
 import invertedai as iai
-from invertedai.common import AgentState, AgentProperties, TrafficLightState, RecurrentState, LightRecurrentState
+from invertedai.common import AgentState, AgentProperties, TrafficLightState, RecurrentState, LightRecurrentState, Image, StaticMapActor, Point
+from invertedai.api.location import LocationResponse
 
 from collections import defaultdict
 from typing import List, Optional, Dict, Tuple
@@ -92,7 +93,17 @@ class DebugLogger:
         if "location_info_responses" in log_data:
             if len(log_data["location_info_responses"]) > 0:
                 location = json.loads(log_data["location_info_requests"][-1])["location"]
-                location_info_response = json.loads(log_data["location_info_responses"][-1])
+                lir = json.loads(log_data["location_info_responses"][-1])
+                location_info_response = LocationResponse(
+                    version=lir["version"],
+                    max_agent_number=lir["max_agent_number"],
+                    map_fov=lir["map_fov"],
+                    bounding_polygon=[Point.fromlist(p) for p in lir["bounding_polygon"]],
+                    map_center=Point.fromlist(lir["map_center"]),
+                    static_actors=[StaticMapActor.fromdict(sa) for sa in lir["static_actors"]],
+                    birdview_image=Image(encoded_image=lir["birdview_image"]),
+                    osm_map=None
+                )
 
         if location_info_response is None:
             if "initialize_requests" in log_data:
