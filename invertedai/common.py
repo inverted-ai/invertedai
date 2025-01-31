@@ -336,6 +336,16 @@ class StaticMapActor(BaseModel):
         d["center"] = Point.fromlist([d.pop("x"), d.pop("y")])
         return cls(**d)
 
+class Scenario(BaseModel):
+    name: str
+
+
+
+class DenseRightMerge(Scenario):
+    name: str =  "dense_right_merge"
+    merger_id: int
+
+
 
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
 LightRecurrentStates = List[LightRecurrentState]
