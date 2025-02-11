@@ -18,6 +18,7 @@ from invertedai.large.initialize import (
 )
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriter, LogReader
+from invertedai.logs.diagnostics import DiagnosticTool
 from invertedai.logs.debug_logger import DebugLogger
 
 warnings.filterwarnings(action="once",message=".*agent_attributes.*")
