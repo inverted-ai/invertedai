@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 
 class DebugLogger:
     def __new__(cls, *args, **kwargs):
-        if not cls.check_instance_exists(cls):
+        if not cls.check_instance_exists():
             cls.instance = super(DebugLogger, cls).__new__(cls)
         return cls.instance
 
+    @classmethod
     def check_instance_exists(cls):
         return hasattr(cls, 'instance')
 

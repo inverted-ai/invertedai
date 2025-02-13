@@ -607,7 +607,7 @@ def large_initialize(
     if (agent_properties is not None and agent_states is not None) or (agent_properties is None and agent_states is not None):
         assert len(agent_properties) >= len(agent_states), "Invalid parameters: number of agent properties must be larger than number agent states."
 
-    is_debug_logging = DebugLogger.check_instance_exists(DebugLogger)
+    is_debug_logging = DebugLogger.check_instance_exists()
     if is_debug_logging:
         debug_logger = DebugLogger()
 

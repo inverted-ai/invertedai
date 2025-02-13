@@ -110,7 +110,7 @@ def large_drive(
     if is_using_attributes:
         warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
-    is_debug_logging = DebugLogger.check_instance_exists(DebugLogger)
+    is_debug_logging = DebugLogger.check_instance_exists()
     if is_debug_logging:
         debug_logger = DebugLogger()
         debug_large_drive_parameters = serialize_drive_request_parameters(
