@@ -44,6 +44,45 @@ class InitializeResponse(BaseModel):
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map. Pass this to :func:`iai.drive` at the first time step to let the server generate a realistic continuation of the traffic light state sequence. This does not work correctly if any specific light states were specified as input to `initialize`.
     api_model_version: str #: Model version used for this API call
 
+    def serialize_initialize_response_parameters(self):
+        output_dict = dict(self)
+        output_dict["agent_states"] = [state.tolist() for state in output_dict["agent_states"]]
+        output_dict["recurrent_states"] = [r.packed for r in output_dict["recurrent_states"]] if output_dict["recurrent_states"] is not None else None
+        output_dict["agent_attributes"] = [attr.tolist() for attr in output_dict["agent_attributes"]] if output_dict["agent_attributes"] is not None else None
+        output_dict["agent_properties"] = [ap.serialize() for ap in output_dict["agent_properties"]] if output_dict["agent_properties"] is not None else None
+        output_dict["birdview"] = None if output_dict["birdview"] is None else output_dict["birdview"].encoded_image
+        output_dict["light_recurrent_states"] = [light_recurrent_state.tolist() for light_recurrent_state in output_dict["light_recurrent_states"]] if output_dict["light_recurrent_states"] is not None else None
+        output_dict["infractions"] = [infrac.tolist() for infrac in output_dict["infractions"]] if output_dict["infractions"] is not None else None
+
+        return output_dict
+
+@validate_call
+def serialize_initialize_request_parameters(
+    location: str,
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    agent_properties: Optional[List[AgentProperties]] = None,
+    states_history: Optional[List[List[AgentState]]] = None,
+    traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
+    get_birdview: bool = False,
+    location_of_interest: Optional[Tuple[float, float]] = None,
+    get_infractions: bool = False,
+    agent_count: Optional[int] = None,
+    random_seed: Optional[int] = None,
+    api_model_version: Optional[str] = None
+):
+    return dict(
+        location=location,
+        num_agents_to_spawn=agent_count,
+        states_history=states_history if states_history is None else [[st.tolist() for st in states] for states in states_history],
+        agent_attributes=agent_attributes if agent_attributes is None else [state.tolist() for state in agent_attributes],
+        agent_properties=agent_properties if agent_properties is None else [ap.serialize() if ap else None for ap in agent_properties] ,
+        traffic_light_state_history=traffic_light_state_history,
+        get_birdview=get_birdview,
+        location_of_interest=location_of_interest,
+        get_infractions=get_infractions,
+        random_seed=random_seed,
+        model_version=api_model_version if api_model_version is not None else "best"
+    )
 
 @validate_call
 def initialize(
@@ -158,23 +197,18 @@ def initialize(
     if agent_attributes is not None:
         warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
-    model_inputs = dict(
+    model_inputs = serialize_initialize_request_parameters(
         location=location,
-        num_agents_to_spawn=agent_count,
-        states_history=states_history
-        if states_history is None
-        else [[st.tolist() for st in states] for states in states_history],
-        agent_attributes=agent_attributes
-        if agent_attributes is None
-        else [state.tolist() for state in agent_attributes],
-        agent_properties=agent_properties if agent_properties is None 
-        else [ap.serialize() if ap else None for ap in agent_properties] ,
+        agent_attributes=agent_attributes,
+        agent_properties=agent_properties,
+        states_history=states_history,
         traffic_light_state_history=traffic_light_state_history,
         get_birdview=get_birdview,
         location_of_interest=location_of_interest,
         get_infractions=get_infractions,
+        agent_count=agent_count,
         random_seed=random_seed,
-        model_version=api_model_version if api_model_version is not None else "best"
+        api_model_version=api_model_version
     )
     start = time.time()
     timeout = TIMEOUT

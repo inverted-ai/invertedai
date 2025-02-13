@@ -14,25 +14,38 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 class DebugLogger:
+    def __new__(cls, *args, **kwargs):
+        if not cls.check_instance_exists(cls):
+            cls.instance = super(DebugLogger, cls).__new__(cls)
+        return cls.instance
+
+    def check_instance_exists(cls):
+        return hasattr(cls, 'instance')
+
     def __init__(
         self,
-        debug_log_path: str
+        debug_dir_path: Optional[str] = None
     ):
-        self.debug_log_path = debug_log_path
-        self._create_directory()
+        if debug_dir_path is not None:
+            self.debug_dir_path = debug_dir_path
+            self._create_directory()
 
-        self.data = defaultdict(list)
+            self.data = defaultdict(list)
 
-        file_name = "iai_log_" + self._get_current_time_human_readable_UTC() + "_UTC.json"
-        self.log_path = self.debug_log_path + file_name
+            self.init_time = datetime.timestamp(datetime.now())
+            file_name = "iai_log_" + self._get_current_time_human_readable_UTC() + "_UTC.json"
+            self.debug_log_path = os.path.join(self.debug_dir_path,file_name)
+
+    def reinitialize_logger(self):
+        self.__init__(debug_dir_path = self.debug_dir_path)
 
     def _get_current_time_human_readable_UTC(self):
         return datetime.now(timezone.utc).strftime("%Y-%m-%d_%H:%M:%S:%f")
 
     def _create_directory(self):
-        if not os.path.isdir(self.debug_log_path):
-            logger.info(f"Debug log directory does not exist: Created new directory at {self.debug_log_path}")
-            os.makedirs(self.debug_log_path)
+        if not os.path.isdir(self.debug_dir_path):
+            logger.info(f"Debug log directory does not exist: Created new directory at {self.debug_dir_path}")
+            os.makedirs(self.debug_dir_path)
 
     def append_request(
         self,
@@ -53,6 +66,14 @@ class DebugLogger:
         elif model == "drive":
             self.data["drive_requests"].append(data_str)
             self.data["drive_request_timestamps"].append(ts)
+
+        elif model == "large_initialize":
+            self.data["large_initialize_requests"].append(data_str)
+            self.data["large_initialize_request_timestamps"].append(ts)
+
+        elif model == "large_drive":
+            self.data["large_drive_requests"].append(data_str)
+            self.data["large_drive_request_timestamps"].append(ts)
 
         self.write_data_to_log()
 
@@ -76,10 +97,18 @@ class DebugLogger:
             self.data["drive_responses"].append(data_str)
             self.data["drive_response_timestamps"].append(ts)
 
+        elif model == "large_initialize":
+            self.data["large_initialize_responses"].append(data_str)
+            self.data["large_initialize_response_timestamps"].append(ts)
+
+        elif model == "large_drive":
+            self.data["large_drive_responses"].append(data_str)
+            self.data["large_drive_response_timestamps"].append(ts)
+
         self.write_data_to_log()
 
     def write_data_to_log(self):
-        with open(self.log_path, "w") as outfile:
+        with open(self.debug_log_path, "w") as outfile:
             json.dump(self.data, outfile)
 
     def _get_scene_plotter(

@@ -90,7 +90,6 @@ class Image(BaseModel):
         img_array = img_array[:, :, ::-1]
         return img_array
 
-
     @classmethod
     def fromval(cls, val):
         return cls(encoded_image=val)
@@ -304,6 +303,9 @@ class InfractionIndicators(BaseModel):
             offroad=offroad, 
             wrong_way=wrong_way
         )
+
+    def tolist(self):
+        return [self.collisions,self.offroad,self.wrong_way]
 
 
 class StaticMapActor(BaseModel):

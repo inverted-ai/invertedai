@@ -40,6 +40,47 @@ class DriveResponse(BaseModel):
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map, each element corresponds to one light group. Pass this to the next call of :func:`iai.drive` for the server to realistically update the traffic light states.
     api_model_version: str # Model version used for this API call
 
+    def serialize_drive_response_parameters(self):
+        output_dict = dict(self)
+        output_dict["agent_states"] = [state.tolist() for state in output_dict["agent_states"]]
+        output_dict["recurrent_states"] = [r.packed for r in output_dict["recurrent_states"]] if output_dict["recurrent_states"] is not None else None
+        output_dict["light_recurrent_states"] = [light_recurrent_state.tolist() for light_recurrent_state in output_dict["light_recurrent_states"]] if output_dict["light_recurrent_states"] is not None else None
+        output_dict["infractions"] = [infrac.tolist() for infrac in output_dict["infractions"]] if output_dict["infractions"] is not None else None
+
+        return output_dict
+
+@validate_call
+def serialize_drive_request_parameters(
+    location: str,
+    agent_states: List[AgentState],
+    agent_attributes: Optional[List[AgentAttributes]] = None,
+    agent_properties: Optional[List[AgentProperties]] = None,
+    recurrent_states: Optional[List[RecurrentState]] = None,
+    traffic_lights_states: Optional[TrafficLightStatesDict] = None,
+    light_recurrent_states: Optional[LightRecurrentStates] = None,
+    get_birdview: bool = False,
+    rendering_center: Optional[Tuple[float, float]] = None,
+    rendering_fov: Optional[float] = None,
+    get_infractions: bool = False,
+    random_seed: Optional[int] = None,
+    api_model_version: Optional[str] = None
+):
+    return dict(
+        location=location,
+        agent_states=[state.tolist() for state in agent_states],
+        agent_attributes=[attr.tolist() for attr in agent_attributes] if agent_attributes is not None else None,
+        agent_properties=[ap.serialize() for ap in agent_properties] if agent_properties is not None else None,
+        recurrent_states=[r.packed for r in recurrent_states] if recurrent_states is not None else None,
+        traffic_lights_states=traffic_lights_states,
+        light_recurrent_states=[light_recurrent_state.tolist() for light_recurrent_state in light_recurrent_states] if light_recurrent_states is not None else None,
+        get_birdview=get_birdview,
+        get_infractions=get_infractions,
+        random_seed=random_seed,
+        rendering_center=rendering_center,
+        rendering_fov=rendering_fov,
+        model_version=api_model_version
+    )
+
 
 @validate_call
 def drive(
@@ -160,21 +201,20 @@ def drive(
             return input_data
 
     recurrent_states = _tolist(recurrent_states) if recurrent_states is not None else None
-    model_inputs = dict(
+    model_inputs = serialize_drive_request_parameters(
         location=location,
-        agent_states=[state.tolist() for state in agent_states],
-        agent_attributes=[state.tolist() for state in agent_attributes] if agent_attributes is not None else None,
-        agent_properties=[ap.serialize() for ap in agent_properties] if agent_properties is not None else None,
-        recurrent_states=[r.packed for r in recurrent_states] if recurrent_states is not None else None,
+        agent_states=agent_states,
+        agent_attributes=agent_attributes,
+        agent_properties=agent_properties,
+        recurrent_states=recurrent_states,
         traffic_lights_states=traffic_lights_states,
-        light_recurrent_states=[light_recurrent_state.tolist() for light_recurrent_state in light_recurrent_states] 
-        if light_recurrent_states is not None else None,
+        light_recurrent_states=light_recurrent_states,
         get_birdview=get_birdview,
-        get_infractions=get_infractions,
-        random_seed=random_seed,
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
-        model_version=api_model_version
+        get_infractions=get_infractions,
+        random_seed=random_seed,
+        api_model_version=api_model_version
     )
     start = time.time()
     timeout = TIMEOUT
@@ -213,11 +253,10 @@ def drive(
             )
 
             return response
+
         except APIConnectionError as e:
             iai.logger.warning("Retrying")
-            if (
-                    timeout is not None and time.time() > start + timeout
-            ) or not e.should_retry:
+            if (timeout is not None and time.time() > start + timeout) or not e.should_retry:
                 raise e
 
 

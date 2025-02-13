@@ -11,10 +11,12 @@ from tqdm.contrib import tenumerate
 
 import invertedai as iai
 from invertedai.large.common import Region, REGION_MAX_SIZE
-from invertedai.api.initialize import InitializeResponse
+from invertedai.api.initialize import InitializeResponse, serialize_initialize_request_parameters
 from invertedai.utils import get_default_agent_properties
 from invertedai.error import InvertedAIError
+from invertedai.logs.debug_logger import DebugLogger
 from invertedai.common import (
+    AgentAttributes,
     AgentProperties, 
     AgentState, 
     AgentType,
@@ -524,7 +526,6 @@ def _initialize_regions(
 
     return regions, all_responses
 
-
 @validate_call
 def large_initialize(
     location: str,
@@ -606,6 +607,30 @@ def large_initialize(
     if (agent_properties is not None and agent_states is not None) or (agent_properties is None and agent_states is not None):
         assert len(agent_properties) >= len(agent_states), "Invalid parameters: number of agent properties must be larger than number agent states."
 
+    is_debug_logging = DebugLogger.check_instance_exists(DebugLogger)
+    if is_debug_logging:
+        debug_logger = DebugLogger()
+
+        agent_props = agent_properties if agent_properties is not None else []
+        agent_sts = agent_states if agent_states is not None else []
+        debug_large_initialize_parameters = serialize_initialize_request_parameters(
+            location = location,
+            agent_attributes = None,
+            agent_properties = agent_props + [prop for region_props in [region.agent_properties for region in regions] for prop in region_props],
+            states_history = [agent_sts + [state for region_states in [region.agent_states for region in regions] for state in region_states]],
+            traffic_light_state_history = traffic_light_state_history,
+            get_birdview = False,
+            location_of_interest = None,
+            get_infractions = get_infractions,
+            agent_count = None,
+            random_seed = random_seed,
+            api_model_version = api_model_version
+        )
+        debug_logger.append_request(
+            model = "large_initialize",
+            data_dict = debug_large_initialize_parameters
+        )
+
     regions, region_map = _insert_agents_into_nearest_regions(
         regions = regions,
         agent_properties = [] if agent_properties is None else agent_properties,
@@ -631,5 +656,11 @@ def large_initialize(
         return_exact_agents = return_exact_agents,
         get_infractions = get_infractions
     )
+
+    if is_debug_logging:
+        debug_logger.append_response(
+            model = "large_initialize",
+            data_dict = response.serialize_initialize_response_parameters()
+        )
     
     return response
