@@ -46,6 +46,7 @@ class DriveResponse(BaseModel):
         output_dict["recurrent_states"] = [r.packed for r in output_dict["recurrent_states"]] if output_dict["recurrent_states"] is not None else None
         output_dict["light_recurrent_states"] = [light_recurrent_state.tolist() for light_recurrent_state in output_dict["light_recurrent_states"]] if output_dict["light_recurrent_states"] is not None else None
         output_dict["infractions"] = [infrac.tolist() for infrac in output_dict["infractions"]] if output_dict["infractions"] is not None else None
+        output_dict["birdview"] = None if output_dict["birdview"] is None else output_dict["birdview"].encoded_image
 
         return output_dict
 
