@@ -1,11 +1,6 @@
-import os
 import json
-from json import encoder
-encoder.FLOAT_REPR = lambda o: format(o, '.2f')
-
-
+import argparse
 import invertedai as iai
-from typing import List, Optional, Dict, Tuple
 import matplotlib.pyplot as plt
 
 class DiagnosticTool:
@@ -19,9 +14,16 @@ class DiagnosticTool:
             self.log_data = json.load(json_file)
 
     def full_diagnostic_test(self):
-        pass
+        drive_state_equivalence_messages = self._check_drive_response_equivalence()
 
-    def check_drive_response_equivalence(self):
+        for msg in drive_state_equivalence_messages:
+            print(f"Diagnostic Information: {msg}")
+
+        print(f"Finished diagnostic analysis.")
+
+    def _check_drive_response_equivalence(self):
+        diagnostic_messages = []
+
         is_equal_agent_states = []
         is_equal_recurrent_states = []
 
@@ -32,7 +34,15 @@ class DiagnosticTool:
         for req_dict, res_dict in zip(req_groupings["recurrent_states"][1:],res_groupings["recurrent_states"][:-1]):
             is_equal_recurrent_states.append(self._check_states_equal(req_dict,res_dict))
 
-        return all(is_equal_agent_states) and all(is_equal_recurrent_states)
+        if not all(is_equal_agent_states):
+            res_states = list(filter(lambda i: is_equal_agent_states[i], range(len(is_equal_agent_states))))
+            diagnostic_messages.append(f"Potential agent state index error detected at log timestep(s): {res_states}")
+
+        if not all(is_equal_recurrent_states):
+            res_states = list(filter(lambda i: is_equal_recurrent_states[i], range(len(is_equal_recurrent_states))))
+            diagnostic_messages.append(f"Potential recurrent state index error detected at log timestep(s): {res_states}")
+
+        return diagnostic_messages
 
     def _get_all_drive_agents(
         self,
@@ -80,4 +90,16 @@ class DiagnosticTool:
 
         return True
 
-    
+
+if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(description=__doc__)
+    argparser.add_argument(
+        '--debug_log_path',
+        type=str,
+        help=f"Full path to an IAI debug log to be analyzed.",
+        default='None'
+    )
+    args = argparser.parse_args()
+
+    diagnostic_tool = DiagnosticTool(debug_log_path=args.debug_log_path)
+    diagnostic_tool.full_diagnostic_test()
