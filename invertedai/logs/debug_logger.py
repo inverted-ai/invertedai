@@ -14,28 +14,18 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 class DebugLogger:
-    def __new__(cls, *args, **kwargs):
-        if not cls.check_instance_exists():
-            cls.instance = super(DebugLogger, cls).__new__(cls)
-        return cls.instance
-
-    @classmethod
-    def check_instance_exists(cls):
-        return hasattr(cls, 'instance')
-
     def __init__(
         self,
         debug_dir_path: Optional[str] = None
     ):
-        if debug_dir_path is not None:
-            self.debug_dir_path = debug_dir_path
-            self._create_directory()
+        self.debug_dir_path = debug_dir_path
+        self._create_directory()
 
-            self.data = defaultdict(list)
+        self.data = defaultdict(list)
 
-            self.init_time = datetime.timestamp(datetime.now())
-            file_name = "iai_log_" + self._get_current_time_human_readable_UTC() + "_UTC.json"
-            self.debug_log_path = os.path.join(self.debug_dir_path,file_name)
+        self.init_time = datetime.timestamp(datetime.now())
+        file_name = "iai_log_" + self._get_current_time_human_readable_UTC() + "_UTC.json"
+        self.debug_log_path = os.path.join(self.debug_dir_path,file_name)
 
     def reinitialize_logger(self):
         self.__init__(debug_dir_path = self.debug_dir_path)

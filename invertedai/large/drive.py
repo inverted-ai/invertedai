@@ -110,9 +110,8 @@ def large_drive(
     if is_using_attributes:
         warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
-    is_debug_logging = DebugLogger.check_instance_exists()
+    is_debug_logging = iai.debug_logger is not None
     if is_debug_logging:
-        debug_logger = DebugLogger()
         debug_large_drive_parameters = serialize_drive_request_parameters(
             location = location,
             agent_states = agent_states,
@@ -128,7 +127,7 @@ def large_drive(
             random_seed = random_seed,
             api_model_version = api_model_version
         )
-        debug_logger.append_request(
+        iai.debug_logger.append_request(
             model = "large_drive",
             data_dict = debug_large_drive_parameters
         )
@@ -226,7 +225,7 @@ def large_drive(
         )
 
     if is_debug_logging:
-        debug_logger.append_response(
+        iai.debug_logger.append_response(
             model = "large_drive",
             data_dict = response.serialize_drive_response_parameters()
         )

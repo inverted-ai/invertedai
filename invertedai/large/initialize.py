@@ -607,10 +607,8 @@ def large_initialize(
     if (agent_properties is not None and agent_states is not None) or (agent_properties is None and agent_states is not None):
         assert len(agent_properties) >= len(agent_states), "Invalid parameters: number of agent properties must be larger than number agent states."
 
-    is_debug_logging = DebugLogger.check_instance_exists()
+    is_debug_logging = iai.debug_logger is not None
     if is_debug_logging:
-        debug_logger = DebugLogger()
-
         agent_props = agent_properties if agent_properties is not None else []
         agent_sts = agent_states if agent_states is not None else []
         debug_large_initialize_parameters = serialize_initialize_request_parameters(
@@ -626,7 +624,7 @@ def large_initialize(
             random_seed = random_seed,
             api_model_version = api_model_version
         )
-        debug_logger.append_request(
+        iai.debug_logger.append_request(
             model = "large_initialize",
             data_dict = debug_large_initialize_parameters
         )
@@ -658,7 +656,7 @@ def large_initialize(
     )
 
     if is_debug_logging:
-        debug_logger.append_response(
+        iai.debug_logger.append_response(
             model = "large_initialize",
             data_dict = response.serialize_initialize_response_parameters()
         )
