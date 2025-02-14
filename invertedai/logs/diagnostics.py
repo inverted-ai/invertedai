@@ -3,17 +3,34 @@ import argparse
 import invertedai as iai
 import matplotlib.pyplot as plt
 
+from typing import Dict, List
+
 class DiagnosticTool:
     def __init__(
         self,
         debug_log_path: str
     ):
+        """
+        A user-side tool that examines a debug log checking for common implementation mistakes 
+        and provides feedback.
+
+        Parameters
+        ----------
+        debug_log_path:
+            The full path to the debug log file to be loaded and analyzed.
+        """
+
         self.debug_log_path = debug_log_path
         self.log_data = None
         with open(debug_log_path) as json_file:
             self.log_data = json.load(json_file)
 
     def full_diagnostic_test(self):
+        """
+        Main access point for this class. This function runs all available diagnostic tests and prints 
+        human-readable feedback for the benefit of a user to fix issues in their integration.
+        """
+
         drive_state_equivalence_messages = self._check_drive_response_equivalence()
 
         for msg in drive_state_equivalence_messages:
@@ -46,7 +63,7 @@ class DiagnosticTool:
 
     def _get_all_drive_agents(
         self,
-        log_data
+        log_data: Dict
     ):
         STATE_SIGDIG = 2
         RECURR_SIGDIG = 6
@@ -72,13 +89,21 @@ class DiagnosticTool:
 
         return req_agent_state_dict, res_agent_state_dict
 
-    def _check_individual_states_equal(self,sa_0,sa_1):
+    def _check_individual_states_equal(
+        self,
+        sa_0: float,
+        sa_1: float
+    ):
         for param_0, param_1 in zip(sa_0,sa_1):
             if not param_0 == param_1: return False
 
         return True
 
-    def _check_states_equal(self,states_0,states_1):
+    def _check_states_equal(
+        self,
+        states_0: List[float],
+        states_1: List[float]
+    ):
         if not len(states_0) == len(states_1): return False
 
         for i, sa_0 in enumerate(states_0):
