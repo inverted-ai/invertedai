@@ -58,11 +58,11 @@ class DiagnosticTool:
             is_equal_recurrent_states["is_equal"].append(is_state_equal)
 
         if not all(is_equal_agent_states["is_equal"]):
-            res_states = [f"({i}:{list(filter(lambda i: is_equal_agent_states["agents_equal"][i], range(len(is_equal_agent_states["agents_equal"]))))})" for i, val in enumerate(is_equal_agent_states["is_equal"]) if not val]
+            res_states = [f"({j}:{is_equal_agent_states["agents_equal"][j]})" for j, val in enumerate(is_equal_agent_states["is_equal"]) if not val]
             diagnostic_messages.append(f"Potential agent state index error detected for (Time step:[Agent Indexes]): {res_states}")
 
         if not all(is_equal_recurrent_states["is_equal"]):
-            res_states = [f"({i}:{list(filter(lambda i: is_equal_recurrent_states["agents_equal"][i], range(len(is_equal_recurrent_states["agents_equal"]))))})" for i, val in enumerate(is_equal_recurrent_states["is_equal"]) if not val]
+            res_states = [f"({j}:{is_equal_recurrent_states["agents_equal"][j]})" for j, val in enumerate(is_equal_recurrent_states["is_equal"]) if not val]
             diagnostic_messages.append(f"Potential recurrent state index error detected for (Time step:[Agent Indexes]): {res_states}")
 
         return diagnostic_messages
@@ -110,17 +110,20 @@ class DiagnosticTool:
         states_0: List[float],
         states_1: List[float]
     ):
-        is_state_equal = True
+        is_all_states_equal = True
         states_equal = []
-        if not len(states_0) == len(states_1): return False
+        # if not len(states_0) == len(states_1): return False
 
         for i, sa_0 in enumerate(states_0):
+            is_state_equal = False
             for j, sa_1 in enumerate(states_1):
-                is_equal = self._check_individual_states_equal(sa_0,sa_1)
-                states_equal.append(is_equal)
-                is_state_equal = is_equal and is_state_equal
+                is_state_equal = self._check_individual_states_equal(sa_0,sa_1)
+                if is_state_equal: break
+            
+            states_equal.append(is_state_equal)
+            is_all_states_equal = is_state_equal and is_all_states_equal
 
-        return states_equal, is_state_equal
+        return states_equal, is_all_states_equal
 
 
 if __name__ == '__main__':
