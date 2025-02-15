@@ -41,23 +41,29 @@ class DiagnosticTool:
     def _check_drive_response_equivalence(self):
         diagnostic_messages = []
 
-        is_equal_agent_states = []
-        is_equal_recurrent_states = []
+        is_equal_agent_states = {"is_equal":[],"agents_equal":[]}
+        is_any_agent_states_issue = False
+        is_equal_recurrent_states = {"is_equal":[],"agents_equal":[]}
+        is_any_recurrent_states_issue
 
         req_groupings, res_groupings = self._get_all_drive_agents(log_data = self.log_data)
 
         for req_dict, res_dict in zip(req_groupings["agent_states"][1:],res_groupings["agent_states"][:-1]):
-            is_equal_agent_states.append(self._check_states_equal(req_dict,res_dict))
+            states_equal, is_state_equal = self._check_states_equal(req_dict,res_dict)
+            is_equal_agent_states["agents_equal"].append(states_equal)
+            is_equal_agent_states["is_equal"].append(is_state_equal)
         for req_dict, res_dict in zip(req_groupings["recurrent_states"][1:],res_groupings["recurrent_states"][:-1]):
-            is_equal_recurrent_states.append(self._check_states_equal(req_dict,res_dict))
+            states_equal, is_state_equal = self._check_states_equal(req_dict,res_dict)
+            is_equal_recurrent_states["agents_equal"].append(states_equal)
+            is_equal_recurrent_states["is_equal"].append(is_state_equal)
 
-        if not all(is_equal_agent_states):
-            res_states = list(filter(lambda i: is_equal_agent_states[i], range(len(is_equal_agent_states))))
-            diagnostic_messages.append(f"Potential agent state index error detected at log timestep(s): {res_states}")
+        if not all(is_equal_agent_states["is_equal"]):
+            res_states = [f"({i}:{list(filter(lambda i: is_equal_agent_states["agents_equal"][i], range(len(is_equal_agent_states["agents_equal"]))))})" for i, val in enumerate(is_equal_agent_states["is_equal"]) if not val]
+            diagnostic_messages.append(f"Potential agent state index error detected for (Time step:[Agent Indexes]): {res_states}")
 
-        if not all(is_equal_recurrent_states):
-            res_states = list(filter(lambda i: is_equal_recurrent_states[i], range(len(is_equal_recurrent_states))))
-            diagnostic_messages.append(f"Potential recurrent state index error detected at log timestep(s): {res_states}")
+        if not all(is_equal_recurrent_states["is_equal"]):
+            res_states = [f"({i}:{list(filter(lambda i: is_equal_recurrent_states["agents_equal"][i], range(len(is_equal_recurrent_states["agents_equal"]))))})" for i, val in enumerate(is_equal_recurrent_states["is_equal"]) if not val]
+            diagnostic_messages.append(f"Potential recurrent state index error detected for (Time step:[Agent Indexes]): {res_states}")
 
         return diagnostic_messages
 
@@ -104,16 +110,17 @@ class DiagnosticTool:
         states_0: List[float],
         states_1: List[float]
     ):
+        is_state_equal = True
+        states_equal = []
         if not len(states_0) == len(states_1): return False
 
         for i, sa_0 in enumerate(states_0):
-            is_states_equal = False
             for j, sa_1 in enumerate(states_1):
-                is_states_equal = self._check_individual_states_equal(sa_0,sa_1)
-                if is_states_equal: break
-            if not is_states_equal: return False
+                is_equal = self._check_individual_states_equal(sa_0,sa_1)
+                states_equal.append(is_equal)
+                is_state_equal = is_equal and is_state_equal
 
-        return True
+        return states_equal, is_state_equal
 
 
 if __name__ == '__main__':
