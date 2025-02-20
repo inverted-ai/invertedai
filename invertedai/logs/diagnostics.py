@@ -82,9 +82,7 @@ class DiagnosticTool:
         diagnostic_messages = []
 
         is_equal_agent_states = {"agents_equal":[],"same_index":[]}
-        is_any_agent_states_issue = False
         is_equal_recurrent_states = {"agents_equal":[],"same_index":[]}
-        is_any_recurrent_states_issue = False
 
         req_groupings, res_groupings = self._get_all_drive_agents(log_data = self.log_data)
 
