@@ -8,7 +8,8 @@ from typing import Dict, List, Optional
 class DiagnosticTool:
     def __init__(
         self,
-        debug_log_path: str
+        debug_log_path: str,
+        ego_indexes: Optional[List[int]] = []
     ):
         """
         A user-side tool that examines a debug log checking for common implementation mistakes 
@@ -33,6 +34,8 @@ class DiagnosticTool:
             100: "Agents removed before next request",
             101: "Agents added before next request"
         }
+
+        self.ego_indexes = ego_indexes
 
     def _format_message(
         self,
@@ -59,7 +62,6 @@ class DiagnosticTool:
             print(msg)
 
         print(f"Finished diagnostic analysis.")
-
 
     def _check_number_of_agents(self):
         diagnostic_messages = []
@@ -183,7 +185,8 @@ class DiagnosticTool:
                         break
                 
                 is_same_index[i] = is_index_equal
-                states_equal[i] = is_state_equal
+                # Some behaviour is expected with ego agents controlled externally to the API
+                states_equal[i] = is_state_equal or i in self.ego_indexes
 
         return states_equal, is_same_index
 
