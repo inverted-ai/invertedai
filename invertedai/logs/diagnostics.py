@@ -184,9 +184,9 @@ class DiagnosticTool:
                         is_index_equal = i == j
                         break
                 
-                is_same_index[i] = is_index_equal
                 # Some behaviour is expected with ego agents controlled externally to the API
                 states_equal[i] = is_state_equal or i in self.ego_indexes
+                is_same_index[i] = is_index_equal or i in self.ego_indexes
 
         return states_equal, is_same_index
 
@@ -199,7 +199,17 @@ if __name__ == '__main__':
         help=f"Full path to an IAI debug log to be analyzed.",
         default='None'
     )
+    argparser.add_argument(
+        '--ego_agent_list',
+        type=int,
+        nargs='+',
+        help=f"IDs of ego agents.",
+        default=None
+    )
     args = argparser.parse_args()
 
-    diagnostic_tool = DiagnosticTool(debug_log_path=args.debug_log_path)
+    diagnostic_tool = DiagnosticTool(
+        debug_log_path=args.debug_log_path,
+        ego_indexes=args.ego_agent_list
+    )
     diagnostic_tool.full_diagnostic_test()
