@@ -288,21 +288,20 @@ async def async_drive(
             return input_data
 
     recurrent_states = _tolist(recurrent_states) if recurrent_states is not None else None
-    model_inputs = dict(
+    model_inputs = serialize_drive_request_parameters(
         location=location,
-        agent_states=[state.tolist() for state in agent_states],
-        agent_attributes=[state.tolist() for state in agent_attributes] if agent_attributes is not None else None,
-        agent_properties=[ap.serialize() for ap in agent_properties] if agent_properties is not None else None,
-        recurrent_states=[r.packed for r in recurrent_states] if recurrent_states is not None else None,
+        agent_states=agent_states,
+        agent_attributes=agent_attributes,
+        agent_properties=agent_properties,
+        recurrent_states=recurrent_states,
         traffic_lights_states=traffic_lights_states,
-        light_recurrent_states=[light_recurrent_state.tolist() for light_recurrent_state in light_recurrent_states] 
-        if light_recurrent_states is not None else None,
+        light_recurrent_states=light_recurrent_states,
         get_birdview=get_birdview,
-        get_infractions=get_infractions,
-        random_seed=random_seed,
         rendering_center=rendering_center,
         rendering_fov=rendering_fov,
-        model_version=api_model_version
+        get_infractions=get_infractions,
+        random_seed=random_seed,
+        api_model_version=api_model_version
     )
     response = await iai.session.async_request(model="drive", data=model_inputs)
 

@@ -23,7 +23,6 @@ class DebugLogger:
 
         self.data = defaultdict(list)
 
-        self.init_time = datetime.timestamp(datetime.now())
         file_name = "iai_log_" + self._get_current_time_human_readable_UTC() + "_UTC.json"
         self.debug_log_path = os.path.join(self.debug_dir_path,file_name)
 

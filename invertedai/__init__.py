@@ -43,7 +43,7 @@ debug_logger_path = os.environ.get("IAI_LOGGER_PATH", None)
 
 debug_logger = None
 if debug_logger_path is not None:
-    debug_logger = DebugLogger(debug_logger_path)
+    debug_logger = DebugLogger(os.path.join(debug_logger_path))
 logger = IAILogger(level=log_level, consoel=bool(log_console), log_file=bool(log_file))
 
 session = Session(debug_logger)
