@@ -3,13 +3,29 @@ import argparse
 import invertedai as iai
 import matplotlib.pyplot as plt
 
+from enum import Enum
+from pydantic import BaseModel
 from typing import Dict, List, Optional
+
+DIAGNOSTIC_ISSUE_LIBRARY = {
+    10:"Agent state index change",
+    11:"Agent state modified or removed before next request",
+    20:"Recurrent state index change",
+    21:"Recurrent state modified or removed before next request",
+    100:"Agents removed before next request",
+    101:"Agents added before next request"
+}
+
+class DiagnosticMessage(BaseModel):
+    timestep: int
+    issue_type: int
+    agent_list: Optional[List[int]] = None
 
 class DiagnosticTool:
     def __init__(
         self,
         debug_log_path: str,
-        ego_indexes: Optional[List[int]] = []
+        ego_indexes: List[int] = None
     ):
         """
         A user-side tool that examines a debug log checking for common implementation mistakes 
@@ -25,29 +41,24 @@ class DiagnosticTool:
         self.log_data = None
         with open(debug_log_path) as json_file:
             self.log_data = json.load(json_file)
+        self.req_groupings, self.res_groupings = self._parse_log_data(log_data = self.log_data)
+        self.num_timesteps = len(self.res_groupings["agent_states"])
 
-        self.DIAGNOSTIC_ISSUE_LIBRARY = {
-            10: "Agent state index change",
-            11: "Agent state modified or removed before next request",
-            20: "Recurrent state index change",
-            21: "Recurrent state modified or removed before next request",
-            100: "Agents removed before next request",
-            101: "Agents added before next request"
-        }
+        self.DIAGNOSTIC_ISSUE_LIBRARY = DIAGNOSTIC_ISSUE_LIBRARY
 
-        self.ego_indexes = ego_indexes
+        self.ego_indexes = [] if ego_indexes is None else ego_indexes
 
     def _format_message(
         self,
         timestep: int,
         issue_type: str,
-        agent_list: Optional[str] = None
+        agent_list: Optional[List[int]] = None
     ):
-        if agent_list is None:
-            output_str = f"Potential issue that might cause degradation in performance at timestep {timestep}: {issue_type}"
-        else:
-            output_str = f"Potential issue that might cause degradation in performance at timestep {timestep}: {issue_type} applicable to agents {agent_list}"
-        return output_str
+        return DiagnosticMessage(
+            timestep=timestep,
+            issue_type=issue_type,
+            agent_list=agent_list
+        )
 
     def full_diagnostic_test(self):
         """
@@ -55,85 +66,106 @@ class DiagnosticTool:
         human-readable feedback for the benefit of a user to fix issues in their integration.
         """
 
-        for msg in self._check_drive_response_equivalence():
-            print(msg)
+        diagnostic_message_codes = []
 
-        for msg in self._check_number_of_agents():
-            print(msg)
+        diagnostic_message_codes.extend(self._check_drive_response_equivalence())
+        diagnostic_message_codes.extend(self._check_number_of_agents())
+
+        diagnostic_message_dict = {}
+        for msg in diagnostic_message_codes:
+            if msg.timestep in diagnostic_message_dict:
+                diagnostic_message_dict[msg.timestep].append(msg)
+            else:
+                diagnostic_message_dict[msg.timestep] = [msg]
+
+        for ts in range(self.num_timesteps):
+            if ts not in diagnostic_message_dict:
+                print(f"At timestep {ts}: No issues detected.")
+            else:
+                for msg in diagnostic_message_dict[ts]:
+                    if msg.agent_list is not None:
+                        print(f"At timestep {ts}: Potential issue detected that might cause performance degradation with code {msg.issue_type} applicable to agent IDs {msg.agent_list}")
+                    else:
+                        print(f"At timestep {ts}: Potential issue detected that might cause performance degradation with code {msg.issue_type}.")
+
+        print(f"")
+        print(f"======================================================================================")
+        print(f"Diagnostic Issue Legend")
+        for code, message in self.DIAGNOSTIC_ISSUE_LIBRARY.items():
+            print(f"{code}:{message}")
+        print(f"======================================================================================")
+        print(f"")
 
         print(f"Finished diagnostic analysis.")
 
     def _check_number_of_agents(self):
-        diagnostic_messages = []
+        diagnostic_message_codes = []
 
-        req_groupings, res_groupings = self._get_all_drive_agents(log_data = self.log_data)
-        for ind, (req_list, res_list) in enumerate(zip(req_groupings["agent_states"][1:],res_groupings["agent_states"][:-1])):
+        for ind, (req_list, res_list) in enumerate(zip(self.req_groupings["agent_states"][1:],self.res_groupings["agent_states"][:-1])):
             if len(res_list) < len(req_list):
-                diagnostic_messages.append(
+                diagnostic_message_codes.append(
                     self._format_message(
                         timestep = ind+1,
-                        issue_type = self.DIAGNOSTIC_ISSUE_LIBRARY[101]
+                        issue_type = 101
                     )
                 )
 
-        return diagnostic_messages
+        return diagnostic_message_codes
 
     def _check_drive_response_equivalence(self):
-        diagnostic_messages = []
+        diagnostic_message_codes = []
 
         is_equal_agent_states = {"agents_equal":[],"same_index":[]}
         is_equal_recurrent_states = {"agents_equal":[],"same_index":[]}
 
-        req_groupings, res_groupings = self._get_all_drive_agents(log_data = self.log_data)
-
-        for req_dict, res_dict in zip(req_groupings["agent_states"][1:],res_groupings["agent_states"][:-1]):
+        for req_dict, res_dict in zip(self.req_groupings["agent_states"][1:],self.res_groupings["agent_states"][:-1]):
             states_equal, is_index_equal = self._check_states_equal(res_dict,req_dict)
             is_equal_agent_states["agents_equal"].append(states_equal)
             is_equal_agent_states["same_index"].append(is_index_equal)
-        for req_dict, res_dict in zip(req_groupings["recurrent_states"][1:],res_groupings["recurrent_states"][:-1]):
+        for req_dict, res_dict in zip(self.req_groupings["recurrent_states"][1:],self.res_groupings["recurrent_states"][:-1]):
             states_equal, is_index_equal = self._check_states_equal(res_dict,req_dict)
             is_equal_recurrent_states["agents_equal"].append(states_equal)
             is_equal_recurrent_states["same_index"].append(is_index_equal)
 
         for ind, (ts_agent_exists, ts_index) in enumerate(zip(is_equal_agent_states["agents_equal"],is_equal_agent_states["same_index"])):
             if not all(ts_agent_exists):
-                diagnostic_messages.append(
+                diagnostic_message_codes.append(
                     self._format_message(
                         timestep = ind+1,
-                        issue_type = self.DIAGNOSTIC_ISSUE_LIBRARY[11],
-                        agent_list = str(list(filter(lambda i: not ts_agent_exists[i], range(len(ts_agent_exists)))))
+                        issue_type = 11,
+                        agent_list = list(filter(lambda i: not ts_agent_exists[i], range(len(ts_agent_exists))))
                     )
                 )
             elif not all(ts_index):
-                diagnostic_messages.append(
+                diagnostic_message_codes.append(
                     self._format_message(
                         timestep = ind+1,
-                        issue_type = self.DIAGNOSTIC_ISSUE_LIBRARY[10],
-                        agent_list = str(list(filter(lambda i: ts_agent_exists[i] and not ts_index[i], range(len(ts_index)))))
+                        issue_type = 10,
+                        agent_list = list(filter(lambda i: ts_agent_exists[i] and not ts_index[i], range(len(ts_index))))
                     )
                 )
 
         for ind, (ts_agent_exists, ts_index) in enumerate(zip(is_equal_recurrent_states["agents_equal"],is_equal_recurrent_states["same_index"])):
             if not all(ts_agent_exists):
-                diagnostic_messages.append(
+                diagnostic_message_codes.append(
                     self._format_message(
                         timestep = ind+1,
-                        issue_type = self.DIAGNOSTIC_ISSUE_LIBRARY[21],
-                        agent_list = str(list(filter(lambda i: not ts_agent_exists[i], range(len(ts_agent_exists)))))
+                        issue_type = 21,
+                        agent_list = list(filter(lambda i: not ts_agent_exists[i], range(len(ts_agent_exists))))
                     )
                 )
             elif not all(ts_index):
-                diagnostic_messages.append(
+                diagnostic_message_codes.append(
                     self._format_message(
                         timestep = ind+1,
-                        issue_type = self.DIAGNOSTIC_ISSUE_LIBRARY[20],
-                        agent_list = str(list(filter(lambda i: ts_agent_exists[i] and not ts_index[i], range(len(ts_index)))))
+                        issue_type = 20,
+                        agent_list = list(filter(lambda i: ts_agent_exists[i] and not ts_index[i], range(len(ts_index))))
                     )
                 )
 
-        return diagnostic_messages
+        return diagnostic_message_codes
 
-    def _get_all_drive_agents(
+    def _parse_log_data(
         self,
         log_data: Dict
     ):
@@ -165,7 +197,7 @@ class DiagnosticTool:
 
     def _check_states_equal(
         self,
-        res_states: Optional[List[float]] = None,
+        res_states: List[float],
         req_states: Optional[List[float]] = None
     ):
         num_res_agents = len(res_states)
