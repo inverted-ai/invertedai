@@ -41,7 +41,12 @@ class DiagnosticTool:
         self.log_data = None
         with open(debug_log_path) as json_file:
             self.log_data = json.load(json_file)
-        self.req_groupings, self.res_groupings = self._parse_log_data(log_data = self.log_data)
+        (
+            self.req_groupings, 
+            self.res_groupings,
+            self.req_agent_details,
+            self.init_agent_details
+        ) = self._parse_log_data(log_data = self.log_data)
         self.num_timesteps = len(self.res_groupings["agent_states"])
 
         self.DIAGNOSTIC_ISSUE_LIBRARY = DIAGNOSTIC_ISSUE_LIBRARY
@@ -78,22 +83,26 @@ class DiagnosticTool:
             else:
                 diagnostic_message_dict[msg.timestep] = [msg]
 
+        print(f"===========================================================================================")
+        print(f"Printing potential implementation issues that might cause performance degradation:")
+        print(f"")
+
         for ts in range(self.num_timesteps):
             if ts not in diagnostic_message_dict:
                 print(f"At timestep {ts}: No issues detected.")
             else:
                 for msg in diagnostic_message_dict[ts]:
                     if msg.agent_list is not None:
-                        print(f"At timestep {ts}: Potential issue detected that might cause performance degradation with code {msg.issue_type} applicable to agent IDs {msg.agent_list}")
+                        print(f"At timestep {ts}: Issue code {msg.issue_type} applicable to agent IDs {msg.agent_list}.")
                     else:
-                        print(f"At timestep {ts}: Potential issue detected that might cause performance degradation with code {msg.issue_type}.")
+                        print(f"At timestep {ts}: Issue code {msg.issue_type}.")
 
         print(f"")
-        print(f"======================================================================================")
+        print(f"===========================================================================================")
         print(f"Diagnostic Issue Legend")
         for code, message in self.DIAGNOSTIC_ISSUE_LIBRARY.items():
             print(f"{code}:{message}")
-        print(f"======================================================================================")
+        print(f"===========================================================================================")
         print(f"")
 
         print(f"Finished diagnostic analysis.")
@@ -165,6 +174,29 @@ class DiagnosticTool:
 
         return diagnostic_message_codes
 
+    def _get_agent_details(
+        self,
+        agent_dict: Dict
+    ):
+        ts_agent_details = []
+
+        agent_details = []
+        if agent_dict["agent_attributes"] is not None:
+            agent_details = agent_dict["agent_attributes"]
+        else:
+            agent_details = agent_dict["agent_properties"]
+
+        for detes in agent_details:
+            ts_agent_details.append([
+                detes["length"],
+                detes["width"],
+                detes["rear_axis_offset"],
+                detes["agent_type"],
+                detes["waypoint"]
+            ])
+
+        return ts_agent_details
+
     def _parse_log_data(
         self,
         log_data: Dict
@@ -174,6 +206,8 @@ class DiagnosticTool:
 
         req_agent_state_dict = {"agent_states":[],"recurrent_states":[]}
         res_agent_state_dict = {"agent_states":[],"recurrent_states":[]}
+        req_agent_details = []
+        init_agent_details = []
 
         if "large_drive_responses" in log_data:
             drive_req_data = log_data["large_drive_requests"]
@@ -182,9 +216,9 @@ class DiagnosticTool:
             drive_req_data = log_data["drive_requests"]
             drive_res_data = log_data["drive_responses"]
 
-        for req_data, res_data in zip(drive_req_data,drive_res_data):
-            res_data = json.loads(res_data)
-            req_data = json.loads(req_data)
+        for req_json, res_json in zip(drive_req_data,drive_res_data):
+            res_data = json.loads(res_json)
+            req_data = json.loads(req_json)
 
             for (state_dict, data) in zip([req_agent_state_dict,res_agent_state_dict],[req_data,res_data]):
                 state_dict["agent_states"].append([[round(x,STATE_DECIMAL) for x in st] for st in data["agent_states"]])
@@ -193,7 +227,21 @@ class DiagnosticTool:
                     recurr_state = [[round(x,RECURR_DECIMAL) for x in st] for st in data["recurrent_states"]]
                 state_dict["recurrent_states"].append(recurr_state)
 
-        return req_agent_state_dict, res_agent_state_dict
+        for req_json in drive_req_data:
+            req_data = json.loads(req_json)
+
+            req_agent_details.append(self._get_agent_details(req_data))
+
+        
+        if "large_initialize_responses" in log_data:
+            init_res_data = log_data["large_initialize_responses"]
+        else:
+            init_res_data = log_data["initialize_responses"]
+        res_data = json.loads(init_res_data[-1])
+        init_agent_details = self._get_agent_details(res_data)
+            
+
+        return req_agent_state_dict, res_agent_state_dict, req_agent_details, init_agent_details
 
     def _check_states_equal(
         self,
