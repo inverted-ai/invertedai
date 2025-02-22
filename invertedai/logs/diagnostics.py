@@ -12,6 +12,7 @@ DIAGNOSTIC_ISSUE_LIBRARY = {
     11:"Agent state modified or removed before next request",
     20:"Recurrent state index change",
     21:"Recurrent state modified or removed before next request",
+    50:"Agent properties/attributes deviation from expected range",
     100:"Agents removed before next request",
     101:"Agents added before next request"
 }
@@ -75,6 +76,7 @@ class DiagnosticTool:
 
         diagnostic_message_codes.extend(self._check_drive_response_equivalence())
         diagnostic_message_codes.extend(self._check_number_of_agents())
+        diagnostic_message_codes.extend(self._check_agent_details_realistic())
 
         diagnostic_message_dict = {}
         for msg in diagnostic_message_codes:
@@ -106,6 +108,28 @@ class DiagnosticTool:
         print(f"")
 
         print(f"Finished diagnostic analysis.")
+
+    def _check_agent_details_realistic(self):
+        diagnostic_message_codes = []
+
+        flagged_agents = []
+        for ind, detes in enumerate(self.init_agent_details):
+            if detes[3] == "car":
+                if not ((3.0 < detes[0] < 7.0) and (1.0 < detes[1] < 3.0) and (detes[0]*0.05 < detes[2] < detes[0]*0.95)):
+                    flagged_agents.append(ind)
+            if detes[3] == "pedestrian":
+                if not ((2.0 < detes[0] < 2.0) and (2.0 < detes[1] < 2.0)):
+                    flagged_agents.append(ind)
+        if len(flagged_agents) > 0:
+            diagnostic_message_codes.append(
+                self._format_message(
+                    timestep = 0,
+                    issue_type = 50,
+                    agent_list = flagged_agents
+                )
+            )
+
+        return diagnostic_message_codes
 
     def _check_number_of_agents(self):
         diagnostic_message_codes = []
@@ -181,10 +205,11 @@ class DiagnosticTool:
         ts_agent_details = []
 
         agent_details = []
-        if agent_dict["agent_attributes"] is not None:
-            agent_details = agent_dict["agent_attributes"]
-        else:
+        #Covers cases where agent attributes is either None or an empty list
+        if not agent_dict["agent_attributes"]:
             agent_details = agent_dict["agent_properties"]
+        else:
+            agent_details = agent_dict["agent_attributes"]
 
         for detes in agent_details:
             ts_agent_details.append([
@@ -229,9 +254,7 @@ class DiagnosticTool:
 
         for req_json in drive_req_data:
             req_data = json.loads(req_json)
-
             req_agent_details.append(self._get_agent_details(req_data))
-
         
         if "large_initialize_responses" in log_data:
             init_res_data = log_data["large_initialize_responses"]
@@ -239,7 +262,6 @@ class DiagnosticTool:
             init_res_data = log_data["initialize_responses"]
         res_data = json.loads(init_res_data[-1])
         init_agent_details = self._get_agent_details(res_data)
-            
 
         return req_agent_state_dict, res_agent_state_dict, req_agent_details, init_agent_details
 
