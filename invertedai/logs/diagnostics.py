@@ -5,14 +5,16 @@ import matplotlib.pyplot as plt
 
 from enum import Enum
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 DIAGNOSTIC_ISSUE_LIBRARY = {
     10:"Agent state index change",
     11:"Agent state modified or removed before next request",
     20:"Recurrent state index change",
     21:"Recurrent state modified or removed before next request",
-    50:"Agent properties/attributes deviation from expected range",
+    50:"Static agent properties/attributes deviation from expected range",
+    51:"Static agent properties/attributes modified or removed between time steps",
+    52:"Static agent properties/attributes index change",
     100:"Agents removed before next request",
     101:"Agents added before next request"
 }
@@ -77,6 +79,7 @@ class DiagnosticTool:
         diagnostic_message_codes.extend(self._check_drive_response_equivalence())
         diagnostic_message_codes.extend(self._check_number_of_agents())
         diagnostic_message_codes.extend(self._check_agent_details_realistic())
+        diagnostic_message_codes.extend(self._check_agent_details_static())
 
         diagnostic_message_dict = {}
         for msg in diagnostic_message_codes:
@@ -118,7 +121,7 @@ class DiagnosticTool:
                 if not ((3.0 < detes[0] < 7.0) and (1.0 < detes[1] < 3.0) and (detes[0]*0.05 < detes[2] < detes[0]*0.95)):
                     flagged_agents.append(ind)
             if detes[3] == "pedestrian":
-                if not ((2.0 < detes[0] < 2.0) and (2.0 < detes[1] < 2.0)):
+                if not ((0.5 < detes[0] < 2.0) and (0.5 < detes[1] < 2.0)):
                     flagged_agents.append(ind)
         if len(flagged_agents) > 0:
             diagnostic_message_codes.append(
@@ -128,6 +131,38 @@ class DiagnosticTool:
                     agent_list = flagged_agents
                 )
             )
+
+        return diagnostic_message_codes
+
+    def _check_agent_details_static(self):
+        diagnostic_message_codes = []
+
+        is_equal_agent_details = {"details_equal":[],"same_index":[]}
+
+        all_agent_details = [self.init_agent_details] + self.req_agent_details
+
+        for ts in range(len(all_agent_details)-1):
+            details_equal, is_index_equal = self._check_states_equal(all_agent_details[ts][:-1],all_agent_details[ts+1][:-1])
+            is_equal_agent_details["details_equal"].append(details_equal)
+            is_equal_agent_details["same_index"].append(is_index_equal)
+
+        for ind, (ts_agent_exists, ts_index) in enumerate(zip(is_equal_agent_details["details_equal"],is_equal_agent_details["same_index"])):
+            if not all(ts_agent_exists):
+                diagnostic_message_codes.append(
+                    self._format_message(
+                        timestep = ind,
+                        issue_type = 51,
+                        agent_list = list(filter(lambda i: not ts_agent_exists[i], range(len(ts_agent_exists))))
+                    )
+                )
+            elif not all(ts_index):
+                diagnostic_message_codes.append(
+                    self._format_message(
+                        timestep = ind,
+                        issue_type = 52,
+                        agent_list = list(filter(lambda i: ts_agent_exists[i] and not ts_index[i], range(len(ts_index))))
+                    )
+                )
 
         return diagnostic_message_codes
 
@@ -207,18 +242,16 @@ class DiagnosticTool:
         agent_details = []
         #Covers cases where agent attributes is either None or an empty list
         if not agent_dict["agent_attributes"]:
-            agent_details = agent_dict["agent_properties"]
+            for detes in agent_dict["agent_properties"]:
+                ts_agent_details.append([
+                    detes["length"],
+                    detes["width"],
+                    detes["rear_axis_offset"],
+                    detes["agent_type"],
+                    detes["waypoint"]
+                ])
         else:
-            agent_details = agent_dict["agent_attributes"]
-
-        for detes in agent_details:
-            ts_agent_details.append([
-                detes["length"],
-                detes["width"],
-                detes["rear_axis_offset"],
-                detes["agent_type"],
-                detes["waypoint"]
-            ])
+            ts_agent_details = agent_dict["agent_attributes"]
 
         return ts_agent_details
 
@@ -267,8 +300,8 @@ class DiagnosticTool:
 
     def _check_states_equal(
         self,
-        res_states: List[float],
-        req_states: Optional[List[float]] = None
+        res_states: List[Union[float,str,List[float]]],
+        req_states: Optional[List[Union[float,str,List[float]]]] = None
     ):
         num_res_agents = len(res_states)
         states_equal = [False]*num_res_agents
