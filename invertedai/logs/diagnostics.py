@@ -138,11 +138,13 @@ class DiagnosticTool:
         diagnostic_message_codes = []
 
         is_equal_agent_details = {"details_equal":[],"same_index":[]}
-
         all_agent_details = [self.init_agent_details] + self.req_agent_details
 
         for ts in range(len(all_agent_details)-1):
-            details_equal, is_index_equal = self._check_states_equal(all_agent_details[ts][:-1],all_agent_details[ts+1][:-1])
+            details_equal, is_index_equal = self._check_states_equal(
+                [prop[:-1] for prop in all_agent_details[ts]],
+                [prop[:-1] for prop in all_agent_details[ts+1]]
+            )
             is_equal_agent_details["details_equal"].append(details_equal)
             is_equal_agent_details["same_index"].append(is_index_equal)
 
@@ -322,7 +324,6 @@ class DiagnosticTool:
                 is_same_index[i] = is_index_equal or i in self.ego_indexes
 
         return states_equal, is_same_index
-
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description=__doc__)
