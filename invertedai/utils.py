@@ -770,6 +770,41 @@ def rot(rot):
 class ScenePlotter():
     """
     A class providing features for handling the data visualization of a scene involving IAI data.
+
+    Arguments
+    ----------
+    map_image:
+        An image used as the background for the visualization decoded from the birdview map taken from location info.
+    fov:
+        A single float value representing the field of view of the visualization that can be taken from location info.
+    xy_offset:
+        A tuple coordinate of the center of the map in metres that can be taken from location info.
+    static_actors:
+        A list of StaticMapActor objects representing objects such as traffic lights that can be taken from location info.
+    open_drive: 
+        If using an ASAM OpenDRIVE format map for visualization, this string parameter is used to indicate the path to the corresponding CSV file.
+    resolution: 
+        The desired resolution of the map image expressed as a Tuple with two integers for the width and height respectively.
+    dpi:
+        Dots per inch to define the level of detail in the image.
+    left_hand_coordinates:
+        Boolean flag dictating whether the X-coordinates of all agents and actors should be reversed to fit a left hand coordinate system.
+
+    Keyword Arguments
+    -----------------
+    map_image:
+        Base image onto which the scene is visualized. This parameter must be provided if using an ASAM OpenDRIVE format map.
+    fov: float
+        The field of view in meters corresponding to the map_image attribute. This parameter must be provided if using an ASAM OpenDRIVE format map.
+    xy_offset:
+        The left-hand offset for the center of the map image. This parameter must be provided if using an ASAM OpenDRIVE format map.
+    static_actors:
+        A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided 
+        if using an ASAM OpenDRIVE format map.
+    
+    See Also
+    --------
+    :func:`location_info`
     """
     def __init__(
         self,
@@ -783,42 +818,6 @@ class ScenePlotter():
         left_hand_coordinates: bool = False,
         **kwargs
     ):
-        """
-        Arguments
-        ----------
-        map_image:
-            An image used as the background for the visualization decoded from the birdview map taken from location info.
-        fov:
-            A single float value representing the field of view of the visualization that can be taken from location info.
-        xy_offset:
-            A tuple coordinate of the center of the map in metres that can be taken from location info.
-        static_actors:
-            A list of StaticMapActor objects representing objects such as traffic lights that can be taken from location info.
-        open_drive: 
-            If using an ASAM OpenDRIVE format map for visualization, this string parameter is used to indicate the path to the corresponding CSV file.
-        resolution: 
-            The desired resolution of the map image expressed as a Tuple with two integers for the width and height respectively.
-        dpi:
-            Dots per inch to define the level of detail in the image.
-        left_hand_coordinates:
-            Boolean flag dictating whether the X-coordinates of all agents and actors should be reversed to fit a left hand coordinate system.
-
-        Keyword Arguments
-        -----------------
-        map_image:
-            Base image onto which the scene is visualized. This parameter must be provided if using an ASAM OpenDRIVE format map.
-        fov: float
-            The field of view in meters corresponding to the map_image attribute. This parameter must be provided if using an ASAM OpenDRIVE format map.
-        xy_offset:
-            The left-hand offset for the center of the map image. This parameter must be provided if using an ASAM OpenDRIVE format map.
-        static_actors:
-            A list of static actor agents (e.g. traffic lights) represented as StaticMapActor objects, in the scene. This parameter must be provided
-             if using an ASAM OpenDRIVE format map.
-        
-        See Also
-        --------
-        :func:`location_info`
-        """
 
         self._left_hand_coordinates = left_hand_coordinates
 

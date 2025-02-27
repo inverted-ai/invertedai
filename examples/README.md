@@ -9,18 +9,11 @@ python -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install --upgrade -r requirements.txt
-# optionally install carla, if you want to run carla demos 
-pip install carla==0.9.13
 ```
-*If you run into an issue like`ERROR: No matching distribution found for carla==0.9.13`, your Python version may not
-be CARLA-compatible.
-
 Then, once you obtain an API key, you can run the examples.
 ```bash
 python minimal_example.py --api_key $IAI_API_KEY
 ```
-There are currently three different examples available.
-
 ## Minimal Example
 
 This demonstration script runs without a local simulator and the API is used to control
@@ -41,12 +34,24 @@ meant to provide an illustration of the basic logic for performing co-simulation
 using Inverted AI API and give you a sandbox to experiment with it. It will save 
 the generated gif as `iai-example.gif` in the current directory.
 
+## Large Map Example
+
+This example demonstrates another powerful tool in the Inverted AI API sandbox. The 
+`large_initialize` and `large_drive` functions are analogous to `initialize` and `drive`
+but can handle simulatins cover larger areas and larger number of agents than the default 
+maximum. A key difference in concepts between the large and standard versions of `initialize` 
+is the addition of "regions" which organizes the specific location and number of agents on which 
+to make individual `initialize` API calls.
+
+## Scenario Log Example
+
+This example demonstrates how to use the Inverted AI logging tool. This feature is useful for users
+who wish to capture a simulation or scenario that can be replayed and modified at will. This example
+file shows 3 key features: capturing a log, replaying an original log, and how to use the log to 
+initialize a different simulation.
+
 ## CARLA
 
-Finally, as a realistic example, we provide a basic integration with CARLA.
-This example is meant to provide a comprehensive illustration of co-simulation logic
-and to be a starting point for creating custom scenarios with Inverted AI NPCs,
-both in CARLA and in other simulators. Running CARLA requires additional setup,
-which is documented within the corresponding subfolder.
+Please go to the following link to see an example of how the Inverted AI API can integrate with the Carla SDK: [Carla Python SDK Github](https://github.com/carla-simulator/carla/blob/ue5-dev/PythonAPI/examples/invertedai_traffic.py)
 
 <!-- end exampels -->

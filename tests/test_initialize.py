@@ -6,7 +6,6 @@ import invertedai as iai
 from invertedai.common import Point, AgentProperties
 from invertedai.api.initialize import initialize, InitializeResponse
 from invertedai.api.location import location_info
-from invertedai.api.light import light
 from invertedai.error import InvalidRequestError
 
 positive_tests_old = [
@@ -172,7 +171,14 @@ negative_tests_old = [
      False, None),
 ]
 
-def run_initialize(location, states_history, agent_attributes, agent_properties,  get_infractions, agent_count):
+def run_initialize(
+    location, 
+    states_history, 
+    agent_attributes, 
+    agent_properties,  
+    get_infractions, 
+    agent_count
+):
     response = initialize(
         location,
         agent_attributes=agent_attributes,
@@ -183,26 +189,64 @@ def run_initialize(location, states_history, agent_attributes, agent_properties,
         get_infractions=get_infractions,
         agent_count=agent_count,
     )
-    assert isinstance(response,
-                      InitializeResponse) and response.agent_attributes is not None and response.agent_states is not None
+    assert isinstance(response,InitializeResponse) and response.agent_attributes is not None and response.agent_states is not None
     if response.traffic_lights_states is not None:
-      assert response.light_recurrent_states is not None
+        assert response.light_recurrent_states is not None
 
 
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", negative_tests_old)
-def test_negative_old(location, states_history, agent_attributes, get_infractions, agent_count):
+def test_negative_old(
+    location, 
+    states_history, 
+    agent_attributes, 
+    get_infractions, 
+    agent_count
+):
     with pytest.raises(InvalidRequestError):
-        run_initialize(location, states_history, agent_attributes, None, get_infractions, agent_count)
+        run_initialize(
+            location, 
+            states_history, 
+            agent_attributes, 
+            None, 
+            get_infractions, 
+            agent_count
+        )
 
 
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests_old)
-def test_positive_old(location, states_history, agent_attributes, get_infractions, agent_count):
-    run_initialize(location, states_history, agent_attributes, None, get_infractions, agent_count)
+def test_positive_old(
+    location, 
+    states_history, 
+    agent_attributes, 
+    get_infractions, 
+    agent_count
+):
+    run_initialize(
+        location, 
+        states_history, 
+        agent_attributes, 
+        None, 
+        get_infractions, 
+        agent_count
+    )
 
 @pytest.mark.parametrize("location, states_history, agent_attributes, get_infractions, agent_count", positive_tests_old)
-def test_mock_initialize_old(location, states_history, agent_attributes, get_infractions, agent_count):
+def test_mock_initialize_old(
+    location, 
+    states_history, 
+    agent_attributes, 
+    get_infractions, 
+    agent_count
+):
     iai.api.config.mock_api = True
-    run_initialize(location, states_history, agent_attributes, None, get_infractions, agent_count)
+    run_initialize(
+        location, 
+        states_history, 
+        agent_attributes, 
+        None, 
+        get_infractions, 
+        agent_count
+    )
     iai.api.config.mock_api = False
 
 positive_tests = [
@@ -378,18 +422,57 @@ negative_tests = [
 ]
 
 @pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", negative_tests)
-def test_negative(location, states_history, agent_properties, get_infractions, agent_count):
+def test_negative(
+    location, 
+    states_history, 
+    agent_properties, 
+    get_infractions, 
+    agent_count
+):
     with pytest.raises(InvalidRequestError):
-        run_initialize(location, states_history, None, agent_properties, get_infractions, agent_count)
+        run_initialize(
+            location, 
+            states_history, 
+            None, 
+            agent_properties, 
+            get_infractions, 
+            agent_count
+        )
 
 
 @pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", positive_tests)
-def test_positive(location, states_history, agent_properties, get_infractions, agent_count):
-    run_initialize(location, states_history, None, agent_properties, get_infractions, agent_count)
+def test_positive(
+    location, 
+    states_history, 
+    agent_properties, 
+    get_infractions, 
+    agent_count
+):
+    run_initialize(
+        location, 
+        states_history, 
+        None, 
+        agent_properties, 
+        get_infractions, 
+        agent_count
+    )
 
 
 @pytest.mark.parametrize("location, states_history, agent_properties, get_infractions, agent_count", positive_tests)
-def test_mock_initialize_old(location, states_history, agent_properties, get_infractions, agent_count):
+def test_mock_initialize_old(
+    location, 
+    states_history, 
+    agent_properties, 
+    get_infractions, 
+    agent_count
+):
     iai.api.config.mock_api = True
-    run_initialize(location, states_history, None, agent_properties, get_infractions, agent_count)
+    run_initialize(
+        location, 
+        states_history, 
+        None, 
+        agent_properties, 
+        get_infractions, 
+        agent_count
+    )
     iai.api.config.mock_api = False

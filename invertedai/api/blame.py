@@ -15,7 +15,8 @@ from invertedai.common import (
     AgentState,
     Image,
     AgentAttributes,
-    TrafficLightStatesDict,
+    AgentProperties,
+    TrafficLightStatesDict
 )
 
 class BlameResponse(BaseModel):
@@ -27,12 +28,25 @@ class BlameResponse(BaseModel):
     confidence_score: Optional[float] #: Float value between [0,1] indicating BLAME's confidence in the response where 0.0 represents the minimum confidence and 1.0 represents maximum.
     birdviews: Optional[List[Image]]  #: If `get_birdviews` was set, this contains the resulting image.
 
+def convert_prop_to_attr(agent_properties):
+    agent_attributes = []
+    for prop in agent_properties:
+        agent_attributes.append(AgentAttributes(
+            length=prop.length,
+            width=prop.width,
+            rear_axis_offset=prop.rear_axis_offset,
+            agent_type=prop.agent_type,
+            waypoint=prop.waypoint
+        ))
+
+    return agent_attributes
+
 @validate_call
 def blame(
     location: str,
     colliding_agents: Tuple[int, int],
     agent_state_history: List[List[AgentState]],
-    agent_attributes: List[AgentAttributes],
+    agent_properties: List[AgentProperties],
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
     get_reasons: bool = False,
     get_confidence_score: bool = False,
@@ -61,8 +75,8 @@ def blame(
         orientation: [float] in radians with 0 pointing along the positive x axis and 
         pi/2 pointing along the positive y axis, and speed: [float] in m/s.
 
-    agent_attributes:
-        List of static AgentAttribute objects for all agents. Each agent requires, length: 
+    agent_properties:
+        List of static AgentProperties objects for all agents. Each agent requires, length: 
         [float], width: [float], and rear_axis_offset: [float] all in meters.
 
     traffic_light_state_history:
@@ -87,8 +101,10 @@ def blame(
     :func:`location_info`
     :func:`light`
     """
-    if len(agent_state_history[0]) != len(agent_attributes):
-        raise InvalidInput("Incompatible Number of Agents in either 'agent_state_history' or 'agent_attributes'.")
+    if len(agent_state_history[0]) != len(agent_properties):
+        raise InvalidInput("Incompatible Number of Agents in either 'agent_state_history' or 'agent_properties'.")
+
+    agent_attributes = convert_prop_to_attr(agent_properties)
 
     if should_use_mock_api():
         agents_at_fault = get_mock_agents_at_fault()
@@ -141,7 +157,7 @@ async def async_blame(
     location: str,
     colliding_agents: Tuple[int, int],
     agent_state_history: List[List[AgentState]],
-    agent_attributes: List[AgentAttributes],
+    agent_properties: List[AgentProperties],
     traffic_light_state_history: Optional[List[TrafficLightStatesDict]] = None,
     get_reasons: bool = False,
     get_confidence_score: bool = False,
@@ -150,6 +166,8 @@ async def async_blame(
     """
     A light async version of :func:`blame`
     """
+    agent_attributes = convert_prop_to_attr(agent_properties)
+
     model_inputs = dict(
         location=location,
         colliding_agents=colliding_agents,

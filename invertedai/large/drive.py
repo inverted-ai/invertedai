@@ -6,10 +6,11 @@ from math import ceil
 
 import invertedai as iai
 from invertedai.large.common import Region
-from invertedai.common import Point, AgentState, AgentAttributes, AgentProperties, RecurrentState, TrafficLightStatesDict, LightRecurrentState
-from invertedai.api.drive import DriveResponse
+from invertedai.common import Point, AgentState, AgentAttributes, AgentProperties, RecurrentState, TrafficLightStatesDict, LightRecurrentState, LightRecurrentStates
+from invertedai.api.drive import DriveResponse, serialize_drive_request_parameters
 from invertedai.utils import convert_attributes_to_properties
 from invertedai.error import InvertedAIError, InvalidRequestError
+from invertedai.logs.debug_logger import DebugLogger
 from ._quadtree import QuadTreeAgentInfo, QuadTree, _flatten_and_sort, QUADTREE_SIZE_BUFFER
 
 DRIVE_MAXIMUM_NUM_AGENTS = 100
@@ -17,7 +18,6 @@ DRIVE_MAXIMUM_NUM_AGENTS = 100
 async def async_drive_all(async_input_params):
     all_responses = await asyncio.gather(*[iai.async_drive(**input_params) for input_params in async_input_params])
     return all_responses
-
 
 @validate_call
 def large_drive(
@@ -110,6 +110,28 @@ def large_drive(
     if is_using_attributes:
         warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
+    is_debug_logging = iai.debug_logger is not None
+    if is_debug_logging:
+        debug_large_drive_parameters = serialize_drive_request_parameters(
+            location = location,
+            agent_states = agent_states,
+            agent_attributes = None,
+            agent_properties = agent_properties,
+            recurrent_states = recurrent_states,
+            traffic_lights_states = traffic_lights_states,
+            light_recurrent_states = light_recurrent_states,
+            get_birdview = False,
+            rendering_center = None,
+            rendering_fov = None,
+            get_infractions = get_infractions,
+            random_seed = random_seed,
+            api_model_version = api_model_version
+        )
+        iai.debug_logger.append_request(
+            model = "large_drive",
+            data_dict = debug_large_drive_parameters
+        )
+
     # Generate quadtree
     agent_x = [agent.center.x for agent in agent_states]
     agent_y = [agent.center.y for agent in agent_states]
@@ -200,6 +222,12 @@ def large_drive(
             get_infractions = get_infractions,
             random_seed = random_seed,
             api_model_version = api_model_version
+        )
+
+    if is_debug_logging:
+        iai.debug_logger.append_response(
+            model = "large_drive",
+            data_dict = response.serialize_drive_response_parameters()
         )
 
     return response
