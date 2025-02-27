@@ -14,6 +14,15 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 class DebugLogger:
+    """
+    A tool for capturing debug logs which contain all serialized data from every request and response.
+
+    Parameters
+    ----------
+    debug_log_path:
+        The full path to the debug log directory where debug logs are written.
+    """
+
     def __init__(
         self,
         debug_dir_path: Optional[str] = None
@@ -190,6 +199,22 @@ class DebugLogger:
         fov: int = 100,
         map_center: Tuple[float,float] = None
     ):
+        """
+        Visualize a debug log using the SDK visualizer tools. This assumes the debug log was captured in chronological order
+        by simulated time step.
+
+        Parameters
+        ----------
+        log_data:
+            A loaded JSON dictionary of a debug log.
+        gif_name:
+            The path and name of the resulting GIF file.
+        fov:
+            The field of view in metres for the birdview visualization.
+        map_center:
+            The coordinates within the map on which to centre the visualization which is especially useful for large maps.
+        """
+
         scene_plotter, _ = cls._get_scene_plotter(
             cls,
             log_data=log_data,
@@ -222,6 +247,25 @@ class DebugLogger:
         map_center: Tuple[float,float] = None,
         use_log_seed: bool = True
     ):
+        """
+        Given the initial state captured in the debug log and using all relevant information, attempt to reproduce the simulation
+        from the debug log and visualize it for comparison with the original. This assumes the debug log was captured in chronological order
+        by simulated time step.
+
+        Parameters
+        ----------
+        log_data:
+            A loaded JSON dictionary of a debug log.
+        gif_name:
+            The path and name of the resulting GIF file.
+        fov:
+            The field of view in metres for the birdview visualization.
+        map_center:
+            The coordinates within the map on which to centre the visualization which is especially useful for large maps.
+        use_log_seed:
+            A flag for whether to use the random seed in the debug log or input a value of None to DRIVE.
+        """
+
         scene_plotter, response_data = cls._get_scene_plotter(
             cls,
             log_data=log_data,
@@ -273,6 +317,19 @@ class DebugLogger:
         is_reproduce_log: bool = False,
         **kwargs
     ):
+        """
+        A convenient entry point for quickly visualizing and/or reproducing a given debug log.
+
+        Parameters
+        ----------
+        log_data:
+            A loaded JSON dictionary of a debug log.
+        is_visualize_log:
+            A flag to control whether the log is visualized. Please refer to the appropriate function for the relevant keyword arguments.
+        is_reproduce_log:
+            A flag to control whether the log is reproduced. Please refer to the appropriate function for the relevant keyword arguments.
+        """
+
         with open(debug_log_path) as json_file:
             log_data = json.load(json_file)
 
