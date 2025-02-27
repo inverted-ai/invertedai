@@ -102,6 +102,7 @@ cc_library(
         "//invertedai/externals:root-certificates",
         "@boost//:beast",
         ":version",
+        ":logger",
     ],
 )
 
@@ -120,6 +121,21 @@ cc_library(
         ":location_info_request",
         ":location_info_response",
         ":session",
+    ],
+)
+
+cc_library(
+    name = "logger",
+    srcs = ["logger.cc"],
+    hdrs = ["logger.h"],
+    deps = [
+        ":drive_request",
+        ":drive_response",
+        ":initialize_request",
+        ":initialize_response",
+        ":location_info_request",
+        ":location_info_response",
+        "//invertedai/externals:json",
     ],
 )
 

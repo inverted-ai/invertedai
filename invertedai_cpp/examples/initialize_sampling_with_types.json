@@ -2,12 +2,11 @@
     "location": "iai:drake_street_and_pacific_blvd",
     "num_agents_to_spawn": 20,
     "states_history": null,
-    "agent_attributes": [
-        ["car"],
-        ["pedestrian"],
-        [],
-        ["pedestrian"],
-        ["pedestrian"]
+    "agent_properties": [
+        {"agent_type":"car"},
+        {"agent_type":"pedestrian"},
+        {"agent_type":"pedestrian"},
+        {"agent_type":"pedestrian"}
     ],
     "traffic_light_state_history": null,
     "get_birdview": true,

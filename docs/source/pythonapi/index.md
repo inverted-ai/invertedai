@@ -18,6 +18,7 @@ sdk-common
 sdk-simulation
 sdk-env-var
 sdk-utils.md
+sdk-logs.md
 ```
 
 

@@ -35,43 +35,35 @@
             ]
         ]
     ],
-    "agent_attributes": [
-        [
-            5.15,
-            2.43,
-            1.96,
-            "car"
-        ],
-        [
-            1.2,
-            1.51,
-            null,
-            "pedestrian"
-        ],
-        [
-            5.11,
-            2.17,
-            1.94,
-            "car"
-        ],
-        [
-            1.16,
-            1.41,
-            null,
-            "pedestrian"
-        ],
-        [
-            5.18,
-            2.22,
-            1.97,
-            "car"
-        ],
-        [
-
-        ],
-        [
-            "pedestrian"
-        ]
+    "agent_properties": [
+        {
+            "length":5.15,
+            "width":2.43,
+            "rear_axis_offset":1.96,
+            "agent_type":"car"
+        },
+        {
+            "length":1.2,
+            "width":1.51,
+            "agent_type":"pedestrian"
+        },
+        {
+            "length":5.11,
+            "width":2.17,
+            "rear_axis_offset":1.94,
+            "agent_type":"car"
+        },
+        {
+            "length":1.16,
+            "width":1.41,
+            "agent_type":"pedestrian"
+        },
+        {
+            "length":5.18,
+            "width":2.22,
+            "rear_axis_offset":1.97,
+            "agent_type":"car"
+        }
     ],
     "traffic_light_state_history": null,
     "get_birdview": true,

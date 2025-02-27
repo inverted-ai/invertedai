@@ -35,25 +35,7 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
   } else {
     this->agent_properties_ = std::vector<AgentProperties>();
     for (const auto &element : this->body_json_["agent_properties"]) {
-      AgentProperties ap;
-      if (element.contains("length")) {
-        ap.length = element["length"];
-      }
-      if (element.contains("width")) {
-        ap.width = element["width"];
-      }
-      if (element.contains("rear_axis_offset")) {
-        ap.rear_axis_offset = element["rear_axis_offset"];
-      }
-      if (element.contains("agent_type")) {
-        ap.agent_type = element["agent_type"];
-      }
-      if (element.contains("waypoint")) {
-        ap.waypoint = {element["waypoint"] [0], element["waypoint"] [1]};
-      }
-      if (element.contains("max_speed")) {
-        ap.max_speed = element["max_speed"];
-      }
+      AgentProperties ap(element);
       this->agent_properties_.value().push_back(ap);
     }
   }
@@ -240,6 +222,10 @@ void InitializeRequest::set_states_history(const std::vector<std::vector<AgentSt
 
 void InitializeRequest::set_agent_attributes(const std::vector<AgentAttributes> &agent_attributes) {
   this->agent_attributes_ = agent_attributes;
+}
+
+void InitializeRequest::set_agent_properties(const std::vector<AgentProperties> &agent_properties) {
+  this->agent_properties_ = agent_properties;
 }
 
 void InitializeRequest::set_traffic_light_state_history(const std::vector<std::map<std::string, std::string>>&traffic_light_state_history) {

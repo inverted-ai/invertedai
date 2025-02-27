@@ -59,6 +59,12 @@ void Session::connect() {
   }
 }
 
+Session::~Session(){
+  if (this->is_logging){
+    this->logger.write_log_to_file(this->iai_logger_path);
+  }
+}
+
 void Session::shutdown() {
   beast::error_code ec;
   if (local_mode){
@@ -103,6 +109,11 @@ const std::string Session::request(
   double max_backoff,
   double jitter_factor
   ) {
+
+  if (this->is_logging){
+    this->logger.append_request(body_str,mode);
+  }
+
   std::string target = subdomain + mode + url_query_string;
 
   http::request<http::string_body> req{
@@ -172,9 +183,20 @@ const std::string Session::request(
       is.push(src);
       std::stringstream strstream;
       boost::iostreams::copy(is, strstream);
-      return strstream.str();
+
+      const std::string output = strstream.str();
+      if (this->is_logging){
+        this->logger.append_response(output,mode);
+      }
+
+      return output;
     } else {
-      return res.body().data();
+      const std::string output = res.body().data();
+      if (this->is_logging){
+        this->logger.append_response(output,mode);
+      }
+
+      return output;
     }
   }
   throw std::runtime_error("max retries exceeded");

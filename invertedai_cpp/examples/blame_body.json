@@ -1,55 +1,55 @@
 {
-  "location": "iai:dunbar_diversion",
-  "colliding_agents": [
-    0,
-    1
-  ],
-  "agent_state_history": [
-    [
-      [
+    "location": "canada:dunbar_diversion",
+    "colliding_agents": [
         0,
-        0,
-        1.57,
-        0.1
-      ],
-      [
-        0,
-        -5.5,
-        1.57,
-        10
-      ]
+        1
     ],
-    [
-      [
-        0,
-        0.01,
-        1.57,
-        0.1
-      ],
-      [
-        0,
-        -4.5,
-        1.57,
-        10
-      ]
-    ]
-  ],
-  "agent_attributes": [
-    [
-      5,
-      2,
-      1.5,
-      "car"
+    "agent_state_history": [
+        [
+            [
+                0,
+                0,
+                1.57,
+                0.1
+            ],
+            [
+                0,
+                -5.5,
+                1.57,
+                10
+            ]
+        ],
+        [
+            [
+                0,
+                0.01,
+                1.57,
+                0.1
+            ],
+            [
+                0,
+                -4.5,
+                1.57,
+                10
+            ]
+        ]
     ],
-    [
-      5,
-      2,
-      1.5,
-      "car"
-    ]
-  ],
-  "traffic_light_state_history": [],
-  "get_birdviews": true,
-  "get_reasons": true,
-  "get_confidence_score": true
+    "agent_properties": [
+        {
+            "length": 5,
+            "width": 2,
+            "rear_axis_offset": 1.5,
+            "agent_type": "car"
+        },
+        {
+            "length": 5,
+            "width": 2,
+            "rear_axis_offset": 1.5,
+            "agent_type": "car"
+        }
+    ],
+    "traffic_light_state_history": null,
+    "get_birdviews": true,
+    "get_reasons": true,
+    "get_confidence_score": true
 }
