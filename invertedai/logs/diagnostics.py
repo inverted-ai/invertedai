@@ -248,7 +248,7 @@ class DiagnosticTool:
 
         agent_details = []
         #Covers cases where agent attributes is either None or an empty list
-        if not agent_dict["agent_attributes"]:
+        if "agent_properties" in agent_dict:
             for detes in agent_dict["agent_properties"]:
                 ts_agent_details.append([
                     detes["length"],
@@ -257,8 +257,8 @@ class DiagnosticTool:
                     detes["agent_type"],
                     detes["waypoint"]
                 ])
-        else:
-            ts_agent_details = agent_dict["agent_attributes"]
+        elif "agent_attributes" in agent_dict:
+            ts_agent_details = agent_dict["agent_attributes"]            
 
         return ts_agent_details
 
@@ -298,10 +298,14 @@ class DiagnosticTool:
         
         if "large_initialize_responses" in log_data:
             init_res_data = log_data["large_initialize_responses"]
-        else:
+            res_data = json.loads(init_res_data[-1])
+            init_agent_details = self._get_agent_details(res_data)
+        elif "initialize_responses" in log_data:
             init_res_data = log_data["initialize_responses"]
-        res_data = json.loads(init_res_data[-1])
-        init_agent_details = self._get_agent_details(res_data)
+            res_data = json.loads(init_res_data[-1])
+            init_agent_details = self._get_agent_details(res_data)
+        else:
+            init_agent_details = req_agent_details.pop(0)
 
         return req_agent_state_dict, res_agent_state_dict, req_agent_details, init_agent_details
 
