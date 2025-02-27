@@ -10,3 +10,6 @@ build:
       - pip install poetry==1.4.2
       - poetry config virtualenvs.create false
       - poetry install --with dev-dependencies
+
+sphinx:
+  configuration: docs/source/conf.py
