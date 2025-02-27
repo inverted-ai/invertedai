@@ -14,25 +14,37 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 class DebugLogger:
+    """
+    A tool for capturing debug logs which contain all serialized data from every request and response.
+
+    Parameters
+    ----------
+    debug_log_path:
+        The full path to the debug log directory where debug logs are written.
+    """
+
     def __init__(
         self,
-        debug_log_path: str
+        debug_dir_path: Optional[str] = None
     ):
-        self.debug_log_path = debug_log_path
+        self.debug_dir_path = debug_dir_path
         self._create_directory()
 
         self.data = defaultdict(list)
 
         file_name = "iai_log_" + self._get_current_time_human_readable_UTC() + "_UTC.json"
-        self.log_path = self.debug_log_path + file_name
+        self.debug_log_path = os.path.join(self.debug_dir_path,file_name)
+
+    def reinitialize_logger(self):
+        self.__init__(debug_dir_path = self.debug_dir_path)
 
     def _get_current_time_human_readable_UTC(self):
         return datetime.now(timezone.utc).strftime("%Y-%m-%d_%H:%M:%S:%f")
 
     def _create_directory(self):
-        if not os.path.isdir(self.debug_log_path):
-            logger.info(f"Debug log directory does not exist: Created new directory at {self.debug_log_path}")
-            os.makedirs(self.debug_log_path)
+        if not os.path.isdir(self.debug_dir_path):
+            logger.info(f"Debug log directory does not exist: Created new directory at {self.debug_dir_path}")
+            os.makedirs(self.debug_dir_path)
 
     def append_request(
         self,
@@ -53,6 +65,14 @@ class DebugLogger:
         elif model == "drive":
             self.data["drive_requests"].append(data_str)
             self.data["drive_request_timestamps"].append(ts)
+
+        elif model == "large_initialize":
+            self.data["large_initialize_requests"].append(data_str)
+            self.data["large_initialize_request_timestamps"].append(ts)
+
+        elif model == "large_drive":
+            self.data["large_drive_requests"].append(data_str)
+            self.data["large_drive_request_timestamps"].append(ts)
 
         self.write_data_to_log()
 
@@ -76,10 +96,18 @@ class DebugLogger:
             self.data["drive_responses"].append(data_str)
             self.data["drive_response_timestamps"].append(ts)
 
+        elif model == "large_initialize":
+            self.data["large_initialize_responses"].append(data_str)
+            self.data["large_initialize_response_timestamps"].append(ts)
+
+        elif model == "large_drive":
+            self.data["large_drive_responses"].append(data_str)
+            self.data["large_drive_response_timestamps"].append(ts)
+
         self.write_data_to_log()
 
     def write_data_to_log(self):
-        with open(self.log_path, "w") as outfile:
+        with open(self.debug_log_path, "w") as outfile:
             json.dump(self.data, outfile)
 
     def _get_scene_plotter(
@@ -171,6 +199,22 @@ class DebugLogger:
         fov: int = 100,
         map_center: Tuple[float,float] = None
     ):
+        """
+        Visualize a debug log using the SDK visualizer tools. This assumes the debug log was captured in chronological order
+        by simulated time step.
+
+        Parameters
+        ----------
+        log_data:
+            A loaded JSON dictionary of a debug log.
+        gif_name:
+            The path and name of the resulting GIF file.
+        fov:
+            The field of view in metres for the birdview visualization.
+        map_center:
+            The coordinates within the map on which to centre the visualization which is especially useful for large maps.
+        """
+
         scene_plotter, _ = cls._get_scene_plotter(
             cls,
             log_data=log_data,
@@ -203,6 +247,25 @@ class DebugLogger:
         map_center: Tuple[float,float] = None,
         use_log_seed: bool = True
     ):
+        """
+        Given the initial state captured in the debug log and using all relevant information, attempt to reproduce the simulation
+        from the debug log and visualize it for comparison with the original. This assumes the debug log was captured in chronological order
+        by simulated time step.
+
+        Parameters
+        ----------
+        log_data:
+            A loaded JSON dictionary of a debug log.
+        gif_name:
+            The path and name of the resulting GIF file.
+        fov:
+            The field of view in metres for the birdview visualization.
+        map_center:
+            The coordinates within the map on which to centre the visualization which is especially useful for large maps.
+        use_log_seed:
+            A flag for whether to use the random seed in the debug log or input a value of None to DRIVE.
+        """
+
         scene_plotter, response_data = cls._get_scene_plotter(
             cls,
             log_data=log_data,
@@ -254,6 +317,19 @@ class DebugLogger:
         is_reproduce_log: bool = False,
         **kwargs
     ):
+        """
+        A convenient entry point for quickly visualizing and/or reproducing a given debug log.
+
+        Parameters
+        ----------
+        log_data:
+            A loaded JSON dictionary of a debug log.
+        is_visualize_log:
+            A flag to control whether the log is visualized. Please refer to the appropriate function for the relevant keyword arguments.
+        is_reproduce_log:
+            A flag to control whether the log is reproduced. Please refer to the appropriate function for the relevant keyword arguments.
+        """
+
         with open(debug_log_path) as json_file:
             log_data = json.load(json_file)
 
