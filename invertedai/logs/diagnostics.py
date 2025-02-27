@@ -25,21 +25,24 @@ class DiagnosticMessage(BaseModel):
     agent_list: Optional[List[int]] = None
 
 class DiagnosticTool:
+    """
+    A user-side tool that examines a debug log checking for common implementation mistakes 
+    and provides feedback.
+
+    Parameters
+    ----------
+    debug_log_path:
+        The full path to the debug log file to be loaded and analyzed.
+    ego_indexes:
+        A list of index IDs for ego vehicles that will be analyzed differently (e.g. it is expected
+        that the state of an ego vehicle may be modified external to the API).
+    """
+
     def __init__(
         self,
         debug_log_path: str,
         ego_indexes: List[int] = None
     ):
-        """
-        A user-side tool that examines a debug log checking for common implementation mistakes 
-        and provides feedback.
-
-        Parameters
-        ----------
-        debug_log_path:
-            The full path to the debug log file to be loaded and analyzed.
-        """
-
         self.debug_log_path = debug_log_path
         self.log_data = None
         with open(debug_log_path) as json_file:
@@ -104,9 +107,11 @@ class DiagnosticTool:
 
         print(f"")
         print(f"===========================================================================================")
-        print(f"Diagnostic Issue Legend")
+        print(f"Diagnostic Issue Legend:")
+        print(f"")
         for code, message in self.DIAGNOSTIC_ISSUE_LIBRARY.items():
             print(f"{code}:{message}")
+        print(f"")
         print(f"===========================================================================================")
         print(f"")
 
