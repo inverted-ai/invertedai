@@ -1,15 +1,15 @@
 [scenario-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/examples/scenario_log_example.py
-[diagnostic-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/invertedai/logs/diagnostics_logger.py
+[diagnostic-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/invertedai/logs/diagnostics.py
 
 # Logs & Debugging
 
 ### Overview
-Capturing data to and from the API can be useful for several purposes. The IAI SDK provides features for producing logs that can help in several use cases.
+Capturing data to and from the API can be useful for several purposes. The IAI SDK provides features for producing logs for several use cases.
 
 ## Debug Logs
 
 ### Description
-Debug logs are relatively simple in comparison to scenario logs. These logs capture the raw data of all requests and response to and from the API. In the case of the {ref}`LARGE_DRIVE` and {ref}`LARGE_INITIALIZE` tools, the data is formatted into its serializable form before being divided into individual API calls.
+Debug logs are relatively simple in comparison to scenario logs. These logs capture the raw data of all requests and responses to and from the API. In the case of the {ref}`LARGE_DRIVE` and {ref}`LARGE_INITIALIZE` tools, the data is formatted into its serializable form before being divided into individual API calls.
 
 ```{eval-rst}
 .. autoclass:: invertedai.logs.debug_logger.DebugLogger
@@ -19,7 +19,7 @@ Debug logs are relatively simple in comparison to scenario logs. These logs capt
 ### Example Usage
 
 #### Capturing Debug Logs
-Capturing debug logs is a simple process. Simply set the IAI_LOGGER_PATH environment variable. For example, in a Linux terminal, run the following command to set the path of a directory at which the debug logs will be written:
+Capturing debug logs is a straight forward process, simply set the IAI_LOGGER_PATH environment variable. For example, in a Linux terminal, run the following command to set the path of a directory in which the debug logs will be written:
 
 ```bash
 export IAI_LOGGER_PATH="<INSERT_DIRECTORY_PATH_HERE>"
@@ -58,6 +58,6 @@ the same tool. The data format and the specific tools with their primary functio
 ```
 
 ### Example Usage
-Please follow the following link to see an example of how to run a [scenario log example][scenario-log-example-link]. This example demonstrates running a sample scenario then writing to a log file, loading the sample log and visualizing it, then replaying the log but modifying it at a time step of interest.
+Please click the following link to see an example of how to run a [scenario log example][scenario-log-example-link]. This example demonstrates running a sample scenario then writing to a log file, loading the sample log and visualizing it, then replaying the log but modifying it at a time step of interest.
 
 
