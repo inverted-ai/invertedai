@@ -503,7 +503,7 @@ class LogReader(LogBase):
             returned_log.agent_states = returned_log.agent_states[i:j]
             if returned_log.traffic_lights_states is not None:
                 returned_log.traffic_lights_states = returned_log.traffic_lights_states[i:j]
-            waypoints = None
+            returned_log.waypoints = None
 
             return returned_log
 
