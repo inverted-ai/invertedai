@@ -6,7 +6,6 @@
 [colab-link]: https://colab.research.google.com/github/inverted-ai/invertedai/blob/develop/examples/IAI_full_demo.ipynb
 [rest-link]: https://app.swaggerhub.com/apis-docs/InvertedAI/InvertedAI
 [examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
-[website-link]: https://www.inverted.ai/home
 
 [![Documentation Status](https://readthedocs.org/projects/inverted-ai/badge/?version=latest)](https://inverted-ai.readthedocs.io/en/latest/?badge=latest)
 [![PyPI][pypi-badge]][pypi-link]
@@ -41,7 +40,7 @@ pip install --upgrade invertedai
 The Python client SDK is [open source](https://github.com/inverted-ai/invertedai),
 so you can also download it and build locally.
 
-To make calls through the Inverted AI API end points, an API key must be obtained and set (please go to [this link][website-link] to sign up and receive your API key). 
+To make calls through the Inverted AI API end points, an API key must be obtained and set (please go to [our website](https://www.inverted.ai/home) to sign up and receive your API key). 
 
 To set this API key in the python SDK, there are 2 methods. The first method is to explicitly set the API key string within a python script using the below function:
 ``` python

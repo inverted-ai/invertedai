@@ -136,6 +136,7 @@ scene_plotter.animate_scene(
 # Re-read the log and choose an earlier timestep from which to branch off
 print("Re-reading the log...")
 log_reader.reset_log()
+log_writer_branched = iai.LogWriter()
 
 location_info_response_replay = log_reader.location_info_response
 log_reader.initialize()
@@ -152,6 +153,11 @@ scene_plotter_new.initialize_recording(
     agent_states=log_reader.agent_states,
     agent_properties=agent_properties
 )
+log_writer_branched.initialize(
+    scenario_log=log_reader.return_scenario_log(
+        timestep_range=(0,SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT)
+        )
+    )
 
 print("Stepping through simulation...")
 for _ in range(SIMULATION_BEGIN_NEW_ROLLOUT):
@@ -171,20 +177,24 @@ for _ in range(SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT):
         random_seed=randint(1,100000)
     )
 
+    log_writer_branched.drive(drive_response=response)
+
     agent_states = response.agent_states
     recurrent_states = response.recurrent_states
     traffic_lights_states = response.traffic_lights_states
 
     scene_plotter_new.record_step(agent_states,traffic_lights_states)
 
+log_path_branched = os.path.join(os.getcwd(),f"scenario_log_example_branched.json")
+log_writer_branched.export_to_file(log_path=log_path_branched)
 gif_path_branched = os.path.join(os.getcwd(),f"scenario_log_example_branched.gif")
-fig_new, ax_new = plt.subplots(constrained_layout=True, figsize=(50, 50))
-plt.axis('off')
-scene_plotter_new.animate_scene(
-    output_name=gif_path_branched,
-    ax=ax_new,
+log_writer_branched.visualize(
+    gif_path=gif_path_branched,
+    fov = 200,
+    resolution = (2048,2048),
+    dpi = 300,
+    map_center = None,
     direction_vec = False,
     velocity_vec = False,
     plot_frame_number = True
 )
-
