@@ -3,7 +3,7 @@
 # User Guide
 
 Inverted AI API provides a service that controls non-playable characters (NPCs) in driving simulations. The two main
-functions are INITIALIZE, called at the beginning of the simulation, and DRIVE, called at each time step. Typically, the
+functions are {ref}`INITIALIZE`, called at the beginning of the simulation, and {ref}`DRIVE`, called at each time step. Typically, the
 user runs their simulator locally, controlling the actions of the ego vehicle, and querying the API to obtain the
 behavior of NPCs. This page describes the high level concepts governing the interaction with the API. Please refer to
 specific pages for {ref}`Python SDK`, {ref}`C++ SDK`, [REST API][rest-link], {ref}`Getting started`, and [Examples][examples-link].
@@ -39,7 +39,7 @@ the supported area, but predictions obtained in this way may be unsatisfactory.
 The maps for each location are versioned using the standard semantic versioning scheme “major.minor.patch”, starting
 from “1.0.0” (or “0.1.0” if location is experimental).
 Note that different API keys may allow access to different locations. For a location that a given API key is allowed to
-access, LOCATION_INFO provides all the relevant information. Please contact us with requests to include additional
+access, {ref}`LOCATION_INFO` provides all the relevant information. Please contact us with requests to include additional
 locations.
 
 ## Agent types and representations
@@ -63,8 +63,8 @@ interface. Traffic light placement, in particular regarding which traffic light 
 of the map as well. Traffic light state changes dynamically and can be automatically managed by the server when calling the API. 
 Each traffic light can be green, yellow, or red at any given point. 
 Traffic light IDs are fixed and can be derived from the map, but for convenience we also provide traffic light IDs 
-and the corresponding locations in LOCATION_INFO.
-For maps with traffic lights, on a call to INITIALIZE, the server generates a realistic configuration of all traffic lights,
+and the corresponding locations in {ref}`LOCATION_INFO`.
+For maps with traffic lights, on a call to {ref}`INITIALIZE`, the server generates a realistic configuration of all traffic lights,
 and returns the associated light states via 'light_recurrent_states'. On each call to {ref}`DRIVE`, traffic lights' states can be automatically managed by the server with 'light_recurrent_states'. 
 There is also the option to manually set light states with 'traffic_lights_states', but once this path is taken,
 it is on the client to continually provide 'traffic_lights_states' on all calls to {ref}`DRIVE`.
@@ -86,7 +86,7 @@ through the stateless API by passing around a recurrent state, which is a vector
 client’s perspective. Each call to {ref}`DRIVE` returns a new recurrent state for each agent, which must be passed for this
 agent to {ref}`DRIVE` on the subsequent call. Providing an incorrect recurrent state may silently lead to deteriorating
 performance, and in order to obtain valid values for the initial recurrent state, the simulation must always start with
-INITIALIZE. To initialize the simulation to a specific state, you can provide a sequence of historical states for all
+{ref}`INITIALIZE`. To initialize the simulation to a specific state, you can provide a sequence of historical states for all
 agents that will be used to construct the matching recurrent state. For best performance, at least 10 time steps should
 be provided.
 To simplify the process of passing the recurrent states around, we provide a stateful {ref}`Co-simulation` wrapper in the
@@ -101,13 +101,13 @@ are within the supported area after the predicted step.
 Introducing agents into a running simulation is more complicated, due to the requirement to construct their recurrent
 state. When predictions for the new agents are not going to be consumed, its state can simply be appended to the
 relevant lists, with the recurrent state set to zeros. To obtain good predictions for such an agent, another call to
-INITIALIZE needs to be made, providing the recent history of all agents, including the new agent. This correctly
+{ref}`INITIALIZE` needs to be made, providing the recent history of all agents, including the new agent. This correctly
 initializes the recurrent state and {ref}`DRIVE` can be called from that point on normally. For best performance, each agent
 should initially be controlled by the client for at least 10 time steps before being handed off to ITRA as an NPC by
-calling INITIALIZE.
+calling {ref}`INITIALIZE`.
 
 ## Reproducibility and control over predictions
-INITIALIZE and {ref}`DRIVE` optionally accept a random seed, which controls their stochastic behavior. With the same seed and
+{ref}`INITIALIZE` and {ref}`DRIVE` optionally accept a random seed, which controls their stochastic behavior. With the same seed and
 the same inputs, the outputs will be approximately the same with high accuracy.
 Other than for the random seed, there is currently no mechanism to influence the behavior of predicted agents, such as
 by directing them to certain exits or setting their speed, but such mechanisms will be included in future releases.
@@ -119,6 +119,6 @@ formats, including checking lengths of lists and bounds for numeric values, and 
 performed on the client side before paid API calls. All those features are only available in the Python library and not
 in the REST API.
 To enable the mock API, just set the environment variable `IAI_MOCK_API` to true according to {ref}`Environment Variables`.
-For further debugging and visualization, both INITIALIZE and {ref}`DRIVE` optionally return a rendered birdview image showing
+For further debugging and visualization, both {ref}`INITIALIZE` and {ref}`DRIVE` optionally return a rendered birdview image showing
 the simulation state after the call to them. This significantly increases the payload size and latency, so it should not
 be done in real integrations.
