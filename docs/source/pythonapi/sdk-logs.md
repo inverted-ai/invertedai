@@ -1,7 +1,7 @@
 [scenario-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/examples/scenario_log_example.py
 [diagnostic-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/invertedai/logs/diagnostics.py
 
-# Logs & Debugging
+# Logs, Scenarios, & Debugging
 
 ### Overview
 Capturing data to and from the API can be useful for several purposes. The IAI SDK provides features for producing logs for several use cases.
@@ -45,6 +45,7 @@ the same tool. The data format and the specific tools with their primary functio
 .. autoclass:: invertedai.logs.logger.ScenarioLog
    :members:
    :undoc-members:
+   :exclude-members: model_config, model_fields
 ```
 ---
 ```{eval-rst}
