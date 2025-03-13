@@ -45,6 +45,7 @@ the same tool. The data format and the specific tools with their primary functio
 .. autoclass:: invertedai.logs.logger.ScenarioLog
    :members:
    :undoc-members:
+   :exclude-members: model_config, model_fields
 ```
 ---
 ```{eval-rst}
