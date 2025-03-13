@@ -159,7 +159,7 @@ class BasicCosimulation:
 
     def step(
         self, 
-        current_conditional_agent_states: List[AgentState],
+        current_conditional_agent_states: Optional[List[AgentState]] = [],
         **kwargs
     ) -> None:
         """
