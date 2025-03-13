@@ -1,7 +1,7 @@
 [scenario-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/examples/scenario_log_example.py
 [diagnostic-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/invertedai/logs/diagnostics_logger.py
 
-# Logs & Debugging
+# Logs, Scenarios, & Debugging
 
 ## Overview
 Capturing data to and from the API can be useful for several purposes. The IAI SDK provides features for producing logs that can help in several use cases.
