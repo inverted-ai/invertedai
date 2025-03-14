@@ -6,6 +6,7 @@ import invertedai as iai
 import matplotlib.pyplot as plt
 
 from invertedai.common import AgentState
+from invertedai.api.initialize import InitializeResponse
 from typing import List, Optional
 
 class ScenarioTool:
@@ -32,6 +33,8 @@ class ScenarioTool:
         self.log_reader = iai.LogReader(log_path=self.scenario_path)
         self.log_reader.initialize()
 
+        self.scenario_log = self.log_reader.return_scenario_log()
+
         num_agents = len(self.log_reader.agent_properties)
 
         self.cosimulation = iai.cosimulation.BasicCosimulation(
@@ -41,18 +44,17 @@ class ScenarioTool:
             conditional_agent_agent_states=[self.log_reader.agent_states[i] for i in range(num_agents) if i in self.ego_indexes] +\
                 [self.log_reader.agent_states[i] for i in range(num_agents) if i not in self.ego_indexes],
             num_non_ego_conditional_agents=num_agents-len(self.ego_indexes),
-            regions=iai.get_regions_in_grid(
-                width=1,
-                height=1,
-                map_center=(
-                    self.log_reader.location_info_response.map_center.x,
-                    self.log_reader.location_info_response.map_center.y
-                )
-            ),
-            traffic_light_state_history=[self.log_reader.traffic_lights_states] if self.log_reader.traffic_lights_states is not None else None,
-            random_seed=self.log_reader._scenario_log.initialize_random_seed,
-            api_model_version=self.log_reader._scenario_log.initialize_model_version,
-            return_exact_agents=True
+            init_response = InitializeResponse(
+                agent_states = self.log_reader.agent_states,
+                recurrent_states = self.log_reader.recurrent_states if self.log_reader.recurrent_states is not None else [],
+                agent_attributes = [],
+                agent_properties = self.log_reader.agent_properties, 
+                birdview = None,
+                infractions = [],
+                traffic_lights_states = self.log_reader.traffic_lights_states,
+                light_recurrent_states = self.log_reader.light_recurrent_states,
+                api_model_version = self.scenario_log.initialize_model_version
+            )
         )
 
     def step(
@@ -67,18 +69,24 @@ class ScenarioTool:
 
 def _run_simulation(
     scenario_tool: ScenarioTool,
-    args,
-    is_visualize,
-    scenario_name
+    args: argparse.Namespace,
+    scenario_name: str,
+    is_visualize: bool = True,
+    ego_indexes: List[int] = None
 ):
+    if ego_indexes is not None:
+        num_ego_agents = len(ego_indexes)
+    else:
+        num_ego_agents = 0
+
     lir = scenario_tool.log_reader.location_info_response
 
     if is_visualize:
         rendered_static_map = scenario_tool.log_reader.location_info_response.birdview_image.decode()
         scene_plotter = iai.utils.ScenePlotter(
             map_image=rendered_static_map,
-            fov=scenario_tool.log_reader._scenario_log.rendering_fov,
-            xy_offset=scenario_tool.log_reader._scenario_log.rendering_center,
+            fov=scenario_tool.scenario_log.rendering_fov,
+            xy_offset=scenario_tool.scenario_log.rendering_center,
             static_actors=scenario_tool.log_reader.location_info_response.static_actors,
             resolution=(2048,2048),
             dpi=300
@@ -90,15 +98,28 @@ def _run_simulation(
         )
 
     drive_seed = random.randint(1,10000)
-    if args.model_version_drive == "None": 
+    if args.model_version_drive is None: 
         model_version = None
     else:
         model_version = args.model_version_drive
 
     print(f"Simulation {scenario_name} begin rolling through time steps.")
     for _ in range(args.sim_length):
-        print(f"scenario_tool.cosimulation.light_states: {scenario_tool.cosimulation.light_states}")
+        ego_agent_states = []
+        if ego_indexes is not None:
+            response = iai.large_drive(
+                location = scenario_tool.log_reader.location,
+                agent_states = scenario_tool.cosimulation.agent_states,
+                agent_properties = scenario_tool.cosimulation.agent_properties,
+                recurrent_states = None if len(scenario_tool.cosimulation.recurrent_states) == 0 else scenario_tool.cosimulation.recurrent_states,
+                light_recurrent_states = scenario_tool.cosimulation.light_recurrent_state,
+                random_seed = drive_seed+1,
+                get_infractions = args.get_infractions,
+            )
+            ego_agent_states = response.agent_states[:num_ego_agents]
+
         scenario_tool.cosimulation.step(
+            current_conditional_agent_states=ego_agent_states,
             random_seed = drive_seed,
             api_model_version = model_version,
             get_infractions = args.get_infractions
@@ -109,6 +130,10 @@ def _run_simulation(
     if is_visualize:
         print(f"Simulation {scenario_name} finished, saving visualization.")
         # save the visualization to disk
+        colour_list = None
+        if ego_indexes is not None:
+            colour_list = [(0.78, 0.0, 0.0) if i in ego_indexes else None for i in range(len(scenario_tool.cosimulation.agent_properties))]
+
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
         plt.axis('off')
         current_time = int(time.time())
@@ -119,6 +144,8 @@ def _run_simulation(
             direction_vec=True,
             velocity_vec=False,
             plot_frame_number=True,
+            agent_face_colors=colour_list,
+            agent_edge_colors=colour_list
         )
         plt.close(fig)
 
@@ -128,13 +155,13 @@ if __name__ == '__main__':
         '--scenario_path',
         type=str,
         help=f"Full path to an IAI debug scenario to rollout.",
-        default="None"
+        default=None
     )
     argparser.add_argument(
         '--scenarios_dir',
         type=str,
         help=f"Directory containing many scenarios to rollout sequentially.",
-        default="None"
+        default=None
     )
     argparser.add_argument(
         '--ego_indexes',
@@ -153,7 +180,7 @@ if __name__ == '__main__':
         '--model_version_drive',
         type=str,
         help=f"Version of the DRIVE model to use during the simulation.",
-        default="None"
+        default=None
     )
     argparser.add_argument(
         '--get_infractions',
@@ -163,8 +190,6 @@ if __name__ == '__main__':
     )
     args = argparser.parse_args()
 
-    if args.scenarios_dir == "None": args.scenarios_dir = None
-    if args.scenario_path == "None": args.scenario_path = None
     if args.scenarios_dir is not None:
         for root, dirs, files in os.walk(args.scenarios_dir):
             for file in files:
@@ -178,7 +203,8 @@ if __name__ == '__main__':
                         scenario_tool=scenario_tool,
                         args=args,
                         is_visualize=True,
-                        scenario_name=file
+                        scenario_name=file,
+                        ego_indexes=args.ego_indexes
                     )
     else:
         scenario_tool = ScenarioTool(
@@ -190,5 +216,6 @@ if __name__ == '__main__':
             scenario_tool=scenario_tool,
             args=args,
             is_visualize=True,
-            scenario_name=args.scenario_path.split("/")[-1]
+            scenario_name=args.scenario_path.split("/")[-1],
+            ego_indexes=args.ego_indexes
         )
