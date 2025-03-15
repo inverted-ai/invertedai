@@ -97,6 +97,7 @@ def _run_simulation(
             traffic_light_states=scenario_tool.cosimulation.light_states
         )
 
+    random.seed(int(time.time()))
     drive_seed = random.randint(1,10000)
     if args.model_version_drive is None: 
         model_version = None
@@ -117,7 +118,7 @@ def _run_simulation(
                 get_infractions = args.get_infractions,
             )
             ego_agent_states = response.agent_states[:num_ego_agents]
-
+        
         scenario_tool.cosimulation.step(
             current_conditional_agent_states=ego_agent_states,
             random_seed = drive_seed,
