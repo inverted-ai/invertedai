@@ -445,7 +445,7 @@ class LogReader(LogBase):
         agent_waypoints = {}
         for agent_id, waypoints in LOG_DATA["individual_suggestions"].items():
             agent_waypoints[agent_id] = []
-            for i, pt in waypoints["states"].items():
+            for pt in waypoints["states"]:
                 data = pt["center"]
                 agent_waypoints[agent_id].append(Point.fromlist([data["x"],data["y"]]))
         if not agent_waypoints:
