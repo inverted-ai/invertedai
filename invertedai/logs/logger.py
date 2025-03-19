@@ -179,8 +179,36 @@ class LogWriter(LogBase):
         used to export a given scenario log instead of the log contained within the object.
         """
 
+        individual_suggestions_dict = {}
         if scenario_log is None:
             scenario_log = self._scenario_log
+            for i, prop in enumerate(scenario_log.agent_properties):
+                wp = prop.waypoint
+                if wp is not None:
+                    individual_suggestions_dict[str(i)] = {
+                        "suggestion_strength": 0.8,
+                        "states": {
+                            "0": {
+                                "center": {
+                                    "x": wp.x,
+                                    "y": wp.y
+                                }
+                            }
+                        }
+                    }
+        else:
+            if scenario_log.waypoints is not None:
+                for agent_id, wps in scenario_log.waypoints.items():
+                        individual_suggestions_dict[agent_id] = {
+                            "suggestion_strength": 0.8,
+                            "states": [{
+                                "center": {
+                                    "x": wp.x,
+                                    "y": wp.y
+                                }
+                            } for wp in wps]
+                        }
+
         num_cars, num_pedestrians = 0, 0
         for prop in scenario_log.agent_properties:
             if prop.agent_type == "car":
@@ -244,22 +272,6 @@ class LogWriter(LogBase):
                     "states":states_dict
                 }
 
-        individual_suggestions_dict = {}
-        for i, prop in enumerate(scenario_log.agent_properties):
-            wp = prop.waypoint
-            if wp is not None:
-                individual_suggestions_dict[str(i)] = {
-                    "suggestion_strength": 0.8,
-                    "states": {
-                        "0": {
-                            "center": {
-                                "x": wp.x,
-                                "y": wp.y
-                            }
-                        }
-                    }
-                }
-
         self.output_dict = {
             "location": {
                 "identifier": scenario_log.location
@@ -298,7 +310,11 @@ class LogWriter(LogBase):
         }
 
         with open(log_path, "w") as outfile:
-            json.dump(self.output_dict, outfile)
+            json.dump(
+                self.output_dict, 
+                outfile,
+                indent=4
+            )
 
     @classmethod
     def export_log_to_file(
@@ -321,6 +337,7 @@ class LogWriter(LogBase):
         lights_random_seed: Optional[int] = None,
         initialize_random_seed: Optional[int] = None,
         drive_random_seed: Optional[int] = None,
+        drive_model_version: Optional[str] = None,
         scenario_log: Optional[ScenarioLog] = None
     ): 
         """
@@ -351,7 +368,7 @@ class LogWriter(LogBase):
                 initialize_random_seed=initialize_random_seed,
                 drive_random_seed=drive_random_seed,
                 initialize_model_version=init_response.api_model_version,
-                drive_model_version=None,
+                drive_model_version=drive_model_version,
                 light_recurrent_states=init_response.light_recurrent_states,
                 recurrent_states=init_response.recurrent_states,
                 waypoints=None
