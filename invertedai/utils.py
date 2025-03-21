@@ -1073,8 +1073,13 @@ class ScenePlotter():
 
         self._validate_agent_style_data(agent_face_colors,agent_edge_colors)
 
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+        self._initialize_plot(
+            ax=ax, 
+            numbers=numbers, 
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec, 
+            plot_frame_number=plot_frame_number
+        )
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
@@ -1088,7 +1093,11 @@ class ScenePlotter():
             ani.save(f'{output_name}', writer='pillow', dpi=self._dpi)
         return ani
 
-    def _transform_point_to_left_hand_coordinate_frame(self,x,orientation):
+    def _transform_point_to_left_hand_coordinate_frame(
+        self,
+        x,
+        orientation
+    ):
         t_x = 2*self.xy_offset[0] - x
         if orientation >= 0:
             t_orientation = -orientation + math.pi
@@ -1097,10 +1106,22 @@ class ScenePlotter():
 
         return t_x, t_orientation
 
-    def _plot_frame(self, idx, ax=None, numbers=None, direction_vec=True,
-                   velocity_vec=False, plot_frame_number=False):
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+    def _plot_frame(
+        self, 
+        idx, 
+        ax=None, 
+        numbers=None, 
+        direction_vec=True,
+        velocity_vec=False, 
+        plot_frame_number=False
+    ):
+        self._initialize_plot(
+            ax=ax, 
+            numbers=numbers, 
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec, 
+            plot_frame_number=plot_frame_number
+        )
         self._update_frame_to(idx)
 
     def _validate_agent_style_data(self,agent_face_colors,agent_edge_colors):
@@ -1115,8 +1136,14 @@ class ScenePlotter():
         self.agent_face_colors = agent_face_colors
         self.agent_edge_colors = agent_edge_colors
 
-    def _initialize_plot(self, ax=None, numbers=None, direction_vec=True,
-                         velocity_vec=False, plot_frame_number=False):
+    def _initialize_plot(
+        self, 
+        ax=None, 
+        numbers=None, 
+        direction_vec=True,
+        velocity_vec=False, 
+        plot_frame_number=False
+    ):
         if ax is None:
             plt.clf()
             ax = plt.gca()
@@ -1145,7 +1172,11 @@ class ScenePlotter():
 
         self._update_frame_to(0)
 
-    def _get_color(self,agent_idx,color_list):
+    def _get_color(
+        self,
+        agent_idx,
+        color_list
+    ):
         c = None
         if color_list and color_list[agent_idx]:
             is_good_color_format = isinstance(color_list[agent_idx],tuple)
@@ -1184,7 +1215,12 @@ class ScenePlotter():
             self.current_ax.set_xlim(*self.extent[0:2])
             self.current_ax.set_ylim(*self.extent[2:4])
 
-    def _update_agent(self, agent_idx, agent, agent_attribute):
+    def _update_agent(
+        self, 
+        agent_idx, 
+        agent, 
+        agent_attribute
+    ):
         l, w = agent_attribute.length, agent_attribute.width
         if agent_attribute.agent_type == "pedestrian":
             l, w = 1.5, 1.5
@@ -1276,7 +1312,11 @@ class ScenePlotter():
         self.actor_boxes[agent_idx].set_clip_on(True)
         self.current_ax.add_patch(self.actor_boxes[agent_idx])
 
-    def _plot_traffic_light(self, light_id, light_state):
+    def _plot_traffic_light(
+        self, 
+        light_id, 
+        light_state
+    ):
         light = self.traffic_lights[light_id]
         x, y = light.center.x, light.center.y
         psi = light.orientation
