@@ -382,7 +382,8 @@ class LogWriter(LogBase):
     @validate_arguments
     def drive(
         self,
-        drive_response: DriveResponse
+        drive_response: DriveResponse,
+        
     ): 
         """
         Consume and store driving response information from a single timestep and append it to the end of the log.  
@@ -499,7 +500,7 @@ class LogReader(LogBase):
             drive_random_seed=LOG_DATA["drive_random_seed"],
             initialize_model_version=LOG_DATA["initialize_model_version"],
             drive_model_version=LOG_DATA["drive_model_version"],
-            light_recurrent_states=None if LOG_DATA["light_recurrent_states"] is [] else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
+            light_recurrent_states=None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is []) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
             recurrent_states=None,
             waypoints=agent_waypoints
         )
