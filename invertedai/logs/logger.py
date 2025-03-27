@@ -49,6 +49,7 @@ class ScenarioLog(BaseModel):
 
     waypoints: Optional[Dict[str,List[Point]]] = None #: As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
 
+    _present_mask: Optional[]
 
 class LogBase():
     """
@@ -58,6 +59,7 @@ class LogBase():
     def __init__(self):
         self._scenario_log = None
         self.simulation_length = None
+        self.present_mask = None
 
     @validate_arguments
     def visualize_range(
@@ -101,13 +103,17 @@ class LogBase():
         )
         scene_plotter.initialize_recording(
             agent_states=self._scenario_log.agent_states[0],
-            agent_properties=self._scenario_log.agent_properties,
+            agent_properties=self._scenario_log.agent_properties[0],
             traffic_light_states=None if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states[timestep_range[0]]
         )
 
         traffic_lights_states = [None]*len(self._scenario_log.agent_states) if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states
-        for states, lights in zip(self._scenario_log.agent_states,traffic_lights_states):
-            scene_plotter.record_step(states,lights)
+        for states, lights, present in zip(self._scenario_log.agent_states,traffic_lights_states,self.present_mask):
+            scene_plotter.record_step(
+                agent_states=states, 
+                traffic_light_states=lights,
+                agent_properties=[prop for i, prop in enumerate(self._scenario_log.agent_properties) if present[i]]
+            )
 
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
         plt.axis('off')
@@ -150,7 +156,8 @@ class LogBase():
             map_center = map_center,
             direction_vec = direction_vec,
             velocity_vec = velocity_vec,
-            plot_frame_number = plot_frame_number
+            plot_frame_number = plot_frame_number,
+            left_hand_coordinates = left_hand_coordinates
         )
 
     def initialize(self):
@@ -338,7 +345,9 @@ class LogWriter(LogBase):
         initialize_random_seed: Optional[int] = None,
         drive_random_seed: Optional[int] = None,
         drive_model_version: Optional[str] = None,
-        scenario_log: Optional[ScenarioLog] = None
+        scenario_log: Optional[ScenarioLog] = None,
+        all_agent_properties: Optional[AgentProperties] = None,
+        present_mask: Optional[List[int]] = None
     ): 
         """
         Consume and store all initial information within a ScenarioLog data object. If random seed information is desired to be stored, it 
@@ -350,9 +359,13 @@ class LogWriter(LogBase):
             assert location_info_response is not None, "No scenario log given, must provide a location_info_response argument."
             assert init_response is not None, "No scenario log given, must provide a init_response argument."
 
-            agent_properties = init_response.agent_properties
-            if type(agent_properties[0]) == AgentAttributes:
-                agent_properties = [convert_attributes_to_properties(attr) for attr in agent_properties]
+            if all_agent_properties is not None:
+                agent_properties = all_agent_properties
+            else:
+                agent_properties = init_response.agent_properties
+                if type(agent_properties[0]) == AgentAttributes:
+                    agent_properties = [convert_attributes_to_properties(attr) for attr in agent_properties]
+
 
             self._scenario_log = ScenarioLog(
                 agent_states=[init_response.agent_states], 
@@ -377,13 +390,19 @@ class LogWriter(LogBase):
         else:
             self._scenario_log = scenario_log
 
+        if present_mask is not None:
+            init_present_mask = present_mask
+        else:
+            init_present_mask = [True]*len(self._scenario_log.agent_properties)
+        self.present_mask = [init_present_mask]
+
         self.simulation_length = 1
 
     @validate_arguments
     def drive(
         self,
         drive_response: DriveResponse,
-        
+        present_mask: Optional[List[int]] = None
     ): 
         """
         Consume and store driving response information from a single timestep and append it to the end of the log.  
@@ -396,6 +415,10 @@ class LogWriter(LogBase):
         self._scenario_log.drive_model_version = drive_response.api_model_version
         self._scenario_log.light_recurrent_states = drive_response.light_recurrent_states
         self._scenario_log.recurrent_states = drive_response.recurrent_states
+
+        if present_mask is None:
+            present_mask = self.present_mask[-1]
+        self.present_mask.append(present_mask)
 
         self.simulation_length += 1
 
@@ -500,7 +523,7 @@ class LogReader(LogBase):
             drive_random_seed=LOG_DATA["drive_random_seed"],
             initialize_model_version=LOG_DATA["initialize_model_version"],
             drive_model_version=LOG_DATA["drive_model_version"],
-            light_recurrent_states=None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is []) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
+            light_recurrent_states=None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
             recurrent_states=None,
             waypoints=agent_waypoints
         )
@@ -570,7 +593,7 @@ class LogReader(LogBase):
         self.recurrent_states = None
         self.traffic_lights_states = None if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states[timestep]
         self.light_recurrent_states = self._scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None
-        self.agent_properties = [prop if self.present_mask[timestep][i] for i, prop in enumerate(self._scenario_log.agent_properties)]
+        self.agent_properties = [prop for i, prop in enumerate(self._scenario_log.agent_properties) if self.present_mask[timestep][i]]
 
         return True
 
