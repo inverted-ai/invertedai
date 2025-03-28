@@ -93,7 +93,7 @@ log_writer.visualize(
     resolution = (2048,2048),
     dpi = 300,
     map_center = None,
-    direction_vec = False,
+    direction_vec = True,
     velocity_vec = False,
     plot_frame_number = True
 )
@@ -110,7 +110,7 @@ log_reader.visualize(
     resolution = (2048,2048),
     dpi = 300,
     map_center = None,
-    direction_vec = False,
+    direction_vec = True,
     velocity_vec = False,
     plot_frame_number = True
 )
@@ -174,7 +174,7 @@ plt.axis('off')
 scene_plotter_new.animate_scene(
     output_name=gif_path_extended,
     ax=ax,
-    direction_vec = False,
+    direction_vec = True,
     velocity_vec = False,
     plot_frame_number = True
 )
@@ -249,7 +249,7 @@ log_writer_branched.visualize(
     resolution = (2048,2048),
     dpi = 300,
     map_center = None,
-    direction_vec = False,
+    direction_vec = True,
     velocity_vec = False,
     plot_frame_number = True
 )

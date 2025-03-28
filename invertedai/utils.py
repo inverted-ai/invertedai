@@ -1095,8 +1095,6 @@ class ScenePlotter():
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
 
         def animate(i):
-            for agent_idx in self.actor_boxes:
-                self.actor_boxes[agent_idx].remove()
             self._update_frame_to(i)
 
         ani = FuncAnimation(
@@ -1223,6 +1221,17 @@ class ScenePlotter():
         return c
 
     def _update_frame_to(self, frame_idx):
+        for rect in self.actor_boxes.values():
+            rect.set_visible(False)
+        for lines in self.dir_lines.values():
+            for line in lines:
+                line.set_visible(False)
+        for lines in self.v_lines.values():
+            for line in lines:
+                line.set_visible(False)
+        for label in self.box_labels.values():
+            label.set_visible(False)
+
         for i in range(len(self.agent_properties[frame_idx])):
             self._update_agent(
                 agent_idx=i,
@@ -1293,6 +1302,8 @@ class ScenePlotter():
                 self.dir_lines[agent_idx][0].set_ydata([y_data])
                 self.dir_lines[agent_idx][0].set_marker(marker_data)
 
+            self.dir_lines[agent_idx][0].set_visible(True)
+
         if self.velocity_vec:
             if agent_idx not in self.v_lines:
                 self.v_lines[agent_idx] = self.current_ax.plot(
@@ -1304,6 +1315,8 @@ class ScenePlotter():
             else:
                 self.v_lines[agent_idx].set_xdata(box[2:4, 0])
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
+
+            self.v_lines[agent_idx][0].set_visible(True)
         
         if self.numbers is not None and agent_idx in self.numbers:
             if agent_idx not in self.box_labels:
@@ -1318,6 +1331,8 @@ class ScenePlotter():
             else:
                 self.box_labels[agent_idx].set_x(x)
                 self.box_labels[agent_idx].set_y(y)
+
+            self.box_labels[agent_idx].set_visible(True)
 
         lw = 1
         fc = self._get_color(agent_idx,self.agent_face_colors[frame_idx])
@@ -1339,9 +1354,12 @@ class ScenePlotter():
             lw=lw
         )
 
+        if agent_idx in self.actor_boxes:
+            self.actor_boxes[agent_idx].remove()
         self.actor_boxes[agent_idx] = rect
         self.actor_boxes[agent_idx].set_clip_on(True)
         self.current_ax.add_patch(self.actor_boxes[agent_idx])
+        self.actor_boxes[agent_idx].set_visible(True)
 
     def _plot_traffic_light(
         self, 
