@@ -1095,6 +1095,8 @@ class ScenePlotter():
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
 
         def animate(i):
+            for agent_idx in self.actor_boxes:
+                self.actor_boxes[agent_idx].remove()
             self._update_frame_to(i)
 
         ani = FuncAnimation(
@@ -1103,7 +1105,7 @@ class ScenePlotter():
             ani.save(f'{output_name}', writer='pillow', dpi=self._dpi)
         return ani
 
-    def _validate_agent_style_data_helper(agent_colors,agent_color_type):
+    def _validate_agent_style_data_helper(self,agent_colors,agent_color_type):
         if agent_colors is None:
             agent_colors = [None]*len(self.agent_properties)
         else:
@@ -1140,11 +1142,7 @@ class ScenePlotter():
     ): 
         assert len(agent_states) == len(agent_properties), "Number of given agent states and agent properties is unequal."
 
-    def _transform_point_to_left_hand_coordinate_frame(
-        self,
-        x,
-        orientation
-    ):
+    def _transform_point_to_left_hand_coordinate_frame(self,x,orientation):
         t_x = 2*self.xy_offset[0] - x
         if orientation >= 0:
             t_orientation = -orientation + math.pi
@@ -1225,7 +1223,7 @@ class ScenePlotter():
         return c
 
     def _update_frame_to(self, frame_idx):
-        for i in range(self.agent_properties[frame_idx]):
+        for i in range(len(self.agent_properties[frame_idx])):
             self._update_agent(
                 agent_idx=i,
                 frame_idx=frame_idx
@@ -1341,8 +1339,6 @@ class ScenePlotter():
             lw=lw
         )
 
-        if agent_idx in self.actor_boxes:
-            self.actor_boxes[agent_idx].remove()
         self.actor_boxes[agent_idx] = rect
         self.actor_boxes[agent_idx].set_clip_on(True)
         self.current_ax.add_patch(self.actor_boxes[agent_idx])
