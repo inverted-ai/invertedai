@@ -49,7 +49,7 @@ class ScenarioLog(BaseModel):
 
     waypoints: Optional[Dict[str,List[Point]]] = None #: As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
 
-    present_mask: Optional[List[List[int]]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
+    present_indexes: Optional[List[List[int]]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
 
 class LogBase():
     """
@@ -103,11 +103,11 @@ class LogBase():
         )
         scene_plotter.initialize_recording(
             agent_states=self._scenario_log.agent_states[0],
-            agent_properties=[self._scenario_log.agent_properties[i] for i in self._scenario_log.present_mask[0]],
+            agent_properties=[self._scenario_log.agent_properties[i] for i in self._scenario_log.present_indexes[0]],
             traffic_light_states=traffic_lights_states[timestep_range[0]]
         )
 
-        for states, lights, present in zip(self._scenario_log.agent_states[0:],traffic_lights_states[0:],self._scenario_log.present_mask[0:]):
+        for states, lights, present in zip(self._scenario_log.agent_states[0:],traffic_lights_states[0:],self._scenario_log.present_indexes[0:]):
             scene_plotter.record_step(
                 agent_states=states, 
                 traffic_light_states=lights,
@@ -238,8 +238,8 @@ class LogWriter(LogBase):
         for i, prop in enumerate(scenario_log.agent_properties):
             states_dict = {}
             for t, states in enumerate(scenario_log.agent_states):
-                if i in self._scenario_log.present_mask[t]:
-                    ind = self._scenario_log.present_mask[t].index(i)
+                if i in self._scenario_log.present_indexes[t]:
+                    ind = self._scenario_log.present_indexes[t].index(i)
 
                     states_dict[str(t)] = {
                         "center": {"x": states[ind].center.x, "y": states[ind].center.y},
@@ -381,14 +381,14 @@ class LogWriter(LogBase):
                 light_recurrent_states=init_response.light_recurrent_states,
                 recurrent_states=init_response.recurrent_states,
                 waypoints=None,
-                present_mask=[list(range(len(agent_properties)))]
+                present_indexes=[list(range(len(agent_properties)))]
             )
             self.simulation_length = 1
 
         else:
             self._scenario_log = scenario_log
-            if self._scenario_log.present_mask is None:
-                self._scenario_log.present_mask = [list(range(len(self._scenario_log.agent_properties)))]
+            if self._scenario_log.present_indexes is None:
+                self._scenario_log.present_indexes = [list(range(len(self._scenario_log.agent_properties)))]
 
             self.simulation_length = len(self._scenario_log.agent_states)
 
@@ -396,25 +396,25 @@ class LogWriter(LogBase):
     def drive(
         self,
         drive_response: DriveResponse,
-        present_mask: Optional[List[int]] = None,
+        present_indexes: Optional[List[int]] = None,
         new_agent_properties: Optional[List[AgentProperties]] = None
     ): 
         """
         Consume and store driving response information from a single timestep and append it to the end of the log. If the number of agents
-        changes during this time step, a new mask of agent ID's must be given indicating which agents are now present. If agents have been 
-        added, their AgentProperties must be given as well and will be added in the given order. If no present mask is given, it is assumed
+        changes during this time step, a new list of present agent ID's must be given indicating which agents are now present. If agents have been 
+        added, their AgentProperties must be given as well and will be added in the given order. If no present indexes list is given, it is assumed
         which agents are present has not changed since the previous time step.
         """
 
         if new_agent_properties is not None:
             self._scenario_log.agent_properties.extend(new_agent_properties)
 
-        if present_mask is None:
-            present_mask = deepcopy(self._scenario_log.present_mask[self.simulation_length-1])
+        if present_indexes is None:
+            present_indexes = deepcopy(self._scenario_log.present_indexes[self.simulation_length-1])
         else:
-            assert min(present_mask) >= 0 and max(present_mask) < len(self._scenario_log.agent_properties), "Invalid agent ID's in given present mask."
-        assert len(present_mask) == len(drive_response.agent_states), "Given number of agent states does not match number of present agents."
-        self._scenario_log.present_mask.append(present_mask)
+            assert min(present_indexes) >= 0 and max(present_indexes) < len(self._scenario_log.agent_properties), "Invalid agent ID's in given list of present indexes."
+        assert len(present_indexes) == len(drive_response.agent_states), "Given number of agent states does not match number of present agents."
+        self._scenario_log.present_indexes.append(present_indexes)
 
         self._scenario_log.agent_states.append(drive_response.agent_states)
         if drive_response.traffic_lights_states is not None:
@@ -431,9 +431,12 @@ class LogWriter(LogBase):
         Returns which agents are currently present within the simulation.
         """
 
-        return self._scenario_log.present_mask[self.simulation_length-1]
+        return self._scenario_log.present_indexes[self.simulation_length-1]
 
     def get_all_agent_properties(self):
+        """
+        Returns all agent properties that have been present in the simulation this log is capturing.
+        """
 
         return self._scenario_log.agent_properties
 
@@ -463,10 +466,10 @@ class LogReader(LogBase):
 
         all_agent_states_unsorted = []
         all_agent_properties_unsorted = {}
-        present_mask_unsorted = []
+        present_indexes_unsorted = []
         for i in range(LOG_DATA["scenario_length"]):
             agent_states_ts = {}
-            present_mask_ts = []
+            present_indexes_ts = []
             
             for agent_num, agent in LOG_DATA["predetermined_agents"].items():
                 agent_num = int(agent_num)
@@ -481,7 +484,7 @@ class LogReader(LogBase):
 
                 ts_key = str(i)
                 if ts_key in agent["states"]:
-                    present_mask_ts.append(agent_num)
+                    present_indexes_ts.append(agent_num)
                     agent_state = agent["states"][ts_key]
                     agent_states_ts[agent_num] = AgentState.fromlist([
                         agent_state["center"]["x"],
@@ -491,16 +494,16 @@ class LogReader(LogBase):
                     ])
 
             all_agent_states_unsorted.append(agent_states_ts)
-            present_mask_unsorted.append(present_mask_ts)
+            present_indexes_unsorted.append(present_indexes_ts)
 
         #Sort agents by index if not in the correct order from the JSON dict
         all_agent_properties = self._sort_unsorted_dict(all_agent_properties_unsorted)
         all_agent_states = []
         for agent_states_ts in all_agent_states_unsorted:
             all_agent_states.append(self._sort_unsorted_dict(agent_states_ts))
-        log_present_mask = []
-        for present_mask_ts in present_mask_unsorted:
-            log_present_mask.append(sorted(present_mask_ts))
+        log_present_indexes = []
+        for present_indexes_ts in present_indexes_unsorted:
+            log_present_indexes.append(sorted(present_indexes_ts))
 
         all_traffic_light_states = []
         for i in range(LOG_DATA["scenario_length"]):
@@ -539,7 +542,7 @@ class LogReader(LogBase):
             light_recurrent_states=None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
             recurrent_states=None,
             waypoints=agent_waypoints,
-            present_mask=log_present_mask
+            present_indexes=log_present_indexes
         )
         self._scenario_log_original = self._scenario_log
 
@@ -607,7 +610,7 @@ class LogReader(LogBase):
         self.recurrent_states = None
         self.traffic_lights_states = None if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states[timestep]
         self.light_recurrent_states = self._scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None
-        self.agent_properties = [self._scenario_log.agent_properties[i] for i in self._scenario_log.present_mask[timestep]]
+        self.agent_properties = [self._scenario_log.agent_properties[i] for i in self._scenario_log.present_indexes[timestep]]
 
         return True
 
@@ -661,4 +664,16 @@ class LogReader(LogBase):
         self.light_recurrent_states = None
         self.current_timestep = 1
 
+    def get_agent_properties(self):
+        """
+        Return a list of agent properties of all agents present in the simulation.
+        """
 
+        return self._scenario_log.agent_properties
+
+    def get_waypoint_dictionary(self):
+        """
+        Return all waypoints in the simulation keyed to the index of agents corresponding to the full agent properties list.
+        """
+
+        return self._scenario_log.waypoints
