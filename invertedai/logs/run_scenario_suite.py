@@ -2,12 +2,15 @@ import argparse
 import os
 import time
 import random
+import logging
 import invertedai as iai
 import matplotlib.pyplot as plt
 
 from invertedai.common import AgentState
 from invertedai.api.initialize import InitializeResponse
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 class ScenarioTool:
     """
@@ -104,7 +107,7 @@ def _run_simulation(
     else:
         model_version = args.model_version_drive
 
-    print(f"Simulation {scenario_name} begin rolling through time steps.")
+    logger.info(f"Simulation {scenario_name} begin rolling through time steps.")
     for _ in range(args.sim_length):
         ego_agent_states = []
         if ego_indexes is not None:
@@ -129,7 +132,7 @@ def _run_simulation(
         if is_visualize: scene_plotter.record_step(scenario_tool.cosimulation.agent_states,scenario_tool.cosimulation.light_states)
 
     if is_visualize:
-        print(f"Simulation {scenario_name} finished, saving visualization.")
+        logger.info(f"Simulation {scenario_name} finished, saving visualization.")
         # save the visualization to disk
         colour_list = None
         if ego_indexes is not None:
