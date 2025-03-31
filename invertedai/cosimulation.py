@@ -5,6 +5,7 @@ import invertedai as iai
 from invertedai.common import (
     AgentProperties,
     AgentState, 
+    LightRecurrentState,
     RecurrentState,
     TrafficLightStatesDict
 )
@@ -42,6 +43,8 @@ class BasicCosimulation:
         parameter allows some of the conditional agents with predefined states and properties to nonetheless be 
         controlled by the Inverted AI API. The non-ego conditional agents must be placed at the end of the conditional
         agents list and the ego agents must be placed at the beginning of the conditional agents list.
+    init_response: 
+        In use cases with pre-existing Initialize Responses, for example rolling out a scenario log.
     """
 
     def __init__(
@@ -50,19 +53,21 @@ class BasicCosimulation:
         conditional_agent_properties: Optional[List[AgentProperties]] = None,
         conditional_agent_agent_states: Optional[List[AgentState]] = None,
         num_non_ego_conditional_agents: Optional[int] = 0,
+        init_response: Optional[InitializeResponse] = None,
         **kwargs # sufficient arguments to initialize must also be included
     ):
         self._conditional_agent_properties = conditional_agent_properties
         self._conditional_agent_agent_states = conditional_agent_agent_states
-
         self._location = location
+
         self._response = large_initialize(
             location=self._location,
             agent_properties=self._conditional_agent_properties,
             agent_states=self._conditional_agent_agent_states,
             **kwargs,
-        )
+        ) if init_response is None else init_response
         self.init_response = deepcopy(self._response)
+        
         self._light_state = self.init_response.traffic_lights_states
         self._light_recurrent_state = self.init_response.light_recurrent_states
 
@@ -104,6 +109,13 @@ class BasicCosimulation:
         return self._agent_properties
 
     @property
+    def recurrent_states(self) -> List[RecurrentState]:
+        """
+        Returns the recurrent states of ALL agents in order, including ego.
+        """
+        return self._recurrent_states
+
+    @property
     def ego_states(self) -> List[AgentState]:
         """
         Returns the predicted states of ego agents in order.
@@ -118,6 +130,14 @@ class BasicCosimulation:
         The NPC agents are excluded.
         """
         return self._agent_properties[:self._conditional_agent_count]
+
+    @property
+    def ego_recurrent_states(self) -> List[RecurrentState]:
+        """
+        Returns the recurrent states of ego agents in order.
+        The NPC agents are excluded.
+        """
+        return self._recurrent_states[:self._conditional_agent_count]
 
     @property
     def npc_states(self) -> List[AgentState]:
@@ -151,6 +171,13 @@ class BasicCosimulation:
         return self._light_state
 
     @property
+    def light_recurrent_state(self) -> Optional[LightRecurrentState]:
+        """
+        Returns the traffic light recurrent states if any exists on the map.
+        """
+        return self._light_recurrent_state
+
+    @property
     def response(self) -> Union[DriveResponse,InitializeResponse]:
         """
         Get the current response data object containing all information received from the API.
@@ -159,7 +186,7 @@ class BasicCosimulation:
 
     def step(
         self, 
-        current_conditional_agent_states: List[AgentState],
+        current_conditional_agent_states: Optional[List[AgentState]] = [],
         **kwargs
     ) -> None:
         """
@@ -181,7 +208,7 @@ class BasicCosimulation:
             location=self.location,
             agent_properties=self._agent_properties,
             agent_states=self._agent_states,
-            recurrent_states=self._recurrent_states,
+            recurrent_states=None if len(self._recurrent_states) == 0 else self._recurrent_states,
             light_recurrent_states=self._light_recurrent_state,
             **kwargs
         )

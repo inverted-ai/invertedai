@@ -1217,8 +1217,8 @@ class ScenePlotter():
                     c=self.dir_c
                 )
             else:
-                self.dir_lines[agent_idx][0].set_xdata(x_data)
-                self.dir_lines[agent_idx][0].set_ydata(y_data)
+                self.dir_lines[agent_idx][0].set_xdata([x_data])
+                self.dir_lines[agent_idx][0].set_ydata([y_data])
                 self.dir_lines[agent_idx][0].set_marker(marker_data)
 
         if self.velocity_vec:
