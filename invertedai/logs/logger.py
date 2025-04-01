@@ -192,7 +192,7 @@ class LogWriter(LogBase):
                 wp = prop.waypoint
                 if wp is not None:
                     individual_suggestions_dict[str(i)] = {
-                        "suggestion_strength": 0.8,
+                        "suggestion_strength": 0.8, #Default value
                         "states": {
                             "0": {
                                 "center": {
@@ -206,7 +206,7 @@ class LogWriter(LogBase):
             if scenario_log.waypoints is not None:
                 for agent_id, wps in scenario_log.waypoints.items():
                         individual_suggestions_dict[agent_id] = {
-                            "suggestion_strength": 0.8,
+                            "suggestion_strength": 0.8, #Default value
                             "states": [{
                                 "center": {
                                     "x": wp.x,
@@ -426,9 +426,9 @@ class LogWriter(LogBase):
 
         self.simulation_length += 1
 
-    def get_present_agents(self): 
+    def get_present_agent_indexes(self): 
         """
-        Returns which agents are currently present within the simulation.
+        Returns the indexes of the agents that are currently present within the simulation.
         """
 
         return self._scenario_log.present_indexes[self.simulation_length-1]
