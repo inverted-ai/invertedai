@@ -47,11 +47,11 @@ log_writer.initialize(
 
 print("Stepping through simulation...")
 for ts in range(SIMULATION_LENGTH): 
-    present_indexes = None
+    current_present_indexes = None
     new_agent_properties = None
     if ts == TIMESTEP_REMOVE_AGENTS:
-        present_indexes = log_writer.get_present_agents()
-        present_indexes.pop(AGENT_TO_REMOVE)
+        current_present_indexes = log_writer.current_present_indexes
+        current_present_indexes.pop(AGENT_TO_REMOVE)
         
         response.agent_states.pop(AGENT_TO_REMOVE)
         agent_properties.pop(AGENT_TO_REMOVE)
@@ -62,11 +62,11 @@ for ts in range(SIMULATION_LENGTH):
         agent_properties.extend(agent_properties_added)
         response.recurrent_states = None
 
-        if present_indexes is None:
-            present_indexes = log_writer.get_present_agents()
+        if current_present_indexes is None:
+            current_present_indexes = log_writer.current_present_indexes
 
-        num_agent_properties = len(log_writer.get_all_agent_properties())
-        present_indexes.extend([num_agent_properties + i for i in range(len(agent_properties_added))])
+        num_agent_properties = len(log_writer.all_agent_properties)
+        current_present_indexes.extend([num_agent_properties + i for i in range(len(agent_properties_added))])
         new_agent_properties = agent_properties_added
 
     response = iai.drive(
@@ -80,7 +80,7 @@ for ts in range(SIMULATION_LENGTH):
 
     log_writer.drive(
         drive_response=response,
-        present_indexes=present_indexes,
+        current_present_indexes=current_present_indexes,
         new_agent_properties=new_agent_properties
     )
 

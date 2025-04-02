@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validate_arguments
+from pydantic import BaseModel, validate_arguments, model_validator
 from typing import List, Optional, Dict, Tuple, Any
 from copy import deepcopy
 
@@ -49,7 +49,39 @@ class ScenarioLog(BaseModel):
 
     waypoints: Optional[Dict[str,List[Point]]] = None #: As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
 
-    present_indexes: Optional[List[List[int]]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
+    present_indexes: List[List[int]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
+
+    @model_validator(mode='after')
+    def validate_states_and_present_indexes_init(self):
+        assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
+
+        for states, pres_ids in zip(self.agent_states,self.present_indexes):
+            self.validate_states_and_present_indexes_time_step(
+                current_agent_states=states,
+                current_present_indexes=pres_ids
+            )
+        return self
+
+    def validate_states_and_present_indexes_time_step(
+        self,
+        current_agent_states: List[AgentState],
+        current_present_indexes: List[int]
+    ):
+        assert min(current_present_indexes) >= 0 and max(current_present_indexes) < len(self.agent_properties), "Invalid agent ID's in given list of present indexes."
+        assert len(current_present_indexes) == len(current_agent_states), "Given number of agent states does not match number of present agents."
+
+    def add_time_step_data(
+        self,
+        current_agent_states: List[AgentState],
+        current_present_indexes: List[int]
+    ):
+        self.validate_states_and_present_indexes_time_step(
+            current_agent_states=current_agent_states,
+            current_present_indexes=current_present_indexes
+        )
+        self.present_indexes.append(current_present_indexes)
+        self.agent_states.append(current_agent_states)
+    
 
 class LogBase():
     """
@@ -396,7 +428,7 @@ class LogWriter(LogBase):
     def drive(
         self,
         drive_response: DriveResponse,
-        present_indexes: Optional[List[int]] = None,
+        current_present_indexes: Optional[List[int]] = None,
         new_agent_properties: Optional[List[AgentProperties]] = None
     ): 
         """
@@ -409,14 +441,13 @@ class LogWriter(LogBase):
         if new_agent_properties is not None:
             self._scenario_log.agent_properties.extend(new_agent_properties)
 
-        if present_indexes is None:
-            present_indexes = deepcopy(self._scenario_log.present_indexes[self.simulation_length-1])
-        else:
-            assert min(present_indexes) >= 0 and max(present_indexes) < len(self._scenario_log.agent_properties), "Invalid agent ID's in given list of present indexes."
-        assert len(present_indexes) == len(drive_response.agent_states), "Given number of agent states does not match number of present agents."
-        self._scenario_log.present_indexes.append(present_indexes)
+        if current_present_indexes is None:
+            current_present_indexes = deepcopy(self._scenario_log.present_indexes[self.simulation_length-1])
+        self._scenario_log.add_time_step_data(
+            current_agent_states=drive_response.agent_states,
+            current_present_indexes=current_present_indexes
+        )
 
-        self._scenario_log.agent_states.append(drive_response.agent_states)
         if drive_response.traffic_lights_states is not None:
             self._scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
         
@@ -426,14 +457,16 @@ class LogWriter(LogBase):
 
         self.simulation_length += 1
 
-    def get_present_agent_indexes(self): 
+    @property
+    def current_present_indexes(self): 
         """
         Returns the indexes of the agents that are currently present within the simulation.
         """
 
         return self._scenario_log.present_indexes[self.simulation_length-1]
 
-    def get_all_agent_properties(self):
+    @property
+    def all_agent_properties(self):
         """
         Returns all agent properties that have been present in the simulation this log is capturing.
         """
@@ -589,6 +622,7 @@ class LogReader(LogBase):
             i, j = timestep_range[0], timestep_range[1]
             returned_log = deepcopy(self._scenario_log_original)
             returned_log.agent_states = returned_log.agent_states[i:j]
+            returned_log.present_indexes = returned_log.present_indexes[i:j]
             if returned_log.traffic_lights_states is not None:
                 returned_log.traffic_lights_states = returned_log.traffic_lights_states[i:j]
 
@@ -664,14 +698,16 @@ class LogReader(LogBase):
         self.light_recurrent_states = None
         self.current_timestep = 1
 
-    def get_agent_properties(self):
+    @property
+    def all_agent_properties(self):
         """
         Return a list of agent properties of all agents present in the simulation.
         """
 
         return self._scenario_log.agent_properties
 
-    def get_waypoint_dictionary(self):
+    @property
+    def waypoint_dictionary(self):
         """
         Return all waypoints in the simulation keyed to the index of agents corresponding to the full agent properties list.
         """
