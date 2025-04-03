@@ -19,7 +19,7 @@ docker compose run --rm dev
 ## Usage
 `bazel build //examples:client_example` to compile.
 `./client $location $agent_num $timestep $api_key` to run.
-e.g. `./bazel-bin/examples/client_example canada:vancouver:ubc_roundabout 5 20 "EFGHTOKENABCD"`
+e.g. `./bazel-bin/examples/client_example canada:ubc_roundabout 5 20 "EFGHTOKENABCD"`
 
 `bazel build //examples:blame_example` to compile.
 `./bazel-bin/examples/blame_example $api_key` to run.

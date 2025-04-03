@@ -60,6 +60,8 @@ STATUS_MESSAGE = {
     500: "The server encountered an unexpected issue. We're working to resolve this. Please try again later.",
 }
 
+Color = Tuple[float,float,float]
+ColorList = List[Optional[Color]]
 
 class Session:
     def __init__(self,debug_logger=None):
@@ -820,11 +822,6 @@ class ScenePlotter():
     ):
 
         self._left_hand_coordinates = left_hand_coordinates
-
-        self.conditional_agents = None
-        self.agent_properties = None
-        self.traffic_lights_history = None
-        self.agent_states_history = None
         
         self._open_drive = open_drive
         self._dpi = dpi
@@ -863,10 +860,19 @@ class ScenePlotter():
 
         self.numbers = None
 
+        self.reset_recording()
+        
+    def reset_recording(self):
+        """
+        Explicitly reset the recording and remove the previous agent state, agent attribute, traffic light, and agent style data.
+        """
+
+        self.agent_states_history = None
+        self.traffic_lights_history = None
+        self.agent_properties = None
+        
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
-
-        self.reset_recording()
 
     @validate_arguments
     def initialize_recording(
@@ -874,69 +880,58 @@ class ScenePlotter():
         agent_states: List[AgentState], 
         agent_attributes: Optional[List[AgentAttributes]] = None, 
         agent_properties: Optional[List[AgentProperties]] = None,
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
-        conditional_agents: Optional[List[int]] = None
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None 
     ):
         """
         Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous 
-        agent state, agent attribute, conditional agent, traffic light, and agent style data.
+        agent state, agent attribute, traffic light, and agent style data.
 
         Arguments
         ----------
         agent_states:
             A list of AgentState objects corresponding to the initial time step to be visualized.
         agent_attributes:
-            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a 
-            kinematic bicycle model.
+            Static attributes of the agents present in the initial step of the simulation. We assume every agent is a rectangle obeying a kinematic 
+            bicycle model. The attributes of each agent respectively may not change but if agents are added or removed from the simulation, this 
+            list will change.
         agent_properties:
-            Static attributes of the agent (with the AgentProperties data type), which don’t change over the course of a simulation. We assume every 
-            agent is a rectangle obeying a kinematic bicycle model.
+            Static properties of the agent (with the AgentProperties data type), present in the initial step of the simulation. We assume every 
+            agent is a rectangle obeying a kinematic bicycle model. The properties of each agent respectively may not change but if agents are added
+            or removed from the simulation, this list will change.
         traffic_light_states:
             Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter 
             should only be used if the corresponding map contains traffic light static actors.
-        conditional_agents:
-            Optional parameter containing a list of agent IDs corresponding to conditional agents to be visualized to distinguish themselves.
         """
 
         assert (agent_attributes is not None) ^ (agent_properties is not None), \
             "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
 
         if agent_attributes is not None:
-            self.agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+            self.agent_properties = [[convert_attributes_to_properties(attr) for attr in agent_attributes]]
             warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
         else:
-            self.agent_properties = agent_properties
+            self.agent_properties = [agent_properties]
+
+        self._validate_timestep_agents(
+            agent_states=agent_states,
+            agent_properties=self.agent_properties[0]
+        )
 
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
-        if conditional_agents is not None:
-            self.conditional_agents = conditional_agents
-        else:
-            self.conditional_agents = []
 
         self.agent_face_colors = None
         self.agent_edge_colors = None
-
-    def reset_recording(self):
-        """
-        Explicitly reset the recording and remove the previous agent state, agent attribute, conditional agent, traffic light, and agent style data.
-        """
-        self.agent_states_history = []
-        self.traffic_lights_history = []
-        self.agent_properties = None
-        self.conditional_agents = []
-        self.agent_properties = None
-        self.agent_face_colors = None 
-        self.agent_edge_colors = None 
 
     @validate_arguments
     def record_step(
         self,
         agent_states: List[AgentState], 
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None,
+        agent_properties: Optional[List[AgentProperties]] = None
     ):
         """
-        Record a single timestep of scene data to be used in a visualization
+        Record a single timestep of scene data to be used in a visualization.
 
         Arguments
         ----------
@@ -945,9 +940,22 @@ class ScenePlotter():
         traffic_light_states:
             Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should
             only be used if the corresponding map contains traffic light static actors.
+        agent_properties:
+            A list of AgentProperties for the agents present during this time step. The indexes of these properties will be matched with corresponding
+            indexes of the states given in the agent_states parameter. If no argument is given, it is assumed the agent properties have not changed since
+            the previous time step, including which agents are present.
         """
+
         self.agent_states_history.append(agent_states)
         self.traffic_lights_history.append(traffic_light_states)
+
+        if agent_properties is None:
+            agent_properties = self.agent_properties[-1]
+        self._validate_timestep_agents(
+            agent_states=agent_states,
+            agent_properties=agent_properties
+        )
+        self.agent_properties.append(agent_properties)
 
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def plot_scene(
@@ -956,13 +964,12 @@ class ScenePlotter():
         agent_attributes: Optional[List[AgentAttributes]] = None, 
         agent_properties: Optional[List[AgentProperties]] = None, 
         traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
-        conditional_agents: Optional[List[int]] = None,
         ax: Optional[Axes] = None,
         numbers: Optional[List[int]] = None, 
         direction_vec: bool = True, 
         velocity_vec: bool = False,
-        agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None,
-        agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
+        agent_face_colors: Optional[ColorList] = None,
+        agent_edge_colors: Optional[ColorList] = None
     ):
         """
         Plot a single timestep of data then reset the recording. 
@@ -980,8 +987,6 @@ class ScenePlotter():
         traffic_light_states: 
             Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the 
             corresponding map contains traffic light static actors.
-        conditional_agents:
-            Optional parameter containing a list of agent IDs of conditional agents to be visualized in the image to distinguish themselves.
         ax: 
             A matplotlib Axes object used to plot the image. By default, an Axes object is created if a value of None is passed.
         numbers: 
@@ -992,12 +997,13 @@ class ScenePlotter():
             Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
         agent_face_colors:
             An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
-            of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+            of None in this list will use the default color.
         agent_edge_colors:
             An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding 
-            index ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+            index ID. A value of None in this list will use the default color.
 
         """
+
         assert (agent_attributes is not None) ^ (agent_properties is not None), \
             "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
 
@@ -1008,8 +1014,7 @@ class ScenePlotter():
         self.initialize_recording(
             agent_states=agent_states, 
             agent_properties=agent_properties,
-            traffic_light_states=traffic_light_states,
-            conditional_agents=conditional_agents
+            traffic_light_states=traffic_light_states
         )
 
         self._validate_agent_style_data(
@@ -1039,8 +1044,8 @@ class ScenePlotter():
         direction_vec: bool = True, 
         velocity_vec: bool = False,
         plot_frame_number: bool = False, 
-        agent_face_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None,
-        agent_edge_colors: Optional[List[Optional[Tuple[float,float,float]]]] = None
+        agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
+        agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None
     ) -> FuncAnimation:
         """
         Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
@@ -1064,17 +1069,27 @@ class ScenePlotter():
         plot_frame_number: 
             Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
         agent_face_colors:
-            An optional parameter containing a list of either RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
-            of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+            An optional parameter containing a list of RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
+            of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent must 
+            be specified per time step.
         agent_edge_colors:
-            An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding index 
-            ID. A value of None in this list will use the default color. This value gets overwritten by the conditional agent color.
+            An optional parameter containing a list of RGB tuples indicating the desired color of a border around the agent with the corresponding index 
+            ID. A value of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent 
+            must be specified per time step.
         """
 
-        self._validate_agent_style_data(agent_face_colors,agent_edge_colors)
+        self._validate_agent_style_data(
+            agent_face_colors=agent_face_colors,
+            agent_edge_colors=agent_edge_colors
+        )
 
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+        self._initialize_plot(
+            ax=ax, 
+            numbers=numbers, 
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec, 
+            plot_frame_number=plot_frame_number
+        )
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
@@ -1088,6 +1103,43 @@ class ScenePlotter():
             ani.save(f'{output_name}', writer='pillow', dpi=self._dpi)
         return ani
 
+    def _validate_agent_style_data_helper(self,agent_colors,agent_color_type):
+        if agent_colors is None:
+            agent_colors = [None]*len(self.agent_properties)
+        else:
+            if type(agent_colors) == ColorList:
+                agent_colors = [agent_colors]*len(self.agent_properties)
+            else:
+                assert len(self.agent_properties) == len(agent_colors), f"Number of {agent_color_type} time steps does not match number of simulation time steps."
+
+        for i, (props_ts, colors_ts) in enumerate(zip(self.agent_properties,agent_colors)):
+            if colors_ts is not None:
+                assert len(colors_ts) == len(props_ts), f"Number of {agent_color_type} does not match number of agents at time step {i}."
+
+        return agent_colors
+
+    def _validate_agent_style_data(self,agent_face_colors,agent_edge_colors):
+        if self.agent_properties is not None: 
+            self.agent_face_colors = self._validate_agent_style_data_helper(
+                agent_colors=agent_face_colors,
+                agent_color_type="agent face colors"
+            )
+
+            self.agent_edge_colors = self._validate_agent_style_data_helper(
+                agent_colors=agent_edge_colors,
+                agent_color_type="agent face colors"
+            )
+
+        else:
+            raise Exception("No agent properties found, cannot validate agent face or edge colours.")
+
+    def _validate_timestep_agents(
+        self,
+        agent_states: List[AgentState],
+        agent_properties: List[AgentProperties]
+    ): 
+        assert len(agent_states) == len(agent_properties), "Number of given agent states and agent properties is unequal."
+
     def _transform_point_to_left_hand_coordinate_frame(self,x,orientation):
         t_x = 2*self.xy_offset[0] - x
         if orientation >= 0:
@@ -1097,26 +1149,32 @@ class ScenePlotter():
 
         return t_x, t_orientation
 
-    def _plot_frame(self, idx, ax=None, numbers=None, direction_vec=True,
-                   velocity_vec=False, plot_frame_number=False):
-        self._initialize_plot(ax=ax, numbers=numbers, direction_vec=direction_vec,
-                              velocity_vec=velocity_vec, plot_frame_number=plot_frame_number)
+    def _plot_frame(
+        self, 
+        idx, 
+        ax=None, 
+        numbers=None, 
+        direction_vec=True,
+        velocity_vec=False, 
+        plot_frame_number=False
+    ):
+        self._initialize_plot(
+            ax=ax, 
+            numbers=numbers, 
+            direction_vec=direction_vec,
+            velocity_vec=velocity_vec, 
+            plot_frame_number=plot_frame_number
+        )
         self._update_frame_to(idx)
 
-    def _validate_agent_style_data(self,agent_face_colors,agent_edge_colors):
-        if self.agent_properties is not None: 
-            if agent_face_colors is not None:
-                if len(agent_face_colors) != len(self.agent_properties):
-                    raise Exception("Number of agent face colors does not match number of agents.")
-            if agent_edge_colors is not None:
-                if len(agent_edge_colors) != len(self.agent_properties):
-                    raise Exception("Number of agent edge colors does not match number of agents.")
-
-        self.agent_face_colors = agent_face_colors
-        self.agent_edge_colors = agent_edge_colors
-
-    def _initialize_plot(self, ax=None, numbers=None, direction_vec=True,
-                         velocity_vec=False, plot_frame_number=False):
+    def _initialize_plot(
+        self, 
+        ax=None, 
+        numbers=None, 
+        direction_vec=True,
+        velocity_vec=False, 
+        plot_frame_number=False
+    ):
         if ax is None:
             plt.clf()
             ax = plt.gca()
@@ -1145,7 +1203,11 @@ class ScenePlotter():
 
         self._update_frame_to(0)
 
-    def _get_color(self,agent_idx,color_list):
+    def _get_color(
+        self,
+        agent_idx,
+        color_list
+    ):
         c = None
         if color_list and color_list[agent_idx]:
             is_good_color_format = isinstance(color_list[agent_idx],tuple)
@@ -1159,10 +1221,22 @@ class ScenePlotter():
         return c
 
     def _update_frame_to(self, frame_idx):
-        for i, (agent, agent_attribute) in enumerate(
-            zip(self.agent_states_history[frame_idx], self.agent_properties)
-        ):
-            self._update_agent(i, agent, agent_attribute)
+        for rect in self.actor_boxes.values():
+            rect.set_visible(False)
+        for lines in self.dir_lines.values():
+            for line in lines:
+                line.set_visible(False)
+        for lines in self.v_lines.values():
+            for line in lines:
+                line.set_visible(False)
+        for label in self.box_labels.values():
+            label.set_visible(False)
+
+        for i in range(len(self.agent_properties[frame_idx])):
+            self._update_agent(
+                agent_idx=i,
+                frame_idx=frame_idx
+            )
 
         if self.traffic_lights_history[frame_idx] is not None:
             for light_id, light_state in self.traffic_lights_history[frame_idx].items():
@@ -1184,9 +1258,16 @@ class ScenePlotter():
             self.current_ax.set_xlim(*self.extent[0:2])
             self.current_ax.set_ylim(*self.extent[2:4])
 
-    def _update_agent(self, agent_idx, agent, agent_attribute):
-        l, w = agent_attribute.length, agent_attribute.width
-        if agent_attribute.agent_type == "pedestrian":
+    def _update_agent(
+        self, 
+        agent_idx, 
+        frame_idx
+    ):
+        agent = self.agent_states_history[frame_idx][agent_idx]
+        agent_properties = self.agent_properties[frame_idx][agent_idx]
+
+        l, w = agent_properties.length, agent_properties.width
+        if agent_properties.agent_type == "pedestrian":
             l, w = 1.5, 1.5
         x, y = agent.center.x, agent.center.y
         v = agent.speed
@@ -1202,7 +1283,7 @@ class ScenePlotter():
 
         box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
         if self.direction_vec:
-            marker_offset = agent_attribute.length/4
+            marker_offset = agent_properties.length/4
             x_data = x + marker_offset*math.cos(psi)
             y_data = y + marker_offset*math.sin(psi)
             marker_data = (3, 0, (-90+180*psi/math.pi))
@@ -1212,14 +1293,16 @@ class ScenePlotter():
                     x_data,
                     y_data,
                     marker=marker_data,
-                    markersize=agent_attribute.width*400/self.fov, 
+                    markersize=agent_properties.width*400/self.fov, 
                     linestyle='None',
                     c=self.dir_c
                 )
             else:
-                self.dir_lines[agent_idx][0].set_xdata(x_data)
-                self.dir_lines[agent_idx][0].set_ydata(y_data)
+                self.dir_lines[agent_idx][0].set_xdata([x_data])
+                self.dir_lines[agent_idx][0].set_ydata([y_data])
                 self.dir_lines[agent_idx][0].set_marker(marker_data)
+
+            self.dir_lines[agent_idx][0].set_visible(True)
 
         if self.velocity_vec:
             if agent_idx not in self.v_lines:
@@ -1232,6 +1315,8 @@ class ScenePlotter():
             else:
                 self.v_lines[agent_idx].set_xdata(box[2:4, 0])
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
+
+            self.v_lines[agent_idx][0].set_visible(True)
         
         if self.numbers is not None and agent_idx in self.numbers:
             if agent_idx not in self.box_labels:
@@ -1247,14 +1332,13 @@ class ScenePlotter():
                 self.box_labels[agent_idx].set_x(x)
                 self.box_labels[agent_idx].set_y(y)
 
+            self.box_labels[agent_idx].set_visible(True)
+
         lw = 1
-        fc = self._get_color(agent_idx,self.agent_face_colors)
+        fc = self._get_color(agent_idx,self.agent_face_colors[frame_idx])
         if fc is None:
-            if agent_idx in self.conditional_agents:
-                fc = self.cond_c
-            else:
-                fc = self.agent_c
-        ec = self._get_color(agent_idx,self.agent_edge_colors)
+            fc = self.agent_c
+        ec = self._get_color(agent_idx,self.agent_edge_colors[frame_idx])
         if ec is None:
             lw = 0
             ec = fc
@@ -1275,8 +1359,13 @@ class ScenePlotter():
         self.actor_boxes[agent_idx] = rect
         self.actor_boxes[agent_idx].set_clip_on(True)
         self.current_ax.add_patch(self.actor_boxes[agent_idx])
+        self.actor_boxes[agent_idx].set_visible(True)
 
-    def _plot_traffic_light(self, light_id, light_state):
+    def _plot_traffic_light(
+        self, 
+        light_id, 
+        light_state
+    ):
         light = self.traffic_lights[light_id]
         x, y = light.center.x, light.center.y
         psi = light.orientation
