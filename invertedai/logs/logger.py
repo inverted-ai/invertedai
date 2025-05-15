@@ -67,7 +67,7 @@ class ScenarioLog(BaseModel):
         current_agent_states: List[AgentState],
         current_present_indexes: List[int]
     ):
-        assert min(current_present_indexes) >= 0 and max(current_present_indexes) < len(self.agent_properties), "Invalid agent ID's in given list of present indexes."
+        assert min(current_present_indexes) >= 0, "Invalid agent ID's in given list of present indexes."
         assert len(current_present_indexes) == len(current_agent_states), "Given number of agent states does not match number of present agents."
 
     def add_time_step_data(
@@ -225,14 +225,12 @@ class LogWriter(LogBase):
                 if wp is not None:
                     individual_suggestions_dict[str(i)] = {
                         "suggestion_strength": 0.8, #Default value
-                        "states": {
-                            "0": {
-                                "center": {
-                                    "x": wp.x,
-                                    "y": wp.y
-                                }
+                        "states":[{
+                            "center": {
+                                "x": wp.x,
+                                "y": wp.y
                             }
-                        }
+                        }]
                     }
         else:
             if scenario_log.waypoints is not None:
