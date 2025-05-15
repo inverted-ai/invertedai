@@ -268,8 +268,8 @@ class LogWriter(LogBase):
         for i, prop in enumerate(scenario_log.agent_properties):
             states_dict = {}
             for t, states in enumerate(scenario_log.agent_states):
-                if i in self._scenario_log.present_indexes[t]:
-                    ind = self._scenario_log.present_indexes[t].index(i)
+                if i in scenario_log.present_indexes[t]:
+                    ind = scenario_log.present_indexes[t].index(i)
 
                     states_dict[str(t)] = {
                         "center": {"x": states[ind].center.x, "y": states[ind].center.y},
