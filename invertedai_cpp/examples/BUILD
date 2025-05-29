@@ -10,9 +10,10 @@ cc_binary(
     ],
     deps = [
         "//invertedai:api",
-        "@boost//:beast",
+        "@boost//:filesystem",
         "@opencv",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -29,6 +30,7 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -44,6 +46,7 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -59,6 +62,7 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -75,6 +79,7 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -89,6 +94,7 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -103,4 +109,5 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
+    copts = ["/std:c++17"],
 )

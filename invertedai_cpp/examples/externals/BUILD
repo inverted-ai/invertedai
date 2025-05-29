@@ -19,4 +19,5 @@ cc_library(
         "-l:libopencv_videoio.so",
     ],
     visibility = ["//visibility:public"],
+    copts = ["/std:c++17"],
 )

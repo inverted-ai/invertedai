@@ -4,11 +4,13 @@ cc_library(
     name = "root-certificates",
     visibility = ["//visibility:public"],
     hdrs = ["root_certificates.hpp"],
-    deps = ["@boost//:asio_ssl"]
+    deps = ["@boost//:asio_ssl"],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
     name = "json",
     visibility = ["//visibility:public"],
-    hdrs = ["json.hpp"]
+    hdrs = ["json.hpp"],
+    copts = ["/std:c++17"],
 )

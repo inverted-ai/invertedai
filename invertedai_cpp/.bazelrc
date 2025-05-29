@@ -1,3 +1,13 @@
-startup --output_base=/home/user/.cache/bazel_docker/base
-startup --output_user_root=/home/user/.cache/bazel_docker/root
-build --cxxopt='-std=c++17'
+#common --enable_platform_specific_config
+#startup --output_base=C:/tmp/bazel/base
+#startup --output_user_root=C:/tmp/bazel/root
+build --cxxopt=/std:c++17
+build --host_cxxopt=/std:c++17
+build --action_env=BAZEL_SH="C:/Program Files/Git/bin/bash.exe"
+build --enable_runfiles
+#startup --windows_enable_symlinks
+#build:windows --cxxopt='/std:c++17'
+#build:linux --cxxopt='-std:c++17'
+#build --enable_runfiles
+#build:c++17 --cxxopt=-std=c++1z
+#build:c++17 --cxxopt=-stdlib=libc++

@@ -7,6 +7,7 @@ cc_library(
     deps = [
     "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -17,6 +18,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -27,6 +29,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -37,6 +40,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -47,6 +51,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -59,6 +64,7 @@ cc_library(
         ":initialize_response",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -69,6 +75,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -79,6 +86,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -89,6 +97,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -104,6 +113,7 @@ cc_library(
         ":version",
         ":logger",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -122,6 +132,7 @@ cc_library(
         ":location_info_response",
         ":session",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
@@ -137,10 +148,12 @@ cc_library(
         ":location_info_response",
         "//invertedai/externals:json",
     ],
+    copts = ["/std:c++17"],
 )
 
 cc_library(
     name = "version",
     hdrs = ["version.h"],
     visibility = ["//visibility:public"],
+    copts = ["/std:c++17"],
 )

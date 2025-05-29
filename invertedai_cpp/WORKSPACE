@@ -1,3 +1,23 @@
+new_local_repository(
+    name = "boost",
+    path = "C:/local/boost_1_74_0",
+    build_file_content = """
+cc_library(
+    name = "filesystem",
+    hdrs = glob(["boost/filesystem/**/*.hpp"]),
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "asio_ssl",
+    hdrs = glob(["boost/asio/**/*.hpp"]),
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+"""
+)
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 _RULES_BOOST_COMMIT = "ce2b65fd6d1494aadb2d8c99ce26aa222ab72486"
@@ -5,17 +25,20 @@ _RULES_BOOST_COMMIT = "ce2b65fd6d1494aadb2d8c99ce26aa222ab72486"
 http_archive(
     name = "com_github_nelhage_rules_boost",
     strip_prefix = "rules_boost-%s" % _RULES_BOOST_COMMIT,
-    urls = [
-        "https://github.com/nelhage/rules_boost/archive/%s.tar.gz" % _RULES_BOOST_COMMIT,
-    ],
+    urls = ["https://github.com/nelhage/rules_boost/archive/%s.tar.gz" % _RULES_BOOST_COMMIT],
 )
 
 load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
-
 boost_deps()
+
+""" load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_library")
+boost_library(
+    name = "boost_filesystem",
+    libs = ["filesystem"]
+) """
 
 new_local_repository(
     name = "opencv",
     build_file = "//examples/externals:BUILD",
-    path = "/usr/include",
+    path = "C://ProgramData//opencv//build//",
 )
