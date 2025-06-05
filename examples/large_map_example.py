@@ -43,20 +43,12 @@ def main(args):
         )
         
         print(f"Set up simulation.")
-        if args.save_sim_gif:
-            rendered_static_map = location_info_response.birdview_image.decode()
-            scene_plotter = iai.utils.ScenePlotter(
-                map_image=rendered_static_map,
-                fov=args.fov,
-                xy_offset=map_center,
-                static_actors=location_info_response.static_actors,
-                resolution=(2048,2048),
-                dpi=300
-            )
-            scene_plotter.initialize_recording(
-                agent_states=response.agent_states,
-                agent_properties=response.agent_properties,
-                traffic_light_states=response.traffic_lights_states
+        if args.save_sim:
+            log_writer = iai.LogWriter()
+            log_writer.initialize(
+                location=args.location,
+                location_info_response=location_info_response,
+                init_response=response
             )
 
         total_num_agents = len(response.agent_states)
@@ -78,23 +70,26 @@ def main(args):
                 async_api_calls = args.is_async
             )
 
-            if args.save_sim_gif: scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
+            if args.save_sim: 
+                log_writer.drive(
+                    drive_response=response
+                )
 
-        if args.save_sim_gif:
+        if args.save_sim:
             print("Simulation finished, save visualization.")
-            # save the visualization to disk
-            fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-            plt.axis('off')
             current_time = int(time.time())
             gif_name = f'large_map_example_{current_time}_location-{args.location.split(":")[-1]}_density-{args.num_agents}_center-x{map_center[0]}y{map_center[1]}_width-{args.width}_height-{args.height}_initseed-{initialize_seed}_driveseed-{drive_seed}_modelversion-{model_version}.gif'
-            scene_plotter.animate_scene(
-                output_name=gif_name,
-                ax=ax,
-                direction_vec=True,
-                velocity_vec=False,
-                plot_frame_number=True,
+            log_writer.visualize(
+                gif_path=gif_name,
+                fov = args.fov,
+                resolution = (2048,2048),
+                dpi = 300,
+                direction_vec = True,
+                velocity_vec = False,
+                plot_frame_number = True,
+                left_hand_coordinates = args.location.split(":")[0] == "carla"
             )
-            plt.close(fig)
+            log_writer.export_to_file(log_path=gif_name.split(".gif")[0]+".json")
         print("Done")
 
 if __name__ == '__main__':
@@ -157,7 +152,7 @@ if __name__ == '__main__':
         default=True
     )
     argparser.add_argument(
-        '--save-sim-gif',
+        '--save-sim',
         type=bool,
         help=f"Should the simulation be saved with visualization tool.",
         default=True

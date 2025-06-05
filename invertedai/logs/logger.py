@@ -53,13 +53,14 @@ class ScenarioLog(BaseModel):
 
     @model_validator(mode='after')
     def validate_states_and_present_indexes_init(self):
-        assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
+        if self.present_indexes is not None:
+            assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
 
-        for states, pres_ids in zip(self.agent_states,self.present_indexes):
-            self.validate_states_and_present_indexes_time_step(
-                current_agent_states=states,
-                current_present_indexes=pres_ids
-            )
+            for states, pres_ids in zip(self.agent_states,self.present_indexes):
+                self.validate_states_and_present_indexes_time_step(
+                    current_agent_states=states,
+                    current_present_indexes=pres_ids
+                )
         return self
 
     def validate_states_and_present_indexes_time_step(
@@ -565,10 +566,10 @@ class LogReader(LogBase):
             location=location, 
             rendering_center=tuple([LOG_DATA["birdview_options"]["rendering_center"][0],LOG_DATA["birdview_options"]["rendering_center"][1]]),
             rendering_fov=LOG_DATA["birdview_options"]["renderingFOV"],
-            lights_random_seed=LOG_DATA["lights_random_seed"],
-            initialize_random_seed=LOG_DATA["initialize_random_seed"],
+            lights_random_seed=None if not "lights_random_seed" in LOG_DATA else LOG_DATA["lights_random_seed"],
+            initialize_random_seed=None if not "initialize_random_seed" in LOG_DATA else LOG_DATA["initialize_random_seed"],
             drive_random_seed=LOG_DATA["drive_random_seed"],
-            initialize_model_version=LOG_DATA["initialize_model_version"],
+            initialize_model_version=None if not "initialize_model_version" in LOG_DATA else LOG_DATA["initialize_model_version"],
             drive_model_version=LOG_DATA["drive_model_version"],
             light_recurrent_states=None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
             recurrent_states=None,
