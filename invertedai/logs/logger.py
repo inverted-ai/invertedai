@@ -499,26 +499,29 @@ class LogReader(LogBase):
         all_agent_states_unsorted = []
         all_agent_properties_unsorted = {}
         present_indexes_unsorted = []
+        agent_id_list = {}
+        curr_agent_index = 0
         for i in range(LOG_DATA["scenario_length"]):
             agent_states_ts = {}
             present_indexes_ts = []
             
-            for agent_num, agent in LOG_DATA["predetermined_agents"].items():
-                agent_num = int(agent_num)
-                if not agent_num in all_agent_properties_unsorted:
+            for agent_id, agent in LOG_DATA["predetermined_agents"].items():
+                if not agent_id in agent_id_list:
                     agent_attributes_json = agent["static_attributes"]
                     agent_properties = AgentProperties()
                     agent_properties.length = agent_attributes_json["length"]
                     agent_properties.width = agent_attributes_json["width"]
                     agent_properties.rear_axis_offset = agent_attributes_json["rear_axis_offset"]
                     agent_properties.agent_type = agent["entity_type"]
-                    all_agent_properties_unsorted[agent_num] = agent_properties
+                    all_agent_properties_unsorted[agent_id] = agent_properties
+                    agent_id_list[agent_id] = curr_agent_index
+                    curr_agent_index += 1
 
                 ts_key = str(i)
                 if ts_key in agent["states"]:
-                    present_indexes_ts.append(agent_num)
+                    present_indexes_ts.append(agent_id_list[agent_id])
                     agent_state = agent["states"][ts_key]
-                    agent_states_ts[agent_num] = AgentState.fromlist([
+                    agent_states_ts[agent_id] = AgentState.fromlist([
                         agent_state["center"]["x"],
                         agent_state["center"]["y"],
                         agent_state["orientation"],
@@ -529,10 +532,16 @@ class LogReader(LogBase):
             present_indexes_unsorted.append(present_indexes_ts)
 
         #Sort agents by index if not in the correct order from the JSON dict
-        all_agent_properties = self._sort_unsorted_dict(all_agent_properties_unsorted)
+        all_agent_properties = self._sort_unsorted_dict(
+            unsorted_dict=all_agent_properties_unsorted,
+            index_key=agent_id_list
+        )
         all_agent_states = []
         for agent_states_ts in all_agent_states_unsorted:
-            all_agent_states.append(self._sort_unsorted_dict(agent_states_ts))
+            all_agent_states.append(self._sort_unsorted_dict(
+                unsorted_dict=agent_states_ts,
+                index_key=agent_id_list
+            ))
         log_present_indexes = []
         for present_indexes_ts in present_indexes_unsorted:
             log_present_indexes.append(sorted(present_indexes_ts))
@@ -581,7 +590,6 @@ class LogReader(LogBase):
         self.reset_log()
 
         self.simulation_length = len(all_agent_states)
-        self.location = location
         self.initialize_model_version = self._scenario_log.initialize_model_version
         self.drive_model_version = self._scenario_log.drive_model_version
         self.all_waypoints = agent_waypoints
@@ -594,11 +602,13 @@ class LogReader(LogBase):
 
     def _sort_unsorted_dict(
         self,
-        unsorted_dict: Dict[int,Any]
+        unsorted_dict: Dict[str,Any],
+        index_key: Dict[str,int]
     ):
         sorted_list = []
-        for agent_id in sorted(unsorted_dict.keys()):
-            sorted_list.append(unsorted_dict[agent_id])
+        present_indexes = {index_key[k]: k for k in list(unsorted_dict.keys())}
+        for agent_id in sorted(present_indexes.keys()):
+            sorted_list.append(unsorted_dict[present_indexes[agent_id]])
 
         return sorted_list
 
@@ -712,3 +722,19 @@ class LogReader(LogBase):
         """
 
         return self._scenario_log.waypoints
+    
+    @property
+    def location(self):
+        """
+        Return the location from the log.
+        """
+
+        return self._scenario_log.location
+    
+    @property
+    def log_length(self):
+        """
+        Return the length of the simulation in time steps captured in this log.
+        """
+
+        return len(self._scenario_log.agent_states)
