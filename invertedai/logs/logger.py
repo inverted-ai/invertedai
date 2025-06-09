@@ -500,7 +500,7 @@ class LogReader(LogBase):
         all_agent_properties_unsorted = {}
         present_indexes_unsorted = []
         agent_id_list = {}
-        curr_agent_index = 0
+        agent_id_sequence_num = 0
         for i in range(LOG_DATA["scenario_length"]):
             agent_states_ts = {}
             present_indexes_ts = []
@@ -514,8 +514,8 @@ class LogReader(LogBase):
                     agent_properties.rear_axis_offset = agent_attributes_json["rear_axis_offset"]
                     agent_properties.agent_type = agent["entity_type"]
                     all_agent_properties_unsorted[agent_id] = agent_properties
-                    agent_id_list[agent_id] = curr_agent_index
-                    curr_agent_index += 1
+                    agent_id_list[agent_id] = agent_id_sequence_num
+                    agent_id_sequence_num += 1
 
                 ts_key = str(i)
                 if ts_key in agent["states"]:
