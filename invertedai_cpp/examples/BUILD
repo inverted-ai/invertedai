@@ -13,7 +13,6 @@ cc_binary(
         "@boost//:filesystem",
         "@opencv",
     ],
-    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -30,7 +29,6 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
-    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -46,7 +44,6 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
-    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -62,7 +59,6 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
-    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -79,7 +75,6 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
-    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -94,7 +89,6 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
-    copts = ["/std:c++17"],
 )
 
 cc_binary(
@@ -109,5 +103,16 @@ cc_binary(
         "@boost//:beast",
         "@opencv",
     ],
-    copts = ["/std:c++17"],
+)
+
+cc_binary(
+    name = "log_converter_openscenario",
+    srcs = ["log_converter_openscenario.cc"],
+    data = [
+        "log_example.json",
+    ],
+    deps = [
+        "//invertedai:api",
+        "@boost//:beast",
+    ],
 )

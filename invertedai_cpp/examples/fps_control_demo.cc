@@ -172,8 +172,7 @@ int main(int argc, char **argv) {
     session.connect();
 
     // construct request for getting information about the location
-    invertedai::LocationInfoRequest loc_info_req(
-        invertedai::read_file("examples/location_info_body.json"));
+    invertedai::LocationInfoRequest loc_info_req(invertedai::read_file("examples/location_info_body.json"));
     loc_info_req.set_location(location);
 
     // get response of location information
@@ -185,9 +184,12 @@ int main(int argc, char **argv) {
     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
     int frame_width = image.rows;
     int frame_height = image.cols;
-    cv::VideoWriter video("iai-demo.avi",
-                          cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 10,
-                          cv::Size(frame_width, frame_height));
+    cv::VideoWriter video(
+      "iai-demo.avi",
+      cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+      10,
+      cv::Size(frame_width, frame_height)
+    );
 
     
     //////////////////////////////////////////////////////////////////////////////
