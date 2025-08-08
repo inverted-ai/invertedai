@@ -153,6 +153,8 @@ struct AgentAttributes {
         }
     }
     else if(size == 3) {
+        length = element[0];
+        width = element[1];
         if (element[2].is_string()) {
             agent_type = element[2];
         }
@@ -165,8 +167,6 @@ struct AgentAttributes {
         else {
           throw std::invalid_argument("Invalid data type at position 2.");
         }
-        length = element[0];
-        width = element[1];
     }
     else if (size == 4) {
       length = element[0];
@@ -209,7 +209,9 @@ struct AgentAttributes {
         if (element[3].is_string()) {
             agent_type = element[3];
         }
-        waypoint = {element[4][0], element[4][1]};
+        if (element[4].is_array()) {
+          waypoint = {element[4][0], element[4][1]};
+        }
     }
   }
 
