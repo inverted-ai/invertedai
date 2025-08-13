@@ -61,47 +61,36 @@ namespace invertedai {
         }
     };
 
-    void LogWriter::write_log_to_file(const std::string &dir_path){
-        json log;
-
-        log["location_requests"] = this->loc_requests_;
-        log["location_responses"] = this->loc_responses_;
-
-        log["location_request_timestamps"] = this->loc_request_timestamps_;
-        log["location_response_timestamps"] = this->loc_response_timestamps_;
-
-        log["initialize_requests"] = this->init_requests_;
-        log["initialize_responses"] = this->init_responses_;
-
-        log["initialize_request_timestamps"] = this->init_request_timestamps_;
-        log["initialize_response_timestamps"] = this->init_response_timestamps_;
-
-        log["drive_requests"] = this->drive_requests_;
-        log["drive_responses"] = this->drive_responses_;
-
-        log["drive_request_timestamps"] = this->drive_request_timestamps_;
-        log["drive_response_timestamps"] = this->drive_response_timestamps_;
-
-        std::string file_path = "iai_log_" + this->get_current_time_UTC_() + ".json";
-        std::string full_path = dir_path + file_path;
-
-        std::cout << "INFO: IAI Log written to path: " << full_path << std::endl;
-
-        std::ofstream o(full_path);
-        o << std::setw(4) << log << std::endl;
-    };
-
-    void LogWriter::write_scenario_log(const std::string &dir_path){
+    void LogWriter::write_scenario_log(const std::string &dir_path, const std::string &log_path = ""){
         // Produce an IAI formatted log that can be used in various applications
         // Assumptions: The number of vehicles stays consistent throughout the simulation
         
         json scenario_log;
+        std::vector<json> drive_responses;
+        json last_init_res;
+        json last_init_req;
 
-        json last_init_res = json::parse(this->init_responses_.back());
-        json last_init_req = json::parse(this->init_requests_.back());
-        json drive_responses;
+        if (log_path.empty()){
+            last_init_res = json::parse(this->init_responses_.back());
+            last_init_req = json::parse(this->init_requests_.back());
+            
+            for (auto res: this->drive_responses_) {
+                drive_responses.push_back(json::parse(res));
+            }
+        }
+        else {
+            std::ifstream f(log_path);
+            json data = json::parse(f);
 
-        int num_drive_responses = this->drive_responses_.size();
+            last_init_res = data["initialize_responses"].back();
+            last_init_req = data["initialize_requests"].back();
+            std::vector<json> drive_responses;
+            for (auto res: data["drive_responses"]) {
+                drive_responses.push_back(res);
+            }
+        }
+
+        int num_drive_responses = drive_responses.size();
         scenario_log["location"]["identifier"] = last_init_req["location"];
         scenario_log["scenario_length"] = num_drive_responses;
 
@@ -167,5 +156,41 @@ namespace invertedai {
 
         std::ofstream o(full_path);
         o << std::setw(4) << log << std::endl;
+    };
+    
+    void LogWriter::write_log_to_file(const std::string &dir_path, const bool &is_scenario_log = false){
+        if (is_scenario_log){
+            this->write_scenario_log(dir_path)
+        }
+        else {
+            json log;
+
+            log["location_requests"] = this->loc_requests_;
+            log["location_responses"] = this->loc_responses_;
+
+            log["location_request_timestamps"] = this->loc_request_timestamps_;
+            log["location_response_timestamps"] = this->loc_response_timestamps_;
+
+            log["initialize_requests"] = this->init_requests_;
+            log["initialize_responses"] = this->init_responses_;
+
+            log["initialize_request_timestamps"] = this->init_request_timestamps_;
+            log["initialize_response_timestamps"] = this->init_response_timestamps_;
+
+            log["drive_requests"] = this->drive_requests_;
+            log["drive_responses"] = this->drive_responses_;
+
+            log["drive_request_timestamps"] = this->drive_request_timestamps_;
+            log["drive_response_timestamps"] = this->drive_response_timestamps_;
+
+            std::string file_name = this->get_current_time_UTC_() + ".json";
+            std::string file_path = "iai_log_" + file_name;
+            std::string full_path = dir_path + file_path;
+
+            std::cout << "INFO: IAI Log written to path: " << full_path << std::endl;
+
+            std::ofstream o(full_path);
+            o << std::setw(4) << log << std::endl;
+        }
     };
 }

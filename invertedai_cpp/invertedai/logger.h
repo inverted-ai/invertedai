@@ -40,7 +40,7 @@ namespace invertedai {
 
             void write_log_to_file(const std::string &file_path);
 
-            void write_scenario_log(const std::string &dir_path);
+            void write_scenario_log(const std::string &dir_path,const std::string &log_path);
     };
 }
 

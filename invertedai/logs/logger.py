@@ -81,9 +81,8 @@ class ScenarioLog(BaseModel):
             current_present_indexes=current_present_indexes
         )
         self.present_indexes.append(current_present_indexes)
-        self.agent_states.append(current_agent_states)
+        self.agent_states.append(current_agent_states)        
     
-
 class LogBase():
     """
     A class for containing features relevant to both log reading and writing such as visualization.
@@ -93,6 +92,67 @@ class LogBase():
         self._scenario_log = None
         self.simulation_length = None
 
+    @classmethod
+    def scenario_log_from_debug_log(
+        cls,
+        debug_log_path
+    ):
+        with open(debug_log_path) as f:
+            DEBUG_LOG_DATA = json.load(f)
+
+        last_init_res = json.loads(DEBUG_LOG_DATA["initialize_responses"][-1])
+        last_init_req = json.loads(DEBUG_LOG_DATA["initialize_requests"][-1])
+        last_drive_req = json.loads(DEBUG_LOG_DATA["drive_requests"][-1])
+        all_drive_responses = []
+        all_agent_states = []
+        all_traffic_lights_states = []
+        for res_ in DEBUG_LOG_DATA["drive_responses"]:
+            res = json.loads(res_)
+            all_drive_responses.append(res)
+            all_agent_states.append([AgentState.fromlist(state) for state in res["agent_states"]])
+            if res["traffic_lights_states"] is not None:
+                all_traffic_lights_states.append(res["traffic_lights_states"])
+            else:
+                all_traffic_lights_states = None
+
+        agent_properties = [AgentProperties.deserialize(prop) for prop in last_init_res["agent_properties"]]
+
+        log_location = last_init_req["location"]
+
+        if len(DEBUG_LOG_DATA["location_responses"]) > 0:
+            loc_res = json.loads(DEBUG_LOG_DATA["location_responses"][-1])
+            rendering_center = loc_res["map_center"]
+            rendering_fov=loc_res["map_fov"]
+        else:
+            location_info_response = location_info(
+                location=log_location,
+            )
+            rendering_center = [
+                location_info_response.map_center.x,
+                location_info_response.map_center.y
+            ]
+            rendering_fov=location_info_response.map_fov
+        
+        scenario_log = ScenarioLog(
+            agent_states=all_agent_states, 
+            agent_properties=agent_properties, 
+            traffic_lights_states=all_traffic_lights_states, 
+            location=log_location,
+            rendering_center=rendering_center,
+            rendering_fov=rendering_fov,
+            lights_random_seed=last_drive_req["random_seed"],
+            initialize_random_seed=last_init_req["random_seed"],
+            drive_random_seed=last_drive_req["random_seed"],
+            initialize_model_version=last_init_res["model_version"],
+            drive_model_version=all_drive_responses[-1]["model_version"],
+            light_recurrent_states=all_drive_responses[-1]["light_recurrent_states"],
+            recurrent_states=[RecurrentState.fromval(rec_state) for rec_state in all_drive_responses[-1]["recurrent_states"]],
+            waypoints={str(i):[prop.waypoint] for i, prop in enumerate(agent_properties)},
+            present_indexes=[list(range(len(agent_properties)))]*len(all_agent_states)
+        )
+
+        return scenario_log
+    
     @validate_arguments
     def visualize_range(
         self,
@@ -355,7 +415,7 @@ class LogWriter(LogBase):
                 outfile,
                 indent=4
             )
-
+    
     @classmethod
     def export_log_to_file(
         cls, 
