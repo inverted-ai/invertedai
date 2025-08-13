@@ -39,6 +39,8 @@ namespace invertedai {
             void append_response(const std::string &res, const std::string &mode);
 
             void write_log_to_file(const std::string &file_path);
+
+            void write_scenario_log(const std::string &dir_path);
     };
 }
 
