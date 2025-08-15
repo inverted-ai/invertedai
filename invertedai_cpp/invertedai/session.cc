@@ -61,7 +61,7 @@ void Session::connect() {
 
 Session::~Session(){
   if (this->is_logging){
-    this->logger.write_log_to_file(this->iai_logger_path);
+    this->logger.write_log_to_file(this->iai_logger_path,false);
   }
 }
 
@@ -111,7 +111,14 @@ const std::string Session::request(
   ) {
 
   if (this->is_logging){
-    this->logger.append_request(body_str,mode);
+    std::string msg_str;
+    if (!body_str.empty()){
+      msg_str = body_str;
+    }
+    else if (!url_query_string.empty()) {
+      msg_str = url_query_string;
+    }
+    this->logger.append_request(msg_str,mode);
   }
 
   std::string target = subdomain + mode + url_query_string;
