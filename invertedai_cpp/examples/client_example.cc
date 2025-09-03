@@ -13,11 +13,11 @@
 using tcp = net::ip::tcp;    // from <boost/asio/ip/tcp.hpp>
 using json = nlohmann::json; // from <json.hpp>
 
-// usage: ./client $location $agent_num $timestep $api_key
+// usage: ./client $location $car_agent_num $timestep $api_key
 int main(int argc, char **argv) {
   try {
     const std::string location(argv[1]);
-    const int agent_num = std::stoi(argv[2]);
+    const int car_agent_num = std::stoi(argv[2]);
     const int timestep = std::stoi(argv[3]);
     const std::string api_key(argv[4]);
 
@@ -52,8 +52,22 @@ int main(int argc, char **argv) {
     invertedai::InitializeRequest init_req(invertedai::read_file("examples/initialize_body.json"));
     // set the location
     init_req.set_location(location);
-    // set the number of agents
-    init_req.set_num_agents_to_spawn(agent_num);
+    // spawn agents in simulation
+    std::vector<invertedai::AgentProperties> agent_properties;
+    // load initial agent properties from the JSON file if any
+    if (init_req.agent_properties().has_value()) {
+      agent_properties = init_req.agent_properties().value();  
+  }
+  // add car_agent_num number of cars on top of the JSON file agents
+    for(int i = 0; i < car_agent_num; i++) {
+      invertedai::AgentProperties ap;
+      ap.agent_type = std::string("car");
+      agent_properties.push_back(ap);
+    }
+    // apply the agent properties to the initialization request
+    init_req.set_agent_properties(agent_properties);
+    // set the number of agents 
+    init_req.set_num_agents_to_spawn(agent_properties.size());
     // get the response of simulation initialization
     invertedai::InitializeResponse init_res = invertedai::initialize(init_req, &session);
 
