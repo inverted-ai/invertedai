@@ -11,7 +11,7 @@ namespace invertedai {
 
 class LocationInfoRequest {
 private:
-  std::string location_;
+  std::optional<std::string> location_;
   bool include_map_source_;
   std::optional<int> rendering_fov_;
   std::optional<std::pair<double, double>> rendering_center_;
@@ -37,7 +37,7 @@ public:
   /**
    * Get the location string in IAI format.
    */
-  std::string location() const;
+  std::optional<std::string> location() const;
   /**
    * Check whether include the map source.
    */
@@ -54,7 +54,12 @@ public:
   /**
    * Set the location string in IAI format.
    */
-  void set_location(const std::string &location);
+  void set_location(const std::optional<std::string> &location);
+  void set_location(const std::string& location);
+  /**
+   * Set the timestep in 100ms.
+   */
+  void set_timestep(const std::optional<int> &timestep);
   /**
    * Set whether include the map source.
    */

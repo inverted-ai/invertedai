@@ -1,5 +1,6 @@
 {
-    "location": "iai:terminal_and_quebec",
+
+    "timestep": 10,
     "num_agents_to_spawn": 20,
     "states_history": null,
     "agent_properties": [
