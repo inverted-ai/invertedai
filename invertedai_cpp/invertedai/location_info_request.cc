@@ -31,7 +31,12 @@ LocationInfoRequest::LocationInfoRequest(const std::string &body_str) {
 }
 
 void LocationInfoRequest::refresh_body_json_() {
-  this->body_json_["location"] = this->location_.value();
+  if (this->location_.has_value()) {
+    this->body_json_["location"] = this->location_.value();
+  } else {
+    this->body_json_.erase("location");   
+  }
+  this->body_json_["timestep"] = this->timestep_.has_value() ? this->timestep_.value() : 0;
   this->body_json_["include_map_source"] = this->include_map_source_;
   if (this->rendering_fov_.has_value()) {
     this->body_json_["rendering_fov"] = this->rendering_fov_.value();
@@ -51,10 +56,12 @@ std::string LocationInfoRequest::body_str() {
 }
 
 const std::string LocationInfoRequest::url_query_string() const {
-  return "?location=" + 
+  return this->location_.has_value()
+  ? "?location=" + 
     this->location_.value() + 
     "&include_map_source=" +
-    (this->include_map_source_ ? "true" : "false") +
+    (this->include_map_source_ ? "true" : "false")
+  : "" +
     (
       this->rendering_fov_.has_value()
         ? "&rendering_fov=" + std::to_string(this->rendering_fov_.value())
@@ -87,8 +94,25 @@ std::optional<std::pair<double, double>> LocationInfoRequest::rendering_center()
   return this->rendering_center_;
 }
 
-void LocationInfoRequest::set_location(const std::string &location) {
+void LocationInfoRequest::set_location(const std::optional<std::string> &location) {
+  if (location.has_value()) {
+    this->body_json_["location"] = location.value();
+  } else {
+      this->body_json_.erase("location");
+  }
+}
+
+void LocationInfoRequest::set_location(const std::string& location) {
   this->location_ = location;
+}
+
+void LocationInfoRequest::set_timestep(const std::optional<int> &timestep) {
+  this->timestep_ = timestep;
+  if (timestep.has_value()) {
+      this->body_json_["timestep"] = timestep.value();
+  } else {
+      this->body_json_["timestep"] = nullptr;
+  }
 }
 
 void LocationInfoRequest::set_include_map_source(bool include_map_source) {
