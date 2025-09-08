@@ -16,8 +16,7 @@ using json = nlohmann::json; // from <json.hpp>
 // command line arguments:
 // if JSON file is provided, location and timestep are optional
 // users can call any of the following arguments in any order
-// example usage: ./bazel-bin/examples/client_example json:examples/initialize_body.json location:iai:10th_and_dunbar cars:5 
-//                  timestep:20 apikey:xxxxxx
+// example usage: ./bazel-bin/examples/client_example json:examples/initialize_body.json location:iai:10th_and_dunbar cars:5 timestep:20 apikey:xxxxxx
 // example usage: ./client json:examples/initialize_body.json apikey:xxxxxx
 // example usage: ./client location:iai:ubc_roundabout cars:5 timestep:20 apikey:xxxxxx
 int main(int argc, char **argv) {
@@ -76,11 +75,12 @@ int main(int argc, char **argv) {
       // get response of location information
       loc_info_res = invertedai::location_info(loc_info_req, &session);
     } else {
-      // no location and timestep provided, exit with error
+      // if no location and timestep provided, exit with error
       if (location.empty() || timestep <= 0) {
         std::cerr << "Error: location and timestep must be set via JSON or CLI." << std::endl;
         return EXIT_FAILURE;
       }
+      // if no JSON file is provided, create a request with location from CLI
       invertedai::LocationInfoRequest loc_info_req("{}");
       loc_info_req.set_location(location);
       loc_info_res = invertedai::location_info(loc_info_req, &session);

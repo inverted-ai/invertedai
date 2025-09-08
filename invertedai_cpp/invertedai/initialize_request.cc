@@ -10,15 +10,6 @@ InitializeRequest::InitializeRequest(const std::string &body_str) {
   } else {
       this->location_.clear();
   }
-      // timestep
-    if (this->body_json_.contains("timestep") && this->body_json_["timestep"].is_number_integer()) {
-      this->timestep_ = this->body_json_["timestep"].get<int>();
-  } else if (this->body_json_.contains("time_step") && this->body_json_["time_step"].is_number_integer()) {
-      // support alternate spelling
-      this->timestep_ = this->body_json_["time_step"].get<int>();
-  } else {
-      this->timestep_ = std::nullopt;
-  }
   this->states_history_.clear();
   for (const auto &elements : this->body_json_["states_history"]) {
     std::vector<AgentState> agent_states;

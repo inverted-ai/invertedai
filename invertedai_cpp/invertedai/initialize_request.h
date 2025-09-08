@@ -15,7 +15,6 @@ namespace invertedai {
 class InitializeRequest {
 private:
   std::string location_;
-  std::optional<int> timestep_;
   std::optional<int> num_agents_to_spawn_;
   std::vector<std::vector<AgentState>> states_history_;
   std::optional<std::vector<AgentAttributes>> agent_attributes_;
@@ -46,7 +45,6 @@ public:
    * Get location string in IAI format.
    */
   std::string location() const;
-  std::optional<int> timestep() const;
   /**
    * Get how many agents will be spawned.
    */
@@ -97,7 +95,6 @@ public:
    * Set location string in IAI format.
    */
   void set_location(const std::string &location);
-  void set_timestep(const std::optional<int>& timestep);
   /**
    * If states_history is not specified, this needs to be provided and
    * dictates how many agents will be spawned.
