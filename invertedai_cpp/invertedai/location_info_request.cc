@@ -11,12 +11,12 @@ LocationInfoRequest::LocationInfoRequest(const std::string &body_str) {
    (this->body_json_.contains("location") && this->body_json_["location"].is_string())
      ? std::optional<std::string>{this->body_json_["location"].get<std::string>()}
      : std::nullopt;
-     std::cout << "Location: " << (this->location_.has_value() ? this->location_.value() : "null") << std::endl;
+     std::cout << "Location provided from JSON: " << (this->location_.has_value() ? this->location_.value() : "null") << std::endl;
  this->timestep_ =
    (this->body_json_.contains("timestep") && this->body_json_["timestep"].is_number_integer())
      ? std::optional<int>{this->body_json_["timestep"].get<int>()}
      : std::nullopt;
-     std::cout << "Timestep: " << (this->timestep_.has_value() ? std::to_string(this->timestep_.value()) : "null") << std::endl;
+     std::cout << "Timestep provided from JSON: " << (this->timestep_.has_value() ? std::to_string(this->timestep_.value()) : "null") << std::endl;
   this->include_map_source_ = this->body_json_["include_map_source"].is_boolean()
     ? this->body_json_["include_map_source"].get<bool>()
     : false;
@@ -94,25 +94,8 @@ std::optional<std::pair<double, double>> LocationInfoRequest::rendering_center()
   return this->rendering_center_;
 }
 
-void LocationInfoRequest::set_location(const std::optional<std::string> &location) {
-  if (location.has_value()) {
-    this->body_json_["location"] = location.value();
-  } else {
-      this->body_json_.erase("location");
-  }
-}
-
 void LocationInfoRequest::set_location(const std::string& location) {
   this->location_ = location;
-}
-
-void LocationInfoRequest::set_timestep(const std::optional<int> &timestep) {
-  this->timestep_ = timestep;
-  if (timestep.has_value()) {
-      this->body_json_["timestep"] = timestep.value();
-  } else {
-      this->body_json_["timestep"] = nullptr;
-  }
 }
 
 void LocationInfoRequest::set_include_map_source(bool include_map_source) {

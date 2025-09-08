@@ -16,7 +16,8 @@ using json = nlohmann::json; // from <json.hpp>
 // command line arguments:
 // if JSON file is provided, location and timestep are optional
 // users can call any of the following arguments in any order
-// example usage: ./client json:examples/initialize_body.json location:iai:ubc_roundabout cars:5 timestep:20 apikey:xxxxxx
+// example usage: ./bazel-bin/examples/client_example json:examples/initialize_body.json location:iai:10th_and_dunbar cars:5 
+//                  timestep:20 apikey:xxxxxx
 // example usage: ./client json:examples/initialize_body.json apikey:xxxxxx
 // example usage: ./client location:iai:ubc_roundabout cars:5 timestep:20 apikey:xxxxxx
 int main(int argc, char **argv) {
@@ -56,7 +57,7 @@ int main(int argc, char **argv) {
     // if a JSON file is provided in command line, load location and timestep from it if available
     if (json_file.has_value()) {
       invertedai::LocationInfoRequest loc_info_req(invertedai::read_file(json_file.value().c_str()));
-      // override location and timestep from JSON if provided in command line
+      // use location from JSON if exists, otherwise use CLI location
       if (loc_info_req.location().has_value()) {
         location = loc_info_req.location().value();  
       } else if (location != "") {
@@ -65,16 +66,17 @@ int main(int argc, char **argv) {
           std::cerr << "Error: No location specified in JSON or CLI." << std::endl;
           return EXIT_FAILURE;
       }
+      // use timestep from JSON if exists
       if (loc_info_req.timestep().has_value()) {
           timestep = loc_info_req.timestep().value(); 
       }
+      // set the location in the request
       loc_info_req.set_location(location);
-      loc_info_req.set_timestep(timestep);
       std::string body = loc_info_req.body_str();
-
       // get response of location information
       loc_info_res = invertedai::location_info(loc_info_req, &session);
     } else {
+      // no location and timestep provided, exit with error
       if (location.empty() || timestep <= 0) {
         std::cerr << "Error: location and timestep must be set via JSON or CLI." << std::endl;
         return EXIT_FAILURE;

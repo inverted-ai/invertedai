@@ -1,5 +1,5 @@
 {
-
+    "location": "iai:ubc_roundabout",
     "timestep": 10,
     "num_agents_to_spawn": 20,
     "states_history": null,
