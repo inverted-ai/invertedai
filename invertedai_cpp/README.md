@@ -50,7 +50,7 @@ Running with all possible arguments:
 `./bazel-bin/examples/client_example json:examples/initialize_body.json location:iai:10th_and_dunbar cars:5 timestep:20 apikey:EFGHTOKENABCD`  
 
 Running without a JSON file:  
-`./bazel-bin/examples/client_example location:canada:ubc_roundabout cars:5 timestep:20 "apikey:EFGHTOKENABCD"` 
+`./bazel-bin/examples/client_example location:canada:ubc_roundabout cars:5 timestep:20 apikey:EFGHTOKENABCD` 
 
 Running with only a JSON file:  
 `./bazel-bin/examples/blame_example json:examples/initialize_body.json apikey:EFGHTOKENABCD`  
