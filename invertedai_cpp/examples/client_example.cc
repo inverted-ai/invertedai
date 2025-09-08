@@ -13,12 +13,8 @@
 using tcp = net::ip::tcp;    // from <boost/asio/ip/tcp.hpp>
 using json = nlohmann::json; // from <json.hpp>
 
-// command line arguments:
-// if JSON file is provided, location and timestep are optional
-// users can call any of the following arguments in any order
+// See the README.md for invertedai_cpp for instructions on how to run the executable and mandatory/optional arguments
 // example usage: ./bazel-bin/examples/client_example json:examples/initialize_body.json location:iai:10th_and_dunbar cars:5 timestep:20 apikey:xxxxxx
-// example usage: ./client json:examples/initialize_body.json apikey:xxxxxx
-// example usage: ./client location:iai:ubc_roundabout cars:5 timestep:20 apikey:xxxxxx
 int main(int argc, char **argv) {
   try {
     std::optional<std::string> json_file;
@@ -31,6 +27,7 @@ int main(int argc, char **argv) {
       if (arg.find("cars:") == 0) car_agent_num = std::stoi(arg.substr(5));
       else if (arg.find("timestep:") == 0) timestep = std::stoi(arg.substr(9));
       else if (arg.find("apikey:") == 0) api_key = arg.substr(7);
+      else if (arg.find("api_key:") == 0) api_key = arg.substr(8);
       else if (arg.find("location:") == 0) location = arg.substr(9);
       else if (arg.find("json:") == 0) json_file = arg.substr(5);
       else {
