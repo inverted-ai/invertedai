@@ -6,37 +6,21 @@ namespace invertedai {
 
 LocationInfoRequest::LocationInfoRequest(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
-
-   this->location_ =
-   (this->body_json_.contains("location") && this->body_json_["location"].is_string())
-     ? std::optional<std::string>{this->body_json_["location"].get<std::string>()}
-     : std::nullopt;
-     std::cout << "Location provided from JSON: " << (this->location_.has_value() ? this->location_.value() : "null") << std::endl;
- this->timestep_ =
-   (this->body_json_.contains("timestep") && this->body_json_["timestep"].is_number_integer())
-     ? std::optional<int>{this->body_json_["timestep"].get<int>()}
-     : std::nullopt;
-     std::cout << "Timestep provided from JSON: " << (this->timestep_.has_value() ? std::to_string(this->timestep_.value()) : "null") << std::endl;
+  this->location_ = this->body_json_["location"];
   this->include_map_source_ = this->body_json_["include_map_source"].is_boolean()
     ? this->body_json_["include_map_source"].get<bool>()
     : false;
-    std::cout << "Include map source: " << (this->include_map_source_ ? "true" : "false") << std::endl;
   this->rendering_fov_ = this->body_json_["rendering_fov"].is_number_integer()
     ? std::optional<int>{this->body_json_["rendering_fov"].get<int>()}
     : std::nullopt;
   this->rendering_center_= this->body_json_["rendering_center"].is_null()
     ? std::nullopt
     : std::optional<std::pair<double, double>>{this->body_json_["rendering_center"]};
-    std::cout << "Rendering fov: " << (this->rendering_fov_.has_value() ? std::to_string(this->rendering_fov_.value()) : "null") << std::endl;
 }
 
 void LocationInfoRequest::refresh_body_json_() {
-  if (this->location_.has_value()) {
-    this->body_json_["location"] = this->location_.value();
-  } else {
-    this->body_json_.erase("location");   
-  }
-  this->body_json_["timestep"] = this->timestep_.has_value() ? this->timestep_.value() : 0;
+  this->body_json_["location"] = this->location_;
+  // this->body_json_["timestep"] = this->timestep_.has_value() ? this->timestep_.value() : 0;
   this->body_json_["include_map_source"] = this->include_map_source_;
   if (this->rendering_fov_.has_value()) {
     this->body_json_["rendering_fov"] = this->rendering_fov_.value();
@@ -56,30 +40,24 @@ std::string LocationInfoRequest::body_str() {
 }
 
 const std::string LocationInfoRequest::url_query_string() const {
-  return this->location_.has_value()
-  ? "?location=" + 
-    this->location_.value() + 
-    "&include_map_source=" +
-    (this->include_map_source_ ? "true" : "false")
-  : "" +
-    (
-      this->rendering_fov_.has_value()
-        ? "&rendering_fov=" + std::to_string(this->rendering_fov_.value())
-        : ""
-    ) +
-    (
-      this->rendering_center_.has_value()
-        ? "&rendering_center=" + std::to_string(this->rendering_center_.value().first) + "," + std::to_string(this->rendering_center_.value().second)
-        : ""
-    );
+  return "?location=" + 
+  this->location_ + 
+  "&include_map_source=" +
+  (this->include_map_source_ ? "true" : "false") +
+  (
+    this->rendering_fov_.has_value()
+      ? "&rendering_fov=" + std::to_string(this->rendering_fov_.value())
+      : ""
+  ) +
+  (
+    this->rendering_center_.has_value()
+      ? "&rendering_center=" + std::to_string(this->rendering_center_.value().first) + "," + std::to_string(this->rendering_center_.value().second)
+      : ""
+  );
 }
 
 std::optional<std::string> LocationInfoRequest::location() const { 
   return this->location_; 
-}
-
-std::optional<int> LocationInfoRequest::timestep() const {
-  return this->timestep_;
 }
 
 bool LocationInfoRequest::include_map_source() const {
