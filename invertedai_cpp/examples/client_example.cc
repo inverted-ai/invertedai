@@ -60,7 +60,9 @@ send_location_info(const CommandLineArgs& cfg,
   try {
     loc_body = invertedai::read_file(cfg.location_json_path.c_str());
   } catch (const std::exception& e) {
-    std::cerr << "Warning: Could not read location info JSON file: " << e.what() << std::endl;
+    // currently our functionality relies on the JSON files so we will output an error
+    std::cerr << "ERROR: Could not read location info JSON file: " << e.what() << std::endl;
+    std::exit(EXIT_FAILURE);
   }
 
   invertedai::LocationInfoRequest loc_info_req(loc_body);
@@ -73,7 +75,7 @@ send_location_info(const CommandLineArgs& cfg,
   // Final location must be present in the request before calling the API
   const std::string loc_req_location = loc_info_req.location().value();
   if (loc_req_location.empty()) {
-    std::cerr << "Error: location must be provided via CLI or location JSON." << std::endl;
+    std::cerr << "ERROR: location must be provided via CLI or location JSON." << std::endl;
     std::exit(EXIT_FAILURE);
   }
   out_final_location = loc_req_location;
@@ -84,13 +86,16 @@ send_location_info(const CommandLineArgs& cfg,
   return res;
 }
 
-static invertedai::InitializeResponse do_initialize(const CommandLineArgs& cfg, invertedai::Session* session, std::string& location) {
+static invertedai::InitializeResponse send_initialize_info(const CommandLineArgs& cfg, 
+  invertedai::Session* session, 
+  std::string& location) {
   std::string init_body = "{}";
   try {
     init_body = invertedai::read_file(cfg.init_json_path.c_str());
     // get time step from JSON initialization file if not provided in CLI
   } catch (const std::exception& e) {
-    std::cerr << "Warning: Could not read initialize JSON file: " << e.what() << std::endl;
+    std::cerr << "ERROR: Could not read initialize JSON file: " << e.what() << std::endl;
+    std::exit(EXIT_FAILURE);
   }
 
   invertedai::InitializeRequest init_req(init_body);
@@ -117,12 +122,15 @@ static invertedai::InitializeResponse do_initialize(const CommandLineArgs& cfg, 
 
 }
 
-static invertedai::DriveRequest make_drive_request(const CommandLineArgs& cfg, const invertedai::InitializeResponse& init_res, std::string location) {
+static invertedai::DriveRequest make_drive_request(const CommandLineArgs& cfg, 
+  const invertedai::InitializeResponse& init_res, 
+  std::string location) {
   std::string drive_body = "{}";
   try {
     drive_body = invertedai::read_file(cfg.drive_json_path.c_str());
   } catch (const std::exception& e) {
-    std::cerr << "Warning: Could not read drive JSON file: " << e.what() << std::endl;
+    std::cerr << "ERROR: Could not read drive JSON file: " << e.what() << std::endl;
+    std::exit(EXIT_FAILURE);
   }
 
   invertedai::DriveRequest drive_req(drive_body);
@@ -132,7 +140,7 @@ static invertedai::DriveRequest make_drive_request(const CommandLineArgs& cfg, c
   return drive_req;
 }
 
-static int getNumericValueFromJson(const std::string& json_str, const std::string& key) {
+static int get_numeric_value_from_json(const std::string& json_str, const std::string& key) {
   try {
     std::string body = invertedai::read_file(json_str.c_str());
     auto j = nlohmann::json::parse(body);
@@ -145,7 +153,8 @@ static int getNumericValueFromJson(const std::string& json_str, const std::strin
   return 0;
 }
 
-static std::string getStringValueFromJson(const std::string& json_str, const std::string& key) {
+static std::string get_string_value_from_json(const std::string& json_str, 
+  const std::string& key) {
   try {
     std::string body = invertedai::read_file(json_str.c_str());
     auto j = nlohmann::json::parse(body);
@@ -158,40 +167,40 @@ static std::string getStringValueFromJson(const std::string& json_str, const std
   return "";
 }
 
-static void validate(const CommandLineArgs& cfg) {
+static void validateInputs(const CommandLineArgs& cfg) {
   // check mandatory API key
   if (cfg.api_key.empty()) {
-    std::cerr << "API key is required (apikey:<key>)." << std::endl;
+    std::cerr << "ERROR: API key is required (apikey:<key>)." << std::endl;
     std::exit(EXIT_FAILURE);
   }
   // if timestep is not provided in CLI, it must be present in the initialization JSON
   if (!cfg.timestep.has_value()) {
-    int init_timestep = getNumericValueFromJson(cfg.init_json_path, "timestep");
+    int init_timestep = get_numeric_value_from_json(cfg.init_json_path, "timestep");
     if (init_timestep == 0) {
-      std::cerr << "Error: timestep must be set via JSON or CLI." << std::endl;
+      std::cerr << "ERROR: timestep must be set via JSON or CLI." << std::endl;
       std::exit(EXIT_FAILURE);
     }
   }
   // location must be provided in CLI or location JSON
   if (!cfg.location.has_value() || cfg.location->empty()) {
-    std::string loc_in_json = getStringValueFromJson(cfg.location_json_path, "location");
+    std::string loc_in_json = get_string_value_from_json(cfg.location_json_path, "location");
     if (loc_in_json.empty()) {
-      std::cerr << "Error: location must be provided via CLI or LocationInfo JSON." << std::endl;
+      std::cerr << "ERROR: location must be provided via CLI or in the Location_Info JSON." << std::endl;
       std::exit(EXIT_FAILURE);
     }
   }
   // locations should be consistent across all JSON files if provided and CLI location not provided
   if(cfg.location.has_value() && !cfg.location->empty()) {
     return; // CLI location takes precedence, no need to check consistency
-  } else if(getStringValueFromJson(cfg.init_json_path, "location") == "") {
-    std::cerr << "Warning: location not provided in Initialize JSON" << std::endl;
-  }else if(getStringValueFromJson(cfg.init_json_path, "location") != getStringValueFromJson(cfg.location_json_path, "location")) {
-    std::cerr << "Warning: location in Initialize JSON does not match LocationInfo location." << std::endl;
-  } else if(getStringValueFromJson(cfg.drive_json_path, "location") == "") {
-    std::cerr << "Error: location must be provided in Drive JSON" << std::endl;
-  }else if(getStringValueFromJson(cfg.drive_json_path, "location") != ""
-   && getStringValueFromJson(cfg.drive_json_path, "location") != getStringValueFromJson(cfg.location_json_path, "location")) {
-    std::cerr << "Warning: location in Drive JSON does not match LocationInfo location." << std::endl;
+  } else if(get_string_value_from_json(cfg.init_json_path, "location") == "") {
+    std::cerr << "WARNING: location not provided in Initialize JSON" << std::endl;
+  }else if(get_string_value_from_json(cfg.init_json_path, "location") != get_string_value_from_json(cfg.location_json_path, "location")) {
+    std::cerr << "WARNING: location in Initialize JSON does not match LocationInfo location." << std::endl;
+  } else if(get_string_value_from_json(cfg.drive_json_path, "location") == "") {
+    std::cerr << "ERROR: location must be provided in Drive JSON" << std::endl;
+  }else if(get_string_value_from_json(cfg.drive_json_path, "location") != ""
+   && get_string_value_from_json(cfg.drive_json_path, "location") != get_string_value_from_json(cfg.location_json_path, "location")) {
+    std::cerr << "WARNING: location in Drive JSON does not match LocationInfo location." << std::endl;
   }
 }
 
@@ -203,7 +212,7 @@ int main(int argc, char **argv) {
     CommandLineArgs cfg = parse_args(argc, argv);
 
     // validate configuration
-    validate(cfg);
+    validateInputs(cfg);
 
     // session configuration
     net::io_context ioc;
@@ -215,8 +224,8 @@ int main(int argc, char **argv) {
 
     // LocationInfo
     // created local variable to hold the final location used in all requests
-    std::string final_location;
-    auto loc_info_res = send_location_info(cfg, &session, final_location);
+    std::string location;
+    auto loc_info_res = send_location_info(cfg, &session, location);
 
     // use opencv to decode and save the bird's eye view image of the simulation
     auto image = cv::imdecode(loc_info_res.birdview_image(), cv::IMREAD_COLOR);
@@ -231,21 +240,21 @@ int main(int argc, char **argv) {
     );
 
     // initialization
-    auto init_res = do_initialize(cfg, &session, final_location);
+    auto init_res = send_initialize_info(cfg, &session, location);
 
     // obtain final timestep from JSON or CLI
-    int final_timestep;
+    int timestep;
     // if timestep not provided in CLI, try to get it from JSON
     if(!cfg.timestep.has_value()) {
-      final_timestep = getNumericValueFromJson(cfg.init_json_path, "timestep");
+      timestep = get_numeric_value_from_json(cfg.init_json_path, "timestep");
     } else {
-      final_timestep = cfg.timestep.value();
+      timestep = cfg.timestep.value();
     }
 
     // construct request for stepping the simulation (driving the NPCs)
-    auto drive_req = make_drive_request(cfg, init_res, final_location);
+    auto drive_req = make_drive_request(cfg, init_res, location);
 
-    for (int t = 0; t < final_timestep; t++) {
+    for (int t = 0; t < timestep; t++) {
       // step the simulation by driving the agents
       invertedai::DriveResponse drive_res = invertedai::drive(drive_req, &session);
       // use opencv to decode and save the bird's eye view image of the
@@ -254,11 +263,11 @@ int main(int argc, char **argv) {
       cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
       video.write(image);
       drive_req.update(drive_res);
-      std::cout << "Remaining iterations: " << final_timestep - t << std::endl;
+      std::cout << "Remaining iterations: " << timestep - t << std::endl;
     }
     video.release();
   } catch (std::exception const &e) {
-    std::cerr << "Error: " << e.what() << std::endl;
+    std::cerr << "ERROR: " << e.what() << std::endl;
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
