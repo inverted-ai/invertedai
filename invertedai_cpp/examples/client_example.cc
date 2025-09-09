@@ -25,7 +25,10 @@ struct CommandLineArgs {
   std::string drive_json_path    = "examples/drive_body.json";         
 };
 
-static CommandLineArgs parse_args(int argc, char** argv) {
+static CommandLineArgs parse_args(
+  int argc, 
+  char** argv
+) {
   CommandLineArgs cfg;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -53,9 +56,11 @@ static CommandLineArgs parse_args(int argc, char** argv) {
 }
 
 static invertedai::LocationInfoResponse
-send_location_info(const CommandLineArgs& cfg,
-                   invertedai::Session* session,
-                   std::string& out_final_location) {
+send_location_info(
+  const CommandLineArgs& cfg,
+  invertedai::Session* session,
+  std::string& out_final_location
+) {
   std::string loc_body = "{}";
   try {
     loc_body = invertedai::read_file(cfg.location_json_path.c_str());
@@ -73,7 +78,7 @@ send_location_info(const CommandLineArgs& cfg,
   }
 
   // Final location must be present in the request before calling the API
-  const std::string loc_req_location = loc_info_req.location().value();
+  const std::string loc_req_location = loc_info_req.location();
   if (loc_req_location.empty()) {
     std::cerr << "ERROR: location must be provided via CLI or location JSON." << std::endl;
     std::exit(EXIT_FAILURE);
@@ -86,9 +91,11 @@ send_location_info(const CommandLineArgs& cfg,
   return res;
 }
 
-static invertedai::InitializeResponse send_initialize_info(const CommandLineArgs& cfg, 
+static invertedai::InitializeResponse send_initialize_info(
+  const CommandLineArgs& cfg, 
   invertedai::Session* session, 
-  std::string& location) {
+  std::string& location
+) {
   std::string init_body = "{}";
   try {
     init_body = invertedai::read_file(cfg.init_json_path.c_str());
@@ -122,9 +129,11 @@ static invertedai::InitializeResponse send_initialize_info(const CommandLineArgs
 
 }
 
-static invertedai::DriveRequest make_drive_request(const CommandLineArgs& cfg, 
+static invertedai::DriveRequest make_drive_request(
+  const CommandLineArgs& cfg, 
   const invertedai::InitializeResponse& init_res, 
-  std::string location) {
+  std::string location
+) {
   std::string drive_body = "{}";
   try {
     drive_body = invertedai::read_file(cfg.drive_json_path.c_str());
@@ -140,7 +149,10 @@ static invertedai::DriveRequest make_drive_request(const CommandLineArgs& cfg,
   return drive_req;
 }
 
-static int get_numeric_value_from_json(const std::string& json_str, const std::string& key) {
+static int get_numeric_value_from_json(
+  const std::string& json_str, 
+  const std::string& key
+) {
   try {
     std::string body = invertedai::read_file(json_str.c_str());
     auto j = nlohmann::json::parse(body);
@@ -153,8 +165,10 @@ static int get_numeric_value_from_json(const std::string& json_str, const std::s
   return 0;
 }
 
-static std::string get_string_value_from_json(const std::string& json_str, 
-  const std::string& key) {
+static std::string get_string_value_from_json(
+  const std::string& json_str, 
+  const std::string& key
+) {
   try {
     std::string body = invertedai::read_file(json_str.c_str());
     auto j = nlohmann::json::parse(body);
@@ -167,7 +181,7 @@ static std::string get_string_value_from_json(const std::string& json_str,
   return "";
 }
 
-static void validateInputs(const CommandLineArgs& cfg) {
+static void validate_inputs(const CommandLineArgs& cfg) {
   // check mandatory API key
   if (cfg.api_key.empty()) {
     std::cerr << "ERROR: API key is required (apikey:<key>)." << std::endl;
@@ -212,7 +226,7 @@ int main(int argc, char **argv) {
     CommandLineArgs cfg = parse_args(argc, argv);
 
     // validate configuration
-    validateInputs(cfg);
+    validate_inputs(cfg);
 
     // session configuration
     net::io_context ioc;

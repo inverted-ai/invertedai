@@ -37,7 +37,7 @@ public:
   /**
    * Get the location string in IAI format.
    */
-  std::optional<std::string> location() const;
+  std::string location() const;
   /**
    * Check whether include the map source.
    */

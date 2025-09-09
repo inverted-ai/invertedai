@@ -189,3 +189,7 @@ examples/logs/
 examples/*.csv
 examples/*.json
 logs/*
+examples/iai-base.gitignore
+examples/iai-base.gitignore
+.vscode/settings.json
+

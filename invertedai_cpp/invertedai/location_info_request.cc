@@ -63,7 +63,7 @@ const std::string LocationInfoRequest::url_query_string() const {
   );
 }
 
-std::optional<std::string> LocationInfoRequest::location() const { 
+std::string LocationInfoRequest::location() const { 
   return this->location_; 
 }
 
