@@ -27,35 +27,36 @@ CLI will override values from JSON files.
 
 ### Arguments:  
 #### 3 Optional JSON file paths:  
-drive_json:<path/to/json> (optional)  
+`drive_json:<path/to/json>` (optional)  
 - Path to a JSON file with request defaults for DRIVE (e.g., examples/drive_body.json).
 - If not provided, the client defaults to examples/drive_body.json.
 
-location_json:<path/to/json> (optional)
+`location_json:<path/to/json>` (optional)
 - Path to a JSON file with request defaults for LOCATION INFO (e.g., examples/location_info_body.json).
 
 - If not provided, the client defaults to examples/location_info_body.json.
 
-init_json:<path/to/json> (optional)  
+`init_json:<path/to/json>` (optional)  
 - Path to a JSON file with request defaults for INITIALIZE (e.g., examples/initialize_body.json).
 
 - If not provided, the client defaults to examples/initialize_body.json.
 
 #### Arguments that override the JSON file values:  
-location:<string> (required unless location_json file contains it)  
+`location:<string>` (required unless location_json file contains it)  
 - Simulation location in IAI format, e.g. iai:10th_and_dunbar or canada:vancouver:ubc_roundabout.
 - Overrides the location value in the location_json json file
 
-timestep:<int> (required unless init_json file contains it)  
+`timestep:<int>` (required unless init_json file contains it)  
 - Number of simulation steps per iteration.
+- Units are in 100ms (e.g., `timestep:50` would run the simulation for 5000ms or 5 seconds)
 
 #### Argument to add additional agents into the simulation:  
-cars:<int> (optional)  
+`cars:<int>` (optional)  
 - Number of additional car agents to spawn.
 - Default value is 0
 
 #### Required API Key  
-apikey:<string> (required)  
+`apikey:<your_api_key>` (required)  
 - Your Inverted AI API key.  
 
 
