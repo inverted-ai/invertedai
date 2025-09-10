@@ -25,7 +25,7 @@ CLI will override values from JSON files.
 ### To Run:  
 `./client drive_json:<path/to/json> location_json:<path/to/json> init_json:<path/to/json> location:<iai_location_id> cars:<integer> timestep:<integer> apikey:<your_api_key>` 
 
-### Arguments:  
+### Command Line Arguments:  
 #### 3 Optional JSON file paths:  
 `drive_json:<path/to/json>` (optional)  
 - Path to a JSON file with request defaults for DRIVE (e.g., examples/drive_body.json).
