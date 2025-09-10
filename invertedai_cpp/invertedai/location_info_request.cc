@@ -6,8 +6,11 @@ namespace invertedai {
 
 LocationInfoRequest::LocationInfoRequest(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
-
-  this->location_ = this->body_json_["location"];
+  if (body_json_.contains("location") && body_json_["location"].is_string()) {
+    location_ = body_json_["location"].get<std::string>();
+  } else {
+    location_.clear(); //“not set yet”
+  }
   this->include_map_source_ = this->body_json_["include_map_source"].is_boolean()
     ? this->body_json_["include_map_source"].get<bool>()
     : false;
@@ -20,7 +23,11 @@ LocationInfoRequest::LocationInfoRequest(const std::string &body_str) {
 }
 
 void LocationInfoRequest::refresh_body_json_() {
-  this->body_json_["location"] = this->location_;
+  if (!this->location_.empty()) {
+    this->body_json_["location"] = this->location_;
+  } else {
+    throw std::runtime_error("ERROR: Location must be set before serializing LocationInfoRequest.");
+  }
   this->body_json_["include_map_source"] = this->include_map_source_;
   if (this->rendering_fov_.has_value()) {
     this->body_json_["rendering_fov"] = this->rendering_fov_.value();
@@ -41,19 +48,19 @@ std::string LocationInfoRequest::body_str() {
 
 const std::string LocationInfoRequest::url_query_string() const {
   return "?location=" + 
-    this->location_ + 
-    "&include_map_source=" +
-    (this->include_map_source_ ? "true" : "false") +
-    (
-      this->rendering_fov_.has_value()
-        ? "&rendering_fov=" + std::to_string(this->rendering_fov_.value())
-        : ""
-    ) +
-    (
-      this->rendering_center_.has_value()
-        ? "&rendering_center=" + std::to_string(this->rendering_center_.value().first) + "," + std::to_string(this->rendering_center_.value().second)
-        : ""
-    );
+  this->location_ + 
+  "&include_map_source=" +
+  (this->include_map_source_ ? "true" : "false") +
+  (
+    this->rendering_fov_.has_value()
+      ? "&rendering_fov=" + std::to_string(this->rendering_fov_.value())
+      : ""
+  ) +
+  (
+    this->rendering_center_.has_value()
+      ? "&rendering_center=" + std::to_string(this->rendering_center_.value().first) + "," + std::to_string(this->rendering_center_.value().second)
+      : ""
+  );
 }
 
 std::string LocationInfoRequest::location() const { 
@@ -72,7 +79,7 @@ std::optional<std::pair<double, double>> LocationInfoRequest::rendering_center()
   return this->rendering_center_;
 }
 
-void LocationInfoRequest::set_location(const std::string &location) {
+void LocationInfoRequest::set_location(const std::string& location) {
   this->location_ = location;
 }
 
