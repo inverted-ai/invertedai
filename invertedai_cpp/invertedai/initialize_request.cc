@@ -5,7 +5,11 @@ using json = nlohmann::json;
 namespace invertedai {
 InitializeRequest::InitializeRequest(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
-  this->location_ = this->body_json_["location"];
+  if (this->body_json_.contains("location") && this->body_json_["location"].is_string()) {
+    this->location_ = this->body_json_["location"].get<std::string>();
+  } else {
+      this->location_.clear();
+  }
   this->states_history_.clear();
   for (const auto &elements : this->body_json_["states_history"]) {
     std::vector<AgentState> agent_states;

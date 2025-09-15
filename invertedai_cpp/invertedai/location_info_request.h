@@ -50,11 +50,10 @@ public:
    * Get the center coordinates for the rendered birdview.
    */
   std::optional<std::pair<double, double>> rendering_center() const;
-
   /**
    * Set the location string in IAI format.
    */
-  void set_location(const std::string &location);
+  void set_location(const std::string& location);
   /**
    * Set whether include the map source.
    */
