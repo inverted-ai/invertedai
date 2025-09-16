@@ -2,7 +2,6 @@
 #include <string>
 #include <optional>
 #include <map>
-#include "data_utils.h"
 #include "common.h"
 
 
@@ -31,5 +30,30 @@ std::pair<std::vector<Region>, std::vector<std::pair<int, int>>> insert_agents_i
     bool return_region_index = false,
     std::optional<int> random_seed = std::nullopt
 );
-//invertedai::InitializeResponse large_initialize(const LargeInitializeConfig& cfg);
+
+std::pair<std::vector<Region>, std::vector<InitializeResponse>> initialize_regions(
+    const std::string& location,
+    std::vector<Region> regions,
+    const std::optional<std::vector<std::map<std::string, std::string>>>& traffic_light_state_history = std::nullopt,
+    bool get_infractions = false,
+    std::optional<int> random_seed = std::nullopt,
+    std::optional<std::string> api_model_version = std::nullopt,
+    bool display_progress_bar = true,
+    bool return_exact_agents = false
+);
+
+InitializeResponse consolidate_all_responses(
+    const std::vector<InitializeResponse>& all_responses,
+    const std::optional<std::vector<std::pair<int,int>>>& region_map = std::nullopt,
+    bool return_exact_agents = false,
+    bool get_infractions = false
+);
+
+invertedai::InitializeResponse large_initialize(const LargeInitializeConfig& cfg);
 } // namespace invertedai
+#ifndef LARGE_INITIALIZE_H
+#define LARGE_INITIALIZE_H
+
+// declarations...
+
+#endif // LARGE_INITIALIZE_H
