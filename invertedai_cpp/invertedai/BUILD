@@ -6,6 +6,7 @@ cc_library(
     hdrs = ["data_utils.h"],
     deps = [
     "//invertedai/externals:json",
+    "//invertedai:error"
     ],
 )
 
@@ -138,6 +139,13 @@ cc_library(
         "//invertedai/externals:json",
     ],
 )
+cc_library(
+    name = "error",
+    srcs = ["error.cc"],
+    hdrs = ["error.h"],    
+    visibility = ["//visibility:public"],
+)
+
 
 cc_library(
     name = "version",

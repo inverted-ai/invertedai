@@ -8,10 +8,40 @@
 #include <variant>
 #include <iostream>
 #include "externals/json.hpp"
+#include "error.h"
 using json = nlohmann::json;
 using AttrVariant = std::variant<double, std::string>;
 
 namespace invertedai {
+
+constexpr int RECURRENT_SIZE = 152;
+constexpr double REGION_MAX_SIZE = 100.0;
+constexpr double AGENT_SCOPE_FOV_BUFFER = 60.0;
+constexpr int ATTEMPT_PER_NUM_REGIONS = 15;
+
+enum class AgentType {
+    car,
+    pedestrian
+    // Add more if needed: bus, truck, cyclist, etc.
+};
+
+// Helper to convert to string
+inline std::string to_string(AgentType type) {
+    switch (type) {
+        case invertedai::AgentType::car: return "car";
+        case invertedai::AgentType::pedestrian: return "pedestrian";
+        default: return "unknown";
+    }
+}
+
+// Helper to parse from string (if needed)
+inline invertedai::AgentType agent_type_from_string(const std::string& s) {
+    if (s == "car") return invertedai::AgentType::car;
+    if (s == "pedestrian") return invertedai::AgentType::pedestrian;
+    throw std::invalid_argument("Unknown AgentType: " + s);
+}
+
+
 
 const std::map<std::string, int> kControlType = {
     {"traffic_light", 0},       {"yield_sign", 1},       {"stop_sign", 2},
@@ -344,6 +374,65 @@ struct AgentProperties {
     AgentProperties() = default;
 };
 
+// Recurrent state used in drive
+struct RecurrentState {
+  std::vector<float> packed;
+
+  RecurrentState() : packed(RECURRENT_SIZE, 0.0f) {}
+  explicit RecurrentState(const std::vector<float>& vals) : packed(vals) {
+      if (vals.size() != RECURRENT_SIZE) {
+          throw InvertedAIError("RecurrentState must have size 152");
+      }
+  }
+};
+
+struct Agent {
+  AgentState state;
+  AgentProperties properties;
+  RecurrentState recurrent;
+};
+
+inline std::vector<AgentProperties>
+get_default_agent_properties(const std::map<invertedai::AgentType, int>& counts) {
+    std::vector<AgentProperties> props;
+
+    for (const auto& [atype, num] : counts) {
+        for (int i = 0; i < num; ++i) {
+            AgentProperties p;
+
+            switch (atype) {
+                case invertedai::AgentType::car:
+                    p.length = 4.5;       // typical car length in meters
+                    p.width = 1.8;        // typical car width
+                    p.rear_axis_offset = 1.0;
+                    p.agent_type = "car";
+                    p.max_speed = 15.0;   // ~54 km/h
+                    break;
+
+                case invertedai::AgentType::pedestrian:
+                    p.length = 0.5;
+                    p.width = 0.5;
+                    p.rear_axis_offset = 0.0;
+                    p.agent_type = "pedestrian";
+                    p.max_speed = 1.5;    // ~5.4 km/h
+                    break;
+
+                default:
+                    p.length = 1.0;
+                    p.width = 1.0;
+                    p.rear_axis_offset = 0.0;
+                    p.agent_type = "unknown";
+                    p.max_speed = 0.0;
+                    break;
+            }
+
+            props.push_back(p);
+        }
+    }
+
+    return props;
+}
+
 /**
  * Dynamic state of a traffic light.
  */
@@ -415,6 +504,110 @@ struct StaticMapActor {
  * Read file from the path, return the content as a string.
  */
 std::string read_file(const char *path);
+
+struct Region {
+  Point2d center;
+  double size;
+  double min_x, max_x, min_y, max_y;
+  // std::vector<Agent> agents;
+
+  std::vector<AgentState> agent_states;
+  std::vector<AgentProperties> agent_properties;
+  std::vector<RecurrentState> recurrent_states;
+
+  // Region copy() const {
+  //     Region r(center, size);
+  //     r.agents = agents; 
+  //     return r;
+  // }
+  Region copy() const {
+      Region r(center, size);
+      r.agent_states = agent_states;
+      r.agent_properties = agent_properties;
+      r.recurrent_states = recurrent_states;
+      return r;
+  }
+
+
+  static Region create_square_region(
+      const Point2d& center,
+      double size = 100.0,
+      const std::vector< AgentState>& states = {},
+      const std::vector< AgentProperties>& props = {},
+      const std::vector< RecurrentState>& recurs = {}
+  ) {
+      if (states.size() != props.size()) {
+          throw std::invalid_argument("states and props must have same length");
+      }
+      if (!recurs.empty() && recurs.size() != states.size()) {
+          throw std::invalid_argument("recurs must be empty or same length as states");
+      }
+
+      Region region(center, size);
+      for (size_t i = 0; i < states.size(); i++) {
+          if (!region.is_inside({states[i].x, states[i].y})) {
+              throw std::invalid_argument("Agent state outside region.");
+          }
+          region.agent_states.push_back(states[i]);
+          region.agent_properties.push_back(props[i]);
+          if (!recurs.empty()) {
+              region.recurrent_states.push_back(recurs[i]);
+          } else {
+              region.recurrent_states.emplace_back(); // default recurrent
+          }
+      }
+      return region;
+  }
+  Region(
+      const Point2d& c, 
+      double s
+  ) : center(c), size(s) {
+      min_x = c.x - s/2;
+      max_x = c.x + s/2;
+      min_y = c.y - s/2;
+      max_y = c.y + s/2;
+  }
+
+  //check if point is within an X-Y axis aligned square region
+  bool is_inside(const Point2d& p) const {
+      return (min_x <= p.x && p.x <= max_x &&
+              min_y <= p.y && p.y <= max_y);
+  }
+
+//     void insert_agents(Agent&& agent) {
+//         if (!is_inside({agent.state.x, agent.state.y})) {
+//             throw std::invalid_argument("Agent state outside region");
+//         }
+//         agents.push_back(std::move(agent));
+//     }
+//     void clear_agents() {
+//         agents.clear();
+//     }
+  
+// };
+void insert_agent(
+  const  AgentState& state, 
+  const  AgentProperties& props, 
+  const  RecurrentState& recur = RecurrentState()
+) {
+  if (!is_inside({state.x, state.y})) {
+      throw std::invalid_argument("Agent state outside region");
+  }
+  agent_states.push_back(state);
+  agent_properties.push_back(props);
+  recurrent_states.push_back(recur);
+}
+void clear_agents() {
+  agent_states.clear();
+  agent_properties.clear();
+  recurrent_states.clear();
+}
+
+size_t size_agents() const {
+  return agent_states.size();
+}
+};
+
 
 } // namespace invertedai
 

@@ -29,13 +29,13 @@ public:
     QuadTree(int capacity, const Region& region);
 
     bool insert(const QuadTreeAgentInfo& particle, bool is_particle_placed = false);
-    std::vector<Region> get_regions() const;
+    std::vector<invertedai::Region> get_regions() const;
     std::vector<QuadTree*> get_leaf_nodes();
     size_t get_number_of_agents_in_node() const;
 
 private:
     int capacity_;
-    Region region_;
+    invertedai::Region region_;
     Region region_buffer_;
     bool leaf_;
 

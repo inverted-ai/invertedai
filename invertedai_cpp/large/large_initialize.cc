@@ -1,8 +1,8 @@
+#pragma once
 #include "large_initialize.h"
-#include "externals/json.hpp"
-#include "initialize_response.h" // Ensure this header defines InitializeResponse
+#include "invertedai/initialize_response.h" // Ensure this header defines InitializeResponse
 #include <random>
-#include <initialize_request.h>
+#include "invertedai/initialize_request.h"
 #include "../invertedai/api.h"
 #include "invertedai/error.h"
 using tcp = net::ip::tcp;    // from <boost/asio/ip/tcp.hpp>
@@ -18,12 +18,25 @@ double squared_distance(const Point2d& p1, const Point2d& p2) {
     return dx * dx + dy * dy;
 }
 
-std::pair<std::vector<Region>, RegionMap> insert_agents_into_nearest_regions(
-    std::vector<Region> regions,
+std::vector<std::map<std::string,std::string>>
+convert_traffic_light_history(const std::vector<TrafficLightStatesDict>& dicts) {
+    std::vector<std::map<std::string,std::string>> result;
+    for (const auto& states : dicts) {
+        std::map<std::string,std::string> entry;
+        for (const auto& st : states) {
+            entry[st.id] = st.value; // assuming TrafficLightState has .id and .state
+        }
+        result.push_back(entry);
+    }
+    return result;
+}
+
+std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
+    std::vector<invertedai::Region> regions,
     const std::vector<AgentProperties>& agent_properties,
     const std::vector<AgentState>& agent_states,
-    bool return_region_index = false,
-    std::optional<int> random_seed = std::nullopt
+    bool return_region_index,
+    std::optional<int> random_seed
 ) {
     size_t num_agent_states = agent_states.size();
     size_t num_regions = regions.size();
@@ -31,9 +44,9 @@ std::pair<std::vector<Region>, RegionMap> insert_agents_into_nearest_regions(
     if(num_regions == 0) {
         throw std::invalid_argument("Invalid parameter: number of regions must be greater than zero.");
     }
-    if(num_agent_properties >= num_agent_states) {
-        throw std:: invalid_argument("Invalid parameters: number of agent properties must be greater than number of agent states.");
-    }
+    // if(num_agent_properties >= num_agent_states) {
+    //     throw std:: invalid_argument("Invalid parameters: number of agent properties must be greater than number of agent states.");
+    // }
 
     RegionMap region_map;
 
@@ -125,115 +138,109 @@ std::pair<std::vector<Region>, RegionMap> insert_agents_into_nearest_regions(
     return (center.x - fov / 2.0 <= p.x && p.x <= center.x + fov / 2.0 &&
             center.y - fov / 2.0 <= p.y && p.y <= center.y + fov / 2.0);
     }
+    std::pair<std::vector<invertedai::Region>, std::vector<invertedai::InitializeResponse>>
+    initialize_regions(
+        const std::string& location,
+        std::vector<invertedai::Region> regions,
+        const std::optional<std::vector<TrafficLightStatesDict>>& traffic_light_state_history,
+        bool get_infractions,
+        std::optional<int> random_seed,
+        std::optional<std::string> api_model_version,
+        bool /*display_progress_bar*/,
+        bool return_exact_agents
+    ) {
+        std::vector<InitializeResponse> all_responses;
+    
+        // Create ONE session for all requests in this function
+        boost::asio::io_context ioc;
+        ssl::context ctx(ssl::context::tlsv12_client);
+        invertedai::Session session(ioc, ctx);
+        session.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
+        session.connect();
+    
+        const int num_attempts = 1 + static_cast<int>(regions.size()) / ATTEMPT_PER_NUM_REGIONS;
+    
+        for (size_t i = 0; i < regions.size(); ++i) {
+            Region& region = regions[i];
+            const Point2d region_center = region.center;
+    
+            // Gather nearby agents from other regions (if you want, call your helper here)
+            std::vector<AgentState> existing_states;
+            std::vector<AgentProperties> existing_props;
+            // get_all_existing_agents_from_regions(regions, i, region, existing_states, existing_props);
+    
+            // Build inputs for this region
+            std::vector<AgentState> all_agent_states = existing_states;
+            all_agent_states.insert(all_agent_states.end(),
+                                    region.agent_states.begin(), region.agent_states.end());
+    
+            std::vector<AgentProperties> all_agent_props = existing_props;
+            all_agent_props.insert(all_agent_props.end(),
+                                   region.agent_properties.begin(), region.agent_properties.end());
+    
+            if (all_agent_props.empty()) {
+                // Nothing to initialize here
+                continue;
+            }
+    
+            bool success = false;
+            std::optional<InitializeResponse> init_res;  // nothing yet
+    
+            for (int attempt = 0; attempt < num_attempts; ++attempt) {
+                try {
+                    InitializeRequest req("{}");
+                    req.set_location(location);
+                    req.set_random_seed(random_seed);
+                    if (!all_agent_states.empty()) {
+                        req.set_states_history({all_agent_states});
+                    }
+                    req.set_agent_properties(all_agent_props);
+                    req.set_location_of_interest(std::make_optional(std::make_pair(region_center.x, region_center.y)));
+                    req.set_get_infractions(get_infractions);
+                    if (traffic_light_state_history.has_value()) {
+                        req.set_traffic_light_state_history(
+                            convert_traffic_light_history(*traffic_light_state_history));
+                    }
+                    // api_model_version ignored here unless your request type supports it
+    
+                    // Send the request
+                    std::string body = req.body_str();
+std::cerr << "DEBUG InitializeRequest body:\n" << body << "\n";
 
-    std::pair<std::vector<Region>, std::vector<InitializeResponse>> initialize_regions(
-      const std::string& location,
-      std::vector<Region> regions,
-      const std::optional<std::vector<std::map<std::string, std::string>>>& traffic_light_state_history,
-      bool get_infractions,
-      std::optional<int> random_seed,
-      std::optional<std::string> api_model_version,
-      bool display_progress_bar,
-      bool return_exact_agents
-  ) {
-      std::vector<InitializeResponse> all_responses;
-  
-      int num_attempts = 1 + static_cast<int>(regions.size()) / ATTEMPT_PER_NUM_REGIONS;
-  
-      for (size_t i = 0; i < regions.size(); i++) {
-          Region& region = regions[i];
-          Point2d region_center = region.center;
-          double region_size = region.size;
-  
-          // Gather agents in other regions (simplified: you’d use _get_all_existing_agents_from_regions here)
-          std::vector<AgentState> existing_states;
-          std::vector<AgentProperties> existing_props;
-  
-          // Combine into full agent set
-          std::vector<AgentState> all_agent_states = existing_states;
-          std::vector<AgentProperties> all_agent_props = existing_props;
-          all_agent_states.insert(all_agent_states.end(), region.agent_states.begin(), region.agent_states.end());
-          all_agent_props.insert(all_agent_props.end(), region.agent_properties.begin(), region.agent_properties.end());
-  
-          if (all_agent_props.empty()) {
-              continue; // skip empty region
-          }
-  
-          InitializeResponse response("");
-          bool success = false;
-  
-          for (int attempt = 0; attempt < num_attempts; attempt++) {
-              try {
-                  // Build request
-                  InitializeRequest req("{}");
-                  req.set_location(location);
-                  req.set_random_seed(random_seed);
-                  req.set_states_history({all_agent_states});
-                  req.set_agent_properties(all_agent_props);
-                  req.set_location_of_interest({region_center.x, region_center.y});
-                  req.set_get_infractions(get_infractions);
-                  if (traffic_light_state_history.has_value()) {
-                      req.set_traffic_light_state_history(traffic_light_state_history.value());
-                  }
-                  invertedai::InitializeRequest init_req(req);
-
-                  if (!region.agent_states.empty()) {
-                    init_req.set_states_history({ region.agent_states });
+                    init_res = invertedai::initialize(req, &session);
+                    success = true;
+                    break;
+                } catch (const std::exception& e) {
+                    std::cerr << "Region " << i << " initialize attempt failed: " << e.what() << "\n";
+                    continue;
                 }
-        
-                if (!region.agent_properties.empty()) {
-                    init_req.set_agent_properties(region.agent_properties);
+            }
+    
+            if (!success) {
+                if (return_exact_agents) {
+                    throw std::runtime_error("Unable to initialize region " + std::to_string(i));
+                } else {
+                    std::cerr << "Warning: skipping region " << i << "\n";
+                    continue;
                 }
-        
-                if (traffic_light_state_history.has_value()) {
-                    init_req.set_traffic_light_state_history(*traffic_light_state_history);
-                }
-        
-                // --- 2. Serialize & send ---
-                std::string body = init_req.body_str();
-
-                // session configuration
-                boost::asio::io_context ioc;
-                ssl::context ctx(ssl::context::tlsv12_client);
-                // configure connection setting
-                invertedai::Session session(ioc, ctx);
-                session.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
-                session.connect();
-
-                InitializeResponse init_res = invertedai::initialize(init_req, &session);
-                success = true;
-                break;
-  
-              } catch (const std::exception& e) {
-                  std::cerr << "Region " << i << " initialize attempt failed: " << e.what() << "\n";
-                  continue;
-              }
-          }
-  
-          if (!success) {
-              if (return_exact_agents) {
-                  throw std::runtime_error("Unable to initialize region " + std::to_string(i));
-              } else {
-                  std::cerr << "Warning: skipping region " << i << "\n";
-                  continue;
-              }
-          }
-  
-          // Update region from response
-          region.agent_states = response.agent_states();
-          region.agent_properties = response.agent_properties();
-          region.recurrent_states.clear();
-          for (const auto& r : response.recurrent_states()) {
-              RecurrentState rs;
-              rs.packed.assign(r.begin(), r.end());
-              region.recurrent_states.push_back(rs);
-          }
-  
-          all_responses.push_back(response);
-      }
-  
-      return {regions, all_responses};
-  }
+            }
+    
+            // Update region with what the server returned
+            region.agent_states     = init_res->agent_states();
+            region.agent_properties = init_res->agent_properties();
+            region.recurrent_states.clear();
+            for (const auto& r : init_res->recurrent_states()) {
+                RecurrentState rs;
+                rs.packed.assign(r.begin(), r.end());
+                region.recurrent_states.push_back(rs);
+            }
+            
+            all_responses.push_back(*init_res);
+        }
+    
+        return {regions, all_responses};
+    }
+    
 
   InitializeResponse consolidate_all_responses(
     const std::vector<InitializeResponse>& all_responses,
@@ -321,24 +328,24 @@ std::pair<std::vector<Region>, RegionMap> insert_agents_into_nearest_regions(
     return merged;
 }
 
-invertedai::InitializeResponse large_initialize(const LargeInitializeConfig& cfg) {
+invertedai::InitializeResponse large_initialize(const invertedai::LargeInitializeConfig& cfg) {
     // validate inputs
     if(cfg.regions.size() == 0) {
         throw std::invalid_argument("At least one region must be provided.");
     }
-    if (cfg.agent_states.has_value()) {
-        if (!cfg.agent_properties.has_value() ||
-            cfg.agent_properties->size() < cfg.agent_states->size()) {
-            throw std::invalid_argument(
-                "Invalid parameters: number of agent properties must be greater than number of agent states."
-            );
-        }
-    }
+    // if (cfg.agent_states.has_value()) {
+    //     if (!cfg.agent_properties.has_value() ||
+    //         cfg.agent_properties->size() < cfg.agent_states->size()) {
+    //         throw std::invalid_argument(
+    //             "Invalid parameters: number of agent properties must be greater than number of agent states."
+    //         );
+    //     }
+    // }
     // Insert agents into nearest regions (preserve indices)
     auto [regions_with_agents, region_map] = invertedai::insert_agents_into_nearest_regions(
         cfg.regions,
-        cfg.agent_properties.value_or(std::vector<AgentProperties>{}),
-        cfg.agent_states.value_or(std::vector<AgentState>{}),
+        cfg.agent_properties.value_or(std::vector<invertedai::AgentProperties>{}),
+        cfg.agent_states.value_or(std::vector<invertedai::AgentState>{}),
         true,  // return_region_index
         cfg.random_seed
     );
@@ -356,13 +363,13 @@ invertedai::InitializeResponse large_initialize(const LargeInitializeConfig& cfg
     );
 
     // consolidate responses
-    InitializeResponse response = invertedai::consolidate_all_responses(
+    invertedai::InitializeResponse response = invertedai::consolidate_all_responses(
         all_reponses,
         region_map,
         cfg.return_exact_agents,
         cfg.get_infractions
     );
 
-    return response;
+    return (invertedai::InitializeResponse) response;
 }
 } // namespace invertedai
