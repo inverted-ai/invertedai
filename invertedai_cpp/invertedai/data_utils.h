@@ -392,46 +392,38 @@ struct Agent {
   RecurrentState recurrent;
 };
 
-inline std::vector<AgentProperties>
-get_default_agent_properties(const std::map<invertedai::AgentType, int>& counts) {
-    std::vector<AgentProperties> props;
-
-    for (const auto& [atype, num] : counts) {
-        for (int i = 0; i < num; ++i) {
-            AgentProperties p;
-
-            switch (atype) {
-                case invertedai::AgentType::car:
-                    p.length = 4.5;       // typical car length in meters
-                    p.width = 1.8;        // typical car width
-                    p.rear_axis_offset = 1.0;
-                    p.agent_type = "car";
-                    p.max_speed = 15.0;   // ~54 km/h
-                    break;
-
-                case invertedai::AgentType::pedestrian:
-                    p.length = 0.5;
-                    p.width = 0.5;
-                    p.rear_axis_offset = 0.0;
-                    p.agent_type = "pedestrian";
-                    p.max_speed = 1.5;    // ~5.4 km/h
-                    break;
-
-                default:
-                    p.length = 1.0;
-                    p.width = 1.0;
-                    p.rear_axis_offset = 0.0;
-                    p.agent_type = "unknown";
-                    p.max_speed = 0.0;
-                    break;
-            }
-
-            props.push_back(p);
-        }
-    }
-
-    return props;
+inline std::string agent_type_to_string(AgentType type) {
+  switch (type) {
+      case AgentType::car: return "car";
+      case AgentType::pedestrian: return "pedestrian";
+      // add all your types
+      default: return "unknown";
+  }
 }
+
+// inline std::vector<AgentProperties>
+// get_default_agent_properties(const std::map<AgentType,int>& agent_count_dict,
+//                              bool use_agent_properties = true) {
+//     std::vector<AgentProperties> agent_attributes_list;
+
+//     for (auto& [agent_type, count] : agent_count_dict) {
+//         for (int i = 0; i < count; i++) {
+//             if (use_agent_properties) {
+//                 AgentProperties props;
+//                 props.agent_type = agent_type_to_string(agent_type);   //only type
+//                 agent_attributes_list.push_back(props);
+//             } else {
+//                 // if you still support AgentAttributes fallback
+//                 AgentProperties props;
+//                 props.agent_type = agent_type_to_string(agent_type);  //only type
+//                 agent_attributes_list.push_back(props);
+//             }
+//         }
+//     }
+
+//     return agent_attributes_list;
+// }
+
 
 /**
  * Dynamic state of a traffic light.

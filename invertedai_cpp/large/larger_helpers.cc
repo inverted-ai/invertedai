@@ -13,6 +13,27 @@
 
 namespace invertedai {
 
+    std::vector<AgentProperties> get_default_agent_properties(size_t num_agents) {
+        std::vector<AgentProperties> props;
+        props.reserve(num_agents);
+        for (size_t i = 0; i < num_agents; i++) {
+            AgentProperties car;
+            car.agent_type = "car";   // this has been hardcoded!!! may be a problem for future extension
+            //can also set dimensions if you want (length, width, rear_axis_offset)
+            props.push_back(car);
+        }
+        return props;
+    }
+
+    invertedai::AgentProperties make_default_car() {
+        invertedai::AgentProperties car;
+        car.agent_type = "car";
+        car.length = 4.5;           // ??? not sure if these are
+        car.width = 2.0;
+        car.rear_axis_offset = 1.5;
+        return car;
+    }
+
     std::vector<Region> get_regions_default(
         const std::string& location,
         int total_num_agents,
@@ -31,7 +52,7 @@ namespace invertedai {
             area_shape = {50.0f, 50.0f};
         }
     
-        // ✅ If caller didn’t pass a real map_center, set one relative to area_shape
+        // if caller didn’t pass a real map_center, set one relative to area_shape
         if (map_center.first == 0.0f && map_center.second == 0.0f) {
             map_center = { area_shape->first / 2.0f, area_shape->second / 2.0f };
         }
@@ -167,20 +188,23 @@ std::vector<Region> get_number_of_agents_per_region_by_drivable_area(
 
     for (auto atype : agent_list_types) {
         int ind = dist(rng);
-        auto props = get_default_agent_properties({{atype, 1}});
-        new_regions[ind].agent_properties.insert(
-            new_regions[ind].agent_properties.end(),
-            props.begin(),
-            props.end()
-        );
+        AgentProperties minimal_prop;
+        minimal_prop.agent_type = agent_type_to_string(atype);  
+        new_regions[ind].agent_properties.push_back(minimal_prop);
     }
-
+    for (size_t i = 0; i < new_regions.size(); i++) {
+        std::cout << "Region " << i 
+                  << " drivable_ratio=" << region_road_area[i] 
+                  << " num_props=" << new_regions[i].agent_properties.size() << "\n";
+    }
+    
     std::vector<Region> filtered;
-    for (auto& region : new_regions) {
-        if (!region.agent_properties.empty()) {
-            filtered.push_back(region);
+    for (size_t i = 0; i < new_regions.size(); i++) {
+        if (region_road_area[i] > 0.0 && !new_regions[i].agent_properties.empty()) {
+            filtered.push_back(new_regions[i]);
         }
     }
+    
 
     return filtered;
 }

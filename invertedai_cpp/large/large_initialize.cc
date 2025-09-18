@@ -41,12 +41,12 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
     size_t num_agent_states = agent_states.size();
     size_t num_regions = regions.size();
     size_t num_agent_properties = agent_properties.size();
-    if(num_regions == 0) {
+    if(num_regions <= 0) {
         throw std::invalid_argument("Invalid parameter: number of regions must be greater than zero.");
     }
-    // if(num_agent_properties >= num_agent_states) {
-    //     throw std:: invalid_argument("Invalid parameters: number of agent properties must be greater than number of agent states.");
-    // }
+    if(num_agent_properties < num_agent_states) {
+        throw std:: invalid_argument("Invalid parameters: number of agent properties must be greater than number of agent states.");
+    }
 
     RegionMap region_map;
 
@@ -60,6 +60,9 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
     for(size_t i = 0; i < num_agent_states; i++) {
         const auto& prop = agent_properties[i];
         const auto& state = agent_states[i];
+        if (i >= num_agent_properties) {
+            throw std::invalid_argument("Not enough agent properties for the given agent states.");
+        }
 
         // find nearest region                                   //// very inefficient???
         double min_dist = std::numeric_limits<double>::max();
@@ -127,17 +130,46 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
             (REGION_MAX_SIZE + AGENT_SCOPE_FOV_BUFFER)) {
           continue;
         }
-    
         const auto n = std::min(r.agent_states.size(), r.agent_properties.size());
         out_states.insert(out_states.end(), r.agent_states.begin(), r.agent_states.begin() + n);
         out_props.insert(out_props.end(), r.agent_properties.begin(), r.agent_properties.begin() + n);
       }
     }
-    
+
     inline bool inside_fov(const Point2d& center, double fov, const Point2d& p) {
     return (center.x - fov / 2.0 <= p.x && p.x <= center.x + fov / 2.0 &&
             center.y - fov / 2.0 <= p.y && p.y <= center.y + fov / 2.0);
     }
+
+    static void pick_borrowed_agents(
+        const std::vector<AgentState>&  filtered_states,
+        const std::vector<AgentProperties>& filtered_props,
+        size_t max_take,
+        std::optional<int> random_seed,
+        std::vector<AgentState>& out_states,
+        std::vector<AgentProperties>& out_props
+    ) {
+        out_states.clear();
+        out_props.clear();
+        const size_t n = std::min(filtered_states.size(), filtered_props.size());
+        if (n == 0) return;
+    
+        std::vector<size_t> idx(n);
+        std::iota(idx.begin(), idx.end(), 0);
+    
+        std::mt19937 rng(random_seed.value_or(std::random_device{}()));
+        std::shuffle(idx.begin(), idx.end(), rng);
+    
+        const size_t take = std::min(max_take, n);
+        out_states.reserve(take);
+        out_props.reserve(take);
+        for (size_t k = 0; k < take; ++k) {
+            size_t j = idx[k];
+            out_states.push_back(filtered_states[j]);
+            out_props.push_back(filtered_props[j]);
+        }
+    }
+    
     std::pair<std::vector<invertedai::Region>, std::vector<invertedai::InitializeResponse>>
     initialize_regions(
         const std::string& location,
@@ -146,7 +178,7 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
         bool get_infractions,
         std::optional<int> random_seed,
         std::optional<std::string> api_model_version,
-        bool /*display_progress_bar*/,
+        bool display_progress_bar,
         bool return_exact_agents
     ) {
         std::vector<InitializeResponse> all_responses;
@@ -163,59 +195,97 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
         for (size_t i = 0; i < regions.size(); ++i) {
             Region& region = regions[i];
             const Point2d region_center = region.center;
-    
-            // Gather nearby agents from other regions (if you want, call your helper here)
+        
+            // 1) Collect neighbors from other regions
             std::vector<AgentState> existing_states;
             std::vector<AgentProperties> existing_props;
-            // get_all_existing_agents_from_regions(regions, i, region, existing_states, existing_props);
-    
-            // Build inputs for this region
-            std::vector<AgentState> all_agent_states = existing_states;
-            all_agent_states.insert(all_agent_states.end(),
-                                    region.agent_states.begin(), region.agent_states.end());
-    
-            std::vector<AgentProperties> all_agent_props = existing_props;
-            all_agent_props.insert(all_agent_props.end(),
-                                   region.agent_properties.begin(), region.agent_properties.end());
-    
-            if (all_agent_props.empty()) {
-                // Nothing to initialize here
-                continue;
+            get_all_existing_agents_from_regions(regions, i, region, existing_states, existing_props);
+        
+            // 2) Filter neighbors by FOV of the *current* region
+            std::vector<AgentState> fov_states;
+            std::vector<AgentProperties> fov_props;
+            fov_states.reserve(existing_states.size());
+            fov_props.reserve(existing_props.size());
+            for (size_t j = 0; j < existing_states.size(); ++j) {
+                Point2d agent_center{existing_states[j].x, existing_states[j].y};
+                if (inside_fov(region_center, region.size + AGENT_SCOPE_FOV_BUFFER, agent_center)) {
+                    fov_states.push_back(existing_states[j]);
+                    fov_props.push_back(existing_props[j]);
+                }
             }
-    
+        
+            // 3) Borrow a *small* number of nearby agents (shuffle + cap)
+            constexpr size_t MAX_BORROW = 6;
+            std::vector<AgentState> borrowed_states;
+            std::vector<AgentProperties> borrowed_props;
+            pick_borrowed_agents(fov_states, fov_props, MAX_BORROW, random_seed, borrowed_states, borrowed_props);
+        
+            // 4) Build inputs for this region (borrowed + native)
+            std::vector<AgentState> all_agent_states = borrowed_states;
+            all_agent_states.insert(all_agent_states.end(), region.agent_states.begin(), region.agent_states.end());
+        
+            std::vector<AgentProperties> all_agent_props = borrowed_props;
+            all_agent_props.insert(all_agent_props.end(), region.agent_properties.begin(), region.agent_properties.end());
+        
+            if (all_agent_props.empty()) {
+                continue; // nothing to initialize here
+            }
+        
+            // 5) Retry with backoff on borrowed count, then try native-only as a last resort
             bool success = false;
-            std::optional<InitializeResponse> init_res;  // nothing yet
-    
-            for (int attempt = 0; attempt < num_attempts; ++attempt) {
+            std::optional<InitializeResponse> init_res;
+        
+            // derive attempts budget
+            int attempts_budget = std::max(2, 1 + static_cast<int>(regions.size()) / ATTEMPT_PER_NUM_REGIONS);
+        
+            // borrowed backoff levels: e.g., 6 -> 3 -> 1 -> 0
+            std::vector<size_t> backoff { MAX_BORROW, MAX_BORROW/2, 1, 0 };
+            size_t backoff_idx = 0;
+        
+            while (attempts_budget-- > 0 && !success) {
                 try {
+                    // recompute borrowed selection for the current backoff level
+                    size_t take = backoff[std::min(backoff_idx, backoff.size()-1)];
+                    pick_borrowed_agents(fov_states, fov_props, take, random_seed, borrowed_states, borrowed_props);
+        
+                    std::vector<AgentState> req_states = borrowed_states;
+                    req_states.insert(req_states.end(), region.agent_states.begin(), region.agent_states.end());
+        
+                    std::vector<AgentProperties> req_props = borrowed_props;
+                    req_props.insert(req_props.end(), region.agent_properties.begin(), region.agent_properties.end());
+        
                     InitializeRequest req("{}");
                     req.set_location(location);
                     req.set_random_seed(random_seed);
+        
                     if (!all_agent_states.empty()) {
                         req.set_states_history({all_agent_states});
-                    }
-                    req.set_agent_properties(all_agent_props);
+                    } 
+        
+                    req.set_agent_properties(req_props);
                     req.set_location_of_interest(std::make_optional(std::make_pair(region_center.x, region_center.y)));
                     req.set_get_infractions(get_infractions);
+        
                     if (traffic_light_state_history.has_value()) {
                         req.set_traffic_light_state_history(
                             convert_traffic_light_history(*traffic_light_state_history));
                     }
-                    // api_model_version ignored here unless your request type supports it
-    
-                    // Send the request
-                    std::string body = req.body_str();
-std::cerr << "DEBUG InitializeRequest body:\n" << body << "\n";
-
+        
+                        // Debug: inspect payload if needed
+                        // std::cerr << "DEBUG InitializeRequest body:\n" << req.body_str() << "\n";
+                    std::cerr << "Region " << i
+                    << " -> native: " << region.agent_states.size()
+                    << ", borrowed: " << borrowed_states.size() << "\n";
                     init_res = invertedai::initialize(req, &session);
                     success = true;
-                    break;
                 } catch (const std::exception& e) {
                     std::cerr << "Region " << i << " initialize attempt failed: " << e.what() << "\n";
+                    // advance backoff only if we still have borrowed agents to reduce
+                    if (backoff_idx + 1 < backoff.size()) backoff_idx++;
                     continue;
                 }
             }
-    
+        
             if (!success) {
                 if (return_exact_agents) {
                     throw std::runtime_error("Unable to initialize region " + std::to_string(i));
@@ -224,8 +294,8 @@ std::cerr << "DEBUG InitializeRequest body:\n" << body << "\n";
                     continue;
                 }
             }
-    
-            // Update region with what the server returned
+        
+            // 6) Update region with server response
             region.agent_states     = init_res->agent_states();
             region.agent_properties = init_res->agent_properties();
             region.recurrent_states.clear();
@@ -234,7 +304,6 @@ std::cerr << "DEBUG InitializeRequest body:\n" << body << "\n";
                 rs.packed.assign(r.begin(), r.end());
                 region.recurrent_states.push_back(rs);
             }
-            
             all_responses.push_back(*init_res);
         }
     
@@ -333,6 +402,13 @@ invertedai::InitializeResponse large_initialize(const invertedai::LargeInitializ
     if(cfg.regions.size() == 0) {
         throw std::invalid_argument("At least one region must be provided.");
     }
+
+    if(cfg.agent_properties.has_value() && cfg.agent_states.has_value() &&
+       cfg.agent_properties->size() < cfg.agent_states->size()) {
+        throw std::invalid_argument(
+            "Invalid parameters: number of agent properties must be greater than number of agent states."
+        );
+    }
     // if (cfg.agent_states.has_value()) {
     //     if (!cfg.agent_properties.has_value() ||
     //         cfg.agent_properties->size() < cfg.agent_states->size()) {
@@ -344,8 +420,8 @@ invertedai::InitializeResponse large_initialize(const invertedai::LargeInitializ
     // Insert agents into nearest regions (preserve indices)
     auto [regions_with_agents, region_map] = invertedai::insert_agents_into_nearest_regions(
         cfg.regions,
-        cfg.agent_properties.value_or(std::vector<invertedai::AgentProperties>{}),
-        cfg.agent_states.value_or(std::vector<invertedai::AgentState>{}),
+        cfg.agent_properties.has_value() ? cfg.agent_properties.value() : std::vector<invertedai::AgentProperties>{},
+        cfg.agent_states.has_value() ? cfg.agent_states.value() : std::vector<invertedai::AgentState>{},
         true,  // return_region_index
         cfg.random_seed
     );

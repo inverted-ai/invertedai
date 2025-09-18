@@ -11,6 +11,7 @@
     #include "invertedai/data_utils.h"      // get_default_agent_properties?
 
     namespace invertedai {
+    std::vector<AgentProperties> get_default_agent_properties(size_t num_agents);
 
     std::vector<Region> get_regions_default(
         const std::string& location,
