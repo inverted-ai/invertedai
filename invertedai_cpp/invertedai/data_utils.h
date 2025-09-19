@@ -505,7 +505,7 @@ struct Region {
 
   std::vector<AgentState> agent_states;
   std::vector<AgentProperties> agent_properties;
-  std::vector<RecurrentState> recurrent_states;
+  std::vector<std::vector<double>> recurrent_states;
 
   // Region copy() const {
   //     Region r(center, size);
@@ -526,7 +526,7 @@ struct Region {
       double size = 100.0,
       const std::vector< AgentState>& states = {},
       const std::vector< AgentProperties>& props = {},
-      const std::vector< RecurrentState>& recurs = {}
+      const std::vector<std::vector<double>>& recurs = {}
   ) {
       if (states.size() != props.size()) {
           throw std::invalid_argument("states and props must have same length");
@@ -580,7 +580,7 @@ struct Region {
 void insert_agent(
   const  AgentState& state, 
   const  AgentProperties& props, 
-  const  RecurrentState& recur = RecurrentState()
+  const  std::vector<double>& recur
 ) {
   if (!is_inside({state.x, state.y})) {
       throw std::invalid_argument("Agent state outside region");
@@ -597,6 +597,15 @@ void clear_agents() {
 
 size_t size_agents() const {
   return agent_states.size();
+}
+void insert_all_agent_details(
+  const AgentState& state,
+  const AgentProperties& props,
+  const std::vector<double>& rec
+) {
+  agent_states.push_back(state);
+  agent_properties.push_back(props);
+  recurrent_states.push_back(rec);
 }
 };
 
