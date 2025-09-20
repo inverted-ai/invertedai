@@ -9,6 +9,12 @@
 
 namespace invertedai {
 using TrafficLightStatesDict = std::vector<TrafficLightState>;
+struct LargeInitializeOutput {
+    invertedai::InitializeResponse response;
+    std::vector<invertedai::Region> regions; // updated with agent_states / props / recurrent_states // for testing the regions
+};
+
+
 struct LargeInitializeConfig {
     std::string location;
     std::vector<invertedai::Region> regions;
@@ -23,6 +29,8 @@ struct LargeInitializeConfig {
     bool display_progress_bar = true;
     bool return_exact_agents = false;
 };
+
+LargeInitializeOutput large_initialize_with_regions(const invertedai::LargeInitializeConfig& cfg); // for testing the regions
 
 std::pair<std::vector<Region>, std::vector<std::pair<int, int>>> insert_agents_into_nearest_regions(
     std::vector<Region> regions,

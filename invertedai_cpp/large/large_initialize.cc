@@ -519,4 +519,48 @@ invertedai::InitializeResponse large_initialize(const invertedai::LargeInitializ
 
     return (invertedai::InitializeResponse) response;
 }
+
+
+LargeInitializeOutput large_initialize_with_regions(const invertedai::LargeInitializeConfig& cfg) {
+    if (cfg.regions.empty()) {
+        throw std::invalid_argument("At least one region must be provided.");
+    }
+    if (cfg.agent_properties && cfg.agent_states &&
+        cfg.agent_properties->size() < cfg.agent_states->size()) {
+        throw std::invalid_argument(
+            "Invalid parameters: number of agent properties must be >= number of agent states.");
+    }
+
+    // 1) Insert predefined agents (if any) into nearest regions
+    auto [regions_with_agents, region_map] = invertedai::insert_agents_into_nearest_regions(
+        cfg.regions,
+        cfg.agent_properties.value_or(std::vector<invertedai::AgentProperties>{}),
+        cfg.agent_states.value_or(std::vector<invertedai::AgentState>{}),
+        /*return_region_index=*/true,
+        cfg.random_seed
+    );
+
+    // 2) Initialize each region (this mutates regions by pushing agent_states/props/recurrent_states)
+    auto [final_regions, all_responses] = invertedai::initialize_regions(
+        cfg.location,
+        regions_with_agents,
+        cfg.traffic_light_state_history,
+        cfg.get_infractions,
+        cfg.random_seed,
+        cfg.api_model_version,
+        cfg.display_progress_bar,
+        cfg.return_exact_agents
+    );
+
+    // 3) Consolidate to a single InitializeResponse
+    invertedai::InitializeResponse consolidated =
+        invertedai::consolidate_all_responses(
+            all_responses,
+            region_map,
+            cfg.return_exact_agents,
+            cfg.get_infractions
+        );
+
+    return LargeInitializeOutput{ std::move(consolidated), std::move(final_regions) };
+}
 } // namespace invertedai
