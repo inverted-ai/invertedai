@@ -3,7 +3,7 @@
 #include <string>
 #include <random>
 #include <optional>
-#include <opencv2/opencv.hpp>  // OpenCV for image handling
+#include <opencv2/opencv.hpp>
 
 #include "invertedai/api.h"
 #include "invertedai/session.h"
@@ -16,282 +16,240 @@
 #include "common.h"
 
 using namespace invertedai;
-inline cv::Point world_to_pixel(double x, double y,
-    double cx, double cy,
-    int img_w, int img_h,
-    double fov_meters) {
-double scale = img_w / fov_meters;  // pixels per meter
-int u = static_cast<int>((x - (cx - fov_meters/2)) * scale);
-int v = static_cast<int>((cy + fov_meters/2 - y) * scale);
-return cv::Point(u, v);
-}
-// ./bazel-bin/large/large_main
-// bazel build //large:large_main 
+
+// Clamp helper
+inline int clampi(int v, int lo, int hi) { return std::max(lo, std::min(v, hi)); }
+
+auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
+    double expected = 100.0,
+    double tol = 1e-6,
+    double px_per_meter = -1.0) {
+    bool ok = true;
+    for (size_t i = 0; i < regs.size(); ++i) {
+        double s = regs[i].size;
+        if (std::abs(s - expected) > tol) {
+            std::cerr << "[WARN] Region " << i << " size=" << s
+        << " (expected " << expected << ")\n";
+        ok = false;
+        }
+
+        // Optional: world-space bbox sanity (useful for debugging/visual overlays)
+        const double half = s * 0.5;
+        const double L = regs[i].center.x - half;
+        const double R = regs[i].center.x + half;
+        const double B = regs[i].center.y - half;
+        const double T = regs[i].center.y + half;
+        (void)L; (void)R; (void)B; (void)T; // keep if you print later
+
+        // Optional pixel-level check (after you've computed `scale`)
+        if (px_per_meter > 0.0) {
+            int expected_px = (int)std::llround(s * px_per_meter);
+            if (expected_px <= 0) {
+                std::cerr << "[WARN] Region " << i
+                << " expected_px <= 0 (s=" << s
+                << ", scale=" << px_per_meter << ")\n";
+                ok = false;
+            }
+        }
+    }
+    if (ok) {
+        std::cout << "[OK] All " << regs.size()
+        << " regions are 100m x 100m (FOV=" << expected << ")\n";
+    }
+    return ok;
+    };
 
 int main() {
-    // --- Arguments
+    // --- Inputs
+
+// ./bazel-bin/large/large_main
+// bazel build //large:large_main 
     std::string location = "can:boundary_rd_and_kingsway_canada";
-    int num_agents = 50;
-    int width = 800;
+
+    // Keep the classic "total_num_agents" knob
+    int total_num_agents = 50;
+
+    // Canvas hint (used by get_regions_default)
+    int width  = 800;
     int height = 800;
 
-    // --- Random seed
+    // Random seed
     std::random_device rd;
     std::mt19937 gen(rd());
-    int initialize_seed = std::uniform_int_distribution<>(1, 10000)(gen);
+    int initialize_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
 
-    // --- Session setup
+    // --- Session
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
-    session.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");  // api key
+    session.set_api_key("");
     session.connect();
-    LocationInfoRequest req("{}");
-    req.set_location(location);
-    req.set_include_map_source(true);
-    std::string request = req.body_str();
-    nlohmann::json body_json = nlohmann::json::parse(request);
-    // std::cerr << "DEBUG req location_info: " << request << "\n";
-    // for (auto& [key, val] : body_json.items()) {
-    //     if (val.is_null()) {
-    //         std::cerr << "FIELD IS NULL: " << key << "\n";
-    //     }
-    // }
-    
 
-    LocationInfoResponse res = location_info(req, &session);
+    // --- Get map info (for map_center)
+    LocationInfoRequest li_req("{}");
+    li_req.set_location(location);
+    li_req.set_include_map_source(true);
+    LocationInfoResponse li_res = location_info(li_req, &session);
 
+    std::pair<float,float> map_center{
+        static_cast<float>(li_res.map_origin().x),
+        static_cast<float>(li_res.map_origin().y)
+    };
 
-    // if LocationInfoResponse has a .body_str() or similar:
-    std::string raw = res.body_str();
-    std::cerr << "DEBUG raw location_info: " << raw << "\n";
-    // --- Regions
-    std::cout << "Generating default regions...\n";
-    // --- Regions (use agent_count_dict instead of total_num_agents)
-    std::cout << "Generating default regions...\n";
-
-    
+    // --- Old region setup (unchanged idea)
+    // Keep ability to control totals via total_num_agents and agent_count_dict
     std::map<AgentType,int> agent_count_dict = {
-        {AgentType::car, num_agents}
+        {AgentType::car, total_num_agents}
     };
 
-    std::pair<float, float> map_center{ 
-        static_cast<float>(res.map_origin().x), 
-        static_cast<float>(res.map_origin().y) 
-    };
-    
-
-    auto regions = get_regions_default(
+    std::cout << "Generating default regions...\n";
+    std::vector<Region> regions = get_regions_default(
         location,
-        num_agents,          // total_num_agents -- (deprecated)
-        agent_count_dict,      // NEW: agent_count_dict
+        total_num_agents,                              // total_num_agents (legacy arg kept)
+        agent_count_dict,                              // agent_count_dict
         session,
-        std::pair<float,float>{width/2.0f, height/2.0f}, // area_shape
-        map_center,            // map_center from location_info
-        initialize_seed,       // random_seed
-        true                   // show progress
+        std::pair<float,float>{width/2.f, height/2.f}, // area_shape / hint
+        map_center,                                    // map center from location_info
+        initialize_seed,                               // random seed
+        true                                           // show progress
     );
+    validate_regions_100x100(regions, /*expected=*/100.0);
+    std::cout << "Generated " << regions.size() << " regions.\n";
 
-    // --- Large initialize
-    invertedai::LargeInitializeConfig cfg;
+    // --- Large initialize (we want updated regions back for drawing)
+    LargeInitializeConfig cfg;
     cfg.location = location;
-    cfg.regions = regions;
+    cfg.regions = regions;                // seed regions
     cfg.random_seed = initialize_seed;
     cfg.get_infractions = true;
     cfg.traffic_light_state_history = std::nullopt;
     cfg.display_progress_bar = true;
     cfg.return_exact_agents = false;
     cfg.api_model_version = std::nullopt;
+    cfg.agent_properties = std::nullopt;  // let API sample
+    cfg.agent_states     = std::nullopt;  // let API sample
 
-    cfg.agent_properties = std::nullopt;
-    cfg.agent_states = std::nullopt;   // let API sample positions
     std::cout << "Calling large_initialize with " << regions.size() << " regions...\n";
+    auto out = invertedai::large_initialize_with_regions(cfg);
+    InitializeResponse response = std::move(out.response);
+    std::vector<Region> outputed_regions = std::move(out.regions); // use this for drawing
 
-    InitializeResponse response = invertedai::large_initialize(cfg);
-    std::cout << "Number of agents: " << response.agent_states().size() << "\n";
+    std::cout << "Number of agents (merged): " << response.agent_states().size() << "\n";
+    // Use only final_regions from here on for geometry/rendering
+    const std::vector<Region>& final_regions = outputed_regions;
 
-    // --- Compute global bounding box (in meters)
-    double min_x = std::numeric_limits<double>::max();
-    double min_y = std::numeric_limits<double>::max();
-    double max_x = std::numeric_limits<double>::lowest();
-    double max_y = std::numeric_limits<double>::lowest();
-
-    for (auto& region : regions) {
-        min_x = std::min(min_x, region.center.x - region.size/2);
-        max_x = std::max(max_x, region.center.x + region.size/2);
-        min_y = std::min(min_y, region.center.y - region.size/2);
-        max_y = std::max(max_y, region.center.y + region.size/2);
+    // 1) Bounds in world meters
+    double min_x =  std::numeric_limits<double>::infinity();
+    double min_y =  std::numeric_limits<double>::infinity();
+    double max_x = -std::numeric_limits<double>::infinity();
+    double max_y = -std::numeric_limits<double>::infinity();
+    for (const auto& r :  final_regions) {
+        min_x = std::min(min_x, r.center.x - r.size * 0.5);
+        max_x = std::max(max_x, r.center.x + r.size * 0.5);
+        min_y = std::min(min_y, r.center.y - r.size * 0.5);
+        max_y = std::max(max_y, r.center.y + r.size * 0.5);
     }
 
-    // --- Pick scale: pixels per meter
-    int region_px = 512;  // typical size of birdview images
-    //double scale = region_px / regions[0].size;  // px per meter
-    double scale = -1.0;
-    int tile_px = -1, tile_py = -1;
+    // 2) Learn scale from the FIRST final region
+    auto probe_region =  final_regions.front();
+    LocationInfoRequest probe("{}");
+    probe.set_location(location);
+    probe.set_rendering_center(std::make_pair(probe_region.center.x, probe_region.center.y));
+    probe.set_rendering_fov(static_cast<int>(probe_region.size));
+    probe.set_include_map_source(false);
+    auto probe_res = location_info(probe, &session);
+    cv::Mat probe_tile = cv::imdecode(probe_res.birdview_image(), cv::IMREAD_COLOR);
+    if (probe_tile.empty()) throw std::runtime_error("Failed to decode probe birdview");
+    const double scale = static_cast<double>(probe_tile.cols) / probe_region.size; // px per meter
 
-    // Probe first region to learn tile resolution
-    
-        const auto& r0 = regions.front();
-        LocationInfoRequest probe("{}");
-        probe.set_location(location);
-        probe.set_rendering_center(std::make_pair(r0.center.x, r0.center.y));
-        probe.set_rendering_fov(static_cast<int>(r0.size));
-        probe.set_include_map_source(false);
-
-        auto res0 = location_info(probe, &session);
-        cv::Mat b0 = cv::imdecode(res0.birdview_image(), cv::IMREAD_COLOR);
-        if (b0.empty()) throw std::runtime_error("Failed to decode probe birdview.");
-
-        tile_px = b0.cols;
-        tile_py = b0.rows;
-        scale   = static_cast<double>(tile_px) / r0.size;  // px per meter
-
-        // Now that scale is known, allocate canvas
-
-    int canvas_w = static_cast<int>((max_x - min_x) * scale);
-    int canvas_h = static_cast<int>((max_y - min_y) * scale);
+    // 3) Canvas
+    const int canvas_w = static_cast<int>(std::ceil((max_x - min_x) * scale));
+    const int canvas_h = static_cast<int>(std::ceil((max_y - min_y) * scale));
     cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
-    auto clamp = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
-int idx = 0;
 
-for (const auto& region : regions) {
-    invertedai::LocationInfoRequest loc_info_req("{}");
-    loc_info_req.set_location(location);
-    loc_info_req.set_rendering_center(std::make_optional(std::make_pair(region.center.x, region.center.y)));
-    loc_info_req.set_rendering_fov((int)region.size);
-    loc_info_req.set_include_map_source(false);
+    auto clampi = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
 
-    LocationInfoResponse loc_info_res = invertedai::location_info(loc_info_req, &session);
-    std::vector<unsigned char> img_bytes = loc_info_res.birdview_image();
-    cv::Mat birdview = cv::imdecode(img_bytes, cv::IMREAD_COLOR);
-    if (birdview.empty()) {
-        std::cerr << "[WARN] Region " << idx << ": empty birdview, skipping.\n";
-        ++idx; continue;
-    }
 
-    // Resize tile to match global scale exactly
-    int tile_px = (int)std::round(region.size * scale);
-    if (birdview.cols != tile_px || birdview.rows != tile_px) {
-        cv::resize(birdview, birdview, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
-    }
-
-    // Compute top-left offset (world -> canvas px)
-    int offset_x = (int)std::floor((region.center.x - region.size * 0.5 - min_x) * scale);
-    int offset_y = (int)std::floor((max_y - (region.center.y + region.size * 0.5)) * scale); // flip y
-
-    // Clamp/crop ROI safely
-    int x0 = clamp(offset_x, 0, stitched.cols);
-    int y0 = clamp(offset_y, 0, stitched.rows);
-    int x1 = clamp(offset_x + birdview.cols, 0, stitched.cols);
-    int y1 = clamp(offset_y + birdview.rows, 0, stitched.rows);
-
-    if (x1 <= x0 || y1 <= y0) {
-        std::cerr << "[WARN] Region " << idx << ": ROI out of canvas, skipping. "
-                  << "offset=(" << offset_x << "," << offset_y << "), tile=("
-                  << birdview.cols << "x" << birdview.rows << "), canvas=("
-                  << stitched.cols << "x" << stitched.rows << ")\n";
-        ++idx; continue;
-    }
-
-    cv::Rect dst_roi(x0, y0, x1 - x0, y1 - y0);
-    cv::Rect src_roi(x0 - offset_x, y0 - offset_y, dst_roi.width, dst_roi.height);
-    birdview(src_roi).copyTo(stitched(dst_roi));
-
-    std::cout << "Placed region " << idx++ << " at (" << offset_x << "," << offset_y
-              << "), tile=" << birdview.cols << "x" << birdview.rows
-              << ", dst_roi=" << dst_roi << "\n";
-}
-
-    // --- Place each region image
-    // Build a color per region for nice visualization
-    std::vector<cv::Scalar> region_colors;
-    region_colors.reserve(regions.size());
-    auto random_color = []() {
-        static std::mt19937 rng(std::random_device{}());
-        static std::uniform_int_distribution<int> dist(0, 255);
-        return cv::Scalar(dist(rng), dist(rng), dist(rng));
+    auto paste_region_tile = [&](const Region& r, int idx) {
+        LocationInfoRequest req("{}");
+        req.set_location(location);
+        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
+        req.set_rendering_fov(static_cast<int>(r.size));
+        req.set_include_map_source(false);
+    
+        LocationInfoResponse res = location_info(req, &session);
+        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
+        if (tile.empty()) { std::cerr << "[WARN] tile empty @ region " << idx << "\n"; return; }
+    
+        const int tile_px = static_cast<int>(std::llround(r.size * scale));
+        if (tile.cols != tile_px || tile.rows != tile_px) {
+            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
+        }
+    
+        // top-left in canvas pixels (MUST match drawing math below)
+        const int offset_x = static_cast<int>(std::floor((r.center.x - r.size*0.5 - min_x) * scale));
+        const int offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size*0.5)) * scale)); // y flipped
+    
+        // crop-safe
+        int x0 = clampi(offset_x, 0, stitched.cols);
+        int y0 = clampi(offset_y, 0, stitched.rows);
+        int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
+        int y1 = clampi(offset_y + tile.rows, 0, stitched.rows);
+        if (x1 <= x0 || y1 <= y0) return;
+    
+        cv::Rect dst(x0, y0, x1 - x0, y1 - y0);
+        cv::Rect src(x0 - offset_x, y0 - offset_y, dst.width, dst.height);
+        tile(src).copyTo(stitched(dst));
     };
-    for (size_t i = 0; i < regions.size(); ++i) region_colors.push_back(random_color());
+    
+    // Paste all tiles
+    for (size_t i = 0; i <  final_regions.size(); ++i) paste_region_tile( final_regions[i], static_cast<int>(i));
 
-    // Helper to test if a world point lies inside a region’s square FOV
-    auto inside_region = [](const invertedai::Region& r, double x, double y) {
-        double half = r.size * 0.5;
-        return (x >= r.center.x - half && x <= r.center.x + half &&
-                y >= r.center.y - half && y <= r.center.y + half);
+ // Stable, distinct-ish colors
+    auto color_from_index = [](size_t i)->cv::Scalar {
+        // simple hash -> hue-ish variation
+        uint32_t k = 0x9E3779B9u * (uint32_t)(i+1);
+        int r = 60 + (int)((k      & 0xFF) * 0.67);
+        int g = 60 + (int)(((k>>8) & 0xFF) * 0.67);
+        int b = 60 + (int)(((k>>16)& 0xFF) * 0.67);
+        return cv::Scalar(b,g,r);
     };
 
-    // ---- draw real agent positions from the consolidated response ----
-    int placed = 0;
-    for (const auto& ag : response.agent_states()) {
-        // find a region “owning” this agent for coloring (nearest square FOV match)
-        int ridx = -1;
-        for (int i = 0; i < static_cast<int>(regions.size()); ++i) {
-            if (inside_region(regions[i], ag.x, ag.y)) { ridx = i; break; }
+    int total_drawn = 0;
+    for (size_t i = 0; i < final_regions.size(); ++i) {
+        const Region& r = final_regions[i];
+        const cv::Scalar color = color_from_index(i);
+
+        // border rect in the SAME pixel math as paste
+        const int tile_px = static_cast<int>(std::llround(r.size * scale));
+        const int offset_x = static_cast<int>(std::floor((r.center.x - r.size*0.5 - min_x) * scale));
+        const int offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size*0.5)) * scale));
+
+        int L = clampi(offset_x,                0, stitched.cols-1);
+        int T = clampi(offset_y,                0, stitched.rows-1);
+        int Rr= clampi(offset_x + tile_px - 1,  0, stitched.cols-1);
+        int Bb= clampi(offset_y + tile_px - 1,  0, stitched.rows-1);
+        if (Rr > L && Bb > T) {
+            cv::rectangle(stitched, {L,T}, {Rr,Bb}, color, 2, cv::LINE_AA);
         }
-        cv::Scalar color = (ridx >= 0) ? region_colors[ridx] : cv::Scalar(0, 0, 255);
 
-        // world -> stitched pixel (must match how you pasted tiles)
-        int u = static_cast<int>((ag.x - min_x) * scale);
-        int v = static_cast<int>((max_y - ag.y) * scale); // y flipped
-
-        if (u >= 0 && u < stitched.cols && v >= 0 && v < stitched.rows) {
-            cv::circle(stitched, cv::Point(u, v), 4, color, -1);
-            ++placed;
+        // agents from THIS region
+        for (const auto& s : r.agent_states) {
+            int u = static_cast<int>(std::llround((s.x - min_x) * scale));
+            int v = static_cast<int>(std::llround((max_y -  s.y) * scale)); // flip y
+            if ((unsigned)u < (unsigned)stitched.cols && (unsigned)v < (unsigned)stitched.rows) {
+                cv::circle(stitched, {u,v}, 4, color, cv::FILLED, cv::LINE_AA);
+                ++total_drawn;
+            }
         }
     }
-    std::cout << "Total Agents Placed " << placed << "\n";
+    std::cout << "Total agents drawn from final_regions: " << total_drawn << "\n";
 
-    // // overlay agents (global placement)
-    // for (const auto& agent : response.agent_states()) {
-    //     int u = static_cast<int>((agent.x - min_x) * scale);
-    //     int v = static_cast<int>((max_y - agent.y) * scale); // flip y
-    //     cv::circle(stitched, cv::Point(u,v), 4, cv::Scalar(0,0,255), -1); // red dot
-    // }
-
-    // --- Save stitched image
+    // --- Save
     cv::imwrite("stitched_with_agents.png", stitched);
-    std::cout << "Saved stitched_with_agents.png (" << canvas_w << "x" << canvas_h << ")\n";
-
-
-
-    // --- Save initialized images
-//     std::cout << "Saving initialized region images...\n";
-//     int idx = 0;
-//     for (auto& region : regions) {
-//         // Build request
-//         invertedai::LocationInfoRequest loc_info_req("{}");
-//         loc_info_req.set_location(location);
-//         loc_info_req.set_rendering_center(std::make_optional(std::make_pair(region.center.x, region.center.y)));
-//         loc_info_req.set_rendering_fov((int)region.size);
-//         loc_info_req.set_include_map_source(false);
-
-//         // Fetch image
-//         LocationInfoResponse loc_info_res = invertedai::location_info(loc_info_req, &session);
-//         std::vector<unsigned char> img_bytes = loc_info_res.birdview_image();
-
-//         // Decode and save
-//         cv::Mat birdview = cv::imdecode(img_bytes, cv::IMREAD_COLOR);
-
-//         for (const auto& agent : response.agent_states()) {
-//             cv::Point pt = world_to_pixel(
-//                 agent.x, agent.y,
-//                 region.center.x, region.center.y,
-//                 birdview.cols, birdview.rows,
-//                 region.size
-//             );
-//             cv::circle(birdview, pt, 5, cv::Scalar(0,0,255), -1);
-//         }
-
-// cv::imwrite("region_with_agents.png", birdview);
-//         if (!birdview.empty()) {
-//             std::string filename = "region_" + std::to_string(idx++) + ".png";
-//             cv::imwrite(filename, birdview);
-//             std::cout << "Saved " << filename << "\n";
-//         } else {
-//             std::cerr << "Failed to decode image for region " << idx << "\n";
-//         }
-//     }
-
+    std::cout << "Saved stitched_with_agents.png (" << stitched.cols << "x" << stitched.rows << ")\n";
     std::cout << "All done!\n";
     return 0;
 }
+
+    // --- Probe one tile to determine scal

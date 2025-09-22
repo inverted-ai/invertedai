@@ -129,50 +129,85 @@ std::vector<Region> get_regions_in_grid(
     std::pair<float,float> map_center,
     float stride
 ) {
-    auto check_valid_center = [&](const std::pair<float,float>& center) {
-        return (map_center.first - width) < center.first && center.first < (map_center.first + width) &&
-               (map_center.second - height) < center.second && center.second < (map_center.second + height);
-    };
-
-    auto get_neighbors = [&](const std::pair<float,float>& center) {
-        return std::vector<std::pair<float,float>>{
-            {center.first + stride, center.second + stride},
-            {center.first - stride, center.second + stride},
-            {center.first + stride, center.second - stride},
-            {center.first - stride, center.second - stride}
-        };
-    };
-
-    std::vector<std::pair<float,float>> queue = {map_center};
-    std::vector<std::pair<float,float>> centers;
-
-    while (!queue.empty()) {
-        auto center = queue.back();
-        queue.pop_back();
-
-        for (auto neighbor : get_neighbors(center)) {
-            if (check_valid_center(neighbor) &&
-                std::find(queue.begin(), queue.end(), neighbor) == queue.end() &&
-                std::find(centers.begin(), centers.end(), neighbor) == centers.end()) {
-                queue.push_back(neighbor);
-            }
-        }
-
-        if (check_valid_center(center) &&
-            std::find(centers.begin(), centers.end(), center) == centers.end()) {
-            centers.push_back(center);
-        }
-    }
-
+    float half_width  = width  / 2.0f;
+    float half_height = height / 2.0f;
     std::vector<Region> regions;
-    regions.reserve(centers.size());
-    for (auto& center : centers) {
-        Point2d p{center.first, center.second};
-        regions.push_back(Region::create_square_region(p));
-    }
 
+    const float x0 = map_center.first  - half_width;
+    const float x1 = map_center.first  + half_width;
+    const float y0 = map_center.second - half_height;
+    const float y1 = map_center.second + half_height;
+
+    // make stepping robust against float fuzz
+    auto nsteps = [](float a, float b, float h) {
+        return std::max(0, (int)std::floor((b - a) / h + 0.5f));
+    };
+    const int nx = nsteps(x0, x1, stride);
+    const int ny = nsteps(y0, y1, stride);
+
+    for (int j = 0; j <= ny; ++j) {
+        float y = y0 + j * stride;
+        for (int i = 0; i <= nx; ++i) {
+            float x = x0 + i * stride;
+            regions.push_back(Region::create_square_region(Point2d{x, y}));
+        }
+    }
     return regions;
 }
+
+//     auto check_valid_center = [&](const std::pair<float,float>& center) {
+//         return (map_center.first - width) < center.first && center.first < (map_center.first + width) &&
+//                (map_center.second - height) < center.second && center.second < (map_center.second + height);
+//     };
+
+//     // auto get_neighbors = [&](const std::pair<float,float>& center) {
+//     //     return std::vector<std::pair<float,float>>{
+//     //         {center.first + stride, center.second + stride},
+//     //         {center.first - stride, center.second + stride},
+//     //         {center.first + stride, center.second - stride},
+//     //         {center.first - stride, center.second - stride}
+//     //     };
+//     // };
+//     auto get_neighbors = [&](const std::pair<float,float>& c) {
+//         return std::vector<std::pair<float,float>>{
+//             {c.first + stride, c.second}, {c.first - stride, c.second},
+//             {c.first, c.second + stride}, {c.first, c.second - stride},
+//             {c.first + stride, c.second + stride}, {c.first - stride, c.second + stride},
+//             {c.first + stride, c.second - stride}, {c.first - stride, c.second - stride},
+//         };
+//     };
+    
+
+//     std::vector<std::pair<float,float>> queue = {map_center};
+//     std::vector<std::pair<float,float>> centers;
+
+//     while (!queue.empty()) {
+//         auto center = queue.back();
+//         queue.pop_back();
+
+//         for (auto neighbor : get_neighbors(center)) {
+//             if (check_valid_center(neighbor) &&
+//                 std::find(queue.begin(), queue.end(), neighbor) == queue.end() &&
+//                 std::find(centers.begin(), centers.end(), neighbor) == centers.end()) {
+//                 queue.push_back(neighbor);
+//             }
+//         }
+
+//         if (check_valid_center(center) &&
+//             std::find(centers.begin(), centers.end(), center) == centers.end()) {
+//             centers.push_back(center);
+//         }
+//     }
+
+//     std::vector<Region> regions;
+//     regions.reserve(centers.size());
+//     for (auto& center : centers) {
+//         Point2d p{center.first, center.second};
+//         regions.push_back(Region::create_square_region(p));
+//     }
+
+//     return regions;
+// }
 
 std::vector<Region> get_number_of_agents_per_region_by_drivable_area(
     const std::string& location,
