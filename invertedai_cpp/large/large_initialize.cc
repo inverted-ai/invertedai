@@ -141,40 +141,40 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
             center.y - fov / 2.0 <= p.y && p.y <= center.y + fov / 2.0);
     }
 
-    static void pick_borrowed_agents(
-        const std::vector<AgentState>&  filtered_states,
-        const std::vector<AgentProperties>& filtered_props,
-        size_t max_take,
-        std::optional<int> random_seed,
-        std::vector<AgentState>& out_states,
-        std::vector<AgentProperties>& out_props
-    ) {
-        out_states.clear();
-        out_props.clear();
-        const size_t n = std::min(filtered_states.size(), filtered_props.size());
-        if (n == 0) return;
+    // static void pick_borrowed_agents(
+    //     const std::vector<AgentState>&  filtered_states,
+    //     const std::vector<AgentProperties>& filtered_props,
+    //     size_t max_take,
+    //     std::optional<int> random_seed,
+    //     std::vector<AgentState>& out_states,
+    //     std::vector<AgentProperties>& out_props
+    // ) {
+    //     out_states.clear();
+    //     out_props.clear();
+    //     const size_t n = std::min(filtered_states.size(), filtered_props.size());
+    //     if (n == 0) return;
     
-        std::vector<size_t> idx(n);
-        std::iota(idx.begin(), idx.end(), 0);
+    //     std::vector<size_t> idx(n);
+    //     std::iota(idx.begin(), idx.end(), 0);
     
-        std::mt19937 rng(random_seed.value_or(std::random_device{}()));
-        std::shuffle(idx.begin(), idx.end(), rng);
+    //     std::mt19937 rng(random_seed.value_or(std::random_device{}()));
+    //     std::shuffle(idx.begin(), idx.end(), rng);
     
-        const size_t take = std::min(max_take, n);
-        out_states.reserve(take);
-        out_props.reserve(take);
-        for (size_t k = 0; k < take; ++k) {
-            size_t j = idx[k];
-            out_states.push_back(filtered_states[j]);
-            out_props.push_back(filtered_props[j]);
-        }
-    }
+    //     const size_t take = std::min(max_take, n);
+    //     out_states.reserve(take);
+    //     out_props.reserve(take);
+    //     for (size_t k = 0; k < take; ++k) {
+    //         size_t j = idx[k];
+    //         out_states.push_back(filtered_states[j]);
+    //         out_props.push_back(filtered_props[j]);
+    //     }
+    // }
     
     std::pair<std::vector<invertedai::Region>, std::vector<invertedai::InitializeResponse>>
     initialize_regions(
         const std::string& location,
         std::vector<invertedai::Region> regions,
-        const std::optional<std::vector<TrafficLightStatesDict>>& traffic_light_state_history,
+        std::optional<std::map<std::string, std::string>>& traffic_light_state_history,
         bool get_infractions,
         std::optional<int> random_seed,
         std::optional<std::string> api_model_version,
@@ -283,10 +283,10 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
                     req.set_location_of_interest(std::make_optional(
                         std::make_pair(region_center.x, region_center.y)));
                     req.set_get_infractions(get_infractions);
-    
+
+                    // set light states if provided
                     if (traffic_light_state_history.has_value()) {
-                        req.set_traffic_light_state_history(
-                            convert_traffic_light_history(*traffic_light_state_history));
+                        req.set_traffic_light_state_history({ *traffic_light_state_history });
                     }
     
                     //   Python: response = iai.initialize(...)
@@ -312,8 +312,8 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
     
             //   Python: filter out borrowed agents, only keep “native”
             size_t  num_out_of_region_conditional_agents = borrowed_states.size();
-    
-            if (init_res.has_value()) {
+        
+            if (init_res.has_value()) {              
                 // Filter out conditional agents from other regions
                 std::vector<InfractionIndicator> infractions;
             
@@ -374,9 +374,14 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
                 all_responses.push_back(final_res);
             
                 // Carry over traffic light states if none provided and response has them !!! DNE   TODO
-                // if (!traffic_light_state_history.has_value() && init_res->traffic_light_state_history().empty()) {
-                //     traffic_light_state_history = { init_res->traffic_light_state_history() };
-                // }
+                if (init_res.has_value()) {
+                    if (init_res->traffic_lights_states().has_value() &&
+                        !init_res->traffic_lights_states()->empty() &&
+                        !traffic_light_state_history.has_value()) 
+                    {
+                        traffic_light_state_history = init_res->traffic_lights_states().value();
+                    }
+                }
             }
         }
     
@@ -471,7 +476,7 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
     return merged;
 }
 
-invertedai::InitializeResponse large_initialize(const invertedai::LargeInitializeConfig& cfg) {
+invertedai::InitializeResponse large_initialize(invertedai::LargeInitializeConfig& cfg) {
     // validate inputs
     if(cfg.regions.size() == 0) {
         throw std::invalid_argument("At least one region must be provided.");
@@ -521,7 +526,7 @@ invertedai::InitializeResponse large_initialize(const invertedai::LargeInitializ
 }
 
 
-LargeInitializeOutput large_initialize_with_regions(const invertedai::LargeInitializeConfig& cfg) {
+LargeInitializeOutput large_initialize_with_regions(invertedai::LargeInitializeConfig& cfg) {
     if (cfg.regions.empty()) {
         throw std::invalid_argument("At least one region must be provided.");
     }

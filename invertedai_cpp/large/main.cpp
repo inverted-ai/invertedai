@@ -64,14 +64,14 @@ int main() {
 
 // ./bazel-bin/large/large_main
 // bazel build //large:large_main 
-    std::string location = "can:boundary_rd_and_kingsway_canada";
+    std::string location = "can:browns_line_and_coules_court_canada";
 
     // Keep the classic "total_num_agents" knob
     int total_num_agents = 50;
 
     // Canvas hint (used by get_regions_default)
-    int width  = 800;
-    int height = 800;
+    int width  = 1000;
+    int height = 1000;
 
     // Random seed
     std::random_device rd;
@@ -82,7 +82,7 @@ int main() {
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
-    session.set_api_key("");
+    session.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
     session.connect();
 
     // --- Get map info (for map_center)

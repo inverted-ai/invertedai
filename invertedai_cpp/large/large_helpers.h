@@ -49,7 +49,7 @@
         float width,
         float height,
         std::pair<float,float> map_center = {0.0f,0.0f},
-        float stride = 50.0f
+        float stride = 100.0f
     );
 
     AgentProperties make_default_properties(AgentType type);

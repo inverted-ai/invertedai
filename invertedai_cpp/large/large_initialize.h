@@ -21,7 +21,7 @@ struct LargeInitializeConfig {
 
     std::optional<std::vector<AgentProperties>> agent_properties = std::nullopt;
     std::optional<std::vector<AgentState>> agent_states = std::nullopt;
-    std::optional<std::vector<TrafficLightStatesDict>> traffic_light_state_history = std::nullopt;
+    std::optional<std::map<std::string, std::string>> traffic_light_state_history = std::nullopt;
 
     bool get_infractions = false;
     std::optional<int> random_seed = std::nullopt;
@@ -30,7 +30,7 @@ struct LargeInitializeConfig {
     bool return_exact_agents = false;
 };
 
-LargeInitializeOutput large_initialize_with_regions(const invertedai::LargeInitializeConfig& cfg); // for testing the regions
+LargeInitializeOutput large_initialize_with_regions(invertedai::LargeInitializeConfig& cfg); // for testing the regions
 
 std::pair<std::vector<Region>, std::vector<std::pair<int, int>>> insert_agents_into_nearest_regions(
     std::vector<Region> regions,
@@ -46,7 +46,7 @@ convert_traffic_light_history(const std::vector<TrafficLightStatesDict>& dicts);
 std::pair<std::vector<invertedai::Region>, std::vector<invertedai::InitializeResponse>> initialize_regions(
     const std::string& location,
     std::vector<invertedai::Region> regions,
-    const std::optional<std::vector<TrafficLightStatesDict>>& traffic_light_state_history = std::nullopt,
+    std::optional<std::map<std::string, std::string>>& traffic_light_state_history,
     bool get_infractions = false,
     std::optional<int> random_seed = std::nullopt,
     std::optional<std::string> api_model_version = std::nullopt,
@@ -61,7 +61,7 @@ InitializeResponse consolidate_all_responses(
     bool get_infractions = false
 );
 
-invertedai::InitializeResponse large_initialize(const invertedai::LargeInitializeConfig& cfg);
+invertedai::InitializeResponse large_initialize(invertedai::LargeInitializeConfig& cfg);
 } // namespace invertedai
 #ifndef LARGE_INITIALIZE_H
 #define LARGE_INITIALIZE_H
