@@ -64,10 +64,10 @@ int main() {
 
 // ./bazel-bin/large/large_main
 // bazel build //large:large_main 
-    std::string location = "can:browns_line_and_coules_court_canada";
+    std::string location = "can:cambie_broadway";
 
     // Keep the classic "total_num_agents" knob
-    int total_num_agents = 50;
+    int total_num_agents = 40;
 
     // Canvas hint (used by get_regions_default)
     int width  = 1000;

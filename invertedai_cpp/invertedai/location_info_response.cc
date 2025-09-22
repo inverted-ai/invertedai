@@ -33,6 +33,9 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
     std::optional<int> width = element["width"].is_number_float()
       ? std::optional<int>{element["width"]}
       : std::nullopt;
+    std::optional<std::vector<int>> dependant = element["dependant"].is_array()
+      ? std::optional<std::vector<int>>{element["dependant"]}
+      : std::nullopt;
     StaticMapActor static_map_actor = {
       element["actor_id"],
       element["agent_type"],
@@ -41,7 +44,7 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
       element["orientation"],
       length,
       width,
-      element["dependant"]
+      dependant
     };
     this->static_actors_.push_back(static_map_actor);
   }
@@ -79,8 +82,11 @@ void LocationInfoResponse::refresh_body_json_() {
     } else {
       element["width"] = nullptr;
     }
-    element["dependant"] = static_map_actor.dependant;
-    this->body_json_["static_actors"].push_back(element);
+    if (static_map_actor.dependant.has_value()) {
+      element["dependant"] = static_map_actor.dependant.value();
+    } else {
+      element["dependant"] = nullptr;
+    }    this->body_json_["static_actors"].push_back(element);
   }
 }
 
