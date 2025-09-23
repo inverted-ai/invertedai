@@ -64,10 +64,11 @@ int main() {
 
 // ./bazel-bin/large/large_main
 // bazel build //large:large_main 
-    std::string location = "can:cambie_broadway";
+    std::string location = "carla:Town03";
+    constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
 
     // Keep the classic "total_num_agents" knob
-    int total_num_agents = 40;
+    int total_num_agents = 130;
 
     // Canvas hint (used by get_regions_default)
     int width  = 1000;
@@ -137,6 +138,11 @@ int main() {
     std::cout << "Number of agents (merged): " << response.agent_states().size() << "\n";
     // Use only final_regions from here on for geometry/rendering
     const std::vector<Region>& final_regions = outputed_regions;
+    for(const auto& r : final_regions) {
+        std::cout << " Region center=(" << r.center.x << "," << r.center.y << ")"
+        << " size=" << r.size
+        << " num_agents=" << r.agent_states.size() << "\n";
+    }
 
     // 1) Bounds in world meters
     double min_x =  std::numeric_limits<double>::infinity();
@@ -185,12 +191,31 @@ int main() {
         if (tile.cols != tile_px || tile.rows != tile_px) {
             cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
         }
-    
-        // top-left in canvas pixels (MUST match drawing math below)
-        const int offset_x = static_cast<int>(std::floor((r.center.x - r.size*0.5 - min_x) * scale));
-        const int offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size*0.5)) * scale)); // y flipped
-    
-        // crop-safe
+   
+        int offset_x, offset_y;
+        if (FLIP_X_FOR_THIS_DOMAIN) {
+            int num_cols = static_cast<int>(std::round((max_x - min_x) / r.size));
+            int col = static_cast<int>(std::round((r.center.x - min_x) / r.size));
+            int flipped_col = (num_cols - 1) - col;
+
+            int num_rows = static_cast<int>(std::round((max_y - min_y) / r.size));
+            int row = static_cast<int>(std::round((max_y - r.center.y) / r.size));
+
+            // shift up and right by one
+            flipped_col += 1;
+            row -= 1;
+
+            // clamp so we don’t go out of bounds
+            flipped_col = std::max(0, std::min(flipped_col, num_cols - 1));
+            row = std::max(0, std::min(row, num_rows - 1));
+            // final pixel offsets
+            offset_x = flipped_col * tile_px;
+            offset_y = row * tile_px;
+        } else {
+            // top-left in canvas pixels (MUST match drawing math below)
+            offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
+            offset_x = static_cast<int>(std::floor((r.center.x - r.size*0.5 - min_x) * scale));
+        }
         int x0 = clampi(offset_x, 0, stitched.cols);
         int y0 = clampi(offset_y, 0, stitched.rows);
         int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
@@ -206,39 +231,86 @@ int main() {
     for (size_t i = 0; i <  final_regions.size(); ++i) paste_region_tile( final_regions[i], static_cast<int>(i));
 
  // Stable, distinct-ish colors
-    auto color_from_index = [](size_t i)->cv::Scalar {
-        // simple hash -> hue-ish variation
-        uint32_t k = 0x9E3779B9u * (uint32_t)(i+1);
-        int r = 60 + (int)((k      & 0xFF) * 0.67);
-        int g = 60 + (int)(((k>>8) & 0xFF) * 0.67);
-        int b = 60 + (int)(((k>>16)& 0xFF) * 0.67);
-        return cv::Scalar(b,g,r);
+    // auto color_from_index = [](size_t i) -> cv::Scalar {
+    //     // Use HSV color wheel for distinct colors
+    //     const int num_steps = 10; // number of distinct hues before repeating
+    //     double hue = (i % num_steps) * (180.0 / num_steps); // OpenCV hue: [0,180]
+    //     double sat = 200 + (i * 37) % 56;  // saturation 200–255
+    //     double val = 200;                  // brightness
+
+    //     cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(hue, sat, val));
+    //     cv::Mat bgr;
+    //     cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
+
+    //     cv::Vec3b c = bgr.at<cv::Vec3b>(0, 0);
+    //     return cv::Scalar(c[0], c[1], c[2]); // B, G, R
+    // };
+    auto color_from_index = [&](size_t i) -> cv::Scalar {
+        size_t N = final_regions.size();  // total number of regions
+        if (N == 0) return cv::Scalar(255, 255, 255);
+    
+        // Evenly spaced hues across [0, 180) in OpenCV HSV
+        double hue = (static_cast<double>(i) / N) * 180.0; 
+        double sat = 255.0; // full saturation
+        double val = 255.0; // full brightness
+    
+        cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(hue, sat, val));
+        cv::Mat bgr;
+        cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
+    
+        cv::Vec3b c = bgr.at<cv::Vec3b>(0, 0);
+        return cv::Scalar(c[0], c[1], c[2]); // OpenCV uses BGR order
     };
 
     int total_drawn = 0;
     for (size_t i = 0; i < final_regions.size(); ++i) {
         const Region& r = final_regions[i];
         const cv::Scalar color = color_from_index(i);
-
-        // border rect in the SAME pixel math as paste
+    
+        // Compute tile size in pixels
         const int tile_px = static_cast<int>(std::llround(r.size * scale));
-        const int offset_x = static_cast<int>(std::floor((r.center.x - r.size*0.5 - min_x) * scale));
-        const int offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size*0.5)) * scale));
-
-        int L = clampi(offset_x,                0, stitched.cols-1);
-        int T = clampi(offset_y,                0, stitched.rows-1);
-        int Rr= clampi(offset_x + tile_px - 1,  0, stitched.cols-1);
-        int Bb= clampi(offset_y + tile_px - 1,  0, stitched.rows-1);
-        if (Rr > L && Bb > T) {
-            cv::rectangle(stitched, {L,T}, {Rr,Bb}, color, 2, cv::LINE_AA);
+    
+        int offset_x, offset_y;
+    
+        if (FLIP_X_FOR_THIS_DOMAIN) {
+            // Compute how many columns in total
+            int num_cols = static_cast<int>(std::round((max_x - min_x) / r.size));
+            // Region’s column index
+            int col = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) / r.size));
+                        // Flip column across vertical axis
+            int flipped_col = (num_cols - 1) - col;
+    
+            offset_x = flipped_col * tile_px;
+            offset_y = static_cast<int>(
+                std::floor((max_y - (r.center.y + r.size * 0.5)) * scale)
+            );
+        } else {
+            // Default (unflipped) behavior
+            offset_x = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) * scale));
+            offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
         }
-
-        // agents from THIS region
+    
+        // Border rectangle
+        int L  = clampi(offset_x, 0, stitched.cols) + 2;
+        int T  = clampi(offset_y, 0, stitched.rows) + 2;
+        int Rr = clampi(offset_x + tile_px - 1, 0, stitched.cols) - 2;
+        int Bb = clampi(offset_y + tile_px - 1, 0, stitched.rows) - 2;
+        if (Rr > L && Bb > T) {
+            cv::rectangle(stitched, {L, T}, {Rr, Bb}, color, 2, cv::LINE_AA);
+        }
+    
+        // Agents from THIS region
         for (const auto& s : r.agent_states) {
             int u = static_cast<int>(std::llround((s.x - min_x) * scale));
-            int v = static_cast<int>(std::llround((max_y -  s.y) * scale)); // flip y
-            if ((unsigned)u < (unsigned)stitched.cols && (unsigned)v < (unsigned)stitched.rows) {
-                cv::circle(stitched, {u,v}, 4, color, cv::FILLED, cv::LINE_AA);
+            int v = static_cast<int>(std::llround((max_y - s.y) * scale));
+    
+            if (FLIP_X_FOR_THIS_DOMAIN) {
+                u = stitched.cols - u;
+            }
+    
+            if ((unsigned)u < (unsigned)stitched.cols &&
+                (unsigned)v < (unsigned)stitched.rows) {
+                cv::circle(stitched, {u, v}, 4, color, cv::FILLED, cv::LINE_AA);
                 ++total_drawn;
             }
         }
@@ -246,7 +318,7 @@ int main() {
     std::cout << "Total agents drawn from final_regions: " << total_drawn << "\n";
 
     // --- Save
-    cv::imwrite("stitched_with_agents.png", stitched);
+    cv::imwrite("sstitched_with_agents.png", stitched);
     std::cout << "Saved stitched_with_agents.png (" << stitched.cols << "x" << stitched.rows << ")\n";
     std::cout << "All done!\n";
     return 0;
