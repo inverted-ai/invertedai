@@ -83,8 +83,7 @@ namespace invertedai {
         Session& session,
         std::optional<std::pair<float,float>> area_shape,
         std::pair<float,float> map_center,
-        std::optional<int> random_seed,
-        bool display_progress_bar
+        std::optional<int> random_seed
     ) {
         if (!agent_count_dict.has_value()) {
             if (!total_num_agents.has_value()) {
@@ -114,8 +113,7 @@ namespace invertedai {
             total_num_agents,         // total_num_agents (deprecated)
             agent_count_dict,        // agent_count_dict
             session,
-            random_seed,
-            display_progress_bar
+            random_seed
         );
     
         return new_regions;
@@ -216,8 +214,7 @@ std::vector<Region> get_number_of_agents_per_region_by_drivable_area(
     std::optional<std::map<AgentType,int>> agent_count_dict,
    
     Session& session,
-    std::optional<int> random_seed,
-    bool display_progress_bar
+    std::optional<int> random_seed
 )  {
     if (!agent_count_dict.has_value()) {
         if (!total_num_agents.has_value()) {

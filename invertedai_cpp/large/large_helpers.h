@@ -19,8 +19,7 @@
         std::optional<int> total_num_agents,
         std::optional<std::map<AgentType,int>> agent_count_dict,
         Session& session,
-        std::optional<int> random_seed,
-        bool display_progress_bar
+        std::optional<int> random_seed
     );
 
 
@@ -31,8 +30,7 @@
         Session& session,
         std::optional<std::pair<float,float>> area_shape = std::nullopt,
         std::pair<float,float> map_center = {0.0f, 0.0f},
-        std::optional<int> random_seed = std::nullopt,
-        bool display_progress_bar = false
+        std::optional<int> random_seed = std::nullopt
     );
         std::vector<Region> get_number_of_agents_per_region_by_drivable_area(
         const std::string& location,
@@ -40,8 +38,7 @@
         std::optional<int> total_num_agents,
         std::optional<std::map<AgentType,int>> agent_count_dict,
         Session& session,
-        std::optional<int> random_seed,
-        bool display_progress_bar
+        std::optional<int> random_seed
     );
 
 

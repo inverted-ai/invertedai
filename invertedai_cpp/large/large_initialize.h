@@ -26,7 +26,6 @@ struct LargeInitializeConfig {
     bool get_infractions = false;
     std::optional<int> random_seed = std::nullopt;
     std::optional<std::string> api_model_version = std::nullopt;
-    bool display_progress_bar = true;
     bool return_exact_agents = false;
 };
 
@@ -50,7 +49,6 @@ std::pair<std::vector<invertedai::Region>, std::vector<invertedai::InitializeRes
     bool get_infractions = false,
     std::optional<int> random_seed = std::nullopt,
     std::optional<std::string> api_model_version = std::nullopt,
-    bool display_progress_bar = true,
     bool return_exact_agents = false
 );
 

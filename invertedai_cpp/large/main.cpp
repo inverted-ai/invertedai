@@ -68,7 +68,7 @@ int main() {
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
 
     // Keep the classic "total_num_agents" knob
-    int total_num_agents = 130;
+    int total_num_agents = 300;
 
     // Canvas hint (used by get_regions_default)
     int width  = 1000;
@@ -111,8 +111,8 @@ int main() {
         session,
         std::pair<float,float>{width/2.f, height/2.f}, // area_shape / hint
         map_center,                                    // map center from location_info
-        initialize_seed,                               // random seed
-        true                                           // show progress
+        initialize_seed                               // random seed
+
     );
     validate_regions_100x100(regions, /*expected=*/100.0);
     std::cout << "Generated " << regions.size() << " regions.\n";
@@ -124,7 +124,6 @@ int main() {
     cfg.random_seed = initialize_seed;
     cfg.get_infractions = true;
     cfg.traffic_light_state_history = std::nullopt;
-    cfg.display_progress_bar = true;
     cfg.return_exact_agents = false;
     cfg.api_model_version = std::nullopt;
     cfg.agent_properties = std::nullopt;  // let API sample

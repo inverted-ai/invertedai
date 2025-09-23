@@ -178,7 +178,6 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
         bool get_infractions,
         std::optional<int> random_seed,
         std::optional<std::string> api_model_version,
-        bool display_progress_bar,
         bool return_exact_agents
     ) {
         std::vector<InitializeResponse> all_responses;
@@ -190,9 +189,8 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
         session.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
         session.connect();
     
-        const int num_attempts = 1 + static_cast<int>(regions.size()) / ATTEMPT_PER_NUM_REGIONS;
+        const int num_attempts = std::min(10, 1 + static_cast<int>(regions.size()) / ATTEMPT_PER_NUM_REGIONS);
 
-        //!!!! TODO add a progress bar logic
     
         for (size_t i = 0; i < regions.size(); ++i) {
             Region& region = regions[i];
@@ -510,7 +508,6 @@ invertedai::InitializeResponse large_initialize(invertedai::LargeInitializeConfi
         cfg.get_infractions,
         cfg.random_seed,
         cfg.api_model_version,
-        cfg.display_progress_bar,
         cfg.return_exact_agents
     );
 
@@ -553,7 +550,6 @@ LargeInitializeOutput large_initialize_with_regions(invertedai::LargeInitializeC
         cfg.get_infractions,
         cfg.random_seed,
         cfg.api_model_version,
-        cfg.display_progress_bar,
         cfg.return_exact_agents
     );
 
