@@ -18,6 +18,7 @@ struct LargeInitializeOutput {
 struct LargeInitializeConfig {
     std::string location;
     std::vector<invertedai::Region> regions;
+    Session& session;
 
     std::optional<std::vector<AgentProperties>> agent_properties = std::nullopt;
     std::optional<std::vector<AgentState>> agent_states = std::nullopt;
@@ -27,6 +28,9 @@ struct LargeInitializeConfig {
     std::optional<int> random_seed = std::nullopt;
     std::optional<std::string> api_model_version = std::nullopt;
     bool return_exact_agents = false;
+
+    LargeInitializeConfig(Session& sess): 
+        session(sess) {}
 };
 
 LargeInitializeOutput large_initialize_with_regions(invertedai::LargeInitializeConfig& cfg); // for testing the regions
@@ -45,6 +49,7 @@ convert_traffic_light_history(const std::vector<TrafficLightStatesDict>& dicts);
 std::pair<std::vector<invertedai::Region>, std::vector<invertedai::InitializeResponse>> initialize_regions(
     const std::string& location,
     std::vector<invertedai::Region> regions,
+    Session& session,
     std::optional<std::map<std::string, std::string>>& traffic_light_state_history,
     bool get_infractions = false,
     std::optional<int> random_seed = std::nullopt,

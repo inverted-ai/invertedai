@@ -174,6 +174,7 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
     initialize_regions(
         const std::string& location,
         std::vector<invertedai::Region> regions,
+        Session& session,
         std::optional<std::map<std::string, std::string>>& traffic_light_state_history,
         bool get_infractions,
         std::optional<int> random_seed,
@@ -182,12 +183,6 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
     ) {
         std::vector<InitializeResponse> all_responses;
     
-        // Create ONE session for all requests in this function !!! TODO: change this
-        boost::asio::io_context ioc;
-        ssl::context ctx(ssl::context::tlsv12_client);
-        invertedai::Session session(ioc, ctx);
-        session.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
-        session.connect();
     
         const int num_attempts = std::min(10, 1 + static_cast<int>(regions.size()) / ATTEMPT_PER_NUM_REGIONS);
 
@@ -504,6 +499,7 @@ invertedai::InitializeResponse large_initialize(invertedai::LargeInitializeConfi
     auto [final_regions, all_reponses] = invertedai::initialize_regions(
         cfg.location,
         regions_with_agents,
+        cfg.session,
         cfg.traffic_light_state_history,
         cfg.get_infractions,
         cfg.random_seed,
@@ -546,6 +542,7 @@ LargeInitializeOutput large_initialize_with_regions(invertedai::LargeInitializeC
     auto [final_regions, all_responses] = invertedai::initialize_regions(
         cfg.location,
         regions_with_agents,
+        cfg.session,
         cfg.traffic_light_state_history,
         cfg.get_infractions,
         cfg.random_seed,

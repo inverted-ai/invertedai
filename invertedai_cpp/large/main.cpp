@@ -64,11 +64,11 @@ int main() {
 
 // ./bazel-bin/large/large_main
 // bazel build //large:large_main 
-    std::string location = "carla:Town03";
+    std::string location = "carla:Town10HD";
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
 
     // Keep the classic "total_num_agents" knob
-    int total_num_agents = 300;
+    int total_num_agents = 80;
 
     // Canvas hint (used by get_regions_default)
     int width  = 1000;
@@ -79,7 +79,7 @@ int main() {
     std::mt19937 gen(rd());
     int initialize_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
 
-    // --- Session
+    // --- Session connection
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
@@ -117,8 +117,8 @@ int main() {
     validate_regions_100x100(regions, /*expected=*/100.0);
     std::cout << "Generated " << regions.size() << " regions.\n";
 
-    // --- Large initialize (we want updated regions back for drawing)
-    LargeInitializeConfig cfg;
+    // set up arguments for large initialize
+    LargeInitializeConfig cfg(session);
     cfg.location = location;
     cfg.regions = regions;                // seed regions
     cfg.random_seed = initialize_seed;
