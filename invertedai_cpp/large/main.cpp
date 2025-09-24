@@ -58,6 +58,53 @@ auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
     }
     return ok;
     };
+    inline std::pair<std::vector<AgentState>, std::vector<AgentProperties>>
+    generate_agents_for_region(const Region& region,
+                               const std::map<AgentType, int>& agent_count_dict)
+    {
+        std::vector<AgentState> states;
+        std::vector<AgentProperties> props;
+    
+        // simple RNG for placing agents inside the region bounds
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_real_distribution<double> dist_x(region.center.x - region.size/2.0,
+                                                      region.center.x + region.size/2.0);
+        std::uniform_real_distribution<double> dist_y(region.center.y - region.size/2.0,
+                                                      region.center.y + region.size/2.0);
+        std::uniform_real_distribution<double> dist_theta(0.0, 2*M_PI);
+    
+        for (auto& [atype, count] : agent_count_dict) {
+            for (int i = 0; i < count; i++) {
+                AgentState st;
+                st.x = dist_x(rng);
+                st.y = dist_y(rng);
+                st.orientation = dist_theta(rng);
+                st.speed = 0.0; // start stationary
+    
+                AgentProperties pr;
+                if (atype == AgentType::car) {
+                    pr.length = 4.5;
+                    pr.width = 1.8;
+                    pr.rear_axis_offset = 1.0;
+                    pr.agent_type = "car";
+                    pr.waypoint = region.center;   // give it a target
+                    pr.max_speed = 15.0;
+                } else if (atype == AgentType::pedestrian) {
+                    pr.length = 0.5;
+                    pr.width = 0.5;
+                    pr.rear_axis_offset = 0.0;
+                    pr.agent_type = "pedestrian";
+                    pr.waypoint = region.center;
+                    pr.max_speed = 1.5;
+                }
+    
+                states.push_back(st);
+                props.push_back(pr);
+            }
+        }
+    
+        return {states, props};
+    }
 
 int main() {
     // --- Inputs
@@ -68,7 +115,7 @@ int main() {
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
 
     // Keep the classic "total_num_agents" knob
-    int total_num_agents = 80;
+    int total_num_agents = 2;
 
     // Canvas hint (used by get_regions_default)
     int width  = 1000;
@@ -116,7 +163,6 @@ int main() {
     );
     validate_regions_100x100(regions, /*expected=*/100.0);
     std::cout << "Generated " << regions.size() << " regions.\n";
-
     // set up arguments for large initialize
     LargeInitializeConfig cfg(session);
     cfg.location = location;
@@ -124,15 +170,20 @@ int main() {
     cfg.random_seed = initialize_seed;
     cfg.get_infractions = true;
     cfg.traffic_light_state_history = std::nullopt;
-    cfg.return_exact_agents = false;
+    cfg.return_exact_agents = true;
     cfg.api_model_version = std::nullopt;
-    cfg.agent_properties = std::nullopt;  // let API sample
-    cfg.agent_states     = std::nullopt;  // let API sample
+    auto [init_states, init_props] = generate_agents_for_region(cfg.regions.front(), {
+        {AgentType::car, 20},
+        // {AgentType::pedestrian, 2}
+    });
+    cfg.agent_states     = std::nullopt;  
+    cfg.agent_properties = init_props; 
 
     std::cout << "Calling large_initialize with " << regions.size() << " regions...\n";
     auto out = invertedai::large_initialize_with_regions(cfg);
     InitializeResponse response = std::move(out.response);
     std::vector<Region> outputed_regions = std::move(out.regions); // use this for drawing
+
 
     std::cout << "Number of agents (merged): " << response.agent_states().size() << "\n";
     // Use only final_regions from here on for geometry/rendering
@@ -142,6 +193,8 @@ int main() {
         << " size=" << r.size
         << " num_agents=" << r.agent_states.size() << "\n";
     }
+
+
 
     // 1) Bounds in world meters
     double min_x =  std::numeric_limits<double>::infinity();

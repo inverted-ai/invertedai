@@ -96,6 +96,7 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
         }
     }
     
+    
         // 2. Place remaining properties (agents without states)
         std::mt19937 rng(random_seed.value_or(std::random_device{}()));
         std::uniform_int_distribution<int> dist(0, static_cast<int>(num_regions - 1));
@@ -169,7 +170,14 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
     //         out_props.push_back(filtered_props[j]);
     //     }
     // }
-    
+    auto ensure_full_properties = [](AgentProperties& p, const std::string& type){
+        if (!p.length)            p.length = (type == "car" ? 4.5 : 0.5);
+        if (!p.width)             p.width  = (type == "car" ? 1.8 : 0.5);
+        if (!p.rear_axis_offset)  p.rear_axis_offset = (type == "car" ? 1.0 : 0.0);
+        if (!p.agent_type)        p.agent_type = type;
+        if (!p.waypoint)          p.waypoint = Point2d{0,0};  // or region.center
+        if (!p.max_speed)         p.max_speed = (type == "car" ? 15.0 : 1.5);
+    };    
     std::pair<std::vector<invertedai::Region>, std::vector<invertedai::InitializeResponse>>
     initialize_regions(
         const std::string& location,
@@ -271,7 +279,39 @@ std::pair<std::vector<Region>, RegionMap>   insert_agents_into_nearest_regions(
                     if (!all_agent_states.empty()) {
                         req.set_states_history({all_agent_states});
                     }
-    
+                    
+                    for (size_t j = 0; j < all_agent_props.size(); j++) {
+                        auto& props = all_agent_props[j];
+                        std::string type = props.agent_type.value_or("car");
+                    
+                        bool has_state = (j < all_agent_states.size());
+                    
+                        if (has_state) {
+                            // must fully specify
+                            if (!props.length)           props.length = (type == "car" ? 4.5 : 0.5);
+                            if (!props.width)            props.width  = (type == "car" ? 1.8 : 0.5);
+                            if (!props.rear_axis_offset) props.rear_axis_offset = (type == "car" ? 1.0 : 0.0);
+                            if (!props.max_speed)        props.max_speed = (type == "car" ? 15.0 : 1.5);
+                            if (!props.waypoint)         props.waypoint = Point2d{0,0};
+                        } else {
+                            // must NOT include static geometry → strip down to type + optional waypoint
+                            props.length.reset();
+                            props.width.reset();
+                            props.rear_axis_offset.reset();
+                            props.max_speed.reset();
+                            // keep agent_type and waypoint only
+                        }
+                    
+                        if (!props.agent_type) props.agent_type = type;
+                    }
+                    std::cout << "[DEBUG] Region " << i << " agents before sending:\n";
+                    for (size_t j = 0; j < all_agent_props.size(); j++) {
+                        std::cout << "  Agent " << j 
+                                  << " type=" << all_agent_props[j].agent_type.value_or("unset")
+                                  << " has_state=" << (j < all_agent_states.size() ? "yes" : "no") 
+                                  << "\n";
+                        all_agent_props[j].printFields();
+                    }
                     req.set_agent_properties(all_agent_props);
                     req.set_location_of_interest(std::make_optional(
                         std::make_pair(region_center.x, region_center.y)));
