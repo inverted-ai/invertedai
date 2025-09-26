@@ -363,7 +363,7 @@ int main() {
     std::cout << "Total agents drawn from final_regions: " << total_drawn << "\n";
 
     // --- Save
-    cv::imwrite("sstitched_with_agents.png", stitched);
+    cv::imwrite("stitched_with_agents.png", stitched);
     std::cout << "Saved stitched_with_agents.png (" << stitched.cols << "x" << stitched.rows << ")\n";
     std::cout << "All done!\n";
     return 0;
