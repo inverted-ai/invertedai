@@ -20,6 +20,7 @@ using namespace invertedai;
 // Clamp helper
 inline int clampi(int v, int lo, int hi) { return std::max(lo, std::min(v, hi)); }
 
+// ensure all regions are 100m x 100m 
 auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
     double expected = 100.0,
     double tol = 1e-6,
@@ -58,6 +59,8 @@ auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
     }
     return ok;
     };
+
+// Simple agent generator for testing
     inline std::pair<std::vector<AgentState>, std::vector<AgentProperties>>
     generate_agents_for_region(const Region& region,
                                const std::map<AgentType, int>& agent_count_dict)
@@ -72,12 +75,15 @@ auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
         std::uniform_real_distribution<double> dist_y(region.center.y - region.size/2.0,
                                                       region.center.y + region.size/2.0);
         std::uniform_real_distribution<double> dist_theta(0.0, 2*M_PI);
-    
+        double spawn_x = region.center.x + 40.0; // near top-right but inside
+        double spawn_y = region.center.y + 40.0; // slightly offset downward
         for (auto& [atype, count] : agent_count_dict) {
             for (int i = 0; i < count; i++) {
                 AgentState st;
-                st.x = dist_x(rng);
-                st.y = dist_y(rng);
+                st.x = spawn_x; 
+                st.y = spawn_y; // avoid overlap for testing
+                // st.x = dist_x(rng);
+                // st.y = dist_y(rng);
                 st.orientation = dist_theta(rng);
                 st.speed = 0.0; // start stationary
     
@@ -98,7 +104,7 @@ auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
                     pr.max_speed = 1.5;
                 }
     
-                states.push_back(st);
+                //states.push_back(st);
                 props.push_back(pr);
             }
         }
@@ -107,30 +113,30 @@ auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
     }
 
 int main() {
-    // --- Inputs
 
-// ./bazel-bin/large/large_main
 // bazel build //large:large_main 
+// ./bazel-bin/large/large_main
     std::string location = "carla:Town10HD";
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
+    std::string API_KEY; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
-    // Keep the classic "total_num_agents" knob
-    int total_num_agents = 2;
+    // controls for how many additional agents to add
+    int total_num_agents = 90;
 
-    // Canvas hint (used by get_regions_default)
+    // (used by get_regions_default)
     int width  = 1000;
     int height = 1000;
 
     // Random seed
     std::random_device rd;
     std::mt19937 gen(rd());
-    int initialize_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
+    int initialize_seed = std::uniform_int_distribution<>(1, 1000000)(gen); // or fixed for repeatability 
 
     // --- Session connection
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
-    session.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
+    session.set_api_key(API_KEY);
     session.connect();
 
     // --- Get map info (for map_center)
@@ -144,8 +150,7 @@ int main() {
         static_cast<float>(li_res.map_origin().y)
     };
 
-    // --- Old region setup (unchanged idea)
-    // Keep ability to control totals via total_num_agents and agent_count_dict
+    // --- Generate default regions
     std::map<AgentType,int> agent_count_dict = {
         {AgentType::car, total_num_agents}
     };
@@ -172,12 +177,14 @@ int main() {
     cfg.traffic_light_state_history = std::nullopt;
     cfg.return_exact_agents = true;
     cfg.api_model_version = std::nullopt;
+
+    // Simple agent generator for testing
     auto [init_states, init_props] = generate_agents_for_region(cfg.regions.front(), {
-        {AgentType::car, 20},
-        // {AgentType::pedestrian, 2}
+        {AgentType::car, 10},
+    
     });
-    cfg.agent_states     = std::nullopt;  
-    cfg.agent_properties = init_props; 
+    cfg.agent_states     = std::nullopt;  //init_states; 
+    cfg.agent_properties = std::nullopt; //init_props; 
 
     std::cout << "Calling large_initialize with " << regions.size() << " regions...\n";
     auto out = invertedai::large_initialize_with_regions(cfg);
@@ -208,7 +215,7 @@ int main() {
         max_y = std::max(max_y, r.center.y + r.size * 0.5);
     }
 
-    // 2) Learn scale from the FIRST final region
+    // 2) Learn scale from the first final region
     auto probe_region =  final_regions.front();
     LocationInfoRequest probe("{}");
     probe.set_location(location);
@@ -282,21 +289,7 @@ int main() {
     // Paste all tiles
     for (size_t i = 0; i <  final_regions.size(); ++i) paste_region_tile( final_regions[i], static_cast<int>(i));
 
- // Stable, distinct-ish colors
-    // auto color_from_index = [](size_t i) -> cv::Scalar {
-    //     // Use HSV color wheel for distinct colors
-    //     const int num_steps = 10; // number of distinct hues before repeating
-    //     double hue = (i % num_steps) * (180.0 / num_steps); // OpenCV hue: [0,180]
-    //     double sat = 200 + (i * 37) % 56;  // saturation 200–255
-    //     double val = 200;                  // brightness
-
-    //     cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(hue, sat, val));
-    //     cv::Mat bgr;
-    //     cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
-
-    //     cv::Vec3b c = bgr.at<cv::Vec3b>(0, 0);
-    //     return cv::Scalar(c[0], c[1], c[2]); // B, G, R
-    // };
+    // color of borders and agents
     auto color_from_index = [&](size_t i) -> cv::Scalar {
         size_t N = final_regions.size();  // total number of regions
         if (N == 0) return cv::Scalar(255, 255, 255);
@@ -323,7 +316,7 @@ int main() {
         const int tile_px = static_cast<int>(std::llround(r.size * scale));
     
         int offset_x, offset_y;
-    
+        // carla map quirk
         if (FLIP_X_FOR_THIS_DOMAIN) {
             // Compute how many columns in total
             int num_cols = static_cast<int>(std::round((max_x - min_x) / r.size));
@@ -375,5 +368,3 @@ int main() {
     std::cout << "All done!\n";
     return 0;
 }
-
-    // --- Probe one tile to determine scal
