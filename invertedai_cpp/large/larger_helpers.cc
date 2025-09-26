@@ -43,39 +43,6 @@ namespace invertedai {
         return result;
     }
 
-    /**
-     *
-     * Mirrors the Python get_default_agent_properties function.
-     *
-     * @param agent_count_dict A map of AgentType → number of agents of that type.
-     * @param use_agent_properties If true, returns AgentProperties; otherwise returns AgentAttributes.
-     * @return std::vector<std::variant<AgentAttributes, AgentProperties>>
-     */
-    // std::vector<std::variant<AgentAttributes, AgentProperties>>
-    // get_default_agent_properties(
-    //     const std::map<AgentType,int>& agent_count_dict,
-    //     bool use_agent_properties
-    // ) {
-    //     std::vector<std::variant<AgentAttributes, AgentProperties>> result;
-
-    //     for (const auto& [atype, count] : agent_count_dict) {
-    //         for (int i = 0; i < count; i++) {
-    //             if (use_agent_properties) {
-    //                 // Construct default AgentProperties from type
-    //                 AgentProperties props = make_default_agent_properties(atype);
-    //                 result.emplace_back(props);
-    //             } else {
-    //                 // Use legacy AgentAttributes
-    //                 // AgentAttributes attrs;
-    //                 // attrs = AgentAttributes::from_type(atype); // or .fromlist({atype}) depending on API
-    //                 // result.emplace_back(attrs);
-    //             }
-    //         }
-    //     }
-
-    //     return result;
-    // }
-
     std::vector<Region> get_regions_default(
         const std::string& location,
         std::optional<int> total_num_agents,
@@ -153,59 +120,6 @@ std::vector<Region> get_regions_in_grid(
     return regions;
 }
 
-//     auto check_valid_center = [&](const std::pair<float,float>& center) {
-//         return (map_center.first - width) < center.first && center.first < (map_center.first + width) &&
-//                (map_center.second - height) < center.second && center.second < (map_center.second + height);
-//     };
-
-//     // auto get_neighbors = [&](const std::pair<float,float>& center) {
-//     //     return std::vector<std::pair<float,float>>{
-//     //         {center.first + stride, center.second + stride},
-//     //         {center.first - stride, center.second + stride},
-//     //         {center.first + stride, center.second - stride},
-//     //         {center.first - stride, center.second - stride}
-//     //     };
-//     // };
-//     auto get_neighbors = [&](const std::pair<float,float>& c) {
-//         return std::vector<std::pair<float,float>>{
-//             {c.first + stride, c.second}, {c.first - stride, c.second},
-//             {c.first, c.second + stride}, {c.first, c.second - stride},
-//             {c.first + stride, c.second + stride}, {c.first - stride, c.second + stride},
-//             {c.first + stride, c.second - stride}, {c.first - stride, c.second - stride},
-//         };
-//     };
-    
-
-//     std::vector<std::pair<float,float>> queue = {map_center};
-//     std::vector<std::pair<float,float>> centers;
-
-//     while (!queue.empty()) {
-//         auto center = queue.back();
-//         queue.pop_back();
-
-//         for (auto neighbor : get_neighbors(center)) {
-//             if (check_valid_center(neighbor) &&
-//                 std::find(queue.begin(), queue.end(), neighbor) == queue.end() &&
-//                 std::find(centers.begin(), centers.end(), neighbor) == centers.end()) {
-//                 queue.push_back(neighbor);
-//             }
-//         }
-
-//         if (check_valid_center(center) &&
-//             std::find(centers.begin(), centers.end(), center) == centers.end()) {
-//             centers.push_back(center);
-//         }
-//     }
-
-//     std::vector<Region> regions;
-//     regions.reserve(centers.size());
-//     for (auto& center : centers) {
-//         Point2d p{center.first, center.second};
-//         regions.push_back(Region::create_square_region(p));
-//     }
-
-//     return regions;
-// }
 
 std::vector<Region> get_number_of_agents_per_region_by_drivable_area(
     const std::string& location,
