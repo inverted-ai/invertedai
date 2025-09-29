@@ -5,7 +5,6 @@
 using json = nlohmann::json;
 
 namespace invertedai {
-
 DriveRequest::DriveRequest(const std::string &body_str) {
   this->body_json_ = json::parse(body_str);
 

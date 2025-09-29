@@ -105,6 +105,7 @@ cc_library(
         ":version",
         ":logger",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(

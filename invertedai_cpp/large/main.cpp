@@ -11,11 +11,15 @@
 #include "invertedai/location_info_response.h"
 #include "invertedai/initialize_request.h"
 #include "invertedai/initialize_response.h"
+#include "invertedai/drive_request.h"
+#include "invertedai/drive_response.h"
 #include "large_initialize.h"
 #include "large_init_helpers.h"
 #include "common.h"
+#include "large_drive.h"
 
 using namespace invertedai;
+
 
 // Clamp helper
 inline int clampi(int v, int lo, int hi) { return std::max(lo, std::min(v, hi)); }
@@ -118,10 +122,10 @@ int main() {
 // ./bazel-bin/large/large_main
     std::string location = "carla:Town10HD";
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
-    std::string API_KEY ; // = getenv("INVERTEDAI_API_KEY"); or just paste here
+    std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
-    int total_num_agents = 90;
+    int total_num_agents = 5;
 
     // (used by get_regions_default)
     int width  = 1000;
@@ -193,9 +197,82 @@ int main() {
     auto out = invertedai::large_initialize_with_regions(cfg);
     InitializeResponse response = std::move(out.response);
     std::vector<Region> outputed_regions = std::move(out.regions); // use this for drawing
-
+    
+    std::cout << "=== Raw InitializeResponse JSON ===" << std::endl;
+    std::cout << response.body_str() << std::endl;
 
     std::cout << "Number of agents (merged): " << response.agent_states().size() << "\n";
+// Debug InitializeResponse before stepping
+std::cout << "===== DEBUG InitializeResponse (string fields only) =====\n";
+
+for (size_t i = 0; i < response.agent_properties().size(); ++i) {
+    const auto& props = response.agent_properties()[i];
+
+    if (props.agent_type.has_value()) {
+        std::cout << "Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
+    } else {
+        std::cout << "Agent[" << i << "] agent_type: NULL (!!!)\n";
+    }
+
+    if (props.waypoint.has_value()) {
+        std::cout << "Agent[" << i << "] waypoint=(" 
+                  << props.waypoint->x << "," << props.waypoint->y << ")\n";
+    } else {
+        std::cout << "Agent[" << i << "] waypoint: NULL\n";
+    }
+}
+
+if (response.traffic_lights_states().has_value()) {
+    std::cout << "Traffic lights states present, count="
+              << response.traffic_lights_states()->size() << "\n";
+} else {
+    std::cout << "Traffic lights states: NULL\n";
+}
+
+std::cout << "===== END DEBUG =====\n";
+    
+    // --- Now start stepping with large_drive ---
+    int sim_length = 100;   // like Python default
+    int drive_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
+
+    // Carry forward agent_properties (constant)
+    std::vector<AgentProperties> agent_properties = response.agent_properties();
+    DriveResponse drive_response("{}");
+    for (int step = 0; step < sim_length; ++step) {
+        LargeDriveConfig drive_cfg(session);
+        drive_cfg.location = location;
+        drive_cfg.agent_states = response.agent_states();          // carry forward new states
+        drive_cfg.agent_properties = agent_properties;             // same props each step
+        drive_cfg.recurrent_states = response.recurrent_states();  // carry recurrent
+        drive_cfg.light_recurrent_states = response.light_recurrent_states(); 
+        drive_cfg.random_seed = drive_seed;
+        drive_cfg.api_model_version = std::nullopt;
+        drive_cfg.get_infractions = true;
+        drive_cfg.single_call_agent_limit = 100;   // quadtree leaf capacity
+
+        drive_response = large_drive(drive_cfg);
+
+        std::cout << "Step " << step 
+                  << " | agents=" << drive_response.agent_states().size()
+                  << " | infractions=" << drive_response.infraction_indicators().size()
+                  << "\n";
+    
+        // carry forward for next iteration
+        response.set_agent_states(drive_response.agent_states());
+        response.set_recurrent_states(drive_response.recurrent_states());
+        if (drive_response.light_recurrent_states().has_value()) {
+            response.set_light_recurrent_states(drive_response.light_recurrent_states().value());
+        }
+    }
+
+    std::cout << "Simulation finished after " << sim_length << " steps.\n";
+
+
+
+
+
+
+
     // Use only final_regions from here on for geometry/rendering
     const std::vector<Region>& final_regions = outputed_regions;
     for(const auto& r : final_regions) {

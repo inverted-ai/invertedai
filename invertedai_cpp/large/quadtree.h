@@ -1,11 +1,9 @@
-#ifndef INVERTEDAI_QUADTREE_H
 #define INVERTEDAI_QUADTREE_H
 
 #include <vector>
 #include <optional>
-#include "externals/json.hpp"
 #include "common.h"
-
+#include "invertedai/data_utils.h"    
 namespace invertedai {
 
 constexpr double BUFFER_FOV = 35.0;
@@ -24,6 +22,7 @@ struct QuadTreeAgentInfo {
                                       int id);
 };
 
+
 class QuadTree {
 public:
     QuadTree(int capacity, const Region& region);
@@ -32,6 +31,9 @@ public:
     std::vector<invertedai::Region> get_regions() const;
     std::vector<QuadTree*> get_leaf_nodes();
     size_t get_number_of_agents_in_node() const;
+    const std::vector<QuadTreeAgentInfo>& particles() const { return particles_; }
+    const std::vector<QuadTreeAgentInfo>& particles_buffer() const { return particles_buffer_; }
+    const Region& region() const { return region_; }
 
 private:
     int capacity_;
@@ -53,6 +55,16 @@ private:
 /// Utility function
 template <typename T>
 std::vector<T> flatten_and_sort(const std::vector<std::vector<T>>& nested_list,
-                                const std::vector<int>& index_list);
+                                const std::vector<int>& index_list) {
+    std::vector<T> result(index_list.size());
+    size_t pos = 0;
+    for (const auto& sublist : nested_list) {
+        for (const auto& elem : sublist) {
+            if (pos >= index_list.size()) break;
+            result[index_list[pos++]] = elem;
+        }
+    }
+    return result;
+}
 
 } // namespace invertedai
