@@ -4,12 +4,12 @@ cc_library(
     name = "large_lib",
     srcs = [
         "large_initialize.cc",
-        "larger_helpers.cc",
+        "large_init_helpers.cc",
         # add other .cc files here
     ],
     hdrs = [
         "large_initialize.h",
-        "large_helpers.h",
+        "large_init_helpers.h",
         "common.h",
         # add other headers you want available
     ],

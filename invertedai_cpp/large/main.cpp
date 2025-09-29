@@ -12,7 +12,7 @@
 #include "invertedai/initialize_request.h"
 #include "invertedai/initialize_response.h"
 #include "large_initialize.h"
-#include "large_helpers.h"
+#include "large_init_helpers.h"
 #include "common.h"
 
 using namespace invertedai;
@@ -118,7 +118,7 @@ int main() {
 // ./bazel-bin/large/large_main
     std::string location = "carla:Town10HD";
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
-    std::string API_KEY; // = getenv("INVERTEDAI_API_KEY"); or just paste here
+    std::string API_KEY ; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
     int total_num_agents = 90;
