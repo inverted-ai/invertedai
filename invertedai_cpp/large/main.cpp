@@ -166,8 +166,11 @@ int main() {
         initialize_seed                               // random seed
 
     );
+
+    // helper to check if regions have been validated currently
     validate_regions_100x100(regions, /*expected=*/100.0);
     std::cout << "Generated " << regions.size() << " regions.\n";
+
     // set up arguments for large initialize
     LargeInitializeConfig cfg(session);
     cfg.location = location;
@@ -178,12 +181,12 @@ int main() {
     cfg.return_exact_agents = true;
     cfg.api_model_version = std::nullopt;
 
-    // Simple agent generator for testing
+    // Simple agent generator for testing - currently not being used
     auto [init_states, init_props] = generate_agents_for_region(cfg.regions.front(), {
-        {AgentType::car, 10},
+        {AgentType::car, 10}, // change the 10 -> however many cars you want to initialize
     
     });
-    cfg.agent_states     = std::nullopt;  //init_states; 
+    cfg.agent_states     = std::nullopt;  //init_states; change to init_states to use the generator function
     cfg.agent_properties = std::nullopt; //init_props; 
 
     std::cout << "Calling large_initialize with " << regions.size() << " regions...\n";
@@ -202,7 +205,7 @@ int main() {
     }
 
 
-
+    // --- Stitching and drawing workflow
     // 1) Bounds in world meters
     double min_x =  std::numeric_limits<double>::infinity();
     double min_y =  std::numeric_limits<double>::infinity();
