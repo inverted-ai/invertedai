@@ -408,7 +408,7 @@ struct StaticMapActor {
    * Size of the stop line, in meters, along its orientation.
    */
   std::optional<double> length, width;
-  std::vector<int> dependant;
+  std::optional<std::vector<int>> dependant;
 };
 
 /**
