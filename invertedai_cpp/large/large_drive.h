@@ -16,7 +16,10 @@ namespace invertedai {
 
 constexpr int DRIVE_MAXIMUM_NUM_AGENTS = 100;
 
+
+
 struct LargeDriveConfig {
+    LogWriter logger;
     std::string location;
     std::vector<AgentState> agent_states;
     std::vector<AgentProperties> agent_properties;

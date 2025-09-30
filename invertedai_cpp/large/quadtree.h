@@ -11,15 +11,30 @@ constexpr double QUADTREE_SIZE_BUFFER = 1.0;
 
 struct QuadTreeAgentInfo {
     AgentState agent_state;
+    std::optional<std::vector<double>> recurrent_state;  // C++ analog of Optional[RecurrentState]
     AgentProperties agent_properties;
-    std::optional<RecurrentState> recurrent_state;
     int agent_id;
 
-    std::vector<std::variant<AgentState, AgentProperties, std::optional<RecurrentState>, int>> tolist() const;
-    static QuadTreeAgentInfo fromlist(const AgentState& state,
-                                      const AgentProperties& props,
-                                      const std::optional<RecurrentState>& recur,
-                                      int id);
+    // Return as vector<variant> like Python's tolist()
+    std::vector<std::variant<AgentState, AgentProperties, std::optional<std::vector<double>>, int>> 
+    tolist() const {
+        return {agent_state, agent_properties, recurrent_state, agent_id};
+    }
+
+    // Construct from vector<variant> like Python's fromlist()
+    static QuadTreeAgentInfo fromlist(
+        const std::vector<std::variant<AgentState, AgentProperties, std::optional<std::vector<double>>, int>>& l
+    ) {
+        if (l.size() != 4) {
+            throw std::invalid_argument("fromlist requires exactly 4 elements");
+        }
+        QuadTreeAgentInfo q;
+        q.agent_state      = std::get<AgentState>(l[0]);
+        q.agent_properties = std::get<AgentProperties>(l[1]);
+        q.recurrent_state  = std::get<std::optional<std::vector<double>>>(l[2]);
+        q.agent_id         = std::get<int>(l[3]);
+        return q;
+    }
 };
 
 

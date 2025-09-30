@@ -97,3 +97,17 @@ cc_binary(
         "@boost//:asio",           # same for boost-asio
     ],
 )
+
+cc_binary(
+    name = "test_large_drive",
+    srcs = ["test_large_drive.cc"],
+    deps = [
+        ":large_lib",             # includes large_drive + helpers
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:error",
+        "@boost//:asio",
+        "@opencv//:opencv",
+    ],
+    visibility = ["//visibility:public"],
+)

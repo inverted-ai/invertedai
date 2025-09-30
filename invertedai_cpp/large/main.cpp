@@ -120,9 +120,9 @@ int main() {
 
 // bazel build //large:large_main 
 // ./bazel-bin/large/large_main
-    std::string location = "carla:Town10HD";
+    std::string location = "can:ubc_roundabout";
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
-    std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
+    std::string API_KEY = ""; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
     int total_num_agents = 5;
@@ -199,7 +199,7 @@ int main() {
     std::vector<Region> outputed_regions = std::move(out.regions); // use this for drawing
     
     std::cout << "=== Raw InitializeResponse JSON ===" << std::endl;
-    std::cout << response.body_str() << std::endl;
+    //std::cout << response.body_str() << std::endl;
 
     std::cout << "Number of agents (merged): " << response.agent_states().size() << "\n";
 // Debug InitializeResponse before stepping

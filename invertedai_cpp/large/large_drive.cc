@@ -78,14 +78,12 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
     // --- Insert all agents into quadtree
     for (int i = 0; i < num_agents; i++) {
         QuadTreeAgentInfo info{
-            cfg.agent_states[i],
-            cfg.agent_properties[i],
+            cfg.agent_states[i],                                // AgentState
             cfg.recurrent_states.has_value()
-                ? std::optional<RecurrentState>(RecurrentState(std::vector<float>(
-                      cfg.recurrent_states->at(i).begin(),
-                      cfg.recurrent_states->at(i).end())))
-                : std::nullopt,
-            i
+                ? std::optional<std::vector<double>>(cfg.recurrent_states->at(i))
+                : std::nullopt,                                 // recurrent_state
+            cfg.agent_properties[i],                            // AgentProperties
+            i                                                   // agent_id
         };
         if (!root.insert(info)) {
             throw InvertedAIError("Unable to insert agent into region.");
@@ -102,35 +100,43 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         for (auto* leaf : leaves) {
             if (leaf->get_number_of_agents_in_node() == 0) continue;
 
-            auto region = leaf->get_regions().at(0); // assume one
-            auto buffer = leaf->get_regions().at(1); // assume buffer
-
             // Preserve agent ID order
             for (auto& p : leaf->particles()) {
                 agent_id_order.push_back(p.agent_id);
             }
-                   // --- Merge region + buffer agents ---
-            std::vector<AgentState> combined_states = region.agent_states;
-            combined_states.insert(combined_states.end(),
-                                buffer.agent_states.begin(),
-                                buffer.agent_states.end());
-
-            std::vector<AgentProperties> combined_props = region.agent_properties;
-            combined_props.insert(combined_props.end(),
-                                buffer.agent_properties.begin(),
-                                buffer.agent_properties.end());
-
+            // --- Merge region + buffer agents ---
+            std::vector<AgentState> combined_states;
+            std::vector<AgentProperties> combined_props;
             std::vector<std::vector<double>> combined_recurrent;
-            if (cfg.recurrent_states.has_value()) {
-                combined_recurrent = region.recurrent_states;
-                combined_recurrent.insert(combined_recurrent.end(),
-                                        buffer.recurrent_states.begin(),
-                                        buffer.recurrent_states.end());
+    
+            for (const auto& reg : leaf->get_regions()) {
+                combined_states.insert(combined_states.end(),
+                                       reg.agent_states.begin(),
+                                       reg.agent_states.end());
+            
+                combined_props.insert(combined_props.end(),
+                                      reg.agent_properties.begin(),
+                                      reg.agent_properties.end());
+                std::cout << "here3"<< "\n";
+                if (cfg.recurrent_states.has_value()) {
+                    combined_recurrent.insert(combined_recurrent.end(),
+                                              reg.recurrent_states.begin(),
+                                              reg.recurrent_states.end());
+                }
+                std::cout << "here4"<< "\n";
             }
+                std::cerr << "[DEBUG] combined_states.size()=" << combined_states.size()
+            << " combined_props.size()=" << combined_props.size()
+            << " combined_recurrent.size()=" << combined_recurrent.size()
+            << std::endl;
+            
 
             // --- Build DriveRequest ---
             DriveRequest req("{}");
+            std::cout << "hi\n";
             req.set_location(cfg.location);
+            std::cerr << "[DEBUG] Location just set to: " << cfg.location << std::endl;
+            std::cout << "ho\n";
             req.set_get_birdview(false);
             req.set_agent_states(combined_states);
             req.set_agent_properties(combined_props);
@@ -152,10 +158,20 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             }
 
             // Call DRIVE API synchronously (no async in C++)
-            std::cerr << "[DEBUG] Sending DriveRequest: " << req.body_str() << std::endl;
-            auto resp = drive(req, &cfg.session);
-            all_responses.push_back(resp);
-            non_empty_nodes.push_back(leaf);
+            try {
+                std::string body = req.body_str();
+                std::cerr << "[DEBUG-MULTI] Preparing to send DriveRequest:\n" << body << std::endl;
+                cfg.logger.append_request(body, "drive");
+            
+                auto resp = drive(req, &cfg.session);
+                cfg.logger.append_response(resp.body_str(), "drive");
+            
+                all_responses.push_back(resp);
+                non_empty_nodes.push_back(leaf);
+            } catch (const std::exception& e) {
+                std::cerr << "[FATAL-MULTI] Exception in DriveRequest handling: " << e.what() << std::endl;
+                throw;
+            }
         }
 
         // Flatten outputs
@@ -172,9 +188,11 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             states_per_leaf.push_back(
                 std::vector<AgentState>(res.agent_states().begin(),
                                         res.agent_states().begin() + n_agents));
+            std::cout << "here1"<< "\n";
             recurrent_per_leaf.push_back(
                 std::vector<std::vector<double>>(res.recurrent_states().begin(),
                                                  res.recurrent_states().begin() + n_agents));
+            std::cout << "here2"<< "\n";
             inside_per_leaf.push_back(
                 std::vector<bool>(res.is_inside_supported_area().begin(),
                                   res.is_inside_supported_area().begin() + n_agents));
@@ -225,7 +243,10 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
     } else {
         // --- If no subdivision, call DRIVE directly
         DriveRequest req("{}");
+        std::cout << "hi\n";
         req.set_location(cfg.location);
+        std::cerr << "[DEBUG] Location just set to: " << cfg.location << std::endl;
+        std::cout << "ho\n";
         req.set_get_birdview(false);
         req.set_agent_states(cfg.agent_states);
         req.set_agent_properties(cfg.agent_properties);
@@ -248,9 +269,16 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         }
 
         // Call DRIVE API synchronously (no async in C++)
-        std::cerr << "[DEBUG] Sending DriveRequest: " << req.body_str() << std::endl;
-
-        return drive(req, &cfg.session);
+        try {
+            std::string body = req.body_str();
+            //std::cerr << "[DEBUG] Sending DriveRequest: " << body << std::endl;
+            cfg.logger.append_request(body, "drive");
+            return drive(req, &cfg.session);
+        } catch (const std::exception& e) {
+            std::cerr << "[FATAL] Exception while serializing DriveRequest: " << e.what() << std::endl;
+            throw;
+        }
+        
     }
 }
 
