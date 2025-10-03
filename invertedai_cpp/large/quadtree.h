@@ -1,3 +1,4 @@
+#ifndef INVERTEDAI_QUADTREE_H
 #define INVERTEDAI_QUADTREE_H
 
 #include <vector>
@@ -49,6 +50,7 @@ public:
     const std::vector<QuadTreeAgentInfo>& particles() const { return particles_; }
     const std::vector<QuadTreeAgentInfo>& particles_buffer() const { return particles_buffer_; }
     const Region& region() const { return region_; }
+    const Region& region_buffer() const { return region_buffer_; }
 
 private:
     int capacity_;
@@ -71,15 +73,37 @@ private:
 template <typename T>
 std::vector<T> flatten_and_sort(const std::vector<std::vector<T>>& nested_list,
                                 const std::vector<int>& index_list) {
-    std::vector<T> result(index_list.size());
-    size_t pos = 0;
+    std::vector<std::pair<int, T>> indexed;
+    indexed.reserve(index_list.size());
+
+    size_t idx = 0;
     for (const auto& sublist : nested_list) {
         for (const auto& elem : sublist) {
-            if (pos >= index_list.size()) break;
-            result[index_list[pos++]] = elem;
+            if (idx >= index_list.size()) {
+                throw std::runtime_error("[flatten_and_sort] index_list shorter than data");
+            }
+            indexed.emplace_back(index_list[idx], elem);
+            idx++;
         }
     }
+
+    if (idx != index_list.size()) {
+        throw std::runtime_error("[flatten_and_sort] mismatch: consumed " +
+                                 std::to_string(idx) + " indices but index_list.size()=" +
+                                 std::to_string(index_list.size()));
+    }
+
+    std::sort(indexed.begin(), indexed.end(),
+              [](const auto& a, const auto& b) { return a.first < b.first; });
+
+    std::vector<T> result;
+    result.reserve(indexed.size());
+    for (auto& [id, val] : indexed) {
+        result.push_back(val);
+    }
+
     return result;
 }
 
 } // namespace invertedai
+#endif // INVERTEDAI_QUADTREE_H

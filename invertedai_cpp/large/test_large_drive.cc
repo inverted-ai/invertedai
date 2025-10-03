@@ -9,87 +9,76 @@ using namespace invertedai;
 // bazel build //large:test_large_drive
 // ./bazel-bin/large/test_large_drive
 int main() {
-    try {
-        // Create session with API key (from env var)
         // --- Session connection
         boost::asio::io_context ioc;
         ssl::context ctx(ssl::context::tlsv12_client);
         invertedai::Session session(ioc, ctx);
-        session.set_api_key("");
+        session.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
         session.connect();
 
-        // Hardcoded 3 agents, spread apart to trigger quadtree splitting
-        std::vector<AgentState> states = {
-            AgentState{-50, -50, 0.0, 5.0},   // x, y, orientation, speed
-            AgentState{ 50,  50, 1.0, 5.0},
-            AgentState{150, 150, 2.0, 5.0}
-        };
+        // --- Step 1: Build InitializeRequest ---
+        InitializeRequest init_req("{}");
+        init_req.set_location("can:ubc_roundabout");
+        init_req.set_num_agents_to_spawn(5);
+        init_req.set_get_infractions(true);
+        init_req.set_get_birdview(false);
 
-        std::vector<AgentProperties> props = {
-            AgentProperties(json{
-                {"agent_type", "car"},
-                {"length", 4.5},
-                {"width", 2.0},
-                {"rear_axis_offset", 1.5},
-                {"max_speed", 15.0},
-                {"waypoint", {100.0, 100.0}}
-            }),
-            AgentProperties(json{
-                {"agent_type", "car"},
-                {"length", 4.7},
-                {"width", 2.1},
-                {"rear_axis_offset", 1.6},
-                {"max_speed", 18.0},
-                {"waypoint", {200.0, 200.0}}
-            }),
-            AgentProperties(json{
-                {"agent_type", "car"},
-                {"length", 5.0},
-                {"width", 2.2},
-                {"rear_axis_offset", 1.7},
-                {"max_speed", 20.0},
-                {"waypoint", {300.0, 300.0}}
-            })
-        };
-        
-        // Each car needs valid physical attributes
-        // std::vector<AgentAttributes> attrs = {
-        //     AgentAttributes{.length=4.5, .width=2.0, .rear_axis_offset=1.5},
-        //     AgentAttributes{.length=4.7, .width=2.1, .rear_axis_offset=1.6},
-        //     AgentAttributes{.length=5.0, .width=2.2, .rear_axis_offset=1.7}
-        // };
+        // --- Call initialize API ---
+        std::cerr << "[INFO] Calling initialize...\n";
+        InitializeResponse init_resp = initialize(init_req, &session);
 
-        LargeDriveConfig cfg(session);
-        // attach logger
-        cfg.logger = invertedai::LogWriter();
-        cfg.location = "can:ubc_roundabout";   
-        cfg.agent_states = states;
-        cfg.agent_properties = props;
-        cfg.single_call_agent_limit = 1;      // force quadtree to split
-        // cfg.agent_attributes = attrs;  // TODO create compatibility shim
+        std::cerr << "[INFO] Initialize returned "
+                  << init_resp.agent_states().size()
+                  << " agents.\n";
 
-        std::cerr << "[INFO] Calling large_drive...\n";
-        DriveResponse resp = large_drive(cfg);
-
-        std::cout << "Received " << resp.agent_states().size()
-                  << " driven agents." << std::endl;
-
-        for (size_t i = 0; i < resp.agent_states().size(); i++) {
-            const auto& s = resp.agent_states()[i];
-            std::cout << "Agent " << i << " pos=("
+        // Debug: print initial agent states
+        for (size_t i = 0; i < init_resp.agent_states().size(); i++) {
+            const auto& s = init_resp.agent_states()[i];
+            std::cout << "Init agent " << i << " pos=("
                       << s.x << "," << s.y
                       << ") speed=" << s.speed
                       << " orient=" << s.orientation
                       << std::endl;
         }
-        std::cout << "[INFO] large_drive succeeded, writing log" << std::endl;
-        cfg.logger.write_log_to_file("/usr/src/myapp/tmp/");
 
-    } catch (const std::exception& e) {
-        std::cerr << "[FATAL] Exception: " << e.what() << std::endl;
-        //cfg.logger.write_log_to_file("/usr/src/myapp/tmp/");
-        return 1;
-    }
+        // --- Step 2: Feed initialize response into LargeDrive ---
+        std::cout << "Starting large_drive loop...\n";
 
-    return 0;
+        LargeDriveConfig cfg(session);
+        cfg.location = "can:ubc_roundabout";
+        cfg.agent_states = init_resp.agent_states();
+        cfg.agent_properties = init_resp.agent_properties();
+        cfg.recurrent_states = init_resp.recurrent_states();
+        cfg.light_recurrent_states = init_resp.light_recurrent_states();
+        cfg.get_infractions = true;
+        cfg.single_call_agent_limit = 1; // or smaller if you want to force splits
+        
+        for (int step = 0; step < 100; ++step) {
+            std::cout << "=== LargeDrive step " << step << " ===\n";
+        
+            try {
+                DriveResponse drive_res = large_drive(cfg);
+        
+                // Debug print
+                if (!drive_res.agent_states().empty()) {
+                    const auto &s = drive_res.agent_states()[0];
+                    std::cout << "Agent0 pos=(" << s.x << "," << s.y
+                              << ") speed=" << s.speed
+                              << " orient=" << s.orientation << std::endl;
+                }
+        
+                // Feed outputs back into cfg for the next step
+                cfg.agent_states         = drive_res.agent_states();
+                cfg.recurrent_states     = drive_res.recurrent_states();
+                cfg.light_recurrent_states = drive_res.light_recurrent_states();
+                // agent_properties usually stays constant unless you mutate them
+            }
+            catch (const std::exception &e) {
+                std::cerr << "[FATAL] LargeDrive failed at step " << step
+                          << ": " << e.what() << std::endl;
+                break;
+            }
+        }
+        
+        std::cout << "LargeDrive loop finished.\n";
 }

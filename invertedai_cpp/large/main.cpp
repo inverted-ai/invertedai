@@ -21,6 +21,54 @@
 using namespace invertedai;
 
 
+cv::Mat draw_quadtree_frame(const std::vector<Region>& regions,
+    const std::vector<AgentState>& agents,
+    double min_x, double max_x,
+    double min_y, double max_y,
+    double scale,
+    int step)
+{
+    int canvas_w = static_cast<int>(std::ceil((max_x - min_x) * scale));
+    int canvas_h = static_cast<int>(std::ceil((max_y - min_y) * scale));
+    cv::Mat frame(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
+
+    // helper for coloring
+    auto color_from_index = [&](size_t i) -> cv::Scalar {
+        double hue = (static_cast<double>(i) / regions.size()) * 180.0;
+        cv::Mat hsv(1,1,CV_8UC3, cv::Scalar(hue,255,255));
+        cv::Mat bgr; cv::cvtColor(hsv,bgr,cv::COLOR_HSV2BGR);
+        auto c = bgr.at<cv::Vec3b>(0,0);
+        return cv::Scalar(c[0], c[1], c[2]);
+    };
+
+    // Draw regions
+    for (size_t i = 0; i < regions.size(); ++i) {
+        const Region& r = regions[i];
+        cv::Scalar color = color_from_index(i);
+
+        int L = static_cast<int>((r.center.x - r.size/2 - min_x) * scale);
+        int R = static_cast<int>((r.center.x + r.size/2 - min_x) * scale);
+        int T = static_cast<int>((max_y - (r.center.y + r.size/2)) * scale);
+        int B = static_cast<int>((max_y - (r.center.y - r.size/2)) * scale);
+
+        cv::rectangle(frame, {L,T}, {R,B}, color, 2);
+    }
+
+    // Draw agents
+    for (const auto& s : agents) {
+        int u = static_cast<int>((s.x - min_x) * scale);
+        int v = static_cast<int>((max_y - s.y) * scale);
+        cv::circle(frame, {u,v}, 4, cv::Scalar(0,0,0), cv::FILLED);
+    }
+
+    // Label frame number
+    cv::putText(frame, "Step " + std::to_string(step),
+    cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+    cv::Scalar(0,0,0), 2);
+
+    return frame;
+}
+
 // Clamp helper
 inline int clampi(int v, int lo, int hi) { return std::max(lo, std::min(v, hi)); }
 
@@ -120,12 +168,12 @@ int main() {
 
 // bazel build //large:large_main 
 // ./bazel-bin/large/large_main
-    std::string location = "can:ubc_roundabout";
+    const std::string location = "carla:Town10HD";
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
-    std::string API_KEY = ""; // = getenv("INVERTEDAI_API_KEY"); or just paste here
+    std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
-    int total_num_agents = 5;
+    int total_num_agents = 60;
 
     // (used by get_regions_default)
     int width  = 1000;
@@ -211,7 +259,9 @@ for (size_t i = 0; i < response.agent_properties().size(); ++i) {
     if (props.agent_type.has_value()) {
         std::cout << "Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
     } else {
-        std::cout << "Agent[" << i << "] agent_type: NULL (!!!)\n";
+        //props.agent_type = "car"; // default to car
+        std::cout << "Agent[" << i << "] agent_type:  NULL (!!!)\n";
+        //std::cout << "now Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
     }
 
     if (props.waypoint.has_value()) {
@@ -231,47 +281,6 @@ if (response.traffic_lights_states().has_value()) {
 
 std::cout << "===== END DEBUG =====\n";
     
-    // --- Now start stepping with large_drive ---
-    int sim_length = 100;   // like Python default
-    int drive_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
-
-    // Carry forward agent_properties (constant)
-    std::vector<AgentProperties> agent_properties = response.agent_properties();
-    DriveResponse drive_response("{}");
-    for (int step = 0; step < sim_length; ++step) {
-        LargeDriveConfig drive_cfg(session);
-        drive_cfg.location = location;
-        drive_cfg.agent_states = response.agent_states();          // carry forward new states
-        drive_cfg.agent_properties = agent_properties;             // same props each step
-        drive_cfg.recurrent_states = response.recurrent_states();  // carry recurrent
-        drive_cfg.light_recurrent_states = response.light_recurrent_states(); 
-        drive_cfg.random_seed = drive_seed;
-        drive_cfg.api_model_version = std::nullopt;
-        drive_cfg.get_infractions = true;
-        drive_cfg.single_call_agent_limit = 100;   // quadtree leaf capacity
-
-        drive_response = large_drive(drive_cfg);
-
-        std::cout << "Step " << step 
-                  << " | agents=" << drive_response.agent_states().size()
-                  << " | infractions=" << drive_response.infraction_indicators().size()
-                  << "\n";
-    
-        // carry forward for next iteration
-        response.set_agent_states(drive_response.agent_states());
-        response.set_recurrent_states(drive_response.recurrent_states());
-        if (drive_response.light_recurrent_states().has_value()) {
-            response.set_light_recurrent_states(drive_response.light_recurrent_states().value());
-        }
-    }
-
-    std::cout << "Simulation finished after " << sim_length << " steps.\n";
-
-
-
-
-
-
 
     // Use only final_regions from here on for geometry/rendering
     const std::vector<Region>& final_regions = outputed_regions;
@@ -315,7 +324,13 @@ std::cout << "===== END DEBUG =====\n";
     auto clampi = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
 
 
-    auto paste_region_tile = [&](const Region& r, int idx) {
+    auto paste_region_tile = [&](const Region& r, int idx,
+        cv::Mat& stitched,
+        const std::string& location,
+        invertedai::Session& session,
+        double scale,
+        double min_x,
+        double max_y) {
         LocationInfoRequest req("{}");
         req.set_location(location);
         req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
@@ -367,8 +382,10 @@ std::cout << "===== END DEBUG =====\n";
     };
     
     // Paste all tiles
-    for (size_t i = 0; i <  final_regions.size(); ++i) paste_region_tile( final_regions[i], static_cast<int>(i));
-
+    for (size_t i = 0; i < final_regions.size(); ++i) {
+        paste_region_tile(final_regions[i], static_cast<int>(i),
+                          stitched, location, session, scale, min_x, max_y);
+    }
     // color of borders and agents
     auto color_from_index = [&](size_t i) -> cv::Scalar {
         size_t N = final_regions.size();  // total number of regions
@@ -446,5 +463,99 @@ std::cout << "===== END DEBUG =====\n";
     cv::imwrite("stitched_with_agents.png", stitched);
     std::cout << "Saved stitched_with_agents.png (" << stitched.cols << "x" << stitched.rows << ")\n";
     std::cout << "All done!\n";
+
+
+
+
+
+        // --- Now start stepping with large_drive ---
+        int sim_length = 50;   // like Python default
+        int drive_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
+    
+        // Carry forward agent_properties (constant)
+        // if(response.agent_properties().size() < response.agent_states().size()) {
+        //     throw std::runtime_error("Fewer agent_properties than agent_states in InitializeResponse");
+        // }
+        std::cout << "Starting simulation for " << sim_length << " steps...\n";
+        // DriveResponse drive_response("{}");
+        for (int step = 0; step < sim_length; ++step) {
+            LargeDriveConfig drive_cfg(session);
+            drive_cfg.location = location;
+            drive_cfg.agent_states = response.agent_states();
+            drive_cfg.agent_properties = response.agent_properties();
+            drive_cfg.recurrent_states = response.recurrent_states();
+            drive_cfg.light_recurrent_states = response.light_recurrent_states();
+            drive_cfg.random_seed = drive_seed;
+            drive_cfg.api_model_version = std::nullopt;
+            drive_cfg.get_infractions = true;
+            drive_cfg.single_call_agent_limit = 29;
+        
+            // Run step with visualization output
+            auto out = large_drive_with_regions(drive_cfg);
+            DriveResponse drive_response = std::move(out.response);
+            std::vector<Region> leaf_regions = std::move(out.regions);
+        
+            // === Build base birdview (like large_initialize did) ===
+            cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
+            for (size_t i = 0; i < final_regions.size(); ++i) {
+                paste_region_tile(final_regions[i], i, stitched, location, session, scale, min_x, max_y);
+            }
+        
+            // === Overlay quadtree regions ===
+            for (size_t i = 0; i < leaf_regions.size(); ++i) {
+                const Region& r = leaf_regions[i];
+                cv::Scalar color = color_from_index(i); // distinct hue
+                int L = static_cast<int>((r.center.x - r.size/2 - min_x) * scale);
+                int R = static_cast<int>((r.center.x + r.size/2 - min_x) * scale);
+                int T = static_cast<int>((max_y - (r.center.y + r.size/2)) * scale);
+                int B = static_cast<int>((max_y - (r.center.y - r.size/2)) * scale);
+        
+                cv::rectangle(stitched, {L,T}, {R,B}, color, 2);
+            }
+        
+            // === Draw agents ===
+            for (const auto& s : drive_response.agent_states()) {
+                int u = static_cast<int>((s.x - min_x) * scale);
+                int v = static_cast<int>((max_y - s.y) * scale);
+                cv::circle(stitched, {u,v}, 4, cv::Scalar(0,0,0), cv::FILLED);
+            }
+        
+            // === Label step ===
+            cv::putText(stitched, "Step " + std::to_string(step),
+                        cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+                        cv::Scalar(0,0,0), 2);
+        
+            // Save frame
+            char buf[64];
+            sprintf(buf, "frame_%04d.png", step);
+            cv::imwrite(buf, stitched);
+        
+            // Carry forward states
+            response.set_agent_states(drive_response.agent_states());
+            response.set_recurrent_states(drive_response.recurrent_states());
+            if (drive_response.light_recurrent_states().has_value()) {
+                response.set_light_recurrent_states(drive_response.light_recurrent_states().value());
+            }
+        }
+        
+        // int canvas_w = static_cast<int>(std::ceil((max_x - min_x) * scale));
+        // int canvas_h = static_cast<int>(std::ceil((max_y - min_y) * scale));
+        
+        cv::VideoWriter writer("quadtree_sim.avi",
+                               cv::VideoWriter::fourcc('M','J','P','G'),
+                               10, // fps
+                               cv::Size(canvas_w, canvas_h));
+        
+        for (int step = 0; step < sim_length; ++step) {
+            char buf[64];
+            sprintf(buf, "frame_%04d.png", step);
+            cv::Mat img = cv::imread(buf);
+            if (!img.empty()) {
+                writer.write(img);
+            }
+        }
+        writer.release();
+        std::cout << "Simulation finished after " << sim_length << " steps.\n";
+    
     return 0;
 }
