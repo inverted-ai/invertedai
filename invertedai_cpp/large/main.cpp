@@ -19,8 +19,49 @@
 #include "large_drive.h"
 
 using namespace invertedai;
+// Parent lookup: which initial 100×100 region contains this point?
+inline int parent_index_of_point(
+    const std::vector<Region>& parents, double x, double y
+){
+    for (size_t i = 0; i < parents.size(); ++i) {
+        const Region& p = parents[i];
+        const double hx = p.size * 0.5, hy = p.size * 0.5;
+        if (x >= p.center.x - hx && x <= p.center.x + hx &&
+            y >= p.center.y - hy && y <= p.center.y + hy) {
+            return static_cast<int>(i);
+        }
+    }
+    // Fallback: nearest parent center (guards boundary edge cases)
+    double best = std::numeric_limits<double>::infinity();
+    int best_i = -1;
+    for (size_t i = 0; i < parents.size(); ++i) {
+        const auto& p = parents[i];
+        double dx = x - p.center.x, dy = y - p.center.y;
+        double d2 = dx*dx + dy*dy;
+        if (d2 < best) { best = d2; best_i = static_cast<int>(i); }
+    }
+    return best_i; // could be -1 only if parents empty
+}
 
+inline cv::Scalar color_from_parent_index(size_t parent_idx, size_t parent_count) {
+    if (parent_count == 0) return cv::Scalar(255,255,255);
+    double hue = (static_cast<double>(parent_idx) / parent_count) * 180.0;
+    cv::Mat hsv(1,1,CV_8UC3, cv::Scalar(hue, 255, 255));
+    cv::Mat bgr;  cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
+    auto c = bgr.at<cv::Vec3b>(0,0);
+    return cv::Scalar(c[0], c[1], c[2]); // BGR
+}
 
+inline cv::Point world_to_canvas(
+    double x, double y,
+    double min_x, double max_y, double scale,
+    int canvas_w, bool flip_x
+){
+    int u = static_cast<int>(std::llround((x - min_x) * scale));
+    int v = static_cast<int>(std::llround((max_y - y) * scale));
+    if (flip_x) u = canvas_w - u;              // same flip used in init agents
+    return {u, v};
+}
 cv::Mat draw_quadtree_frame(const std::vector<Region>& regions,
     const std::vector<AgentState>& agents,
     double min_x, double max_x,
@@ -63,8 +104,11 @@ cv::Mat draw_quadtree_frame(const std::vector<Region>& regions,
 
     // Label frame number
     cv::putText(frame, "Step " + std::to_string(step),
-    cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
-    cv::Scalar(0,0,0), 2);
+    cv::Point(20, 40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+    cv::Scalar(255, 255, 255), 3);  // white outline
+    cv::putText(frame, "Step " + std::to_string(step),
+    cv::Point(20, 40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+    cv::Scalar(255, 0, 0), 2);      // blue fill
 
     return frame;
 }
@@ -163,17 +207,42 @@ auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
     
         return {states, props};
     }
+    inline cv::Rect region_rect_pixels(
+        const Region& r,
+        double min_x, double max_y, double scale,
+        int canvas_w, int canvas_h, bool flip_x
+    ){
+        const double hx = r.size * 0.5, hy = r.size * 0.5;
+    
+        cv::Point tl = world_to_canvas(r.center.x - hx, r.center.y + hy, min_x, max_y, scale, canvas_w, flip_x);
+        cv::Point br = world_to_canvas(r.center.x + hx, r.center.y - hy, min_x, max_y, scale, canvas_w, flip_x);
+    
+        int L = std::max(0, std::min(tl.x, br.x));
+        int R = std::min(canvas_w, std::max(tl.x, br.x));
+        int T = std::max(0, std::min(tl.y, br.y));
+        int B = std::min(canvas_h, std::max(tl.y, br.y));
+    
+        if (R <= L || B <= T) return cv::Rect();   // empty
+        return cv::Rect(L, T, R - L, B - T);
+    }
+
 
 int main() {
 
 // bazel build //large:large_main 
 // ./bazel-bin/large/large_main
     const std::string location = "carla:Town10HD";
-    constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
+    bool FLIP_X_FOR_THIS_DOMAIN = false;
+
+    if (location.rfind("carla:", 0) == 0) {
+        FLIP_X_FOR_THIS_DOMAIN = true;
+        std::cout << "Detected CARLA map → flipping axes\n";
+    }
+    //constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
     std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
-    int total_num_agents = 60;
+    int total_num_agents = 80;
 
     // (used by get_regions_default)
     int width  = 1000;
@@ -245,41 +314,48 @@ int main() {
     auto out = invertedai::large_initialize_with_regions(cfg);
     InitializeResponse response = std::move(out.response);
     std::vector<Region> outputed_regions = std::move(out.regions); // use this for drawing
-    
+
+    // Extract and keep the evolving state outside the InitializeResponse
+    std::vector<AgentState> agent_states     = response.agent_states();
+    std::vector<AgentProperties> agent_props = response.agent_properties();
+    std::vector<std::vector<double>> recurrent    = response.recurrent_states();
+    std::optional<std::map<std::string, std::string>> traffic_lights_states = response.traffic_lights_states();
+    std::optional<std::vector<LightRecurrentState>> light_recurrent_states = response.light_recurrent_states();
+
     std::cout << "=== Raw InitializeResponse JSON ===" << std::endl;
     //std::cout << response.body_str() << std::endl;
 
     std::cout << "Number of agents (merged): " << response.agent_states().size() << "\n";
-// Debug InitializeResponse before stepping
-std::cout << "===== DEBUG InitializeResponse (string fields only) =====\n";
+// // Debug InitializeResponse before stepping
+// std::cout << "===== DEBUG InitializeResponse (string fields only) =====\n";
 
-for (size_t i = 0; i < response.agent_properties().size(); ++i) {
-    const auto& props = response.agent_properties()[i];
+// for (size_t i = 0; i < response.agent_properties().size(); ++i) {
+//     const auto& props = response.agent_properties()[i];
 
-    if (props.agent_type.has_value()) {
-        std::cout << "Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
-    } else {
-        //props.agent_type = "car"; // default to car
-        std::cout << "Agent[" << i << "] agent_type:  NULL (!!!)\n";
-        //std::cout << "now Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
-    }
+//     if (props.agent_type.has_value()) {
+//         std::cout << "Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
+//     } else {
+//         //props.agent_type = "car"; // default to car
+//         std::cout << "Agent[" << i << "] agent_type:  NULL (!!!)\n";
+//         //std::cout << "now Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
+//     }
 
-    if (props.waypoint.has_value()) {
-        std::cout << "Agent[" << i << "] waypoint=(" 
-                  << props.waypoint->x << "," << props.waypoint->y << ")\n";
-    } else {
-        std::cout << "Agent[" << i << "] waypoint: NULL\n";
-    }
-}
+//     if (props.waypoint.has_value()) {
+//         std::cout << "Agent[" << i << "] waypoint=(" 
+//                   << props.waypoint->x << "," << props.waypoint->y << ")\n";
+//     } else {
+//         std::cout << "Agent[" << i << "] waypoint: NULL\n";
+//     }
+// }
 
-if (response.traffic_lights_states().has_value()) {
-    std::cout << "Traffic lights states present, count="
-              << response.traffic_lights_states()->size() << "\n";
-} else {
-    std::cout << "Traffic lights states: NULL\n";
-}
+// if (response.traffic_lights_states().has_value()) {
+//     std::cout << "Traffic lights states present, count="
+//               << response.traffic_lights_states()->size() << "\n";
+// } else {
+//     std::cout << "Traffic lights states: NULL\n";
+// }
 
-std::cout << "===== END DEBUG =====\n";
+// std::cout << "===== END DEBUG =====\n";
     
 
     // Use only final_regions from here on for geometry/rendering
@@ -463,7 +539,7 @@ std::cout << "===== END DEBUG =====\n";
     cv::imwrite("stitched_with_agents.png", stitched);
     std::cout << "Saved stitched_with_agents.png (" << stitched.cols << "x" << stitched.rows << ")\n";
     std::cout << "All done!\n";
-
+    cv::imwrite("frame_0000.png", stitched);
 
 
 
@@ -477,49 +553,90 @@ std::cout << "===== END DEBUG =====\n";
         //     throw std::runtime_error("Fewer agent_properties than agent_states in InitializeResponse");
         // }
         std::cout << "Starting simulation for " << sim_length << " steps...\n";
-        // DriveResponse drive_response("{}");
+        LargeDriveConfig drive_cfg(session);
+        drive_cfg.location = location;
+        drive_cfg.agent_states = agent_states;
+        drive_cfg.agent_properties = agent_props;
+        drive_cfg.recurrent_states = recurrent;
+        drive_cfg.traffic_lights_states = traffic_lights_states;
+        drive_cfg.light_recurrent_states = light_recurrent_states;
+        drive_cfg.random_seed = drive_seed;
+        drive_cfg.get_infractions = true;
+        drive_cfg.single_call_agent_limit = 30;
         for (int step = 0; step < sim_length; ++step) {
-            LargeDriveConfig drive_cfg(session);
-            drive_cfg.location = location;
-            drive_cfg.agent_states = response.agent_states();
-            drive_cfg.agent_properties = response.agent_properties();
-            drive_cfg.recurrent_states = response.recurrent_states();
-            drive_cfg.light_recurrent_states = response.light_recurrent_states();
-            drive_cfg.random_seed = drive_seed;
-            drive_cfg.api_model_version = std::nullopt;
-            drive_cfg.get_infractions = true;
-            drive_cfg.single_call_agent_limit = 29;
         
-            // Run step with visualization output
             auto out = large_drive_with_regions(drive_cfg);
             DriveResponse drive_response = std::move(out.response);
             std::vector<Region> leaf_regions = std::move(out.regions);
-        
+
+
+            std::cout << "[STEP " << step << "] agents=" << drive_response.agent_states().size()
+            << " recurrent=" << drive_response.recurrent_states().size()
+            << std::endl;
+  
+  // compute avg recurrent norm
+  double norm_sum = 0;
+  for (const auto& r : drive_response.recurrent_states()) {
+      double n = 0;
+      for (double v : r) n += v * v;
+      norm_sum += std::sqrt(n);
+  }
+  std::cout << "avg recurrent norm=" << norm_sum / drive_response.recurrent_states().size() << std::endl;   
+  
+  
+            // === update evolving states ===
+            drive_cfg.agent_states          = drive_response.agent_states();
+            // agent_props     = drive_response.agent_properties();
+            drive_cfg.recurrent_states             = drive_response.recurrent_states();
+            // traffic_lights_states = drive_response.traffic_lights_states();
+            drive_cfg.light_recurrent_states = drive_response.light_recurrent_states();
+            // --------------------------------
+            std::cout << "[STEP " << step << "] "
+                << " agents=" << response.agent_states().size()
+                << " recurrent=" << (response.recurrent_states().empty() ? 0 : response.recurrent_states().size())
+                << " tl_states=" << (response.traffic_lights_states().has_value() ? response.traffic_lights_states()->size() : 0)
+                << " light_recurrent=" << (response.light_recurrent_states().has_value() ? response.light_recurrent_states()->size() : 0)
+                << std::endl;
             // === Build base birdview (like large_initialize did) ===
             cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
             for (size_t i = 0; i < final_regions.size(); ++i) {
                 paste_region_tile(final_regions[i], i, stitched, location, session, scale, min_x, max_y);
             }
         
-            // === Overlay quadtree regions ===
-            for (size_t i = 0; i < leaf_regions.size(); ++i) {
-                const Region& r = leaf_regions[i];
-                cv::Scalar color = color_from_index(i); // distinct hue
-                int L = static_cast<int>((r.center.x - r.size/2 - min_x) * scale);
-                int R = static_cast<int>((r.center.x + r.size/2 - min_x) * scale);
-                int T = static_cast<int>((max_y - (r.center.y + r.size/2)) * scale);
-                int B = static_cast<int>((max_y - (r.center.y - r.size/2)) * scale);
-        
-                cv::rectangle(stitched, {L,T}, {R,B}, color, 2);
+            // === Overlay quadtree regions (children take their parent color) ===
+            for (const Region& r : leaf_regions) {
+                int parent_idx = parent_index_of_point(final_regions, r.center.x, r.center.y);
+                cv::Scalar color = color_from_index(parent_idx);
+
+                cv::Rect rr = region_rect_pixels(
+                    r, min_x, max_y, scale,
+                    stitched.cols, stitched.rows,
+                    FLIP_X_FOR_THIS_DOMAIN
+                );
+                if (rr.area() > 0) {
+                    // small inward inset to avoid covering seams
+                    cv::rectangle(stitched,
+                                {rr.x+1, rr.y+1},
+                                {rr.x + rr.width - 2, rr.y + rr.height - 2},
+                                color, 2, cv::LINE_AA);
+                }
             }
-        
-            // === Draw agents ===
+
+            // === Draw agents (color by their current parent region) ===
             for (const auto& s : drive_response.agent_states()) {
-                int u = static_cast<int>((s.x - min_x) * scale);
-                int v = static_cast<int>((max_y - s.y) * scale);
-                cv::circle(stitched, {u,v}, 4, cv::Scalar(0,0,0), cv::FILLED);
+                // parent by position in world
+                int parent_idx = parent_index_of_point(final_regions, s.x, s.y);
+                cv::Scalar color = color_from_index(parent_idx);
+
+                cv::Point pt = world_to_canvas(
+                    s.x, s.y, min_x, max_y, scale,
+                    stitched.cols, FLIP_X_FOR_THIS_DOMAIN
+                );
+                if (0 <= pt.x && pt.x < stitched.cols &&
+                    0 <= pt.y && pt.y < stitched.rows) {
+                    cv::circle(stitched, pt, 4, color, cv::FILLED, cv::LINE_AA);
+                }
             }
-        
             // === Label step ===
             cv::putText(stitched, "Step " + std::to_string(step),
                         cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
@@ -531,11 +648,17 @@ std::cout << "===== END DEBUG =====\n";
             cv::imwrite(buf, stitched);
         
             // Carry forward states
-            response.set_agent_states(drive_response.agent_states());
-            response.set_recurrent_states(drive_response.recurrent_states());
-            if (drive_response.light_recurrent_states().has_value()) {
-                response.set_light_recurrent_states(drive_response.light_recurrent_states().value());
-            }
+            // response.set_agent_states(drive_response.agent_states());
+            // response.set_recurrent_states(drive_response.recurrent_states());
+            // if (drive_response.light_recurrent_states().has_value()) {
+            //     response.set_light_recurrent_states(drive_response.light_recurrent_states().value());
+            // }
+            int total_agents = drive_response.agent_states().size();
+            int num_leaves = leaf_regions.size();
+            double avg_agents_per_leaf = double(total_agents) / num_leaves;
+
+            std::cout << "[Step " << step << "] " << num_leaves
+                    << " leaves, avg " << avg_agents_per_leaf << " agents/leaf\n";
         }
         
         // int canvas_w = static_cast<int>(std::ceil((max_x - min_x) * scale));
@@ -546,7 +669,7 @@ std::cout << "===== END DEBUG =====\n";
                                10, // fps
                                cv::Size(canvas_w, canvas_h));
         
-        for (int step = 0; step < sim_length; ++step) {
+        for (int step = 1; step <= sim_length; ++step) {
             char buf[64];
             sprintf(buf, "frame_%04d.png", step);
             cv::Mat img = cv::imread(buf);

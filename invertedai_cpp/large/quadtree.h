@@ -1,5 +1,6 @@
 #ifndef INVERTEDAI_QUADTREE_H
 #define INVERTEDAI_QUADTREE_H
+// Header guard to prevent multiple inclusions
 
 #include <vector>
 #include <optional>
@@ -51,6 +52,10 @@ public:
     const std::vector<QuadTreeAgentInfo>& particles_buffer() const { return particles_buffer_; }
     const Region& region() const { return region_; }
     const Region& region_buffer() const { return region_buffer_; }
+    size_t core_count()  const { return particles_.size(); }
+    size_t buffer_count()const { return particles_buffer_.size(); }
+    size_t total_count() const { return core_count() + buffer_count(); }
+    void enforce_capacity_budget(double min_leaf_size = 2.0);
 
 private:
     int capacity_;
@@ -73,37 +78,39 @@ private:
 template <typename T>
 std::vector<T> flatten_and_sort(const std::vector<std::vector<T>>& nested_list,
                                 const std::vector<int>& index_list) {
-    std::vector<std::pair<int, T>> indexed;
-    indexed.reserve(index_list.size());
-
-    size_t idx = 0;
+    // Flatten all sublists into one contiguous vector
+    std::vector<T> flat_list;
     for (const auto& sublist : nested_list) {
-        for (const auto& elem : sublist) {
-            if (idx >= index_list.size()) {
-                throw std::runtime_error("[flatten_and_sort] index_list shorter than data");
-            }
-            indexed.emplace_back(index_list[idx], elem);
-            idx++;
-        }
+        flat_list.insert(flat_list.end(), sublist.begin(), sublist.end());
     }
 
-    if (idx != index_list.size()) {
-        throw std::runtime_error("[flatten_and_sort] mismatch: consumed " +
-                                 std::to_string(idx) + " indices but index_list.size()=" +
-                                 std::to_string(index_list.size()));
+    if (flat_list.size() != index_list.size()) {
+        throw std::runtime_error("[flatten_and_sort] Mismatch between flattened list size ("
+                                 + std::to_string(flat_list.size()) + ") and index list size ("
+                                 + std::to_string(index_list.size()) + ")");
     }
 
-    std::sort(indexed.begin(), indexed.end(),
+    // Pair each element with its corresponding index
+    std::vector<std::pair<int, T>> zipped;
+    zipped.reserve(flat_list.size());
+    for (size_t i = 0; i < flat_list.size(); ++i) {
+        zipped.emplace_back(index_list[i], flat_list[i]);
+    }
+
+    // Sort by index (ascending)
+    std::sort(zipped.begin(), zipped.end(),
               [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    std::vector<T> result;
-    result.reserve(indexed.size());
-    for (auto& [id, val] : indexed) {
-        result.push_back(val);
+    // Extract sorted elements
+    std::vector<T> sorted_list;
+    sorted_list.reserve(zipped.size());
+    for (auto& pair : zipped) {
+        sorted_list.push_back(std::move(pair.second));
     }
 
-    return result;
+    return sorted_list;
 }
 
-} // namespace invertedai
+}
+// End of header guard
 #endif // INVERTEDAI_QUADTREE_H

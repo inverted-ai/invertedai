@@ -14,9 +14,9 @@
 
 namespace invertedai {
 
-constexpr int DRIVE_MAXIMUM_NUM_AGENTS = 100;
+constexpr int DRIVE_MAXIMUM_NUM_AGENTS = 30;
 
-
+struct LeafTask { size_t idx; DriveRequest req; };
 
 struct LargeDriveConfig {
     LogWriter logger;
@@ -36,8 +36,15 @@ struct LargeDriveConfig {
 
     LargeDriveConfig(Session& sess) : session(sess) {}
 };
+struct LargeDriveWithRegions {
+    DriveResponse response;
+    std::vector<Region> regions;  // the dynamic quadtree leaf regions
+};
 
 // Ported function
 DriveResponse large_drive(LargeDriveConfig& cfg);
+
+LargeDriveWithRegions large_drive_with_regions(
+    LargeDriveConfig& cfg);
 
 } // namespace invertedai

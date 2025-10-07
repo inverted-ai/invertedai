@@ -8,6 +8,10 @@
 #include "invertedai/error.h"
 #include "quadtree.h"
 
+// for async driving
+#include <future>
+#include <mutex>
+
 namespace invertedai {
 // Helper: convert AgentAttributes → AgentProperties
 inline AgentProperties convert_attributes_to_properties(const AgentAttributes& attrs) {
@@ -130,7 +134,10 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         std::vector<DriveResponse> all_responses;
         std::vector<QuadTree*> non_empty_nodes;
         std::vector<int> agent_id_order;
-    
+
+        std::vector<LeafTask> tasks;
+        tasks.reserve(leaves.size());
+
         for (auto* leaf : leaves) {
             // get core region and buffer from leaf
             const Region& core   = leaf->region();         // must exist in your QuadTree API
@@ -157,23 +164,45 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 req.set_location(cfg.location);
                 req.set_get_birdview(false);
                 // states
-                {
-                    std::vector<AgentState> s = core.agent_states;
-                    s.insert(s.end(), buffer.agent_states.begin(), buffer.agent_states.end());
-                    req.set_agent_states(s);
+                const size_t MAXN = cfg.single_call_agent_limit;
+
+                // building states with clamp
+                std::vector<AgentState> s;
+                for (auto &st : core.agent_states) {
+                    if (s.size() >= MAXN) break;
+                    s.push_back(st);
                 }
+                for (auto &st : buffer.agent_states) {
+                    if (s.size() >= MAXN) break;
+                    s.push_back(st);
+                }
+                req.set_agent_states(s);
+                
                 // properties
-                {
-                    std::vector<AgentProperties> p = core.agent_properties;
-                    p.insert(p.end(), buffer.agent_properties.begin(), buffer.agent_properties.end());
-                    req.set_agent_properties(p);
+                std::vector<AgentProperties> p;
+                for (auto &prop : core.agent_properties) {
+                    if (p.size() >= MAXN) break;
+                    p.push_back(prop);
                 }
-                // recurrent (optional)
+                for (auto &prop : buffer.agent_properties) {
+                    if (p.size() >= MAXN) break;
+                    p.push_back(prop);
+                }
+                req.set_agent_properties(p);
+                
+                // recurrent
                 if (cfg.recurrent_states.has_value()) {
-                    std::vector<std::vector<double>> r = core.recurrent_states;
-                    r.insert(r.end(), buffer.recurrent_states.begin(), buffer.recurrent_states.end());
+                    std::vector<std::vector<double>> r;
+                    for (auto &rec : core.recurrent_states) {
+                        if (r.size() >= MAXN) break;
+                        r.push_back(rec);
+                    }
+                    for (auto &rec : buffer.recurrent_states) {
+                        if (r.size() >= MAXN) break;
+                        r.push_back(rec);
+                    }
                     req.set_recurrent_states(r);
-                }
+                }                
                 if (cfg.traffic_lights_states.has_value()) req.set_traffic_lights_states(cfg.traffic_lights_states.value());
                 if (cfg.light_recurrent_states.has_value()) req.set_light_recurrent_states(cfg.light_recurrent_states.value());
                 req.set_get_infractions(cfg.get_infractions);
@@ -181,8 +210,48 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 if (cfg.api_model_version.has_value()) req.set_model_version(cfg.api_model_version.value());
     
                 // Sync call (Python can do async; C++ is sync)
-                all_responses.push_back(drive(req, &cfg.session));
+                // all_responses.push_back(drive(req, &cfg.session));
+                tasks.push_back(LeafTask{ non_empty_nodes.size() - 1, std::move(req) });
+                std::cout << "drive tasks size: " << tasks.size() << std::endl;
             }
+        }
+        all_responses.resize(non_empty_nodes.size());
+
+        std::vector<std::future<std::pair<size_t, DriveResponse>>> futs;
+        futs.reserve(tasks.size());
+        // for (auto &t : tasks) {
+        //     futs.emplace_back(std::async(std::launch::async, [&cfg](LeafTask lt){
+        //         // lock here if cfg.session isn't thread-safe
+        //         return std::pair<size_t, DriveResponse>{ lt.idx, drive(lt.req, &cfg.session) };
+        //     }, t));
+        // }
+        std::cout << "[DEBUG] Launching " << tasks.size() << " async drive tasks\n";
+
+        for (auto &t : tasks) {
+            futs.emplace_back(std::async(std::launch::async, [&cfg](LeafTask lt){
+                std::cout << "[ASYNC] Leaf " << lt.idx 
+                        << " agents=" << lt.req.agent_states().size() << "\n";
+                try {
+                    // std::lock_guard<std::mutex> lk(session_mtx);
+                    net::io_context ioc;
+                    ssl::context ctx(ssl::context::sslv23_client);
+                    invertedai::Session local_sess(ioc, ctx);
+                    local_sess.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
+                    local_sess.connect();
+                    DriveResponse r = drive(lt.req, &local_sess);
+                    std::cout << "[ASYNC] Leaf " << lt.idx << " OK\n";
+                    return std::pair<size_t, DriveResponse>{ lt.idx, std::move(r) };
+                } catch (const std::exception &e) {
+                    std::cerr << "[ASYNC] Leaf " << lt.idx 
+                            << " exception: " << e.what() << "\n";
+                    throw;
+                }
+            }, t));
+        }
+
+        for (auto &f : futs) {
+            auto [idx, resp] = f.get();
+            all_responses[idx] = std::move(resp);
         }
         // Flatten outputs
         std::vector<std::vector<AgentState>> states_per_leaf;
@@ -204,11 +273,11 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             n_agents = std::min(n_agents, res.recurrent_states().size());
         
             // Check sizes before slicing
-            std::cerr << " res.agent_states=" << res.agent_states().size()
-                      << " recurrent=" << res.recurrent_states().size()
-                      << " inside=" << res.is_inside_supported_area().size()
-                      << " infractions=" << res.infraction_indicators().size()
-                      << "\n";
+            // std::cerr << " res.agent_states=" << res.agent_states().size()
+            //           << " recurrent=" << res.recurrent_states().size()
+            //           << " inside=" << res.is_inside_supported_area().size()
+            //           << " infractions=" << res.infraction_indicators().size()
+            //           << "\n";
         
             // Early continue to isolate
             if (res.agent_states().empty()) {
@@ -256,51 +325,69 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         //         infractions_per_leaf.emplace_back(infr_vec.begin(), infr_vec.begin() + nf);
         //     }
         // }
-        size_t flat_states = 0;
-        for (const auto& v : states_per_leaf) flat_states += v.size();
-        
-        std::cerr << "[DEBUG] agent_id_order.size=" << agent_id_order.size()
-                  << " flattened total=" << flat_states << "\n";
-        
-        if (agent_id_order.size() != flat_states) {
-            throw std::runtime_error("index_list vs flattened data mismatch — check quadtree core assignment");
-        }
+
         // --- Reorder with flatten_and_sort
-        std::cerr << "[CHECKPOINT] About to flatten states\n";
+        // std::cerr << "[CHECKPOINT] About to flatten states\n";
+        // std::cout << "Leaf " << i 
+        //   << " agent_ids=" << leaf_agent_ids.size()
+        //   << " recs=" << recurrent_per_leaf[i].size()
+        //   << std::endl;
         auto merged_states = flatten_and_sort(states_per_leaf, agent_id_order);
         
-        std::cerr << "[CHECKPOINT] Flatten states done, flatten recurrent...\n";
+        // std::cerr << "[CHECKPOINT] Flatten states done, flatten recurrent...\n";
         auto merged_recurrent = flatten_and_sort(recurrent_per_leaf, agent_id_order);
         
-        std::cerr << "[CHECKPOINT] Flatten recurrent done, flatten inside...\n";
+        // std::cerr << "[CHECKPOINT] Flatten recurrent done, flatten inside...\n";
         auto merged_inside = flatten_and_sort(inside_per_leaf, agent_id_order);
-        
-        std::cerr << "[CHECKPOINT] Flatten inside done\n";
+
+        if (merged_states.size() != merged_recurrent.size()) {
+            std::cerr << "MISMATCH: states=" << merged_states.size()
+                      << " recurrent=" << merged_recurrent.size() << std::endl;
+        }
+        for (int i = 0; i < merged_recurrent.size(); ++i) {
+            if (merged_recurrent[i].size() == 0) {
+                std::cout << "[WARN] empty recurrent at index " << i << std::endl;
+            }
+        }
+        // std::cerr << "[CHECKPOINT] Flatten inside done\n";
         std::vector<InfractionIndicator> merged_infractions;
         if (cfg.get_infractions) {
             merged_infractions = flatten_and_sort(infractions_per_leaf, agent_id_order);
         }
-
+        // std::cerr << "[DEBUG] merged_states.size=" << merged_states.size() << std::endl;
         DriveResponse final_resp("{}");
+        final_resp.set_agent_states(merged_states);
+        // std::cerr << "[DEBUG] after set, agent_states.size=" << final_resp.agent_states().size() << std::endl;
 
         // Set merged agent outputs
-        final_resp.set_agent_states(merged_states);
+        // final_resp.set_agent_states(merged_states);
         final_resp.set_recurrent_states(merged_recurrent);
+        // std::cerr << " recurrent after set " << final_resp.recurrent_states().size() << std::endl;
         final_resp.set_is_inside_supported_area(merged_inside);
+        // std::cerr << " set_is_inside_supported_area after set " << final_resp.is_inside_supported_area().size() << std::endl;
+
         final_resp.set_birdview({});
         
         if (cfg.get_infractions) {
             final_resp.set_infraction_indicators(merged_infractions);
+            // std::cerr << " set_infraction_indicators after set " << final_resp.infraction_indicators().size() << std::endl;
         } else {
             final_resp.set_infraction_indicators({});
+            // std::cerr << " set_infraction_indicators after set " << final_resp.infraction_indicators().size() << std::endl;
         }
-        if (all_responses[0].traffic_lights_states().has_value()) {
-            for (auto& kv : *all_responses[0].traffic_lights_states()) {
+        
+        auto tls_opt = all_responses[0].traffic_lights_states(); // copy of optional (safe)
+        if (tls_opt && !tls_opt->empty()) {
+            // safe: iterating a real map that lives in tls_opt
+            for (const auto& kv : *tls_opt) {
+                // std::cerr << " traffic light values" << kv.first << kv.second << '\n';
+                final_resp.set_traffic_lights_states(*tls_opt);
                 if (kv.second.empty()) {
                     std::cerr << "[WARN] traffic_lights_states has empty value for key=" << kv.first << std::endl;
                 }
             }
         }
+        
         // if (all_responses[0].light_recurrent_states().has_value()) {
         //     for (LightRecurrentState kv : *all_responses[0].light_recurrent_states()) {
         //             if (kv.state.empty()) {
@@ -318,27 +405,68 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         //     std::cerr << "model_version is null" << std::endl;
         // }
         // Copy over shared fields from the first response
+        // if (!all_responses.empty()) {
+        //     final_resp.set_traffic_lights_states(
+        //         all_responses[0].traffic_lights_states().value_or(std::map<std::string,std::string>())
+        //     );
+        //     if (all_responses[0].light_recurrent_states().has_value()) {
+        //         final_resp.set_light_recurrent_states(all_responses[0].light_recurrent_states().value());
+        //     }
+        //     final_resp.set_birdview({}); // always None/empty in large_drive
+        //     final_resp.set_infraction_indicators(
+        //         cfg.get_infractions ? merged_infractions : std::vector<InfractionIndicator>{}
+        //     );
+        // }
+        std::cout << "[DEBUG] unique agents after merge: " << final_resp.agent_states().size() << std::endl;
+
         if (!all_responses.empty()) {
-            final_resp.set_traffic_lights_states(
-                all_responses[0].traffic_lights_states().value_or(std::map<std::string,std::string>())
-            );
-            if (all_responses[0].light_recurrent_states().has_value()) {
-                final_resp.set_light_recurrent_states(all_responses[0].light_recurrent_states().value());
+            std::cerr << "[DEBUG] Entering final_resp population block\n";
+        
+            try {
+                // std::cerr << "[DEBUG] Setting traffic_lights_states...\n";
+                final_resp.set_traffic_lights_states(
+                    all_responses[0].traffic_lights_states().value_or(std::map<std::string,std::string>())
+                );
+                // std::cerr << "[DEBUG] traffic_lights_states set (size="
+                        //   << (final_resp.traffic_lights_states().has_value() ? final_resp.traffic_lights_states()->size() : 0)
+                        //   << ")\n";
+        
+                // std::cerr << "[DEBUG] Setting light_recurrent_states...\n";
+                if (all_responses[0].light_recurrent_states().has_value()) {
+                    final_resp.set_light_recurrent_states(all_responses[0].light_recurrent_states().value());
+                    // std::cerr << "[DEBUG] light_recurrent_states set (size="
+                            //   << final_resp.light_recurrent_states()->size() << ")\n";
+                } else {
+                    // std::cerr << "[DEBUG] light_recurrent_states skipped (nullopt)\n";
+                }
+        
+                // std::cerr << "[DEBUG] Setting birdview (empty)...\n";
+                final_resp.set_birdview({});
+                // std::cerr << "[DEBUG] birdview set (size=" << final_resp.birdview().size() << ")\n";
+        
+                // std::cerr << "[DEBUG] Setting infraction_indicators...\n";
+                final_resp.set_infraction_indicators(
+                    cfg.get_infractions ? merged_infractions : std::vector<InfractionIndicator>{}
+                );
+                // std::cerr << "[DEBUG] infraction_indicators set (size="
+                //           << final_resp.infraction_indicators().size() << ")\n";
+        
+            } catch (const std::exception& e) {
+                std::cerr << "[FATAL] Exception inside final_resp population: " << e.what() << std::endl;
+                throw;
             }
-            final_resp.set_birdview({}); // always None/empty in large_drive
-            final_resp.set_infraction_indicators(
-                cfg.get_infractions ? merged_infractions : std::vector<InfractionIndicator>{}
-            );
+        
+            std::cerr << "[DEBUG] Finished final_resp population successfully\n";
         }
         return final_resp;
 
     } else {
         // --- If no subdivision, call DRIVE directly
         DriveRequest req("{}");
-        std::cout << "hi\n";
+        // std::cout << "hi\n";
         req.set_location(cfg.location);
-        std::cerr << "[DEBUG] Location just set to: " << cfg.location << std::endl;
-        std::cout << "ho\n";
+        // std::cerr << "[DEBUG] Location just set to: " << cfg.location << std::endl;
+        // std::cout << "ho\n";
         req.set_get_birdview(false);
         req.set_agent_states(cfg.agent_states);
         req.set_agent_properties(cfg.agent_properties);
@@ -365,15 +493,15 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             std::string body = req.body_str();
             cfg.logger.append_request(body, "drive");
             DriveResponse res = drive(req, &cfg.session);
-            std::cerr << "[API DEBUG] Response sizes:\n"
-          << "  agent_states=" << res.agent_states().size() << "\n"
-          << "  recurrent_states=" << res.recurrent_states().size() << "\n"
-          << "  is_inside_supported_area=" << res.is_inside_supported_area().size() << "\n"
-          << "  infractions=" << res.infraction_indicators().size() << "\n"
-          << "  light_recurrent_states=" << (res.light_recurrent_states().has_value() 
-                                               ? res.light_recurrent_states()->size() : 0) << "\n"
-          << "  traffic_lights_states=" << (res.traffic_lights_states().has_value() 
-                                               ? res.traffic_lights_states()->size() : 0) << "\n";
+        //     std::cerr << "[API DEBUG] Response sizes:\n"
+        //   << "  agent_states=" << res.agent_states().size() << "\n"
+        //   << "  recurrent_states=" << res.recurrent_states().size() << "\n"
+        //   << "  is_inside_supported_area=" << res.is_inside_supported_area().size() << "\n"
+        //   << "  infractions=" << res.infraction_indicators().size() << "\n"
+        //   << "  light_recurrent_states=" << (res.light_recurrent_states().has_value() 
+        //                                        ? res.light_recurrent_states()->size() : 0) << "\n"
+        //   << "  traffic_lights_states=" << (res.traffic_lights_states().has_value() 
+        //                                        ? res.traffic_lights_states()->size() : 0) << "\n";
             return res;
         } catch (const std::exception& e) {
             std::cerr << "[FATAL] Exception while serializing DriveRequest: " << e.what() << std::endl;
