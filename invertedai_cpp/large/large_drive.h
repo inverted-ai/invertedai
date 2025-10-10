@@ -14,7 +14,7 @@
 
 namespace invertedai {
 
-constexpr int DRIVE_MAXIMUM_NUM_AGENTS = 30;
+constexpr int DRIVE_MAXIMUM_NUM_AGENTS = 100;
 
 struct LeafTask { size_t idx; DriveRequest req; };
 
@@ -31,6 +31,7 @@ struct LargeDriveConfig {
     std::optional<int> random_seed = std::nullopt;
     std::optional<std::string> api_model_version = std::nullopt;
     int single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS;
+    bool async_api_calls = true;
 
     Session& session;
 

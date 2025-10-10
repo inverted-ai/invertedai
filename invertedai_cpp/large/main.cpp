@@ -18,6 +18,7 @@
 #include "common.h"
 #include "large_drive.h"
 
+
 using namespace invertedai;
 // Parent lookup: which initial 100×100 region contains this point?
 inline int parent_index_of_point(
@@ -42,7 +43,6 @@ inline int parent_index_of_point(
     }
     return best_i; // could be -1 only if parents empty
 }
-
 inline cv::Scalar color_from_parent_index(size_t parent_idx, size_t parent_count) {
     if (parent_count == 0) return cv::Scalar(255,255,255);
     double hue = (static_cast<double>(parent_idx) / parent_count) * 180.0;
@@ -51,6 +51,40 @@ inline cv::Scalar color_from_parent_index(size_t parent_idx, size_t parent_count
     auto c = bgr.at<cv::Vec3b>(0,0);
     return cv::Scalar(c[0], c[1], c[2]); // BGR
 }
+
+
+auto leaf_color_at (double x, double y,
+                         const std::vector<Region>& leaf_regions) -> cv::Scalar {
+    // Find which quadtree leaf contains this point
+    int leaf_idx = -1;
+    for (size_t i = 0; i < leaf_regions.size(); ++i) {
+        const Region& r = leaf_regions[i];
+        double hx = r.size * 0.5, hy = r.size * 0.5;
+        if (x >= r.center.x - hx && x <= r.center.x + hx &&
+            y >= r.center.y - hy && y <= r.center.y + hy) {
+            leaf_idx = static_cast<int>(i);
+            break;
+        }
+    }
+
+    if (leaf_idx < 0) {
+        // Fallback: nearest leaf
+        double best = std::numeric_limits<double>::infinity();
+        for (size_t i = 0; i < leaf_regions.size(); ++i) {
+            double dx = x - leaf_regions[i].center.x;
+            double dy = y - leaf_regions[i].center.y;
+            double d2 = dx * dx + dy * dy;
+            if (d2 < best) {
+                best = d2;
+                leaf_idx = static_cast<int>(i);
+            }
+        }
+    }
+
+    // Now color by leaf index (ensures agents and borders align)
+    return color_from_parent_index(static_cast<size_t>(leaf_idx),
+                                   leaf_regions.size());
+}; 
 
 inline cv::Point world_to_canvas(
     double x, double y,
@@ -87,10 +121,10 @@ cv::Mat draw_quadtree_frame(const std::vector<Region>& regions,
         const Region& r = regions[i];
         cv::Scalar color = color_from_index(i);
 
-        int L = static_cast<int>((r.center.x - r.size/2 - min_x) * scale);
-        int R = static_cast<int>((r.center.x + r.size/2 - min_x) * scale);
-        int T = static_cast<int>((max_y - (r.center.y + r.size/2)) * scale);
-        int B = static_cast<int>((max_y - (r.center.y - r.size/2)) * scale);
+        int L = static_cast<int>((r.center.x - r.size/2 - min_x) * scale) + 1;
+        int R = static_cast<int>((r.center.x + r.size/2 - min_x) * scale) - 1;
+        int T = static_cast<int>((max_y - (r.center.y + r.size/2)) * scale) + 1;
+        int B = static_cast<int>((max_y - (r.center.y - r.size/2)) * scale) - 1;
 
         cv::rectangle(frame, {L,T}, {R,B}, color, 2);
     }
@@ -210,28 +244,138 @@ auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
     inline cv::Rect region_rect_pixels(
         const Region& r,
         double min_x, double max_y, double scale,
-        int canvas_w, int canvas_h, bool flip_x
-    ){
-        const double hx = r.size * 0.5, hy = r.size * 0.5;
+        int canvas_w, int canvas_h, bool flip_x)
+    {
+        // Round to 1 cm world precision to remove floating noise, not to a big grid
+        const double eps = 1e-2;
     
-        cv::Point tl = world_to_canvas(r.center.x - hx, r.center.y + hy, min_x, max_y, scale, canvas_w, flip_x);
-        cv::Point br = world_to_canvas(r.center.x + hx, r.center.y - hy, min_x, max_y, scale, canvas_w, flip_x);
+        const double cx   = std::round(r.center.x / eps) * eps;
+        const double cy   = std::round(r.center.y / eps) * eps;
+        const double half = std::round(r.size / 2.0 / eps) * eps;
     
-        int L = std::max(0, std::min(tl.x, br.x));
-        int R = std::min(canvas_w, std::max(tl.x, br.x));
-        int T = std::max(0, std::min(tl.y, br.y));
-        int B = std::min(canvas_h, std::max(tl.y, br.y));
+        const double left   = cx - half;
+        const double right  = cx + half;
+        const double top    = cy + half;
+        const double bottom = cy - half;
     
-        if (R <= L || B <= T) return cv::Rect();   // empty
+        cv::Point tl = world_to_canvas(left,  top,    min_x, max_y, scale, canvas_w, flip_x);
+        cv::Point br = world_to_canvas(right, bottom, min_x, max_y, scale, canvas_w, flip_x);
+    
+        // Clamp to canvas safely
+        int L = std::clamp(std::min(tl.x, br.x), 0, canvas_w);
+        int R = std::clamp(std::max(tl.x, br.x), 0, canvas_w);
+        int T = std::clamp(std::min(tl.y, br.y), 0, canvas_h);
+        int B = std::clamp(std::max(tl.y, br.y), 0, canvas_h);
+    
+        if (R <= L || B <= T) return {};
+    
         return cv::Rect(L, T, R - L, B - T);
     }
+
+    void draw_traffic_lights(cv::Mat& frame,
+        const std::optional<std::map<std::string, std::string>>& traffic_lights_states,
+        const std::map<std::string, cv::Point>& light_positions_px)
+    {
+    if (!traffic_lights_states.has_value()) {
+        std::cout << "[DEBUG] No traffic_lights_states value.\n";
+        return;
+    }
+
+    for (const auto& [light_id, state] : traffic_lights_states.value()) {
+        auto it = light_positions_px.find(light_id);
+        if (it == light_positions_px.end()) continue;
+
+        cv::Scalar color;
+        if (state == "red")      color = cv::Scalar(0, 0, 255);
+        else if (state == "yellow") color = cv::Scalar(0, 255, 255);
+        else if (state == "green")  color = cv::Scalar(0, 255, 0);
+        else                        color = cv::Scalar(128, 128, 128);  // off/unknown
+
+        cv::circle(frame, it->second, 6, color, cv::FILLED);
+        cv::circle(frame, it->second, 8, cv::Scalar(0,0,0), 1); // thin border
+    }
+}
+cv::Point world_to_pixel(double x, double y,
+    const invertedai::Point2d& origin_px, double px_per_meter = 2.0)
+{
+int px = static_cast<int>(origin_px.x + x * px_per_meter);
+int py = static_cast<int>(origin_px.y - y * px_per_meter); // invert Y for image coords
+return cv::Point(px, py);
+}
+
+// Helper: Paste all cached tiles into one big stitched canvas
+cv::Mat build_full_map_from_cache(
+    const std::unordered_map<int, cv::Mat>& cached_tiles,
+    const std::vector<Region>& all_regions,
+    const std::vector<Region>& final_regions,
+    double min_x, double max_y, double scale,
+    int canvas_w, int canvas_h,
+    bool FLIP_X_FOR_THIS_DOMAIN)
+{
+    const double tile_size = final_regions[0].size;
+    const double max_x = final_regions.back().max_x;  // derive if you already have it elsewhere
+    const double min_y = final_regions.front().min_y;
+    const int tile_px = static_cast<int>(std::round(tile_size * scale)); // pixels per tile
+    cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255, 255, 255));
+
+    if (all_regions.empty()) {
+        std::cerr << "[WARN] No regions provided.\n";
+        return stitched;
+    }
+
+
+    // Estimate how many tiles horizontally and vertically
+    int num_cols = static_cast<int>(std::ceil((max_x - min_x) / tile_size));
+    int num_rows = static_cast<int>(std::ceil((max_y - min_y) / tile_size));
+
+    for (size_t i = 0; i < all_regions.size(); ++i) {
+        const Region& r = all_regions[i];
+        auto it = cached_tiles.find(i);
+        if (it == cached_tiles.end()) {
+            std::cerr << "[WARN] Missing cached tile for region " << i << "\n";
+            continue;
+        }
+
+        const cv::Mat& tile = it->second;
+        const int tile_px = tile.cols;
+
+        // --- Compute pixel offsets ---
+        int col = static_cast<int>(std::round((r.center.x - min_x) / tile_size));
+        int row = static_cast<int>(std::round((max_y - r.center.y) / tile_size));
+
+        // Apply flip if needed
+        if (FLIP_X_FOR_THIS_DOMAIN) {
+            col = (num_cols - 1) - col;
+        }
+
+        // Convert to pixel offset
+        int offset_x = col * tile_px;
+        int offset_y = row * tile_px;
+
+        // Clamp to bounds
+        int x0 = clampi(offset_x, 0, stitched.cols);
+        int y0 = clampi(offset_y, 0, stitched.rows);
+        int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
+        int y1 = clampi(offset_y + tile.rows, 0, stitched.rows);
+        if (x1 <= x0 || y1 <= y0) continue;
+
+        cv::Rect dst(x0, y0, x1 - x0, y1 - y0);
+        cv::Rect src(x0 - offset_x, y0 - offset_y, dst.width, dst.height);
+        tile(src).copyTo(stitched(dst));
+    }
+
+    std::cout << "[INFO] Built static stitched background using "
+              << cached_tiles.size() << " tiles (" << num_cols << "×" << num_rows << ").\n";
+    return stitched;
+}
+
 
 
 int main() {
 
 // bazel build //large:large_main 
 // ./bazel-bin/large/large_main
-    const std::string location = "carla:Town10HD";
+    const std::string location = "carla:Town03";
     bool FLIP_X_FOR_THIS_DOMAIN = false;
 
     if (location.rfind("carla:", 0) == 0) {
@@ -242,7 +386,9 @@ int main() {
     std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
-    int total_num_agents = 80;
+    int total_num_agents = 305;
+
+    int sim_length = 100;   // num steps for large_drive simulation
 
     // (used by get_regions_default)
     int width  = 1000;
@@ -265,6 +411,7 @@ int main() {
     li_req.set_location(location);
     li_req.set_include_map_source(true);
     LocationInfoResponse li_res = location_info(li_req, &session);
+
 
     std::pair<float,float> map_center{
         static_cast<float>(li_res.map_origin().x),
@@ -323,49 +470,18 @@ int main() {
     std::optional<std::vector<LightRecurrentState>> light_recurrent_states = response.light_recurrent_states();
 
     std::cout << "=== Raw InitializeResponse JSON ===" << std::endl;
-    //std::cout << response.body_str() << std::endl;
-
-    std::cout << "Number of agents (merged): " << response.agent_states().size() << "\n";
-// // Debug InitializeResponse before stepping
-// std::cout << "===== DEBUG InitializeResponse (string fields only) =====\n";
-
-// for (size_t i = 0; i < response.agent_properties().size(); ++i) {
-//     const auto& props = response.agent_properties()[i];
-
-//     if (props.agent_type.has_value()) {
-//         std::cout << "Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
-//     } else {
-//         //props.agent_type = "car"; // default to car
-//         std::cout << "Agent[" << i << "] agent_type:  NULL (!!!)\n";
-//         //std::cout << "now Agent[" << i << "] agent_type: " << props.agent_type.value() << "\n";
-//     }
-
-//     if (props.waypoint.has_value()) {
-//         std::cout << "Agent[" << i << "] waypoint=(" 
-//                   << props.waypoint->x << "," << props.waypoint->y << ")\n";
-//     } else {
-//         std::cout << "Agent[" << i << "] waypoint: NULL\n";
-//     }
-// }
-
-// if (response.traffic_lights_states().has_value()) {
-//     std::cout << "Traffic lights states present, count="
-//               << response.traffic_lights_states()->size() << "\n";
-// } else {
-//     std::cout << "Traffic lights states: NULL\n";
-// }
-
-// std::cout << "===== END DEBUG =====\n";
-    
 
     // Use only final_regions from here on for geometry/rendering
     const std::vector<Region>& final_regions = outputed_regions;
-    for(const auto& r : final_regions) {
-        std::cout << " Region center=(" << r.center.x << "," << r.center.y << ")"
-        << " size=" << r.size
-        << " num_agents=" << r.agent_states.size() << "\n";
-    }
 
+
+// convenience: color at any world (x,y) based on initial parents
+auto parent_color_at = [&](double x, double y) -> cv::Scalar {
+    int p = parent_index_of_point(final_regions, x, y);
+    size_t parent_count = final_regions.size();
+    size_t pi = (p < 0 ? 0 : static_cast<size_t>(p));
+    return color_from_parent_index(pi, parent_count);
+};
 
     // --- Stitching and drawing workflow
     // 1) Bounds in world meters
@@ -387,65 +503,85 @@ int main() {
     probe.set_rendering_center(std::make_pair(probe_region.center.x, probe_region.center.y));
     probe.set_rendering_fov(static_cast<int>(probe_region.size));
     probe.set_include_map_source(false);
-    auto probe_res = location_info(probe, &session);
+    LocationInfoResponse probe_res = location_info(probe, &session);
     cv::Mat probe_tile = cv::imdecode(probe_res.birdview_image(), cv::IMREAD_COLOR);
     if (probe_tile.empty()) throw std::runtime_error("Failed to decode probe birdview");
     const double scale = static_cast<double>(probe_tile.cols) / probe_region.size; // px per meter
 
+    // cache the regions tiles 
+    std::unordered_map<int, cv::Mat> cached_tiles;
+
+    for (size_t i = 0; i < final_regions.size(); ++i) {
+        const Region& r = final_regions[i];
+        LocationInfoRequest req("{}");
+        req.set_location(location);
+        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
+        req.set_rendering_fov(static_cast<int>(r.size));
+        req.set_include_map_source(false);
+
+        LocationInfoResponse res = location_info(req, &session);
+        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
+        if (tile.empty()) {
+            std::cerr << "[WARN] Tile " << i << " is empty.\n";
+            continue;
+        }
+
+        const int tile_px = static_cast<int>(std::llround(r.size * scale));
+        if (tile.cols != tile_px || tile.rows != tile_px) {
+            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
+        }
+
+        cached_tiles[i] = tile;
+    }
     // 3) Canvas
     const int canvas_w = static_cast<int>(std::ceil((max_x - min_x) * scale));
     const int canvas_h = static_cast<int>(std::ceil((max_y - min_y) * scale));
     cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
 
     auto clampi = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
+    std::map<std::string, cv::Point> traffic_light_positions_px;
 
-
-    auto paste_region_tile = [&](const Region& r, int idx,
-        cv::Mat& stitched,
-        const std::string& location,
-        invertedai::Session& session,
-        double scale,
-        double min_x,
-        double max_y) {
-        LocationInfoRequest req("{}");
-        req.set_location(location);
-        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
-        req.set_rendering_fov(static_cast<int>(r.size));
-        req.set_include_map_source(false);
-    
-        LocationInfoResponse res = location_info(req, &session);
-        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
-        if (tile.empty()) { std::cerr << "[WARN] tile empty @ region " << idx << "\n"; return; }
-    
-        const int tile_px = static_cast<int>(std::llround(r.size * scale));
-        if (tile.cols != tile_px || tile.rows != tile_px) {
-            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
+    for (const auto& actor : probe_res.static_actors()) {
+        if (actor.agent_type == "traffic_light") {
+            cv::Point pt = world_to_canvas(
+                actor.x, actor.y,
+                min_x, max_y, scale,
+                canvas_w, FLIP_X_FOR_THIS_DOMAIN
+            );
+            traffic_light_positions_px[std::to_string(actor.actor_id)] = pt;
         }
-   
+    }
+
+
+    auto paste_region_tile = [&](const Region& r, int idx, cv::Mat& stitched) {
+        auto it = cached_tiles.find(idx);
+        if (it == cached_tiles.end()) {
+            std::cerr << "[WARN] Missing cached tile for region " << idx << "\n";
+            return;
+        }
+    
+        cv::Mat tile = it->second;
+        const int tile_px = tile.cols;
+    
         int offset_x, offset_y;
         if (FLIP_X_FOR_THIS_DOMAIN) {
             int num_cols = static_cast<int>(std::round((max_x - min_x) / r.size));
             int col = static_cast<int>(std::round((r.center.x - min_x) / r.size));
             int flipped_col = (num_cols - 1) - col;
-
+    
             int num_rows = static_cast<int>(std::round((max_y - min_y) / r.size));
             int row = static_cast<int>(std::round((max_y - r.center.y) / r.size));
-
-            // shift up and right by one
-            flipped_col += 1;
-            row -= 1;
-
-            // clamp so we don’t go out of bounds
-            flipped_col = std::max(0, std::min(flipped_col, num_cols - 1));
-            row = std::max(0, std::min(row, num_rows - 1));
-            // final pixel offsets
+    
+            flipped_col = std::clamp(flipped_col + 1, 0, num_cols - 1);
+            row = std::clamp(row - 1, 0, num_rows - 1);
+    
             offset_x = flipped_col * tile_px;
             offset_y = row * tile_px;
         } else {
-            // top-left in canvas pixels (MUST match drawing math below)
+            offset_x = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) * scale));
             offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
-            offset_x = static_cast<int>(std::floor((r.center.x - r.size*0.5 - min_x) * scale));
         }
+    
         int x0 = clampi(offset_x, 0, stitched.cols);
         int y0 = clampi(offset_y, 0, stitched.rows);
         int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
@@ -459,31 +595,13 @@ int main() {
     
     // Paste all tiles
     for (size_t i = 0; i < final_regions.size(); ++i) {
-        paste_region_tile(final_regions[i], static_cast<int>(i),
-                          stitched, location, session, scale, min_x, max_y);
+        paste_region_tile(final_regions[i], i, stitched);
     }
-    // color of borders and agents
-    auto color_from_index = [&](size_t i) -> cv::Scalar {
-        size_t N = final_regions.size();  // total number of regions
-        if (N == 0) return cv::Scalar(255, 255, 255);
-    
-        // Evenly spaced hues across [0, 180) in OpenCV HSV
-        double hue = (static_cast<double>(i) / N) * 180.0; 
-        double sat = 255.0; // full saturation
-        double val = 255.0; // full brightness
-    
-        cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(hue, sat, val));
-        cv::Mat bgr;
-        cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
-    
-        cv::Vec3b c = bgr.at<cv::Vec3b>(0, 0);
-        return cv::Scalar(c[0], c[1], c[2]); // OpenCV uses BGR order
-    };
 
     int total_drawn = 0;
     for (size_t i = 0; i < final_regions.size(); ++i) {
         const Region& r = final_regions[i];
-        const cv::Scalar color = color_from_index(i);
+        const cv::Scalar color = color_from_parent_index(i, final_regions.size());
     
         // Compute tile size in pixels
         const int tile_px = static_cast<int>(std::llround(r.size * scale));
@@ -545,7 +663,6 @@ int main() {
 
 
         // --- Now start stepping with large_drive ---
-        int sim_length = 50;   // like Python default
         int drive_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
     
         // Carry forward agent_properties (constant)
@@ -553,6 +670,26 @@ int main() {
         //     throw std::runtime_error("Fewer agent_properties than agent_states in InitializeResponse");
         // }
         std::cout << "Starting simulation for " << sim_length << " steps...\n";
+        std::vector<Region> full_regions;
+        // double tile_size = final_regions[0].size; // use same FOV as your initialize tiles
+
+        // for (double y = min_y + tile_size / 2.0; y < max_y; y += tile_size) {
+        //     for (double x = min_x + tile_size / 2.0; x < max_x; x += tile_size) {
+        //         Region r(Point2d{x, y}, tile_size);
+        //         full_regions.push_back(r);
+        //     }
+        // }
+
+        // auto all_tiles = invertedai::get_all_map_tiles(
+        //     session, location,
+        //     min_x, max_x, min_y, max_y,
+        //     100.0, 2.0, FLIP_X_FOR_THIS_DOMAIN
+        // );
+        
+        // cv::Mat stitchedd = build_full_map_from_cache(
+        //     all_tiles, get_regions_in_grid(max_x-min_x, max_y-min_y), final_regions,
+        //     min_x, max_y, 2.0, canvas_w, canvas_h, FLIP_X_FOR_THIS_DOMAIN
+        // );
         LargeDriveConfig drive_cfg(session);
         drive_cfg.location = location;
         drive_cfg.agent_states = agent_states;
@@ -562,51 +699,38 @@ int main() {
         drive_cfg.light_recurrent_states = light_recurrent_states;
         drive_cfg.random_seed = drive_seed;
         drive_cfg.get_infractions = true;
-        drive_cfg.single_call_agent_limit = 30;
-        for (int step = 0; step < sim_length; ++step) {
-        
+        drive_cfg.single_call_agent_limit = 100;
+        drive_cfg.async_api_calls = true;
+        for (int step = 0; step < sim_length; ++step) {   
             auto out = large_drive_with_regions(drive_cfg);
             DriveResponse drive_response = std::move(out.response);
             std::vector<Region> leaf_regions = std::move(out.regions);
-
-
-            std::cout << "[STEP " << step << "] agents=" << drive_response.agent_states().size()
-            << " recurrent=" << drive_response.recurrent_states().size()
-            << std::endl;
-  
-  // compute avg recurrent norm
-  double norm_sum = 0;
-  for (const auto& r : drive_response.recurrent_states()) {
-      double n = 0;
-      for (double v : r) n += v * v;
-      norm_sum += std::sqrt(n);
-  }
-  std::cout << "avg recurrent norm=" << norm_sum / drive_response.recurrent_states().size() << std::endl;   
-  
-  
             // === update evolving states ===
-            drive_cfg.agent_states          = drive_response.agent_states();
-            // agent_props     = drive_response.agent_properties();
-            drive_cfg.recurrent_states             = drive_response.recurrent_states();
-            // traffic_lights_states = drive_response.traffic_lights_states();
-            drive_cfg.light_recurrent_states = drive_response.light_recurrent_states();
+            auto states = drive_response.agent_states();
+            auto recur  = drive_response.recurrent_states();
+            auto lights_recur = drive_response.light_recurrent_states();
+            auto traff  = drive_response.traffic_lights_states();
+            
+            // update all drive_cfg fields in the same consistent order
+            drive_cfg.agent_states           = states;
+            drive_cfg.recurrent_states       = recur;
+            drive_cfg.light_recurrent_states = lights_recur;
+            drive_cfg.traffic_lights_states  = std::nullopt;
+            drive_cfg.api_model_version      = drive_response.model_version();
+            drive_cfg.random_seed            = std::nullopt;
             // --------------------------------
-            std::cout << "[STEP " << step << "] "
-                << " agents=" << response.agent_states().size()
-                << " recurrent=" << (response.recurrent_states().empty() ? 0 : response.recurrent_states().size())
-                << " tl_states=" << (response.traffic_lights_states().has_value() ? response.traffic_lights_states()->size() : 0)
-                << " light_recurrent=" << (response.light_recurrent_states().has_value() ? response.light_recurrent_states()->size() : 0)
-                << std::endl;
-            // === Build base birdview (like large_initialize did) ===
+
+            // // === Build base birdview (like large_initialize did) ===
             cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
             for (size_t i = 0; i < final_regions.size(); ++i) {
-                paste_region_tile(final_regions[i], i, stitched, location, session, scale, min_x, max_y);
+                paste_region_tile(final_regions[i], i, stitched);
             }
-        
+
+            // cv::Mat stitched = stitchedd.clone();
             // === Overlay quadtree regions (children take their parent color) ===
             for (const Region& r : leaf_regions) {
-                int parent_idx = parent_index_of_point(final_regions, r.center.x, r.center.y);
-                cv::Scalar color = color_from_index(parent_idx);
+                // int parent_idx = parent_index_of_point(leaf_regions, r.center.x, r.center.y);
+                cv::Scalar color = parent_color_at(r.center.x, r.center.y);
 
                 cv::Rect rr = region_rect_pixels(
                     r, min_x, max_y, scale,
@@ -620,14 +744,9 @@ int main() {
                                 {rr.x + rr.width - 2, rr.y + rr.height - 2},
                                 color, 2, cv::LINE_AA);
                 }
-            }
 
             // === Draw agents (color by their current parent region) ===
-            for (const auto& s : drive_response.agent_states()) {
-                // parent by position in world
-                int parent_idx = parent_index_of_point(final_regions, s.x, s.y);
-                cv::Scalar color = color_from_index(parent_idx);
-
+            for (const auto& s : r.agent_states) {
                 cv::Point pt = world_to_canvas(
                     s.x, s.y, min_x, max_y, scale,
                     stitched.cols, FLIP_X_FOR_THIS_DOMAIN
@@ -637,6 +756,19 @@ int main() {
                     cv::circle(stitched, pt, 4, color, cv::FILLED, cv::LINE_AA);
                 }
             }
+        }
+        auto lights_opt = drive_response.traffic_lights_states();
+        draw_traffic_lights(stitched, lights_opt, traffic_light_positions_px);
+
+            // for (const auto& r : leaf_regions) {
+            //     int p_r = parent_index_of_point(final_regions, r.center.x, r.center.y);
+            //     std::cout << "Leaf " << &r - &leaf_regions[0]
+            //               << " parent=" << p_r << " color=" << p_r % 10 << "\n";
+            // }
+            // for (const auto& s : response.agent_states()) {
+            //     int p_a = parent_index_of_point(final_regions, s.x, s.y);
+            //     std::cout << "Agent color parent=" << p_a << " color=" << p_a % 10 << "\n";
+            // }
             // === Label step ===
             cv::putText(stitched, "Step " + std::to_string(step),
                         cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
@@ -668,8 +800,22 @@ int main() {
                                cv::VideoWriter::fourcc('M','J','P','G'),
                                10, // fps
                                cv::Size(canvas_w, canvas_h));
-        
-        for (int step = 1; step <= sim_length; ++step) {
+        // Load the intro image (stitched_with_agents.png)
+        cv::Mat intro = cv::imread("stitched_with_agents.png");
+        // if (!intro.empty()) {
+            // Resize it to match your canvas if necessary
+            // if (intro.size() != cv::Size(canvas_w, canvas_h)) {
+            //     cv::resize(intro, intro, cv::Size(canvas_w, canvas_h));
+            // }
+
+            // // Write it for the first second (10 frames at 10 fps)
+            // for (int i = 0; i < 10; ++i) {
+            //     writer.write(intro);
+            // }
+        // } else {
+        //     std::cerr << "[WARN] Could not load stitched_with_agents.png — skipping intro.\n";
+        // }
+        for (int step = 0; step < sim_length; ++step) {
             char buf[64];
             sprintf(buf, "frame_%04d.png", step);
             cv::Mat img = cv::imread(buf);
