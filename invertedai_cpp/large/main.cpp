@@ -44,14 +44,21 @@ inline int parent_index_of_point(
     return best_i; // could be -1 only if parents empty
 }
 inline cv::Scalar color_from_parent_index(size_t parent_idx, size_t parent_count) {
-    if (parent_count == 0) return cv::Scalar(255,255,255);
-    double hue = (static_cast<double>(parent_idx) / parent_count) * 180.0;
-    cv::Mat hsv(1,1,CV_8UC3, cv::Scalar(hue, 255, 255));
-    cv::Mat bgr;  cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
-    auto c = bgr.at<cv::Vec3b>(0,0);
+    if (parent_count == 0) return cv::Scalar(200, 200, 200); // neutral gray
+
+    // Restrict hue range to "cool" colors only: 100–160 (cyan → magenta)
+    const double hue_min = 100.0;
+    const double hue_max = 160.0;
+
+    double hue = hue_min + (static_cast<double>(parent_idx) / std::max<size_t>(1, parent_count - 1)) * (hue_max - hue_min);
+
+    cv::Mat hsv(1, 1, CV_8UC3, cv::Scalar(hue, 180, 255)); // vivid cool colors
+    cv::Mat bgr;
+    cv::cvtColor(hsv, bgr, cv::COLOR_HSV2BGR);
+    auto c = bgr.at<cv::Vec3b>(0, 0);
+
     return cv::Scalar(c[0], c[1], c[2]); // BGR
 }
-
 
 auto leaf_color_at (double x, double y,
                          const std::vector<Region>& leaf_regions) -> cv::Scalar {
@@ -386,9 +393,9 @@ int main() {
     std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
-    int total_num_agents = 305;
+    int total_num_agents = 10;
 
-    int sim_length = 100;   // num steps for large_drive simulation
+    int sim_length = 10;   // num steps for large_drive simulation
 
     // (used by get_regions_default)
     int width  = 1000;
@@ -533,6 +540,53 @@ auto parent_color_at = [&](double x, double y) -> cv::Scalar {
 
         cached_tiles[i] = tile;
     }
+    std::cerr << "Caching " << cached_tiles.size() << " tiles for initialize steps...\n";
+    // cache the driving tiles
+    struct PairHash {
+        size_t operator()(const std::pair<double,double>& p) const noexcept {
+            auto h1 = std::hash<double>{}(p.first);
+            auto h2 = std::hash<double>{}(p.second);
+            return h1 ^ (h2 << 1);
+        }
+    };
+    std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles;
+    std::map<AgentType,int> agent_count_dict_drive = {
+        {AgentType::car, 9999}
+    };
+    std::vector<Region> drive_tiles = get_regions_default(
+        location,
+        9999,                              // total_num_agents (legacy arg kept)
+        agent_count_dict_drive,                              // agent_count_dict
+        session,
+        std::pair<float,float>{width/2.f, height/2.f}, // area_shape / hint
+        map_center,                                    // map center from location_info
+        initialize_seed                               // random seed
+
+    );
+    std::cerr << "Caching " << drive_tiles.size() << " tiles for drive steps...\n";
+    for (size_t i = 0; i < drive_tiles.size(); ++i) {
+        const Region& r = drive_tiles[i];
+        LocationInfoRequest req("{}");
+        req.set_location(location);
+        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
+        req.set_rendering_fov(static_cast<int>(r.size));
+        req.set_include_map_source(false);
+
+        LocationInfoResponse res = location_info(req, &session);
+        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
+        if (tile.empty()) {
+            std::cerr << "[WARN] drive Tile " << i << " is empty.\n";
+            continue;
+        }
+
+        const int tile_px = static_cast<int>(std::llround(r.size * scale));
+        if (tile.cols != tile_px || tile.rows != tile_px) {
+            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
+        }
+
+        drive_cached_tiles[{r.center.x, r.center.y}] = tile;
+
+    }
     // 3) Canvas
     const int canvas_w = static_cast<int>(std::ceil((max_x - min_x) * scale));
     const int canvas_h = static_cast<int>(std::ceil((max_y - min_y) * scale));
@@ -553,10 +607,10 @@ auto parent_color_at = [&](double x, double y) -> cv::Scalar {
     }
 
 
-    auto paste_region_tile = [&](const Region& r, int idx, cv::Mat& stitched) {
-        auto it = cached_tiles.find(idx);
-        if (it == cached_tiles.end()) {
-            std::cerr << "[WARN] Missing cached tile for region " << idx << "\n";
+    auto paste_region_tile = [&](const Region& r, std::unordered_map <int, cv::Mat> tiles, int idx, cv::Mat& stitched) {
+        auto it = tiles.find(idx);
+        if (it == tiles.end()) {
+            std::cerr << "[WARN] Pasting tiles..  Missing cached tile for region " << idx << "\n";
             return;
         }
     
@@ -592,10 +646,44 @@ auto parent_color_at = [&](double x, double y) -> cv::Scalar {
         cv::Rect src(x0 - offset_x, y0 - offset_y, dst.width, dst.height);
         tile(src).copyTo(stitched(dst));
     };
-    
-    // Paste all tiles
+    auto paste_region_tile_drive = [&](const Region& r,
+        const std::unordered_map<std::pair<double,double>, cv::Mat, PairHash>& tiles,
+        cv::Mat& stitched)
+    {
+        auto key = std::make_pair(r.center.x, r.center.y);
+        auto it = tiles.find(key);
+        if (it == tiles.end()) {
+        std::cerr << "[WARN] Missing cached tile for region at (" << r.center.x << "," << r.center.y << ")\n";
+        return;
+        }
+
+        const cv::Mat& tile = it->second;
+        const int tile_px = tile.cols;
+
+        // Compute offsets directly from world coordinates
+        int offset_x = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) * scale));
+        int offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
+
+        if (FLIP_X_FOR_THIS_DOMAIN) {
+        // Mirror horizontally
+        offset_x = stitched.cols - offset_x - tile_px;
+        }
+
+        // Clip to bounds
+        int x0 = clampi(offset_x, 0, stitched.cols);
+        int y0 = clampi(offset_y, 0, stitched.rows);
+        int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
+        int y1 = clampi(offset_y + tile.rows, 0, stitched.rows);
+        if (x1 <= x0 || y1 <= y0) return;
+
+        cv::Rect dst(x0, y0, x1 - x0, y1 - y0);
+        cv::Rect src(0, 0, dst.width, dst.height);
+        tile(src).copyTo(stitched(dst));
+    };
+
+    // Paste all tiles for initilize
     for (size_t i = 0; i < final_regions.size(); ++i) {
-        paste_region_tile(final_regions[i], i, stitched);
+        paste_region_tile(final_regions[i], cached_tiles, i, stitched);
     }
 
     int total_drawn = 0;
@@ -690,6 +778,7 @@ auto parent_color_at = [&](double x, double y) -> cv::Scalar {
         //     all_tiles, get_regions_in_grid(max_x-min_x, max_y-min_y), final_regions,
         //     min_x, max_y, 2.0, canvas_w, canvas_h, FLIP_X_FOR_THIS_DOMAIN
         // );
+
         LargeDriveConfig drive_cfg(session);
         drive_cfg.location = location;
         drive_cfg.agent_states = agent_states;
@@ -722,8 +811,8 @@ auto parent_color_at = [&](double x, double y) -> cv::Scalar {
 
             // // === Build base birdview (like large_initialize did) ===
             cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
-            for (size_t i = 0; i < final_regions.size(); ++i) {
-                paste_region_tile(final_regions[i], i, stitched);
+            for (size_t i = 0; i < drive_tiles.size(); ++i) {
+                paste_region_tile_drive(drive_tiles[i], drive_cached_tiles, stitched);
             }
 
             // cv::Mat stitched = stitchedd.clone();
