@@ -86,7 +86,8 @@ void LocationInfoResponse::refresh_body_json_() {
       element["dependant"] = static_map_actor.dependant.value();
     } else {
       element["dependant"] = nullptr;
-    }    this->body_json_["static_actors"].push_back(element);
+    }
+    this->body_json_["static_actors"].push_back(element);
   }
 }
 

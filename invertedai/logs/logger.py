@@ -105,7 +105,8 @@ class LogBase():
         direction_vec: bool = False,
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
-        left_hand_coordinates: bool = False
+        left_hand_coordinates: bool = False,
+        agent_ids: Optional[List[int]] = None
     ):
         """
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
@@ -156,7 +157,8 @@ class LogBase():
             ax=ax,
             direction_vec=direction_vec,
             velocity_vec=velocity_vec,
-            plot_frame_number=plot_frame_number
+            plot_frame_number=plot_frame_number,
+            numbers=agent_ids
         )
 
         plt.close(fig)
@@ -172,7 +174,8 @@ class LogBase():
         direction_vec: bool = False,
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
-        left_hand_coordinates: bool = False
+        left_hand_coordinates: bool = False,
+        agent_ids: Optional[List[int]] = None
     ):
         """
         Use the available internal tools to visualize the entire log and save it to a given location. Please refer to ScenePlotter for details on 
@@ -189,7 +192,8 @@ class LogBase():
             direction_vec = direction_vec,
             velocity_vec = velocity_vec,
             plot_frame_number = plot_frame_number,
-            left_hand_coordinates = left_hand_coordinates
+            left_hand_coordinates = left_hand_coordinates,
+            agent_ids = agent_ids
         )
 
     def initialize(self):
