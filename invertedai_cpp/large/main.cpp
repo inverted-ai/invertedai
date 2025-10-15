@@ -242,7 +242,7 @@ int main() {
         FLIP_X_FOR_THIS_DOMAIN = true;
         std::cout << "Detected CARLA map → flipping axes\n";
     }
-    const std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
+    const std::string API_KEY = " "; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many agents to add
     const int total_num_agents = 200;
