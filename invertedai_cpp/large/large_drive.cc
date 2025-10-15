@@ -13,50 +13,19 @@
 #include <mutex>
 
 namespace invertedai {
-// Helper: convert AgentAttributes → AgentProperties
-inline AgentProperties convert_attributes_to_properties(const AgentAttributes& attrs) {
-    AgentProperties props;
-    if (attrs.length)           props.length = attrs.length;
-    if (attrs.width)            props.width = attrs.width;
-    if (attrs.rear_axis_offset) props.rear_axis_offset = attrs.rear_axis_offset;
-    if (attrs.agent_type)       props.agent_type = attrs.agent_type;
-    if (attrs.waypoint)         props.waypoint = attrs.waypoint;
-    return props;
-}
-
-// Shim: normalize cfg.agent_properties (convert any AgentAttributes to AgentProperties)
-inline void normalize_agent_properties(std::vector<AgentProperties>& agent_properties,
-                                       const std::optional<std::vector<AgentAttributes>>& maybe_attrs) {
-    bool used_attributes = false;
-
-    if (maybe_attrs.has_value()) {
-        const auto& attrs_vec = maybe_attrs.value();
-        // Convert every AgentAttributes into AgentProperties
-        for (const auto& attrs : attrs_vec) {
-            agent_properties.push_back(convert_attributes_to_properties(attrs));
-        }
-        used_attributes = true;
-    }
-
-    if (used_attributes) {
-        std::cerr << "[WARN] agent_attributes is deprecated. Please use agent_properties instead.\n";
-    }
-}
 
 DriveResponse large_drive(LargeDriveConfig& cfg) {
-    
+    // size checks
     int num_agents = static_cast<int>(cfg.agent_states.size());
     if (num_agents <= 0) {
-        throw InvertedAIError("Valid call must contain at least 1 agent.");
+        throw InvertedAIError("valid call must contain at least 1 agent.");
     }
-
-    // STRICT size checks (fixes segfaults on cfg.agent_properties[i])
     const auto props_sz = static_cast<int>(cfg.agent_properties.size());
     if (props_sz != num_agents) {
         std::ostringstream oss;
         oss << "agent_states.size()=" << num_agents
             << " but agent_properties.size()=" << props_sz
-            << " (they MUST match)";
+            << " (they must match)";
         throw InvertedAIError(oss.str());
     }
 
@@ -66,7 +35,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             std::ostringstream oss;
             oss << "agent_states.size()=" << num_agents
                 << " but recurrent_states.size()=" << rec_sz
-                << " (they MUST match when provided)";
+                << " (they must match when provided)";
             throw InvertedAIError(oss.str());
         }
     }
@@ -79,12 +48,12 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
     }
 
     if (cfg.single_call_agent_limit > DRIVE_MAXIMUM_NUM_AGENTS) {
-        std::cerr << "[WARN] single_call_agent_limit capped at "
+        std::cerr << "[WARNING] single_call_agent_limit capped at "
                   << DRIVE_MAXIMUM_NUM_AGENTS << "\n";
         cfg.single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS;
     }
 
-    // --- Compute root region bounds
+    // compute root region bounds
     double max_x = -1e9, min_x = 1e9, max_y = -1e9, min_y = 1e9;
     for (const auto& s : cfg.agent_states) {
         max_x = std::max(max_x, s.x);
@@ -105,29 +74,28 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 cfg.single_call_agent_limit,
                 Region::create_square_region(region_center, region_size)
             );
-            // std::cerr << "[CHECKPOINT] QuadTree constructed OK\n";
         } catch (const std::exception& e) {
-            std::cerr << "[FATAL] QuadTree ctor threw: " << e.what()
+            std::cerr << "[FATAL] QuadTree constructor threw: " << e.what()
                     << " (center=" << region_center.x << "," << region_center.y
                     << " size=" << region_size << " cap=" << cfg.single_call_agent_limit << ")\n";
             throw;
         }
-    // --- Insert all agents into quadtree
+    // insert all agents into quadtree
     for (int i = 0; i < num_agents; i++) {
         QuadTreeAgentInfo info{
-            cfg.agent_states[i],                                // AgentState
+            cfg.agent_states[i],                                
             cfg.recurrent_states.has_value()
                 ? std::optional<std::vector<double>>(cfg.recurrent_states->at(i))
-                : std::nullopt,                                 // recurrent_state
-            cfg.agent_properties[i],                            // AgentProperties
-            i                                                   // agent_id
+                : std::nullopt,  
+            cfg.agent_properties[i], 
+            i  
         };
         if (!root->insert(info)) {
-            throw InvertedAIError("Unable to insert agent into region.");
+            throw InvertedAIError("unable to insert agent into region.");
         }
     }
     auto leaves = root->get_leaf_nodes(); 
-    // --- Collect all leaf nodes
+    // collect all leaf nodes
     if (leaves.size() > 1) {
         std::vector<DriveResponse> all_responses;
         std::vector<QuadTree*> non_empty_nodes;
@@ -138,9 +106,9 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
 
         for (auto* leaf : leaves) {
             // get core region and buffer from leaf
-            const Region& core   = leaf->region();         // must exist in your QuadTree API
-            const Region& buffer = leaf->region_buffer();  // ditto (neighbors visible set)
-            // particles (original agent ids for core region)
+            const Region& core   = leaf->region();         
+            const Region& buffer = leaf->region_buffer(); 
+            // particles 
             std::vector<int> region_agent_ids;
             region_agent_ids.reserve(leaf->particles().size());
             for (const auto& p : leaf->particles()) {
@@ -152,7 +120,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                                       region_agent_ids.begin(),
                                       region_agent_ids.end());
             
-                // Build a request for REGION + BUFFER (Python concatenates region then buffer in that order)
+                // region and buffer
                 DriveRequest req("{}");
                 req.set_location(cfg.location);
                 req.set_get_birdview(false);
@@ -204,10 +172,10 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 if (cfg.api_model_version.has_value()) req.set_model_version(cfg.api_model_version.value());
 
                 if(cfg.async_api_calls) {
-                    // Async call
+                    // async call
                     tasks.push_back(LeafTask{ non_empty_nodes.size() - 1, std::move(req) });
                 } else {
-                    // Sync call
+                    // sync call
                     DriveResponse r = drive(req, &cfg.session);
                     all_responses.push_back(std::move(r));
                 }
@@ -218,17 +186,16 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         std::vector<std::future<std::pair<size_t, DriveResponse>>> futs;
         futs.reserve(tasks.size());
         if(cfg.async_api_calls) {
-        std::cout << "[DEBUG] Launching " << tasks.size() << " async drive tasks\n";
+        std::cout << "[NOTE] Launching " << tasks.size() << " async drive tasks\n";
         
             for (auto &t : tasks) {
                 if(!cfg.async_api_calls) break; // safety
                 futs.emplace_back(std::async(std::launch::async, [&cfg](LeafTask lt){
                     try {
-                        // std::lock_guard<std::mutex> lk(session_mtx);
                         net::io_context ioc;
                         ssl::context ctx(ssl::context::sslv23_client);
                         invertedai::Session local_sess(ioc, ctx);
-                        local_sess.set_api_key("wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni");
+                        local_sess.set_api_key(cfg.api_key);
                         local_sess.connect();
                         DriveResponse r = drive(lt.req, &local_sess);
                         return std::pair<size_t, DriveResponse>{ lt.idx, std::move(r) };
@@ -239,7 +206,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                     }
                 }, t));
             }
-            // Collect all async results
+            // collect all async results
             for (auto &f : futs) {
                 auto [idx, resp] = f.get();
                 all_responses[idx] = std::move(resp);
@@ -247,10 +214,10 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         } else {
             for (auto &t : tasks) {
                 DriveResponse r = drive(t.req, &cfg.session);
-                all_responses[t.idx] = std::move(r);  // write into the *same* slot as async
+                all_responses[t.idx] = std::move(r);  
             }
         }
-        // Flatten outputs
+        // flatten outputs
         std::vector<std::vector<AgentState>> states_per_leaf;
         std::vector<std::vector<std::vector<double>>> recurrent_per_leaf;
         std::vector<std::vector<bool>> inside_per_leaf;
@@ -269,9 +236,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             n_agents = std::min(n_agents, res.agent_states().size());
             n_agents = std::min(n_agents, res.recurrent_states().size());
         
-            // Early continue to isolate
             if (res.agent_states().empty()) {
-                std::cerr << "[LEAF " << i << "] agent_states empty, skipping.\n";
                 continue;
             }
         
@@ -301,7 +266,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         auto merged_inside = flatten_and_sort(inside_per_leaf, agent_id_order);
 
         if (merged_states.size() != merged_recurrent.size()) {
-            std::cerr << "MISMATCH: states=" << merged_states.size()
+            std::cerr << "!!!! size difference !!! states=" << merged_states.size()
                       << " recurrent=" << merged_recurrent.size() << std::endl;
         }
         for (int i = 0; i < merged_recurrent.size(); ++i) {
@@ -322,17 +287,13 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         
         if (cfg.get_infractions) {
             final_resp.set_infraction_indicators(merged_infractions);
-            // std::cerr << " set_infraction_indicators after set " << final_resp.infraction_indicators().size() << std::endl;
         } else {
             final_resp.set_infraction_indicators({});
-            // std::cerr << " set_infraction_indicators after set " << final_resp.infraction_indicators().size() << std::endl;
         }
         
-        auto tls_opt = all_responses[0].traffic_lights_states(); // copy of optional (safe)
+        auto tls_opt = all_responses[0].traffic_lights_states();
         if (tls_opt && !tls_opt->empty()) {
-            // safe: iterating a real map that lives in tls_opt
             for (const auto& kv : *tls_opt) {
-                // std::cerr << " traffic light values" << kv.first << kv.second << '\n';
                 final_resp.set_traffic_lights_states(*tls_opt);
                 if (kv.second.empty()) {
                     std::cerr << "[WARN] traffic_lights_states has empty value for key=" << kv.first << std::endl;
@@ -350,8 +311,6 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
 
                 if (all_responses[0].light_recurrent_states().has_value()) {
                     final_resp.set_light_recurrent_states(all_responses[0].light_recurrent_states().value());
-
-                    std::cerr << "[DEBUG] light_recurrent_states skipped (nullopt)\n";
                 }
                 final_resp.set_birdview({});
                 final_resp.set_infraction_indicators(
@@ -359,14 +318,14 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 );
 
             } catch (const std::exception& e) {
-                std::cerr << "[FATAL] Exception inside final_resp population: " << e.what() << std::endl;
+                std::cerr << "[FATAL] Exception inside final_resp: " << e.what() << std::endl;
                 throw;
             }
         }
         return final_resp;
 
     } else {
-        // --- If no subdivision, call DRIVE directly
+        // if no subdivision, call drive directly
         DriveRequest req("{}");
         req.set_location(cfg.location);
         req.set_get_birdview(false);
@@ -390,27 +349,28 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             req.set_model_version(cfg.api_model_version.value());
         }
 
-        // Call DRIVE API synchronously (no async in C++)
+        // call drive api synchronously 
         try {
             std::string body = req.body_str();
             cfg.logger.append_request(body, "drive");
             DriveResponse res = drive(req, &cfg.session);
             return res;
         } catch (const std::exception& e) {
-            std::cerr << "[FATAL] Exception while serializing DriveRequest: " << e.what() << std::endl;
+            std::cerr << "[FATAL] Exception while serializing driveRequest: " << e.what() << std::endl;
             throw;
         }
         
     }
 }
 
+// function to visualize the leaf nodes
 LargeDriveWithRegions large_drive_with_regions(LargeDriveConfig& cfg) {
     int num_agents = static_cast<int>(cfg.agent_states.size());
     if (num_agents == 0) {
-        throw InvertedAIError("Valid call must contain at least 1 agent.");
+        throw InvertedAIError("valid call must contain at least 1 agent.");
     }
 
-    // --- Compute root region bounds ---
+    // compute root region bounds
     double max_x = -1e9, min_x = 1e9, max_y = -1e9, min_y = 1e9;
     for (const auto& s : cfg.agent_states) {
         max_x = std::max(max_x, s.x);
@@ -426,21 +386,18 @@ LargeDriveWithRegions large_drive_with_regions(LargeDriveConfig& cfg) {
 
     QuadTree root(cfg.single_call_agent_limit, Region::create_square_region(region_center, region_size));
 
-    // --- Insert all agents ---
     for (int i = 0; i < num_agents; i++) {
         QuadTreeAgentInfo info{ cfg.agent_states[i],
                                 cfg.recurrent_states ? std::optional<std::vector<double>>(cfg.recurrent_states->at(i)) : std::nullopt,
                                 cfg.agent_properties[i],
                                 i };
         if (!root.insert(info)) {
-            throw InvertedAIError("Unable to insert agent into region.");
+            throw InvertedAIError("unable to insert agent into region.");
         }
     }
 
-    // --- Get leaf regions for visualization ---
     std::vector<Region> leaf_regions = root.get_regions();
 
-    // --- Call original drive logic (using your existing large_drive) ---
     DriveResponse resp = large_drive(cfg);
 
     return { std::move(resp), std::move(leaf_regions) };

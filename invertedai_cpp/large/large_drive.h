@@ -23,6 +23,7 @@ struct LargeDriveConfig {
     std::string location;
     std::vector<AgentState> agent_states;
     std::vector<AgentProperties> agent_properties;
+    std::string api_key;
     std::optional<std::vector<std::vector<double>>> recurrent_states = std::nullopt;
     std::optional<std::map<std::string, std::string>> traffic_lights_states = std::nullopt;
     std::optional<std::vector<LightRecurrentState>> light_recurrent_states = std::nullopt;
@@ -45,7 +46,6 @@ struct LargeDriveWithRegions {
 // Ported function
 DriveResponse large_drive(LargeDriveConfig& cfg);
 
-LargeDriveWithRegions large_drive_with_regions(
-    LargeDriveConfig& cfg);
+LargeDriveWithRegions large_drive_with_regions(LargeDriveConfig& cfg);
 
 } // namespace invertedai

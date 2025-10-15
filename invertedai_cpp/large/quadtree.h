@@ -1,6 +1,5 @@
 #ifndef INVERTEDAI_QUADTREE_H
 #define INVERTEDAI_QUADTREE_H
-// Header guard to prevent multiple inclusions
 
 #include <vector>
 #include <optional>
@@ -13,17 +12,15 @@ constexpr double QUADTREE_SIZE_BUFFER = 1.0;
 
 struct QuadTreeAgentInfo {
     AgentState agent_state;
-    std::optional<std::vector<double>> recurrent_state;  // C++ analog of Optional[RecurrentState]
+    std::optional<std::vector<double>> recurrent_state;
     AgentProperties agent_properties;
     int agent_id;
 
-    // Return as vector<variant> like Python's tolist()
     std::vector<std::variant<AgentState, AgentProperties, std::optional<std::vector<double>>, int>> 
     tolist() const {
         return {agent_state, agent_properties, recurrent_state, agent_id};
     }
 
-    // Construct from vector<variant> like Python's fromlist()
     static QuadTreeAgentInfo fromlist(
         const std::vector<std::variant<AgentState, AgentProperties, std::optional<std::vector<double>>, int>>& l
     ) {
@@ -38,7 +35,6 @@ struct QuadTreeAgentInfo {
         return q;
     }
 };
-
 
 class QuadTree {
 public:
@@ -55,7 +51,6 @@ public:
     size_t core_count()  const { return particles_.size(); }
     size_t buffer_count()const { return particles_buffer_.size(); }
     size_t total_count() const { return core_count() + buffer_count(); }
-    void enforce_capacity_budget(double min_leaf_size = 2.0);
 
 private:
     int capacity_;
@@ -74,34 +69,33 @@ private:
     bool insert_particle_in_leaf_nodes(const QuadTreeAgentInfo& particle, bool is_inserted);
 };
 
-/// Utility function
+/// utility function
 template <typename T>
-std::vector<T> flatten_and_sort(const std::vector<std::vector<T>>& nested_list,
-                                const std::vector<int>& index_list) {
-    // Flatten all sublists into one contiguous vector
+std::vector<T> flatten_and_sort(
+    const std::vector<std::vector<T>>& nested_list,
+    const std::vector<int>& index_list
+) {
+    // flatten all sublists into one contiguous vector
     std::vector<T> flat_list;
     for (const auto& sublist : nested_list) {
         flat_list.insert(flat_list.end(), sublist.begin(), sublist.end());
     }
 
     if (flat_list.size() != index_list.size()) {
-        throw std::runtime_error("[flatten_and_sort] Mismatch between flattened list size ("
+        throw std::runtime_error("flatten_and_sort error: mismatch between flattened list size ("
                                  + std::to_string(flat_list.size()) + ") and index list size ("
                                  + std::to_string(index_list.size()) + ")");
     }
 
-    // Pair each element with its corresponding index
     std::vector<std::pair<int, T>> zipped;
     zipped.reserve(flat_list.size());
     for (size_t i = 0; i < flat_list.size(); ++i) {
         zipped.emplace_back(index_list[i], flat_list[i]);
     }
 
-    // Sort by index (ascending)
     std::sort(zipped.begin(), zipped.end(),
               [](const auto& a, const auto& b) { return a.first < b.first; });
 
-    // Extract sorted elements
     std::vector<T> sorted_list;
     sorted_list.reserve(zipped.size());
     for (auto& pair : zipped) {
@@ -111,6 +105,5 @@ std::vector<T> flatten_and_sort(const std::vector<std::vector<T>>& nested_list,
     return sorted_list;
 }
 
-}
-// End of header guard
+} 
 #endif // INVERTEDAI_QUADTREE_H

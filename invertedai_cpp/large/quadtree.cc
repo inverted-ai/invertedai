@@ -6,8 +6,6 @@
 
 namespace invertedai {
 
-// -------- QuadTree --------
-// QuadTree constructor
 QuadTree::QuadTree(int capacity, const Region& region)
     : capacity_(capacity),
       region_(region),
@@ -19,7 +17,6 @@ QuadTree::QuadTree(int capacity, const Region& region)
       southWest_(nullptr),
       southEast_(nullptr) {}
 
-// ------------------------------------------------------------------
 void QuadTree::subdivide() {
     Region parent = region_;
     double new_size = region_.size / 2.0;
@@ -58,8 +55,10 @@ void QuadTree::subdivide() {
     particles_buffer_.clear();
 }
 
-// ------------------------------------------------------------------
-bool QuadTree::insert_particle_in_leaf_nodes(const QuadTreeAgentInfo& particle, bool is_inserted) {
+bool QuadTree::insert_particle_in_leaf_nodes(
+    const QuadTreeAgentInfo& particle, 
+    bool is_inserted
+) {
     bool inserted = northWest_->insert(particle, is_inserted);
     inserted = northEast_->insert(particle, inserted || is_inserted) || inserted;
     inserted = southWest_->insert(particle, inserted || is_inserted) || inserted;
@@ -67,8 +66,10 @@ bool QuadTree::insert_particle_in_leaf_nodes(const QuadTreeAgentInfo& particle, 
     return inserted;
 }
 
-// ------------------------------------------------------------------
-bool QuadTree::insert(const QuadTreeAgentInfo& particle, bool is_particle_placed) {
+bool QuadTree::insert(
+    const QuadTreeAgentInfo& particle, 
+    bool is_particle_placed
+) {
     bool is_in_region = region_.is_inside({particle.agent_state.x, particle.agent_state.y});
     bool is_in_buffer = region_buffer_.is_inside({particle.agent_state.x, particle.agent_state.y});
 
@@ -99,7 +100,6 @@ bool QuadTree::insert(const QuadTreeAgentInfo& particle, bool is_particle_placed
     return inserted;
 }
 
-// ------------------------------------------------------------------
 std::vector<Region> QuadTree::get_regions() const {
     if (leaf_) return {region_};
 
@@ -114,7 +114,6 @@ std::vector<Region> QuadTree::get_regions() const {
     return nw;
 }
 
-// ------------------------------------------------------------------
 std::vector<QuadTree*> QuadTree::get_leaf_nodes() {
     if (leaf_) return {this};
 
@@ -130,7 +129,6 @@ std::vector<QuadTree*> QuadTree::get_leaf_nodes() {
     return result;
 }
 
-// ------------------------------------------------------------------
 size_t QuadTree::get_number_of_agents_in_node() const {
     return particles_.size();
 }
