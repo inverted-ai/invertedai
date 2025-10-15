@@ -10,7 +10,6 @@ cc_library(
     hdrs = [
         "large_initialize.h",
         "large_init_helpers.h",
-        "common.h",
         # add other headers you want available
     ],
     strip_include_prefix = ".",
@@ -21,13 +20,6 @@ cc_library(
         "@boost//:beast",
         "@opencv",
     ],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "large_common",
-    hdrs = ["common.h"],
-    includes = ["."],   # allows #include "large/common.h"
     visibility = ["//visibility:public"],
 )
 
@@ -50,7 +42,6 @@ cc_binary(
     name = "large_test_main",
     srcs = ["main.cpp"],
     deps = [
-        "//large:large_common",
         "//invertedai:api",
         "@boost//:beast",
         "@opencv",

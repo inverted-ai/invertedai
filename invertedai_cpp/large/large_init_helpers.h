@@ -5,7 +5,6 @@
     #include <optional>
     #include <random>
     #include <stdexcept>
-    #include "common.h"          // Region, Point, AgentType, etc.
     #include "error.h"           // InvertedAIError
     #include "invertedai/api.h"             // location_info
     #include "invertedai/data_utils.h"      // get_default_agent_properties?

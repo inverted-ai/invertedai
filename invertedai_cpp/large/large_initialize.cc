@@ -297,14 +297,6 @@ initialize_regions(
                 
                     if (!props.agent_type) props.agent_type = type;
                 }
-                std::cout << "[DEBUG] Region " << i << " agents before sending:\n";
-                for (size_t j = 0; j < all_agent_props.size(); j++) {
-                    std::cout << "  Agent " << j 
-                                << " type=" << all_agent_props[j].agent_type.value_or("unset")
-                                << " has_state=" << (j < all_agent_states.size() ? "yes" : "no") 
-                                << "\n";
-                    all_agent_props[j].printFields();
-                }
                 req.set_agent_properties(all_agent_props);
                 req.set_location_of_interest(std::make_optional(
                     std::make_pair(region_center.x, region_center.y)));

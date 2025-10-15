@@ -22,26 +22,7 @@ constexpr int ATTEMPT_PER_NUM_REGIONS = 15;
 enum class AgentType {
     car,
     pedestrian
-    // Add more if needed: bus, truck, cyclist, etc.
 };
-
-// Helper to convert to string
-inline std::string to_string(AgentType type) {
-    switch (type) {
-        case invertedai::AgentType::car: return "car";
-        case invertedai::AgentType::pedestrian: return "pedestrian";
-        default: return "unknown";
-    }
-}
-
-// Helper to parse from string (if needed)
-inline invertedai::AgentType agent_type_from_string(const std::string& s) {
-    if (s == "car") return invertedai::AgentType::car;
-    if (s == "pedestrian") return invertedai::AgentType::pedestrian;
-    throw std::invalid_argument("Unknown AgentType: " + s);
-}
-
-
 
 const std::map<std::string, int> kControlType = {
     {"traffic_light", 0},       {"yield_sign", 1},       {"stop_sign", 2},
@@ -374,7 +355,6 @@ struct AgentProperties {
     AgentProperties() = default;
 };
 
-// Recurrent state used in drive
 struct RecurrentState {
   std::vector<float> packed;
 
@@ -391,39 +371,6 @@ struct Agent {
   AgentProperties properties;
   RecurrentState recurrent;
 };
-
-inline std::string agent_type_to_string(AgentType type) {
-  switch (type) {
-      case AgentType::car: return "car";
-      case AgentType::pedestrian: return "pedestrian";
-      // add all your types
-      default: return "unknown";
-  }
-}
-
-// inline std::vector<AgentProperties>
-// get_default_agent_properties(const std::map<AgentType,int>& agent_count_dict,
-//                              bool use_agent_properties = true) {
-//     std::vector<AgentProperties> agent_attributes_list;
-
-//     for (auto& [agent_type, count] : agent_count_dict) {
-//         for (int i = 0; i < count; i++) {
-//             if (use_agent_properties) {
-//                 AgentProperties props;
-//                 props.agent_type = agent_type_to_string(agent_type);   //only type
-//                 agent_attributes_list.push_back(props);
-//             } else {
-//                 // if you still support AgentAttributes fallback
-//                 AgentProperties props;
-//                 props.agent_type = agent_type_to_string(agent_type);  //only type
-//                 agent_attributes_list.push_back(props);
-//             }
-//         }
-//     }
-
-//     return agent_attributes_list;
-// }
-
 
 /**
  * Dynamic state of a traffic light.
@@ -501,17 +448,11 @@ struct Region {
   Point2d center;
   double size;
   double min_x, max_x, min_y, max_y;
-  // std::vector<Agent> agents;
 
   std::vector<AgentState> agent_states;
   std::vector<AgentProperties> agent_properties;
   std::vector<std::vector<double>> recurrent_states;
 
-  // Region copy() const {
-  //     Region r(center, size);
-  //     r.agents = agents; 
-  //     return r;
-  // }
   Region copy() const {
       Region r(center, size);
       r.agent_states = agent_states;
@@ -529,10 +470,10 @@ struct Region {
       const std::vector<std::vector<double>>& recurs = {}
   ) {
       if (states.size() != props.size()) {
-          throw std::invalid_argument("states and props must have same length");
+          throw std::invalid_argument("The number of given AgentStates and AgentProperties must be equal");
       }
       if (!recurs.empty() && recurs.size() != states.size()) {
-          throw std::invalid_argument("recurs must be empty or same length as states");
+          throw std::invalid_argument("The recurrent states vector must be empty or the same length as the number of given agents");
       }
 
       Region region(center, size);
@@ -545,7 +486,7 @@ struct Region {
           if (!recurs.empty()) {
               region.recurrent_states.push_back(recurs[i]);
           } else {
-              region.recurrent_states.emplace_back(); // default recurrent
+              region.recurrent_states.emplace_back(); 
           }
       }
       return region;
@@ -560,53 +501,44 @@ struct Region {
       max_y = c.y + s/2;
   }
 
-  //check if point is within an X-Y axis aligned square region
   bool is_inside(const Point2d& p) const {
       return (min_x <= p.x && p.x <= max_x &&
               min_y <= p.y && p.y <= max_y);
   }
 
-//     void insert_agents(Agent&& agent) {
-//         if (!is_inside({agent.state.x, agent.state.y})) {
-//             throw std::invalid_argument("Agent state outside region");
-//         }
-//         agents.push_back(std::move(agent));
-//     }
-//     void clear_agents() {
-//         agents.clear();
-//     }
-  
-// };
-void insert_agent(
-  const  AgentState& state, 
-  const  AgentProperties& props, 
-  const  std::vector<double>& recur
-) {
-  if (!is_inside({state.x, state.y})) {
-      throw std::invalid_argument("Agent state outside region");
+  void insert_agent(
+    const  AgentState& state, 
+    const  AgentProperties& props, 
+    const  std::vector<double>& recur
+  ) {
+    if (!is_inside({state.x, state.y})) {
+        throw std::invalid_argument("Agent state outside region");
+    }
+    agent_states.push_back(state);
+    agent_properties.push_back(props);
+    recurrent_states.push_back(recur);
   }
-  agent_states.push_back(state);
-  agent_properties.push_back(props);
-  recurrent_states.push_back(recur);
-}
-void clear_agents() {
-  agent_states.clear();
-  agent_properties.clear();
-  recurrent_states.clear();
-}
 
-size_t size_agents() const {
-  return agent_states.size();
-}
-void insert_all_agent_details(
-  const AgentState& state,
-  const AgentProperties& props,
-  const std::vector<double>& rec
-) {
-  agent_states.push_back(state);
-  agent_properties.push_back(props);
-  recurrent_states.push_back(rec);
-}
+  void clear_agents() {
+    agent_states.clear();
+    agent_properties.clear();
+    recurrent_states.clear();
+  }
+
+  size_t size_agents() const {
+    return agent_states.size();
+  }
+
+  void insert_all_agent_details(
+    const AgentState& state,
+    const AgentProperties& props,
+    const std::vector<double>& rec
+  ) {
+    agent_states.push_back(state);
+    agent_properties.push_back(props);
+    recurrent_states.push_back(rec);
+  }
+
 };
 
 

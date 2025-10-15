@@ -13,15 +13,14 @@
 #include "invertedai/initialize_response.h"
 #include "large_initialize.h"
 #include "large_init_helpers.h"
-#include "common.h"
 
 using namespace invertedai;
 
 // Clamp helper
-inline int clampi(int v, int lo, int hi) { return std::max(lo, std::min(v, hi)); }
+int clampi(int v, int lo, int hi) { return std::max(lo, std::min(v, hi)); }
 
 // ensure all regions are 100m x 100m 
-auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
+auto validate_regions (const std::vector<invertedai::Region>& regs,
     double expected = 100.0,
     double tol = 1e-6,
     double px_per_meter = -1.0) {
@@ -58,59 +57,43 @@ auto validate_regions_100x100 (const std::vector<invertedai::Region>& regs,
         << " regions are 100m x 100m (FOV=" << expected << ")\n";
     }
     return ok;
-    };
+}
 
 // Simple agent generator for testing
-    inline std::pair<std::vector<AgentState>, std::vector<AgentProperties>>
-    generate_agents_for_region(const Region& region,
-                               const std::map<AgentType, int>& agent_count_dict)
-    {
-        std::vector<AgentState> states;
-        std::vector<AgentProperties> props;
-    
-        // simple RNG for placing agents inside the region bounds
-        std::mt19937 rng(std::random_device{}());
-        std::uniform_real_distribution<double> dist_x(region.center.x - region.size/2.0,
-                                                      region.center.x + region.size/2.0);
-        std::uniform_real_distribution<double> dist_y(region.center.y - region.size/2.0,
-                                                      region.center.y + region.size/2.0);
-        std::uniform_real_distribution<double> dist_theta(0.0, 2*M_PI);
-        double spawn_x = region.center.x + 40.0; // near top-right but inside
-        double spawn_y = region.center.y + 40.0; // slightly offset downward
-        for (auto& [atype, count] : agent_count_dict) {
-            for (int i = 0; i < count; i++) {
-                AgentState st;
-                st.x = spawn_x; 
-                st.y = spawn_y; // avoid overlap for testing
-                // st.x = dist_x(rng);
-                // st.y = dist_y(rng);
-                st.orientation = dist_theta(rng);
-                st.speed = 0.0; // start stationary
-    
-                AgentProperties pr;
-                if (atype == AgentType::car) {
-                    pr.length = 4.5;
-                    pr.width = 1.8;
-                    pr.rear_axis_offset = 1.0;
-                    pr.agent_type = "car";
-                    pr.waypoint = region.center;   // give it a target
-                    pr.max_speed = 15.0;
-                } else if (atype == AgentType::pedestrian) {
-                    pr.length = 0.5;
-                    pr.width = 0.5;
-                    pr.rear_axis_offset = 0.0;
-                    pr.agent_type = "pedestrian";
-                    pr.waypoint = region.center;
-                    pr.max_speed = 1.5;
-                }
-    
-                //states.push_back(st);
-                props.push_back(pr);
-            }
-        }
-    
-        return {states, props};
-    }
+std::pair<std::vector<AgentState>, std::vector<AgentProperties>>
+initialize_agents_for_region(
+    invertedai::Session& session,
+    const std::string& location,
+    const Region& region,
+    int num_agents,
+    int random_seed = 1,
+    bool get_birdview = false,
+    bool get_infractions = false)
+{
+    using namespace invertedai;
+
+    // Build the API request
+    InitializeRequest req("{}");
+    req.set_location(location);
+    req.set_num_agents_to_spawn(num_agents);
+    req.set_location_of_interest(std::make_pair(region.center.x, region.center.y));
+    req.set_get_birdview(get_birdview);
+    req.set_get_infractions(get_infractions);
+    req.set_random_seed(random_seed);
+
+    // Make the API call
+    InitializeResponse resp = initialize(req, &session);
+
+    // Extract agent data
+    std::vector<AgentState> states = resp.agent_states();
+    std::vector<AgentProperties> props = resp.agent_properties();
+
+    std::cout << "[INFO] Initialized " << states.size()
+              << " agents in region centered at ("
+              << region.center.x << ", " << region.center.y << ")\n";
+
+    return {states, props};
+}
 
 int main() {
 
@@ -118,7 +101,7 @@ int main() {
 // ./bazel-bin/large/large_main
     std::string location = "carla:Town10HD";
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
-    std::string API_KEY ; // = getenv("INVERTEDAI_API_KEY"); or just paste here
+    std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
     int total_num_agents = 90;
@@ -168,7 +151,7 @@ int main() {
     );
 
     // helper to check if regions have been validated currently
-    validate_regions_100x100(regions, /*expected=*/100.0);
+    validate_regions(regions, /*expected=*/100.0);
     std::cout << "Generated " << regions.size() << " regions.\n";
 
     // set up arguments for large initialize
@@ -182,12 +165,11 @@ int main() {
     cfg.api_model_version = std::nullopt;
 
     // Simple agent generator for testing - currently not being used
-    auto [init_states, init_props] = generate_agents_for_region(cfg.regions.front(), {
-        {AgentType::car, 10}, // change the 10 -> however many cars you want to initialize
-    
-    });
-    cfg.agent_states     = std::nullopt;  //init_states; change to init_states to use the generator function
-    cfg.agent_properties = std::nullopt; //init_props; 
+    auto [init_states, init_props] =
+    initialize_agents_for_region(session, location, regions[0], 3, initialize_seed);
+
+    cfg.agent_states     = init_states; //change to init_states to use the generator function
+    cfg.agent_properties = init_props; 
 
     std::cout << "Calling large_initialize with " << regions.size() << " regions...\n";
     auto out = invertedai::large_initialize_with_regions(cfg);
