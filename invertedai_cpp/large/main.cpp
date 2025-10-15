@@ -17,13 +17,21 @@
 using namespace invertedai;
 
 // Clamp helper
-int clampi(int v, int lo, int hi) { return std::max(lo, std::min(v, hi)); }
+int clampi(
+    int v, 
+    int lo, 
+    int hi
+) { 
+    return std::max(lo, std::min(v, hi)); 
+}
 
 // ensure all regions are 100m x 100m 
-auto validate_regions (const std::vector<invertedai::Region>& regs,
+auto validate_regions (
+    const std::vector<invertedai::Region>& regs,
     double expected = 100.0,
     double tol = 1e-6,
-    double px_per_meter = -1.0) {
+    double px_per_meter = -1.0
+) {
     bool ok = true;
     for (size_t i = 0; i < regs.size(); ++i) {
         double s = regs[i].size;
