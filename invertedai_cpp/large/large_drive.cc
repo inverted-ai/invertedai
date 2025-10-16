@@ -20,30 +20,29 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
     if (num_agents <= 0) {
         throw InvertedAIError("valid call must contain at least 1 agent.");
     }
-    const auto props_sz = static_cast<int>(cfg.agent_properties.size());
     if (props_sz != num_agents) {
-        std::ostringstream oss;
-        oss << "agent_states.size()=" << num_agents
-            << " but agent_properties.size()=" << props_sz
-            << " (they must match)";
-        throw InvertedAIError(oss.str());
+        std::string msg = 
+            "agent_states.size()=" + std::to_string(num_agents) +
+            " but agent_properties.size()=" + std::to_string(props_sz) +
+            " (they must match)";
+        throw InvertedAIError(msg);
     }
-
+    
     if (cfg.recurrent_states.has_value()) {
-        const auto rec_sz = static_cast<int>(cfg.recurrent_states->size());
-        if (rec_sz != num_agents) {
-            std::ostringstream oss;
-            oss << "agent_states.size()=" << num_agents
-                << " but recurrent_states.size()=" << rec_sz
-                << " (they must match when provided)";
-            throw InvertedAIError(oss.str());
+        const auto rec_size = static_cast<int>(cfg.recurrent_states->size());
+        if (rec_size != num_agents) {
+            std::string msg =
+                "agent_states.size()=" + std::to_string(num_agents) +
+                " but recurrent_states.size()=" + std::to_string(rec_size) +
+                " (they must match when provided)";
+            throw InvertedAIError(msg);
         }
     }
 
     if (num_agents != static_cast<int>(cfg.agent_properties.size())) {
         if (cfg.recurrent_states.has_value() &&
             num_agents != static_cast<int>(cfg.recurrent_states->size())) {
-            throw InvertedAIError("Input lists are not of equal size.");
+            throw InvertedAIError("Mismatch between Agent_states, Agent_properties, and Recurrent_states sizes.");
         }
     }
 
@@ -266,8 +265,12 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         auto merged_inside = flatten_and_sort(inside_per_leaf, agent_id_order);
 
         if (merged_states.size() != merged_recurrent.size()) {
-            std::cerr << "!!!! size difference !!! states=" << merged_states.size()
-                      << " recurrent=" << merged_recurrent.size() << std::endl;
+            std::cerr << "[WARN] Mismatch in merged agents: states=" << merged_states.size()
+                      << " recurrent=" << merged_recurrent.size()
+                      << " — continuing with min-size subset." << std::endl;
+            const size_t n = std::min(merged_states.size(), merged_recurrent.size());
+            merged_states.resize(n);
+            merged_recurrent.resize(n);
         }
         for (int i = 0; i < merged_recurrent.size(); ++i) {
             if (merged_recurrent[i].size() == 0) {
@@ -291,6 +294,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             final_resp.set_infraction_indicators({});
         }
         
+        // old debugging code - might delete ?
         auto tls_opt = all_responses[0].traffic_lights_states();
         if (tls_opt && !tls_opt->empty()) {
             for (const auto& kv : *tls_opt) {
@@ -367,7 +371,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
 LargeDriveWithRegions large_drive_with_regions(LargeDriveConfig& cfg) {
     int num_agents = static_cast<int>(cfg.agent_states.size());
     if (num_agents == 0) {
-        throw InvertedAIError("valid call must contain at least 1 agent.");
+        throw InvertedAIError("Valid call must contain at least 1 agent.");
     }
 
     // compute root region bounds
@@ -392,7 +396,7 @@ LargeDriveWithRegions large_drive_with_regions(LargeDriveConfig& cfg) {
                                 cfg.agent_properties[i],
                                 i };
         if (!root.insert(info)) {
-            throw InvertedAIError("unable to insert agent into region.");
+            throw InvertedAIError("Unable to insert agent into region.");
         }
     }
 
