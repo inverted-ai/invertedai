@@ -17,13 +17,14 @@ namespace invertedai {
 DriveResponse large_drive(LargeDriveConfig& cfg) {
     // size checks
     int num_agents = static_cast<int>(cfg.agent_states.size());
+    int props_size  = static_cast<int>(cfg.agent_properties.size());
     if (num_agents <= 0) {
         throw InvertedAIError("valid call must contain at least 1 agent.");
     }
-    if (props_sz != num_agents) {
+    if (props_size != num_agents) {
         std::string msg = 
             "agent_states.size()=" + std::to_string(num_agents) +
-            " but agent_properties.size()=" + std::to_string(props_sz) +
+            " but agent_properties.size()=" + std::to_string(props_size) +
             " (they must match)";
         throw InvertedAIError(msg);
     }

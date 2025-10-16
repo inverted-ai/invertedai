@@ -48,9 +48,6 @@ public:
     const std::vector<QuadTreeAgentInfo>& particles_buffer() const { return particles_buffer_; }
     const Region& region() const { return region_; }
     const Region& region_buffer() const { return region_buffer_; }
-    size_t core_count()  const { return particles_.size(); }
-    size_t buffer_count()const { return particles_buffer_.size(); }
-    size_t total_count() const { return core_count() + buffer_count(); }
 
 private:
     int capacity_;
