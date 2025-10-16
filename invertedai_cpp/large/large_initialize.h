@@ -17,7 +17,7 @@ using TrafficLightStatesDict = std::vector<TrafficLightState>;
  */
 struct LargeInitializeOutput {
     invertedai::InitializeResponse response;
-    std::vector<invertedai::Region> regions; // updated with agent_states / props / recurrent_states // for testing the regions
+    std::vector<invertedai::Region> regions; // contains agent_states / props / recurrent_states // for testing the regions
 };
 
 /**
@@ -98,7 +98,7 @@ struct LargeInitializeConfig {
     /**
      * @brief Construct with a required API session reference.
      */
-    explicit LargeInitializeConfig(Session& sess) : session(sess) {}
+    LargeInitializeConfig(Session& sess) : session(sess) {}
 };
 
 /**
