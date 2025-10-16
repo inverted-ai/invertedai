@@ -1,15 +1,12 @@
-    #pragma once
+#pragma once
+#include <vector>
+#include <map>
+#include <optional>
+#include <random>         
+#include "invertedai/api.h"             
+#include "invertedai/data_utils.h"      
 
-    #include <vector>
-    #include <map>
-    #include <optional>
-    #include <random>
-    #include <stdexcept>
-    #include "error.h"           
-    #include "invertedai/api.h"             
-    #include "invertedai/data_utils.h"      
-
-    namespace invertedai {
+namespace invertedai {
 /**
  * @brief Assign agents to regions proportionally to drivable area.
  *

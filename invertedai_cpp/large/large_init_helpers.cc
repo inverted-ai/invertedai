@@ -1,13 +1,11 @@
 #include "large_init_helpers.h"
-#include <algorithm>
-#include <numeric>
 #include <cmath>
 #include <iostream>
 #include "invertedai/error.h"
-#include "invertedai/api.h" // location_info
-#include "invertedai/data_utils.h"    // decode birdview image
-#include "invertedai/location_info_response.h" // LocationInfoResponse
-#include "invertedai/location_info_request.h"  // LocationInfoRequest
+#include "invertedai/api.h" 
+#include "invertedai/data_utils.h"    
+#include "invertedai/location_info_response.h" 
+#include "invertedai/location_info_request.h"  
 #include <opencv2/opencv.hpp>
 
 
@@ -51,7 +49,7 @@ namespace invertedai {
     
         // Default area shape if not given
         if (!area_shape.has_value()) {
-            area_shape = std::make_pair(50.0f, 50.0f); // 100/2 in Python
+            area_shape = std::make_pair(50.0f, 50.0f); 
         }
     
         // Create regions in a grid
@@ -65,8 +63,8 @@ namespace invertedai {
         std::vector<Region> new_regions = get_number_of_agents_per_region_by_drivable_area(
             location,
             regions,
-            total_num_agents,         // total_num_agents (deprecated)
-            agent_count_dict,        // agent_count_dict
+            total_num_agents,        
+            agent_count_dict,        
             session,
             random_seed
         );

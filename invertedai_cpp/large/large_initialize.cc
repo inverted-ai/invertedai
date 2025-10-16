@@ -1,10 +1,10 @@
 #pragma once
 #include "large_initialize.h"
-#include "invertedai/initialize_response.h" // Ensure this header defines InitializeResponse
-#include <random>
+#include "invertedai/initialize_response.h"
 #include "invertedai/initialize_request.h"
-#include "../invertedai/api.h"
+#include "invertedai/api.h"  
 #include "invertedai/error.h"
+#include <random>
 using tcp = net::ip::tcp;    // from <boost/asio/ip/tcp.hpp>
 using json = nlohmann::json; // from <json.hpp>
 
@@ -203,7 +203,7 @@ initialize_regions(
         region.recurrent_states.clear();
 
         if (all_agent_props.empty()) {
-            continue; // Nothing to initialize
+            continue; // no agents to initialize
         }
     
         std::optional<InitializeResponse> init_res;
