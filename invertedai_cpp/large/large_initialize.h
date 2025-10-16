@@ -139,9 +139,6 @@ std::pair<std::vector<Region>, std::vector<std::pair<int, int>>> insert_agents_i
     std::optional<int> random_seed = std::nullopt
 );
 
-std::vector<std::map<std::string,std::string>>
-convert_traffic_light_history(const std::vector<TrafficLightStatesDict>& dicts);
-
 /**
  * @brief Run initialization on a set of regions with agents.
  *

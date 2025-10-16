@@ -31,18 +31,6 @@ namespace invertedai {
         return props;
     }
 
-    std::vector<AgentProperties> get_default_agent_properties(
-        const std::map<AgentType,int>& agent_count_dict
-    ) {
-        std::vector<AgentProperties> result;
-        for (const auto& [atype, count] : agent_count_dict) {
-            for (int i = 0; i < count; i++) {
-                result.push_back(make_default_properties(atype));
-            }
-        }
-        return result;
-    }
-
     std::vector<Region> get_regions_default(
         const std::string& location,
         std::optional<int> total_num_agents,

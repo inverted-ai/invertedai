@@ -5,22 +5,11 @@
     #include <optional>
     #include <random>
     #include <stdexcept>
-    #include "error.h"           // InvertedAIError
-    #include "invertedai/api.h"             // location_info
-    #include "invertedai/data_utils.h"      // get_default_agent_properties?
+    #include "error.h"           
+    #include "invertedai/api.h"             
+    #include "invertedai/data_utils.h"      
 
     namespace invertedai {
-/**
- * @brief Generate default properties for a set of agents.
- *
- * Expands a dictionary of agent counts into a flat vector of AgentProperties,
- * using `make_default_properties` for each agent.
- *
- * @param agent_count_dict Map of agent type → number of agents.
- * @return std::vector<AgentProperties> Default properties for all agents.
- */
-std::vector<AgentProperties> get_default_agent_properties(const std::map<AgentType,int>& agent_count_dict);
-
 /**
  * @brief Assign agents to regions proportionally to drivable area.
  *
@@ -147,20 +136,5 @@ std::vector<invertedai::Region> get_regions_in_grid(
  * @return AgentProperties with default agent_type set.
  */
 AgentProperties make_default_properties(AgentType type);
-
-/**
- * @brief Generate default properties for a set of agents.
- *
- * Expands a dictionary of agent counts into a flat vector of AgentProperties,
- * using `make_default_properties` for each agent.
- *
- * @param agent_count_dict Map of agent type → number of agents.
- * @return std::vector<AgentProperties> Default properties for all agents.
- */
-std::vector<std::variant<AgentAttributes, AgentProperties>>
-get_default_agent_properties(
-    const std::map<AgentType,int>& agent_count_dict,
-    bool use_agent_properties = true
-);
 
 } // namespace invertedai

@@ -109,7 +109,7 @@ int main() {
 // ./bazel-bin/large/large_main
     std::string location = "carla:Town10HD";
     constexpr bool FLIP_X_FOR_THIS_DOMAIN = true; // set to true if using carla maps
-    std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni"; // = getenv("INVERTEDAI_API_KEY"); or just paste here
+    std::string API_KEY = " "; // = getenv("INVERTEDAI_API_KEY"); or just paste here
 
     // controls for how many additional agents to add
     int total_num_agents = 90;
@@ -123,14 +123,14 @@ int main() {
     std::mt19937 gen(rd());
     int initialize_seed = std::uniform_int_distribution<>(1, 1000000)(gen); // or fixed for repeatability 
 
-    // --- Session connection
+    // session connection
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
     session.set_api_key(API_KEY);
     session.connect();
 
-    // --- Get map info (for map_center)
+    //get map info (for map_center)
     LocationInfoRequest li_req("{}");
     li_req.set_location(location);
     li_req.set_include_map_source(true);
@@ -141,7 +141,7 @@ int main() {
         static_cast<float>(li_res.map_origin().y)
     };
 
-    // --- Generate default regions
+    // generate default regions
     std::map<AgentType,int> agent_count_dict = {
         {AgentType::car, total_num_agents}
     };
@@ -195,7 +195,7 @@ int main() {
     }
 
 
-    // --- Stitching and drawing workflow
+    // stitching and drawing workflow
     // 1) Bounds in world meters
     double min_x =  std::numeric_limits<double>::infinity();
     double min_y =  std::numeric_limits<double>::infinity();
@@ -337,7 +337,6 @@ int main() {
             cv::rectangle(stitched, {L, T}, {Rr, Bb}, color, 2, cv::LINE_AA);
         }
     
-        // Agents from THIS region
         for (const auto& s : r.agent_states) {
             int u = static_cast<int>(std::llround((s.x - min_x) * scale));
             int v = static_cast<int>(std::llround((max_y - s.y) * scale));
@@ -355,9 +354,9 @@ int main() {
     }
     std::cout << "Total agents drawn from final_regions: " << total_drawn << "\n";
 
-    // --- Save
-    cv::imwrite("stitched_with_agents.png", stitched);
-    std::cout << "Saved stitched_with_agents.png (" << stitched.cols << "x" << stitched.rows << ")\n";
+    // Save
+    cv::imwrite("large_initialize.png", stitched);
+    std::cout << "Saved large_initialize.png (" << stitched.cols << "x" << stitched.rows << ")\n";
     std::cout << "All done!\n";
     return 0;
 }
