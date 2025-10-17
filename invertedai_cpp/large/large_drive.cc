@@ -37,7 +37,6 @@ namespace invertedai {
  *    For each non-empty leaf node, a `DriveRequest` is created containing:
  *    - Agent states and properties for the core region and its spatial buffer.
  *    - Optional recurrent states and traffic light data.
- *    - Configuration flags (`get_infractions`, `api_model_version`, etc.).
  *
  * 4. Parallel execution:  
  *    If `cfg.async_api_calls` is true, each leaf node launches its own
