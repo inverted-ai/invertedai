@@ -12,10 +12,10 @@ QuadTree::QuadTree(int capacity, const Region& region)
       region_buffer_(Region::create_square_region(region.center,
                                                   region.size + 2 * BUFFER_FOV)),
       leaf_(true),
-      northWest_(nullptr),
-      northEast_(nullptr),
-      southWest_(nullptr),
-      southEast_(nullptr) {}
+      north_west(nullptr),
+      north_east(nullptr),
+      south_west(nullptr),
+      south_east(nullptr) {}
 
 void QuadTree::subdivide() {
     Region parent = region_;
@@ -37,10 +37,10 @@ void QuadTree::subdivide() {
                                                      parent_y - new_center_dist},
                                                     new_size);
 
-    northWest_ = std::make_unique<QuadTree>(capacity_, region_nw);
-    northEast_ = std::make_unique<QuadTree>(capacity_, region_ne);
-    southWest_ = std::make_unique<QuadTree>(capacity_, region_sw);
-    southEast_ = std::make_unique<QuadTree>(capacity_, region_se);
+    north_west = std::make_unique<QuadTree>(capacity_, region_nw);
+    north_east = std::make_unique<QuadTree>(capacity_, region_ne);
+    south_west = std::make_unique<QuadTree>(capacity_, region_sw);
+    south_east = std::make_unique<QuadTree>(capacity_, region_se);
 
     leaf_ = false;
     region_.clear_agents();
@@ -59,10 +59,10 @@ bool QuadTree::insert_particle_in_leaf_nodes(
     const QuadTreeAgentInfo& particle, 
     bool is_inserted
 ) {
-    bool inserted = northWest_->insert(particle, is_inserted);
-    inserted = northEast_->insert(particle, inserted || is_inserted) || inserted;
-    inserted = southWest_->insert(particle, inserted || is_inserted) || inserted;
-    inserted = southEast_->insert(particle, inserted || is_inserted) || inserted;
+    bool inserted = north_west->insert(particle, is_inserted);
+    inserted = north_east->insert(particle, inserted || is_inserted) || inserted;
+    inserted = south_west->insert(particle, inserted || is_inserted) || inserted;
+    inserted = south_east->insert(particle, inserted || is_inserted) || inserted;
     return inserted;
 }
 
@@ -103,10 +103,10 @@ bool QuadTree::insert(
 std::vector<Region> QuadTree::get_regions() const {
     if (leaf_) return {region_};
 
-    auto nw = northWest_->get_regions();
-    auto ne = northEast_->get_regions();
-    auto sw = southWest_->get_regions();
-    auto se = southEast_->get_regions();
+    auto nw = north_west->get_regions();
+    auto ne = north_east->get_regions();
+    auto sw = south_west->get_regions();
+    auto se = south_east->get_regions();
 
     nw.insert(nw.end(), ne.begin(), ne.end());
     nw.insert(nw.end(), sw.begin(), sw.end());
@@ -118,10 +118,10 @@ std::vector<QuadTree*> QuadTree::get_leaf_nodes() {
     if (leaf_) return {this};
 
     std::vector<QuadTree*> result;
-    auto nw = northWest_->get_leaf_nodes();
-    auto ne = northEast_->get_leaf_nodes();
-    auto sw = southWest_->get_leaf_nodes();
-    auto se = southEast_->get_leaf_nodes();
+    auto nw = north_west->get_leaf_nodes();
+    auto ne = north_east->get_leaf_nodes();
+    auto sw = south_west->get_leaf_nodes();
+    auto se = south_east->get_leaf_nodes();
     result.insert(result.end(), nw.begin(), nw.end());
     result.insert(result.end(), ne.begin(), ne.end());
     result.insert(result.end(), sw.begin(), sw.end());
