@@ -14,6 +14,60 @@
 
 namespace invertedai {
 
+/**
+ * @brief Perform a large-scale DRIVE simulation with automatic spatial subdivision.
+ *
+ * This function partitions the full set of agents into multiple quadtree regions
+ * when the population exceeds the single-call capacity. Each region
+ * corresponds to a `DriveRequest` to the InvertedAI API, and can be executed
+ * either synchronously or asynchronously depending on `cfg.async_api_calls`.
+ *
+ *  Algorithm Overview
+ * 1. Input validation:  
+ *    Ensures that all agent vectors (`states`, `properties`, and optionally
+ *    `recurrent_states`) are non-empty and consistent in size.
+ *
+ * 2. Quadtree construction:  
+ *    Computes the world-space bounding box from agent positions and constructs
+ *    a quadtree (`QuadTree`) where each leaf contains at most
+ *    `cfg.single_call_agent_limit` agents. If exceeded, the region subdivides
+ *    recursively until capacity is satisfied.
+ *
+ * 3. Request generation:  
+ *    For each non-empty leaf node, a `DriveRequest` is created containing:
+ *    - Agent states and properties for the core region and its spatial buffer.
+ *    - Optional recurrent states and traffic light data.
+ *    - Configuration flags (`get_infractions`, `api_model_version`, etc.).
+ *
+ * 4. Parallel execution:  
+ *    If `cfg.async_api_calls` is true, each leaf node launches its own
+ *    asynchronous DRIVE API call using a local session. Otherwise requests
+ *    are executed sequentially.
+ *
+ * 5. Result aggregation:  
+ *    Once all responses are collected:
+ *    - Agent states, recurrent states, and infractions are flattened and
+ *      re-sorted by agent ID order.
+ *    - Any size mismatches are clamped to the smallest valid set.
+ *    - The first non-empty response contributes traffic light and recurrent data.
+ *
+ * 6. Final response:  
+ *    Returns a unified `DriveResponse` object containing merged outputs
+ *    across all quadtree regions.
+ *
+ *  Parameters
+ * @param cfg Configuration object containing all simulation parameters
+ * (see `LargeDriveConfig`).
+ *
+ *  Returns
+ * A combined `DriveResponse` with updated agent states, recurrent states,
+ * infractions, and traffic light.
+ *
+ *  Throws
+ * - `InvertedAIError` if agent data are invalid or DRIVE API requests fail.
+ * - `std::runtime_error` for unexpected internal inconsistencies.
+ *
+ */
 DriveResponse large_drive(LargeDriveConfig& cfg) {
     // size checks
     int num_agents = static_cast<int>(cfg.agent_states.size());
@@ -68,18 +122,18 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
     };
     
    
-        std::unique_ptr<QuadTree> root;
-        try {
-            root = std::make_unique<QuadTree>(
-                cfg.single_call_agent_limit,
-                Region::create_square_region(region_center, region_size)
-            );
-        } catch (const std::exception& e) {
-            std::cerr << "[FATAL] QuadTree constructor threw: " << e.what()
-                    << " (center=" << region_center.x << "," << region_center.y
-                    << " size=" << region_size << " cap=" << cfg.single_call_agent_limit << ")\n";
-            throw;
-        }
+    std::unique_ptr<QuadTree> root;
+    try {
+        root = std::make_unique<QuadTree>(
+            cfg.single_call_agent_limit,
+            Region::create_square_region(region_center, region_size)
+        );
+    } catch (const std::exception& e) {
+        std::cerr << "[ERROR] QuadTree constructor threw: " << e.what()
+                << " (region center=" << region_center.x << "," << region_center.y
+                << " region size=" << region_size << " capacity=" << cfg.single_call_agent_limit << ")\n";
+        throw;
+    }
     // insert all agents into quadtree
     for (int i = 0; i < num_agents; i++) {
         QuadTreeAgentInfo info{
@@ -125,16 +179,16 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 req.set_location(cfg.location);
                 req.set_get_birdview(false);
                 // states
-                const size_t MAXN = cfg.single_call_agent_limit;
+                const size_t MAX_NUM_AGENTS = cfg.single_call_agent_limit;
 
                 // building states with clamp
                 std::vector<AgentState> s;
                 for (auto &st : core.agent_states) {
-                    if (s.size() >= MAXN) break;
+                    if (s.size() >= MAX_NUM_AGENTS) break;
                     s.push_back(st);
                 }
                 for (auto &st : buffer.agent_states) {
-                    if (s.size() >= MAXN) break;
+                    if (s.size() >= MAX_NUM_AGENTS) break;
                     s.push_back(st);
                 }
                 req.set_agent_states(s);
@@ -142,11 +196,11 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 // properties
                 std::vector<AgentProperties> p;
                 for (auto &prop : core.agent_properties) {
-                    if (p.size() >= MAXN) break;
+                    if (p.size() >= MAX_NUM_AGENTS) break;
                     p.push_back(prop);
                 }
                 for (auto &prop : buffer.agent_properties) {
-                    if (p.size() >= MAXN) break;
+                    if (p.size() >= MAX_NUM_AGENTS) break;
                     p.push_back(prop);
                 }
                 req.set_agent_properties(p);
@@ -155,11 +209,11 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 if (cfg.recurrent_states.has_value()) {
                     std::vector<std::vector<double>> r;
                     for (auto &rec : core.recurrent_states) {
-                        if (r.size() >= MAXN) break;
+                        if (r.size() >= MAX_NUM_AGENTS) break;
                         r.push_back(rec);
                     }
                     for (auto &rec : buffer.recurrent_states) {
-                        if (r.size() >= MAXN) break;
+                        if (r.size() >= MAX_NUM_AGENTS) break;
                         r.push_back(rec);
                     }
                     req.set_recurrent_states(r);
@@ -171,7 +225,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 if (cfg.random_seed.has_value()) req.set_random_seed(cfg.random_seed.value());
                 if (cfg.api_model_version.has_value()) req.set_model_version(cfg.api_model_version.value());
 
-                if(cfg.async_api_calls) {
+                if(cfg.async_api_calls) { // check if async calls is requested
                     // async call
                     tasks.push_back(LeafTask{ non_empty_nodes.size() - 1, std::move(req) });
                 } else {
@@ -186,7 +240,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         std::vector<std::future<std::pair<size_t, DriveResponse>>> futs;
         futs.reserve(tasks.size());
         if(cfg.async_api_calls) {
-        std::cout << "[NOTE] Launching " << tasks.size() << " async drive tasks\n";
+        std::cout << "Launching " << tasks.size() << " async drive tasks\n";
         
             for (auto &t : tasks) {
                 if(!cfg.async_api_calls) break; // safety
@@ -240,7 +294,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 continue;
             }
         
-            //  never slice beyond what API returned
+            //  use API returned vectors
             const auto states_vec    = res.agent_states();
             const auto recurrent_vec = res.recurrent_states();
             const auto inside_vec    = res.is_inside_supported_area();
@@ -260,9 +314,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             }
         }            
         auto merged_states = flatten_and_sort(states_per_leaf, agent_id_order);
-        
         auto merged_recurrent = flatten_and_sort(recurrent_per_leaf, agent_id_order);
-        
         auto merged_inside = flatten_and_sort(inside_per_leaf, agent_id_order);
 
         if (merged_states.size() != merged_recurrent.size()) {
@@ -307,8 +359,6 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         }
         
         if (!all_responses.empty()) {
-
-        
             try {
                 final_resp.set_traffic_lights_states(
                     all_responses[0].traffic_lights_states().value_or(std::map<std::string,std::string>())
@@ -323,7 +373,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
                 );
 
             } catch (const std::exception& e) {
-                std::cerr << "[FATAL] Exception inside final_resp: " << e.what() << std::endl;
+                std::cerr << "[ERROR] Exception inside final_resp DriveRequest: " << e.what() << std::endl;
                 throw;
             }
         }
@@ -361,7 +411,7 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
             DriveResponse res = drive(req, &cfg.session);
             return res;
         } catch (const std::exception& e) {
-            std::cerr << "[FATAL] Exception while serializing driveRequest: " << e.what() << std::endl;
+            std::cerr << "[ERROR] Exception while serializing DriveRequest: " << e.what() << std::endl;
             throw;
         }
         
