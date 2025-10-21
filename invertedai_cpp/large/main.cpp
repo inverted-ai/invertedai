@@ -22,9 +22,7 @@ using namespace invertedai;
 /********************************************************************************************
                                                                                           
                                       HELPERS                                    
-                                                                                           
-   This file contains all general-purpose visualization and utility helper functions used   
-   across large_initialize and large_drive simulation logic.                               
+                                                                                                                       
                                                                                            
    Key responsibilities:                                                                   
     - Tile caching for initialization and drive phases (LocationInfo → cached cv::Mat)     
@@ -32,16 +30,6 @@ using namespace invertedai;
     - Region validation, coloring, and rectangle mapping                                   
     - Agent initialization and traffic light drawing                                      
     - Rendering and stitching support for birdview visualization                           
-                                                                                           
-   All functions are part of the `invertedai` namespace and are shared between simulation   
-   steps. No headers are used for simplicity; the file is directly compiled into            
-   //large:large_main via the BUILD target.                                                
-                                                                                           
-   When adding new functions:                                                              
-    - Keep them within the `invertedai` namespace.                                         
-   - Avoid `static` so they remain accessible across translation units.                   
-    - Prefer passing explicit parameters instead of globals.                              
-    - Keep OpenCV visualization functions self-contained and side-effect-free.             
                                                                                            
    Example usage:                                                                          
       auto cached_tiles = cache_region_tiles_for_initialize(session, location, regions, s);
