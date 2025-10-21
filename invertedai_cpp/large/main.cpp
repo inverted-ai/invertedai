@@ -19,11 +19,9 @@
 
 
 using namespace invertedai;
-/********************************************************************************************
-                                                                                          
+/********************************************************************************************                                                                              
                                       HELPERS                                    
-                                                                                                                       
-                                                                                           
+                                                                                                                                                                                                                
    Key responsibilities:                                                                   
     - Tile caching for initialization and drive phases (LocationInfo → cached cv::Mat)     
     - Coordinate conversions between world space and canvas pixels                        
@@ -455,8 +453,8 @@ static double get_render_scale(
 }
 
 /********************************************************************************************
-                                                                                           *
-                                        END OF HELPERS                                     *
+                                                                                           
+                                        END OF HELPERS                                     
 
  ********************************************************************************************/
 
