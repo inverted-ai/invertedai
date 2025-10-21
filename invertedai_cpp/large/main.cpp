@@ -20,6 +20,81 @@
 
 using namespace invertedai;
 
+static std::unordered_map<int, cv::Mat> cache_region_tiles_for_initialize(
+    Session& session,
+    const std::string& location,
+    const std::vector<Region>& regions,
+    double scale
+) {
+    std::unordered_map<int, cv::Mat> cached_tiles;
+    for (size_t i = 0; i < regions.size(); ++i) {
+        const Region& r = regions[i];
+        LocationInfoRequest req("{}");
+        req.set_location(location);
+        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
+        req.set_rendering_fov(static_cast<int>(r.size));
+        req.set_include_map_source(false);
+
+        LocationInfoResponse res = location_info(req, &session);
+        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
+        if (tile.empty()) {
+            std::cerr << "[WARN] Tile " << i << " is empty.\n";
+            continue;
+        }
+
+        const int tile_px = static_cast<int>(std::llround(r.size * scale));
+        if (tile.cols != tile_px || tile.rows != tile_px) {
+            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
+        }
+
+        cached_tiles[i] = tile;
+    }
+    return cached_tiles;
+
+}
+
+// struct to later paste the driving tiles based on world coordinates
+struct PairHash {
+    size_t operator()(const std::pair<double,double>& p) const noexcept {
+        auto h1 = std::hash<double>{}(p.first);
+        auto h2 = std::hash<double>{}(p.second);
+        return h1 ^ (h2 << 1);
+    }
+};
+static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_region_tiles_for_drive(
+    Session& session,
+    const std::string& location,
+    const std::vector<Region>& drive_tiles,
+    double scale
+) {
+    std::cerr << "Caching " << drive_tiles.size() << " tiles for drive steps...\n";
+    std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles;
+    for (size_t i = 0; i < drive_tiles.size(); ++i) {
+        const Region& r = drive_tiles[i];
+        LocationInfoRequest req("{}");
+        req.set_location(location);
+        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
+        req.set_rendering_fov(static_cast<int>(r.size));
+        req.set_include_map_source(false);
+
+        LocationInfoResponse res = location_info(req, &session);
+        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
+        if (tile.empty()) {
+            std::cerr << "[WARN] drive Tile " << i << " is empty.\n";
+            continue;
+        }
+
+        const int tile_px = static_cast<int>(std::llround(r.size * scale));
+        if (tile.cols != tile_px || tile.rows != tile_px) {
+            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
+        }
+
+        drive_cached_tiles[{r.center.x, r.center.y}] = tile;
+
+    }
+    return drive_cached_tiles;
+}
+
 // parent lookup: which initial 100×100 region contains this point
 static int parent_index_of_point(
     const std::vector<Region>& parents, 
@@ -98,15 +173,14 @@ auto validate_regions (
         ok = false;
         }
 
-        // Optional: world-space bbox sanity (useful for debugging/visual overlays)
         const double half = s * 0.5;
         const double L = regs[i].center.x - half;
         const double R = regs[i].center.x + half;
         const double B = regs[i].center.y - half;
         const double T = regs[i].center.y + half;
-        (void)L; (void)R; (void)B; (void)T; // keep if you print later
+        (void)L; (void)R; (void)B; (void)T;
 
-        // Optional pixel-level check (after you've computed `scale`)
+
         if (px_per_meter > 0.0) {
             int expected_px = (int)std::llround(s * px_per_meter);
             if (expected_px <= 0) {
@@ -221,6 +295,147 @@ static void draw_traffic_lights(
     }
 }
 
+static std::map<std::string, cv::Point> get_traffic_light_positions(
+    const LocationInfoResponse& li_res,
+    double min_x,
+    double max_y,
+    double scale,
+    int canvas_w,
+    bool flip_x
+) {
+    std::map<std::string, cv::Point> positions;
+    for (const auto& actor : li_res.static_actors()) {
+        if (actor.agent_type == "traffic_light") {
+            cv::Point pt = world_to_canvas(
+                actor.x, actor.y,
+                min_x, max_y, scale,
+                canvas_w, flip_x
+            );
+            positions[std::to_string(actor.actor_id)] = pt;
+        }
+    }
+    return positions;
+}
+
+void paste_region_tile(
+    const Region& r,
+    const std::unordered_map<int, cv::Mat>& tiles,
+    int idx,
+    cv::Mat& stitched,
+    double min_x,
+    double max_y,
+    double max_x,
+    bool flip_x,
+    double scale
+) {
+    auto it = tiles.find(idx);
+    if (it == tiles.end()) {
+        std::cerr << "[WARN] Missing cached tile for region " << idx << "\n";
+        return;
+    }
+
+    const cv::Mat& tile = it->second;
+    const int tile_px = tile.cols;
+
+    int offset_x = 0, offset_y = 0;
+
+    if (flip_x) {
+        int num_cols = static_cast<int>(std::round((max_x - min_x) / r.size));
+        int col = static_cast<int>(std::round((r.center.x - min_x) / r.size));
+        int flipped_col = (num_cols - 1) - col;
+
+        int num_rows = static_cast<int>(std::round((max_y - min_x) / r.size));
+        int row = static_cast<int>(std::round((max_y - r.center.y) / r.size));
+
+        flipped_col = std::clamp(flipped_col + 1, 0, num_cols - 1);
+        row = std::clamp(row - 1, 0, num_rows - 1);
+
+        offset_x = flipped_col * tile_px;
+        offset_y = row * tile_px;
+    } else {
+        offset_x = static_cast<int>(
+            std::floor((r.center.x - r.size * 0.5 - min_x) * scale));
+        offset_y = static_cast<int>(
+            std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
+    }
+
+    int x0 = clampi(offset_x, 0, stitched.cols);
+    int y0 = clampi(offset_y, 0, stitched.rows);
+    int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
+    int y1 = clampi(offset_y + tile.rows, 0, stitched.rows);
+    if (x1 <= x0 || y1 <= y0) return;
+
+    cv::Rect dst(x0, y0, x1 - x0, y1 - y0);
+    cv::Rect src(x0 - offset_x, y0 - offset_y, dst.width, dst.height);
+    tile(src).copyTo(stitched(dst));
+}
+
+void paste_region_tile_drive(
+    const Region& r,
+    const std::unordered_map<std::pair<double,double>, cv::Mat, PairHash>& tiles,
+    cv::Mat& stitched,
+    double min_x,
+    double max_y,
+    double scale,
+    bool flip_x
+) {
+    auto key = std::make_pair(r.center.x, r.center.y);
+    auto it = tiles.find(key);
+    if (it == tiles.end()) {
+        std::cerr << "[WARN] Missing cached tile for region at ("
+                  << r.center.x << ", " << r.center.y << ")\n";
+        return;
+    }
+
+    const cv::Mat& tile = it->second;
+    const int tile_px = tile.cols;
+
+    int offset_x = static_cast<int>(
+        std::floor((r.center.x - r.size * 0.5 - min_x) * scale));
+    int offset_y = static_cast<int>(
+        std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
+
+    if (flip_x) {
+        offset_x = stitched.cols - offset_x - tile_px;
+    }
+
+    int x0 = clampi(offset_x, 0, stitched.cols);
+    int y0 = clampi(offset_y, 0, stitched.rows);
+    int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
+    int y1 = clampi(offset_y + tile.rows, 0, stitched.rows);
+    if (x1 <= x0 || y1 <= y0) return;
+
+    cv::Rect dst(x0, y0, x1 - x0, y1 - y0);
+    cv::Rect src(0, 0, dst.width, dst.height);
+    tile(src).copyTo(stitched(dst));
+}
+
+static double get_render_scale(
+    Session& session,
+    const std::string& location,
+    const Region& region
+) {
+    LocationInfoRequest probe("{}");
+    probe.set_location(location);
+    probe.set_rendering_center(std::make_pair(region.center.x, region.center.y));
+    probe.set_rendering_fov(static_cast<int>(region.size));
+    probe.set_include_map_source(false);
+
+    LocationInfoResponse probe_res = location_info(probe, &session);
+    cv::Mat probe_tile = cv::imdecode(probe_res.birdview_image(), cv::IMREAD_COLOR);
+    if (probe_tile.empty()) {
+        throw std::runtime_error("Failed to decode probe birdview for get_render_scale()");
+    }
+
+    // Compute pixels per meter
+    double scale = static_cast<double>(probe_tile.cols) / region.size;
+    if (scale <= 0.0) {
+        throw std::runtime_error("Invalid scale computed in get_render_scale()");
+    }
+
+    return scale;
+}
+
 // how to run:
 // bazel build //large:large_main 
 // ./bazel-bin/large/large_main
@@ -273,12 +488,12 @@ int main() {
     std::cout << "Generating default regions...\n";
     std::vector<Region> regions = get_regions_default(
         location,
-        total_num_agents,                              // total_num_agents (legacy arg kept)
-        agent_count_dict,                              // agent_count_dict
+        total_num_agents,                              
+        agent_count_dict,                              
         session,
-        std::pair<float,float>{width/2.f, height/2.f}, // area_shape / hint
-        map_center,                                    // map center from location_info
-        initialize_seed                               // random seed
+        std::pair<float,float>{width/2.f, height/2.f}, 
+        map_center,                                    
+        initialize_seed                               
 
     );
 
@@ -314,59 +529,16 @@ int main() {
     std::optional<std::map<std::string, std::string>> traffic_lights_states = response.traffic_lights_states();
     std::optional<std::vector<LightRecurrentState>> light_recurrent_states = response.light_recurrent_states();
 
-    std::cout << "=== Raw InitializeResponse JSON ===" << std::endl;
-
     const std::vector<Region>& final_regions = outputed_regions;
 
     // learning scale from the first final region
     auto probe_region =  final_regions.front();
-    LocationInfoRequest probe("{}");
-    probe.set_location(location);
-    probe.set_rendering_center(std::make_pair(probe_region.center.x, probe_region.center.y));
-    probe.set_rendering_fov(static_cast<int>(probe_region.size));
-    probe.set_include_map_source(false);
-    LocationInfoResponse probe_res = location_info(probe, &session);
-    cv::Mat probe_tile = cv::imdecode(probe_res.birdview_image(), cv::IMREAD_COLOR);
-    if (probe_tile.empty()) throw std::runtime_error("Failed to decode probe birdview");
-    const double scale = static_cast<double>(probe_tile.cols) / probe_region.size; // px per meter
+    const double scale = get_render_scale(session, location, probe_region);
 
     // cache the regions tiles 
-    std::unordered_map<int, cv::Mat> cached_tiles;
-    for (size_t i = 0; i < final_regions.size(); ++i) {
-        const Region& r = final_regions[i];
-        LocationInfoRequest req("{}");
-        req.set_location(location);
-        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
-        req.set_rendering_fov(static_cast<int>(r.size));
-        req.set_include_map_source(false);
+    auto cached_tiles = cache_region_tiles_for_initialize(session, location, final_regions, scale);
 
-        LocationInfoResponse res = location_info(req, &session);
-        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
-        if (tile.empty()) {
-            std::cerr << "[WARN] Tile " << i << " is empty.\n";
-            continue;
-        }
-
-        const int tile_px = static_cast<int>(std::llround(r.size * scale));
-        if (tile.cols != tile_px || tile.rows != tile_px) {
-            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
-        }
-
-        cached_tiles[i] = tile;
-    }
-    std::cerr << "Caching " << cached_tiles.size() << " tiles for initialize steps...\n";
-
-
-    // struct to later paste the driving tiles based on world coordinates
-    struct PairHash {
-        size_t operator()(const std::pair<double,double>& p) const noexcept {
-            auto h1 = std::hash<double>{}(p.first);
-            auto h2 = std::hash<double>{}(p.second);
-            return h1 ^ (h2 << 1);
-        }
-    };
     // generate all the tiles required for driving
-    std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles;
     std::map<AgentType,int> agent_count_dict_drive = {
         {AgentType::car, 9999} // a lot of agents to initialize every tile 
     };
@@ -380,30 +552,9 @@ int main() {
         initialize_seed                               // random seed
 
     );
-    std::cerr << "Caching " << drive_tiles.size() << " tiles for drive steps...\n";
-    for (size_t i = 0; i < drive_tiles.size(); ++i) {
-        const Region& r = drive_tiles[i];
-        LocationInfoRequest req("{}");
-        req.set_location(location);
-        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
-        req.set_rendering_fov(static_cast<int>(r.size));
-        req.set_include_map_source(false);
-
-        LocationInfoResponse res = location_info(req, &session);
-        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
-        if (tile.empty()) {
-            std::cerr << "[WARN] drive Tile " << i << " is empty.\n";
-            continue;
-        }
-
-        const int tile_px = static_cast<int>(std::llround(r.size * scale));
-        if (tile.cols != tile_px || tile.rows != tile_px) {
-            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
-        }
-
-        drive_cached_tiles[{r.center.x, r.center.y}] = tile;
-
-    }
+    std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles = cache_region_tiles_for_drive(
+        session, location, drive_tiles, scale
+    );
     // canvas construction
     // compute bounds in world meters
     double min_x =  std::numeric_limits<double>::infinity();
@@ -421,100 +572,21 @@ int main() {
     cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
     auto clampi = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
     // get and render the traffic lights
-    std::map<std::string, cv::Point> traffic_light_positions_px;
-    for (const auto& actor : probe_res.static_actors()) {
-        if (actor.agent_type == "traffic_light") {
-            cv::Point pt = world_to_canvas(
-                actor.x, actor.y,
-                min_x, max_y, scale,
-                canvas_w, FLIP_X_FOR_THIS_DOMAIN
-            );
-            traffic_light_positions_px[std::to_string(actor.actor_id)] = pt;
-        }
-    }
-    // pastes large_initialize regions
-    auto paste_region_tile = [&](
-        const Region& r, 
-        std::unordered_map <int, cv::Mat> tiles, 
-        int idx, 
-        cv::Mat& stitched
-    ) {
-        auto it = tiles.find(idx);
-        if (it == tiles.end()) {
-            std::cerr << "[WARN] Pasting tiles..  Missing cached tile for region " << idx << "\n";
-            return;
-        }
-    
-        cv::Mat tile = it->second;
-        const int tile_px = tile.cols;
-    
-        int offset_x, offset_y;
-        if (FLIP_X_FOR_THIS_DOMAIN) {
-            int num_cols = static_cast<int>(std::round((max_x - min_x) / r.size));
-            int col = static_cast<int>(std::round((r.center.x - min_x) / r.size));
-            int flipped_col = (num_cols - 1) - col;
-    
-            int num_rows = static_cast<int>(std::round((max_y - min_y) / r.size));
-            int row = static_cast<int>(std::round((max_y - r.center.y) / r.size));
-    
-            flipped_col = std::clamp(flipped_col + 1, 0, num_cols - 1);
-            row = std::clamp(row - 1, 0, num_rows - 1);
-    
-            offset_x = flipped_col * tile_px;
-            offset_y = row * tile_px;
-        } else {
-            offset_x = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) * scale));
-            offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
-        }
-    
-        int x0 = clampi(offset_x, 0, stitched.cols);
-        int y0 = clampi(offset_y, 0, stitched.rows);
-        int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
-        int y1 = clampi(offset_y + tile.rows, 0, stitched.rows);
-        if (x1 <= x0 || y1 <= y0) return;
-    
-        cv::Rect dst(x0, y0, x1 - x0, y1 - y0);
-        cv::Rect src(x0 - offset_x, y0 - offset_y, dst.width, dst.height);
-        tile(src).copyTo(stitched(dst));
-    };
-    // paste large_drive regions
-    auto paste_region_tile_drive = [&](
-        const Region& r,
-        const std::unordered_map<std::pair<double,double>, 
-        cv::Mat, PairHash>& tiles,
-        cv::Mat& stitched
-    ) {
-        auto key = std::make_pair(r.center.x, r.center.y);
-        auto it = tiles.find(key);
-        if (it == tiles.end()) {
-            std::cerr << "[WARN] Missing cached tile for region at (" << r.center.x << "," << r.center.y << ")\n";
-            return;
-        }
-
-        const cv::Mat& tile = it->second;
-        const int tile_px = tile.cols;
-
-        int offset_x = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) * scale));
-        int offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
-
-        if (FLIP_X_FOR_THIS_DOMAIN) {
-            offset_x = stitched.cols - offset_x - tile_px;
-        }
-
-        int x0 = clampi(offset_x, 0, stitched.cols);
-        int y0 = clampi(offset_y, 0, stitched.rows);
-        int x1 = clampi(offset_x + tile.cols, 0, stitched.cols);
-        int y1 = clampi(offset_y + tile.rows, 0, stitched.rows);
-        if (x1 <= x0 || y1 <= y0) return;
-
-        cv::Rect dst(x0, y0, x1 - x0, y1 - y0);
-        cv::Rect src(0, 0, dst.width, dst.height);
-        tile(src).copyTo(stitched(dst));
-    };
-
+    std::map<std::string, cv::Point> traffic_light_positions_px = get_traffic_light_positions(li_res, min_x, max_y, scale, canvas_w, FLIP_X_FOR_THIS_DOMAIN);
+   
     // paste all tiles for initilize
     for (size_t i = 0; i < final_regions.size(); ++i) {
-        paste_region_tile(final_regions[i], cached_tiles, i, stitched);
+        paste_region_tile(
+            final_regions[i],
+            cached_tiles,
+            static_cast<int>(i),
+            stitched,
+            min_x,
+            max_y,
+            max_x,
+            FLIP_X_FOR_THIS_DOMAIN,
+            scale
+        );
     }
 
     int total_drawn = 0;
@@ -613,7 +685,15 @@ int main() {
 
         cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
         for (size_t i = 0; i < drive_tiles.size(); ++i) {
-            paste_region_tile_drive(drive_tiles[i], drive_cached_tiles, stitched);
+            paste_region_tile_drive(
+                drive_tiles[i],
+                drive_cached_tiles,
+                stitched,
+                min_x,
+                max_y,
+                scale,
+                FLIP_X_FOR_THIS_DOMAIN
+            );
         }
 
         auto parent_color_at = [&](double x, double y) -> cv::Scalar {
@@ -658,11 +738,7 @@ int main() {
         cv::putText(stitched, "Step " + std::to_string(step),
                     cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
                     cv::Scalar(0,0,0), 2);
-    
-        // Optionally Save frame to debug frame by frame
-        // char buf[64];
-        // sprintf(buf, "frame_%04d.png", step);
-        // cv::imwrite(buf, stitched);
+
 
         // save frame to video
         writer.write(stitched);
