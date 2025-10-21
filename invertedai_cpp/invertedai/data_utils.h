@@ -401,30 +401,6 @@ inline std::string agent_type_to_string(AgentType type) {
   }
 }
 
-// inline std::vector<AgentProperties>
-// get_default_agent_properties(const std::map<AgentType,int>& agent_count_dict,
-//                              bool use_agent_properties = true) {
-//     std::vector<AgentProperties> agent_attributes_list;
-
-//     for (auto& [agent_type, count] : agent_count_dict) {
-//         for (int i = 0; i < count; i++) {
-//             if (use_agent_properties) {
-//                 AgentProperties props;
-//                 props.agent_type = agent_type_to_string(agent_type);   //only type
-//                 agent_attributes_list.push_back(props);
-//             } else {
-//                 // if you still support AgentAttributes fallback
-//                 AgentProperties props;
-//                 props.agent_type = agent_type_to_string(agent_type);  //only type
-//                 agent_attributes_list.push_back(props);
-//             }
-//         }
-//     }
-
-//     return agent_attributes_list;
-// }
-
-
 /**
  * Dynamic state of a traffic light.
  */
@@ -507,11 +483,6 @@ struct Region {
   std::vector<AgentProperties> agent_properties;
   std::vector<std::vector<double>> recurrent_states;
 
-  // Region copy() const {
-  //     Region r(center, size);
-  //     r.agents = agents; 
-  //     return r;
-  // }
   Region copy() const {
       Region r(center, size);
       r.agent_states = agent_states;
@@ -566,17 +537,6 @@ struct Region {
               min_y <= p.y && p.y <= max_y);
   }
 
-//     void insert_agents(Agent&& agent) {
-//         if (!is_inside({agent.state.x, agent.state.y})) {
-//             throw std::invalid_argument("Agent state outside region");
-//         }
-//         agents.push_back(std::move(agent));
-//     }
-//     void clear_agents() {
-//         agents.clear();
-//     }
-  
-// };
 void insert_agent(
   const  AgentState& state, 
   const  AgentProperties& props, 

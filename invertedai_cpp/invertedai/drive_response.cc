@@ -6,12 +6,7 @@ namespace invertedai {
 
 DriveResponse::DriveResponse(const std::string &body_str) {
 
-  if (body_str.empty()) {
-    body_json_ = nlohmann::json::object();
-  } else {
-    body_json_ = nlohmann::json::parse(body_str);
-    if (!body_json_.is_object()) body_json_ = nlohmann::json::object();
-  }
+  body_json_ = nlohmann::json::parse(body_str);
 
   this->agent_states_.clear();
   for (const auto &element : this->body_json_["agent_states"]) {

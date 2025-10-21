@@ -10,9 +10,9 @@ DriveRequest::DriveRequest(const std::string &body_str) {
 
   if (body_json_.contains("location") && body_json_["location"].is_string()) {
     location_ = body_json_["location"].get<std::string>();
-} else {
-    location_.clear();
-}
+  } else {
+      location_.clear();
+  }
   this->agent_states_.clear();
   for (const auto &element : this->body_json_["agent_states"]) {
     AgentState agent_state = {
@@ -136,7 +136,7 @@ void DriveRequest::refresh_body_json_() {
         element["rear_axis_offset"] = ap.rear_axis_offset.value();
       }
 
-      if (ap.agent_type.has_value() && !ap.agent_type->empty()) {
+      if (ap.agent_type.has_value()) {
         element["agent_type"] = ap.agent_type.value();
       }
 
