@@ -21,16 +21,7 @@ namespace invertedai {
  * overly large requests to the API.
  */
 constexpr int DRIVE_MAXIMUM_NUM_AGENTS = 100;
-/**
- * @brief Structure representing a single leaf task in the quadtree.
- *
- * Each leaf corresponds to a simulation region containing a subset of agents.
- * A task consists of the leaf index and its associated DRIVE request.
- */
-struct LeafTask {
-    size_t idx;        ///< Index of the corresponding leaf region.
-    DriveRequest req;  ///< DRIVE API request containing agent states and properties.
-};
+
 /**
  * @brief Configuration for a large-scale DRIVE simulation.
  *

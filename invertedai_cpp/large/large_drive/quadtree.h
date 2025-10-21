@@ -12,7 +12,8 @@
 
 #include <vector>
 #include <optional>
-#include "invertedai/data_utils.h"    
+#include "invertedai/data_utils.h"
+#include "invertedai/drive_request.h"    
 namespace invertedai {
 /**
  * @brief Field of view (FOV) buffer radius in meters.
@@ -26,6 +27,16 @@ constexpr double BUFFER_FOV = 35.0;
  */
 constexpr double QUADTREE_SIZE_BUFFER = 1.0;
 
+/**
+ * @brief Structure representing a single leaf task in the quadtree.
+ *
+ * Each leaf corresponds to a simulation region containing a subset of agents.
+ * A task consists of the leaf index and its associated DRIVE request.
+ */
+struct LeafTask {
+    size_t idx;        ///< Index of the corresponding leaf region.
+    DriveRequest req;  ///< DRIVE API request containing agent states and properties.
+};
 
 /**
  * @brief Represents a single agent's data stored in a quadtree node.

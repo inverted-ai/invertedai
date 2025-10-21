@@ -1,7 +1,7 @@
 #include "large_drive.h"
 #include <algorithm>
 #include <iostream>
-#include "invertedai/drive_response.h" // Ensure this header defines InitializeResponse
+#include "invertedai/drive_response.h"
 #include <random>
 #include "invertedai/drive_request.h"
 #include "invertedai/api.h"
