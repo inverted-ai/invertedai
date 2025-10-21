@@ -1,26 +1,19 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 cc_library(
-    name = "large_lib",
+    name = "large_initialize_lib",
     srcs = [
-        "large_initialize.cc",
-        "large_init_helpers.cc",
-        "large_drive.cc",
-        "quadtree.cc",
-        # add other .cc files here
+        "large_initialize/large_initialize.cc",
+        "large_initialize/large_init_helpers.cc",
     ],
     hdrs = [
-        "large_initialize.h",
-        "large_init_helpers.h",
-        "large_drive.h",
-        "common.h",
-        "quadtree.h",
-        # add other headers you want available
+        "large_initialize/large_initialize.h",
+        "large_initialize/large_init_helpers.h",
     ],
-    strip_include_prefix = ".",
-    include_prefix = "large",   # so #include "large/large_initialize.h" works
+    strip_include_prefix = "large_initialize",
+    include_prefix = "large/large_initialize",
     deps = [
-        "//invertedai:error", 
+        "//invertedai:error",
         "//invertedai:api",
         "@boost//:beast",
         "@opencv",
@@ -28,84 +21,39 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
-cc_library(
-    name = "large_common",
-    hdrs = ["common.h"],
-    includes = ["."],   # allows #include "large/common.h"
-    visibility = ["//visibility:public"],
-)
 
 cc_library(
-    name = "large_drive",
-    srcs = ["large_drive.cc"],
-    hdrs = ["large_drive.h"],
+    name = "large_drive_lib",
+    srcs = [
+        "large_drive/large_drive.cc",
+        "large_drive/quadtree.cc",
+    ],
+    hdrs = [
+        "large_drive/large_drive.h",
+        "large_drive/quadtree.h",
+    ],
+    strip_include_prefix = "large_drive",
+    include_prefix = "large/large_drive",
     deps = [
-        "//invertedai:api",
-        "//invertedai:session",
+        ":large_initialize_lib",  # depends on initialization logic
         "//invertedai:error",
-        ":quadtree",
-        ":large_lib",
-        "//large:large_common",
-        "@opencv//:opencv",
-        "@boost//:asio",
+        "//invertedai:api",
+        "@boost//:beast",
+        "@opencv",
     ],
     visibility = ["//visibility:public"],
 )
+
 
 cc_binary(
     name = "large_main",
     srcs = ["main.cpp"],
     deps = [
-        ":large_lib",
-        "//invertedai:api",
-        "//invertedai:session",
-        "@boost//:asio",
-        "@opencv//:opencv",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "quadtree",
-    srcs = ["quadtree.cc"],
-    hdrs = ["quadtree.h"],
-    deps = [
-        "//invertedai:api",
-        "//large:large_common",
-    ],
-    visibility = ["//visibility:public"],
-)
-cc_binary(
-    name = "large_test_main",
-    srcs = ["main.cpp"],
-    deps = [
-        "//large:large_common",
-        "//invertedai:api",
-        "@boost//:beast",
-        "@opencv",
-    ],
-)
-
-cc_binary(
-    name = "test_large_initialize_draw",
-    srcs = ["test_large_initialize_draw.cc"],
-    deps = [
-        ":large_lib",             # your main large_initialize target
-        "//large:large_common",
-        "//invertedai:api",
-        "@opencv//:opencv",        # adjust if you vendored OpenCV differently
-        "@boost//:asio",           # same for boost-asio
-    ],
-)
-
-cc_binary(
-    name = "test_large_drive",
-    srcs = ["test_large_drive.cc"],
-    deps = [
-        ":large_lib",             # includes large_drive + helpers
-        "//invertedai:api",
-        "//invertedai:session",
+        ":large_drive_lib",     # build (drive + initialize)
+        ":large_initialize_lib",
         "//invertedai:error",
+        "//invertedai:api",
+        "//invertedai:session",
         "@boost//:asio",
         "@opencv//:opencv",
     ],

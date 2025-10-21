@@ -2,7 +2,6 @@
 #include <string>
 #include <optional>
 #include <map>
-#include "common.h"
 #include "invertedai/api.h"
 
 
@@ -18,7 +17,7 @@ using TrafficLightStatesDict = std::vector<TrafficLightState>;
  */
 struct LargeInitializeOutput {
     invertedai::InitializeResponse response;
-    std::vector<invertedai::Region> regions; // updated with agent_states / props / recurrent_states // for testing the regions
+    std::vector<invertedai::Region> regions; // contains agent_states / props / recurrent_states // for testing the regions
 };
 
 /**
@@ -99,7 +98,7 @@ struct LargeInitializeConfig {
     /**
      * @brief Construct with a required API session reference.
      */
-    explicit LargeInitializeConfig(Session& sess) : session(sess) {}
+    LargeInitializeConfig(Session& sess) : session(sess) {}
 };
 
 /**
@@ -139,9 +138,6 @@ std::pair<std::vector<Region>, std::vector<std::pair<int, int>>> insert_agents_i
     bool return_region_index = false,
     std::optional<int> random_seed = std::nullopt
 );
-
-std::vector<std::map<std::string,std::string>>
-convert_traffic_light_history(const std::vector<TrafficLightStatesDict>& dicts);
 
 /**
  * @brief Run initialization on a set of regions with agents.

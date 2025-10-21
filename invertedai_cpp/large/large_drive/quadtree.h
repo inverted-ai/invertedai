@@ -12,7 +12,6 @@
 
 #include <vector>
 #include <optional>
-#include "common.h"
 #include "invertedai/data_utils.h"    
 namespace invertedai {
 /**

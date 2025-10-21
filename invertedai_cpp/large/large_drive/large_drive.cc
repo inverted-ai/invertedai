@@ -4,7 +4,7 @@
 #include "invertedai/drive_response.h" // Ensure this header defines InitializeResponse
 #include <random>
 #include "invertedai/drive_request.h"
-#include "../invertedai/api.h"
+#include "invertedai/api.h"
 #include "invertedai/error.h"
 #include "quadtree.h"
 

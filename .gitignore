@@ -192,4 +192,5 @@ logs/*
 examples/iai-base.gitignore
 examples/iai-base.gitignore
 .vscode/settings.json
+*.png
 
