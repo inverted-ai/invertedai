@@ -470,7 +470,7 @@ static double get_render_scale(
 int main() {
     const std::string location = "carla:Town03";
     bool FLIP_X_FOR_THIS_DOMAIN = false; 
-    const std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni";//getenv("API_KEY"); //or just paste here
+    const std::string API_KEY = " ";//getenv("API_KEY"); //or just paste here
 
     if (location.rfind("carla:", 0) == 0) {
         FLIP_X_FOR_THIS_DOMAIN = true;
