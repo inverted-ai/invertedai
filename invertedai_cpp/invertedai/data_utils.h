@@ -506,17 +506,6 @@ struct Region {
               min_y <= p.y && p.y <= max_y);
   }
 
-//     void insert_agents(Agent&& agent) {
-//         if (!is_inside({agent.state.x, agent.state.y})) {
-//             throw std::invalid_argument("Agent state outside region");
-//         }
-//         agents.push_back(std::move(agent));
-//     }
-//     void clear_agents() {
-//         agents.clear();
-//     }
-  
-// };
 void insert_agent(
   const  AgentState& state, 
   const  AgentProperties& props, 

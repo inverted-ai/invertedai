@@ -19,7 +19,7 @@
 
 
 using namespace invertedai;
-/********************************************************************************************                                                                              
+/*                                                                             
                                       HELPERS                                    
                                                                                                                                                                                                                 
    Key responsibilities:                                                                   
@@ -35,7 +35,7 @@ using namespace invertedai;
       auto tl_positions = get_traffic_light_positions(li_res, min_x, max_y, s, W, flip);   
       paste_region_tile(region, cached_tiles, i, stitched, min_x, max_y, max_x, flip, s);  
                                                                                            
- ********************************************************************************************/
+*/
 static std::unordered_map<int, cv::Mat> cache_region_tiles_for_initialize(
     Session& session,
     const std::string& location,
@@ -451,20 +451,25 @@ static double get_render_scale(
 
     return scale;
 }
-
-/********************************************************************************************
+/*
                                                                                            
                                         END OF HELPERS                                     
 
- ********************************************************************************************/
+*/
 
 
-// how to run executable:
-// bazel build //large:large_main 
-// ./bazel-bin/large/large_main
+/*
+                                                                                           
+                                        how to run executable:
+                                        
+                                        bazel build //large:large_main 
+
+                                        ./bazel-bin/large/large_main
+
+*/
 int main() {
     const std::string location = "carla:Town03";
-    bool FLIP_X_FOR_THIS_DOMAIN = false; // set to true if using carla maps
+    bool FLIP_X_FOR_THIS_DOMAIN = false; 
     const std::string API_KEY = "wIvOHtKln43XBcDtLdHdXR3raX81mUE1Hp66ZRni";//getenv("API_KEY"); //or just paste here
 
     if (location.rfind("carla:", 0) == 0) {
@@ -521,7 +526,7 @@ int main() {
     );
 
     // helper to check if regions have been validated currently
-    validate_regions(regions, /*expected=*/100.0);
+    validate_regions(regions,100.0);
     std::cout << "Generated " << regions.size() << " regions.\n";
 
     // set up arguments for large initialize
@@ -665,7 +670,6 @@ int main() {
     cv::imwrite("large_initialize.png", stitched);
     std::cout << "Saved large_initialize.png (" << stitched.cols << "x" << stitched.rows << ")\n";
     std::cout << "All done!\n";
-    // cv::imwrite("frame_0000.png", stitched);
 
     // large_drive simulation 
     int drive_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
