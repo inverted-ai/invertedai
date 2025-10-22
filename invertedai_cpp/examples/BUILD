@@ -47,6 +47,17 @@ cc_binary(
 )
 
 cc_binary(
+    name = "large_main",
+    srcs = ["large/main.cpp"],   # note the relative path
+    deps = [
+        "//invertedai:api",
+        "@boost//:beast",
+        "@opencv",
+    ],
+)
+
+
+cc_binary(
     name = "initialize_tests",
     srcs = ["initialize_tests.cc"],
     data = [
