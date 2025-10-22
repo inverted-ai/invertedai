@@ -11,7 +11,7 @@ namespace invertedai {
  * @brief Assign agents to regions proportionally to drivable area.
  *
  * Uses birdview images from the IAI API to estimate drivable area per region,
- * then distributes agents stochastically according to these weights.
+ * then distributes agents according to these weights.
  *
  * Steps:
  *  - Call `location_info` for each region to fetch its birdview.
@@ -48,7 +48,7 @@ std::vector<Region> get_number_of_agents_per_region_by_drivable_area(
  * defaults to spawning cars only.
  *
  * @param location Map/location identifier string.
- * @param total_num_agents Optional total number of agents (deprecated).
+ * @param total_num_agents Optional total number of agents.
  * @param agent_count_dict Optional mapping of agent types to counts.
  * @param session Active IAI session used for map queries.
  * @param area_shape Optional grid area (width, height in meters).
@@ -85,13 +85,13 @@ std::vector<Region> get_regions_default(
  * @param location The location string for the map (IAI format).
  * @param regions Candidate regions to evaluate (typically from get_regions_in_grid()).
  * @param total_num_agents Total number of agents (if agent_count_dict is not given).
- * @param agent_count_dict Optional dictionary of {AgentType → count}.
+ * @param agent_count_dict Optional dictionary of {AgentType, count}.
  * @param session Active API session for making LocationInfo calls.
  * @param random_seed Optional random seed for reproducible sampling.
  *
  * @return std::vector<Region> Subset of regions, each with assigned AgentProperties.
  *
- * @throws InvertedAIError if neither `total_num_agents` nor `agent_count_dict` is provided,
+ * @throws InvertedAIError if neither total_num_agents nor agent_count_dict is provided,
  *         or if no drivable area is detected in any region.
  */
 std::vector<Region> get_number_of_agents_per_region_by_drivable_area(

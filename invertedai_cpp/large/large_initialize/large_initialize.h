@@ -83,7 +83,7 @@ struct LargeInitializeConfig {
     std::optional<int> random_seed = std::nullopt;
 
     /**
-     * @brief Optional API model version to target.
+     * @brief Optional API model version.
      *
      * Leave unset to use the default backend version.
      */
@@ -110,7 +110,7 @@ struct LargeInitializeConfig {
  * @param cfg LargeInitializeConfig configuration (regions, agents, options).
  * @return LargeInitializeOutput {consolidated response, final regions}.
  *
- * @throws std::invalid_argument if inputs are inconsistent.
+ * @throws std::invalid_argument if inputs are of varying lengths.
  */
 LargeInitializeOutput large_initialize_with_regions(invertedai::LargeInitializeConfig& cfg); // for testing the regions
 
@@ -201,13 +201,12 @@ InitializeResponse consolidate_all_responses(
  * @param cfg LargeInitializeConfig configuration (regions, agents, options).
  * @return InitializeResponse Final merged response.
  *
- * @throws std::invalid_argument if inputs are inconsistent.
+ * @throws std::invalid_argument if inputs are of varying lengths.
  */
 invertedai::InitializeResponse large_initialize(invertedai::LargeInitializeConfig& cfg);
 } // namespace invertedai
 #ifndef LARGE_INITIALIZE_H
 #define LARGE_INITIALIZE_H
 
-// declarations...
 
 #endif // LARGE_INITIALIZE_H
