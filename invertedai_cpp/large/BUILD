@@ -47,7 +47,7 @@ cc_library(
 
 cc_binary(
     name = "large_main",
-    srcs = ["main.cpp"],
+    srcs = ["visualizer.cc"],
     deps = [
         ":large_drive_lib",     # build (drive + initialize)
         ":large_initialize_lib",
