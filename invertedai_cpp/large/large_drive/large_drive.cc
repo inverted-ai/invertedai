@@ -93,13 +93,6 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         }
     }
 
-    if (num_agents != static_cast<int>(cfg.agent_properties.size())) {
-        if (cfg.recurrent_states.has_value() &&
-            num_agents != static_cast<int>(cfg.recurrent_states->size())) {
-            throw InvertedAIError("Mismatch between Agent_states, Agent_properties, and Recurrent_states sizes.");
-        }
-    }
-
     if (cfg.single_call_agent_limit > DRIVE_MAXIMUM_NUM_AGENTS) {
         std::cerr << "[WARNING] single_call_agent_limit capped at "
                   << DRIVE_MAXIMUM_NUM_AGENTS << "\n";
