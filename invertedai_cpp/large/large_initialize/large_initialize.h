@@ -176,6 +176,10 @@ InitializeResponse consolidate_all_responses(
  * then consolidates results into a single InitializeResponse.
  *
  * @param cfg LargeInitializeConfig configuration (regions, agents, options).
+ * @param debug_regions Optional pointer to a vector that, if provided,
+ *        will be populated with the final list of region boundaries used
+ *        during initialization. This can be used for debugging or
+ *        visualization of the spatial layout.
  * @return InitializeResponse Final merged response.
  *
  * @throws std::invalid_argument if inputs are of varying lengths.
