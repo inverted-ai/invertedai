@@ -14,28 +14,11 @@
 #include "invertedai/drive_request.h"
 #include "invertedai/drive_response.h"
 #include "large_drive/large_drive.h"
-#include "large_initialize/large_initialize.h"
-#include "large_initialize/large_init_helpers.h"
+#include "visualizer.h"
+#include "visualizer_helpers.h"
 
 
-using namespace invertedai;
-/*                                                                             
-                                      HELPERS                                    
-                                                                                                                                                                                                                
-   Key responsibilities:                                                                   
-    - Tile caching for initialization and drive phases (LocationInfo → cached cv::Mat)     
-    - Coordinate conversions between world space and canvas pixels                        
-    - Region validation, coloring, and rectangle mapping                                   
-    - Agent initialization and traffic light drawing                                      
-    - Rendering and stitching support for birdview visualization                           
-                                                                                           
-   Example usage:                                                                          
-      auto cached_tiles = cache_region_tiles_for_initialize(session, location, regions, s);
-      auto drive_tiles  = cache_region_tiles_for_drive(session, location, drive_regions, s);
-      auto tl_positions = get_traffic_light_positions(li_res, min_x, max_y, s, W, flip);   
-      paste_region_tile(region, cached_tiles, i, stitched, min_x, max_y, max_x, flip, s);  
-                                                                                           
-*/
+namespace invertedai {
 static std::unordered_map<int, cv::Mat> cache_region_tiles_for_initialize(
     Session& session,
     const std::string& location,
@@ -69,47 +52,6 @@ static std::unordered_map<int, cv::Mat> cache_region_tiles_for_initialize(
 
 }
 
-// struct to later paste the driving tiles based on world coordinates
-struct PairHash {
-    size_t operator()(const std::pair<double,double>& p) const noexcept {
-        auto h1 = std::hash<double>{}(p.first);
-        auto h2 = std::hash<double>{}(p.second);
-        return h1 ^ (h2 << 1);
-    }
-};
-static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_region_tiles_for_drive(
-    Session& session,
-    const std::string& location,
-    const std::vector<Region>& drive_tiles,
-    double scale
-) {
-    std::cerr << "Caching " << drive_tiles.size() << " tiles for drive steps...\n";
-    std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles;
-    for (size_t i = 0; i < drive_tiles.size(); ++i) {
-        const Region& r = drive_tiles[i];
-        LocationInfoRequest req("{}");
-        req.set_location(location);
-        req.set_rendering_center(std::make_pair(r.center.x, r.center.y));
-        req.set_rendering_fov(static_cast<int>(r.size));
-        req.set_include_map_source(false);
-
-        LocationInfoResponse res = location_info(req, &session);
-        cv::Mat tile = cv::imdecode(res.birdview_image(), cv::IMREAD_COLOR);
-        if (tile.empty()) {
-            std::cerr << "[WARN] drive Tile " << i << " is empty.\n";
-            continue;
-        }
-
-        const int tile_px = static_cast<int>(std::llround(r.size * scale));
-        if (tile.cols != tile_px || tile.rows != tile_px) {
-            cv::resize(tile, tile, cv::Size(tile_px, tile_px), 0, 0, cv::INTER_LINEAR);
-        }
-
-        drive_cached_tiles[{r.center.x, r.center.y}] = tile;
-
-    }
-    return drive_cached_tiles;
-}
 
 // parent lookup: which initial 100×100 region contains this point
 static int parent_index_of_point(
@@ -173,82 +115,6 @@ int clampi(
     return std::max(lo, std::min(v, hi)); 
 }
 
-// ensure all regions are 100m x 100m 
-auto validate_regions (
-    const std::vector<invertedai::Region>& regs,
-    double expected = 100.0,
-    double tol = 1e-6,
-    double px_per_meter = -1.0
-) {
-    bool ok = true;
-    for (size_t i = 0; i < regs.size(); ++i) {
-        double s = regs[i].size;
-        if (std::abs(s - expected) > tol) {
-            std::cerr << "[WARN] Region " << i << " size=" << s
-        << " (expected " << expected << ")\n";
-        ok = false;
-        }
-
-        const double half = s * 0.5;
-        const double L = regs[i].center.x - half;
-        const double R = regs[i].center.x + half;
-        const double B = regs[i].center.y - half;
-        const double T = regs[i].center.y + half;
-        (void)L; (void)R; (void)B; (void)T;
-
-
-        if (px_per_meter > 0.0) {
-            int expected_px = (int)std::llround(s * px_per_meter);
-            if (expected_px <= 0) {
-                std::cerr << "[WARN] Region " << i
-                << " expected_px <= 0 (s=" << s
-                << ", scale=" << px_per_meter << ")\n";
-                ok = false;
-            }
-        }
-    }
-    if (ok) {
-        std::cout << "[OK] All " << regs.size()
-        << " regions are 100m x 100m (FOV=" << expected << ")\n";
-    }
-    return ok;
-}
-
-// Simple agent generator for testing
-std::pair<std::vector<AgentState>, std::vector<AgentProperties>>
-initialize_agents_for_region(
-    invertedai::Session& session,
-    const std::string& location,
-    const Region& region,
-    int num_agents,
-    int random_seed = 1,
-    bool get_birdview = false,
-    bool get_infractions = false)
-{
-    using namespace invertedai;
-
-    // Build the API request
-    InitializeRequest req("{}");
-    req.set_location(location);
-    req.set_num_agents_to_spawn(num_agents);
-    req.set_location_of_interest(std::make_pair(region.center.x, region.center.y));
-    req.set_get_birdview(get_birdview);
-    req.set_get_infractions(get_infractions);
-    req.set_random_seed(random_seed);
-
-    // Make the API call
-    InitializeResponse resp = initialize(req, &session);
-
-    // Extract agent data
-    std::vector<AgentState> states = resp.agent_states();
-    std::vector<AgentProperties> props = resp.agent_properties();
-
-    std::cout << "[INFO] Initialized " << states.size()
-              << " agents in region centered at ("
-              << region.center.x << ", " << region.center.y << ")\n";
-
-    return {states, props};
-}
 
 static cv::Rect region_rect_pixels(
     const Region& r,
@@ -287,8 +153,7 @@ static cv::Rect region_rect_pixels(
 
 static void draw_traffic_lights(
     cv::Mat& frame,
-    const std::optional<std::map<std::string, 
-    std::string>>& traffic_lights_states,
+    const std::optional<std::map<std::string, std::string>>& traffic_lights_states,
     const std::map<std::string, cv::Point>& light_positions_px
 ) {
     if (!traffic_lights_states.has_value()) {
@@ -341,9 +206,11 @@ void paste_region_tile(
     double min_x,
     double max_y,
     double max_x,
+    double min_y,
     bool flip_x,
     double scale
 ) {
+    
     auto it = tiles.find(idx);
     if (it == tiles.end()) {
         std::cerr << "[WARN] Missing cached tile for region " << idx << "\n";
@@ -360,7 +227,7 @@ void paste_region_tile(
         int col = static_cast<int>(std::round((r.center.x - min_x) / r.size));
         int flipped_col = (num_cols - 1) - col;
 
-        int num_rows = static_cast<int>(std::round((max_y - min_x) / r.size));
+        int num_rows = static_cast<int>(std::round((max_y - min_y) / r.size));
         int row = static_cast<int>(std::round((max_y - r.center.y) / r.size));
 
         flipped_col = std::clamp(flipped_col + 1, 0, num_cols - 1);
@@ -426,183 +293,35 @@ void paste_region_tile_drive(
     tile(src).copyTo(stitched(dst));
 }
 
-static double get_render_scale(
-    Session& session,
+
+void visualize_large_initialize(
     const std::string& location,
-    const Region& region
+    Session& session,
+    const std::vector<invertedai::Region> final_regions,
+    const std::vector<Region>& all_tiles,
+    const LocationInfoResponse& li_res,
+    bool flip_x
 ) {
-    LocationInfoRequest probe("{}");
-    probe.set_location(location);
-    probe.set_rendering_center(std::make_pair(region.center.x, region.center.y));
-    probe.set_rendering_fov(static_cast<int>(region.size));
-    probe.set_include_map_source(false);
-
-    LocationInfoResponse probe_res = location_info(probe, &session);
-    cv::Mat probe_tile = cv::imdecode(probe_res.birdview_image(), cv::IMREAD_COLOR);
-    if (probe_tile.empty()) {
-        throw std::runtime_error("Failed to decode probe birdview for get_render_scale()");
-    }
-
-    // Compute pixels per meter
-    double scale = static_cast<double>(probe_tile.cols) / region.size;
-    if (scale <= 0.0) {
-        throw std::runtime_error("Invalid scale computed in get_render_scale()");
-    }
-
-    return scale;
-}
-/*
-                                                                                           
-                                        END OF HELPERS                                     
-
-*/
-
-
-/*
-                                                                                           
-                                        how to run executable:
-                                        
-                                        bazel build //large:large_main 
-
-                                        ./bazel-bin/large/large_main
-
-*/
-int main() {
-    const std::string location = "carla:Town03";
-    bool FLIP_X_FOR_THIS_DOMAIN = false; 
-    const std::string API_KEY = getenv("API_KEY"); //or just paste here
-
-    if (location.rfind("carla:", 0) == 0) {
-        FLIP_X_FOR_THIS_DOMAIN = true;
-        std::cout << "Detected CARLA map → flipping axes\n";
-    }
-    // controls for how many agents to add
-    const int total_num_agents = 200;
-
-    const int sim_length = 100;   // num steps for large_drive simulation
-
-    // (used by get_regions_default)
-    const int width  = 1000;
-    const int height = 1000;
-
-    // Random seed
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    int initialize_seed = std::uniform_int_distribution<>(1, 1000000)(gen); // or fixed for repeatability 
-
-    // session connection
-    boost::asio::io_context ioc;
-    ssl::context ctx(ssl::context::tlsv12_client);
-    invertedai::Session session(ioc, ctx);
-    session.set_api_key(API_KEY);
-    session.connect();
-
-    //get map info (for map_center)
-    LocationInfoRequest li_req("{}");
-    li_req.set_location(location);
-    li_req.set_include_map_source(true);
-    LocationInfoResponse li_res = location_info(li_req, &session);
-
-    std::pair<float,float> map_center{
-        static_cast<float>(li_res.map_origin().x),
-        static_cast<float>(li_res.map_origin().y)
-    };
-
-    // generate default regions
-    std::map<AgentType,int> agent_count_dict = {
-        {AgentType::car, total_num_agents}
-    };
-
-    std::cout << "Generating default regions...\n";
-    std::vector<Region> regions = get_regions_default(
-        location,
-        total_num_agents,                              
-        agent_count_dict,                              
-        session,
-        std::pair<float,float>{width/2.f, height/2.f}, 
-        map_center,                                    
-        initialize_seed                               
-
-    );
-
-    // helper to check if regions have been validated currently
-    validate_regions(regions,100.0);
-    std::cout << "Generated " << regions.size() << " regions.\n";
-
-    // set up arguments for large initialize
-    LargeInitializeConfig cfg(session);
-    cfg.location = location;
-    cfg.regions = regions;
-    cfg.random_seed = initialize_seed;
-    cfg.get_infractions = true;
-    cfg.traffic_light_state_history = std::nullopt;
-    cfg.return_exact_agents = true;
-    cfg.api_model_version = std::nullopt;
-
-    // Simple agent generator for testing - currently not being used
-    auto [init_states, init_props] =
-    initialize_agents_for_region(session, location, regions[0], 3, initialize_seed);
-
-    cfg.agent_states = std::nullopt;//init_states; //change to init_states to use the generator function
-    cfg.agent_properties = std::nullopt;//init_props; 
-
-    std::cout << "Calling large_initialize with " << regions.size() << " regions...\n";
-    auto out = invertedai::large_initialize_with_regions(cfg);
-    InitializeResponse response = std::move(out.response);
-    std::vector<Region> outputed_regions = std::move(out.regions); // use this for drawing
-
-    std::vector<AgentState> agent_states     = response.agent_states();
-    std::vector<AgentProperties> agent_props = response.agent_properties();
-    std::vector<std::vector<double>> recurrent    = response.recurrent_states();
-    std::optional<std::map<std::string, std::string>> traffic_lights_states = response.traffic_lights_states();
-    std::optional<std::vector<LightRecurrentState>> light_recurrent_states = response.light_recurrent_states();
-
-    const std::vector<Region>& final_regions = outputed_regions;
-
-    // learning scale from the first final region
-    auto probe_region =  final_regions.front();
-    const double scale = get_render_scale(session, location, probe_region);
+    const double scale = get_render_scale(li_res, final_regions.front());
 
     // cache the regions tiles 
     auto cached_tiles = cache_region_tiles_for_initialize(session, location, final_regions, scale);
 
-    // generate all the tiles required for driving
-    std::map<AgentType,int> agent_count_dict_drive = {
-        {AgentType::car, 9999} // a lot of agents to initialize every tile 
-    };
-    std::vector<Region> drive_tiles = get_regions_default(
-        location,
-        9999,                              //  a lot of agents to initialize every tile 
-        agent_count_dict_drive,                              
-        session,
-        std::pair<float,float>{width/2.f, height/2.f}, 
-        map_center,                                    // map center from location_info
-        initialize_seed                               // random seed
-
-    );
-    std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles = cache_region_tiles_for_drive(
-        session, location, drive_tiles, scale
-    );
     // canvas construction
     // compute bounds in world meters
-    double min_x =  std::numeric_limits<double>::infinity();
-    double min_y =  std::numeric_limits<double>::infinity();
-    double max_x = -std::numeric_limits<double>::infinity();
-    double max_y = -std::numeric_limits<double>::infinity();
-    for (const auto& r :  drive_tiles) {
-        min_x = std::min(min_x, r.center.x - r.size * 0.5);
-        max_x = std::max(max_x, r.center.x + r.size * 0.5);
-        min_y = std::min(min_y, r.center.y - r.size * 0.5);
-        max_y = std::max(max_y, r.center.y + r.size * 0.5);
-    }
-    const int canvas_w = static_cast<int>(std::ceil((max_x - min_x) * scale));
-    const int canvas_h = static_cast<int>(std::ceil((max_y - min_y) * scale));
+    cv::Rect2d bounds = compute_bounds_rect(all_tiles);
+    const double min_x = bounds.x;
+    const double min_y = bounds.y;
+    const double max_x = bounds.x + bounds.width;
+    const double max_y = bounds.y + bounds.height;
+
+    const int canvas_w = static_cast<int>(std::ceil(bounds.width * scale));
+    const int canvas_h = static_cast<int>(std::ceil(bounds.height * scale));
     cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
     auto clampi = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
-    // get and render the traffic lights
-    std::map<std::string, cv::Point> traffic_light_positions_px = get_traffic_light_positions(li_res, min_x, max_y, scale, canvas_w, FLIP_X_FOR_THIS_DOMAIN);
    
     // paste all tiles for initilize
+    std::cerr << "Pasting " << final_regions.size() << " tiles for large_initialize visualization...\n";
     for (size_t i = 0; i < final_regions.size(); ++i) {
         paste_region_tile(
             final_regions[i],
@@ -612,7 +331,8 @@ int main() {
             min_x,
             max_y,
             max_x,
-            FLIP_X_FOR_THIS_DOMAIN,
+            min_y,
+            flip_x,
             scale
         );
     }
@@ -626,7 +346,7 @@ int main() {
         const int tile_px = static_cast<int>(std::llround(r.size * scale));
     
         int offset_x, offset_y;
-        if (FLIP_X_FOR_THIS_DOMAIN) {
+        if (flip_x) {
             int num_cols = static_cast<int>(std::round((max_x - min_x) / r.size));
             int col = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) / r.size));
             int flipped_col = (num_cols - 1) - col;
@@ -653,7 +373,7 @@ int main() {
             int u = static_cast<int>(std::llround((s.x - min_x) * scale));
             int v = static_cast<int>(std::llround((max_y - s.y) * scale));
     
-            if (FLIP_X_FOR_THIS_DOMAIN) {
+            if (flip_x) {
                 u = stitched.cols - u;
             }
     
@@ -667,118 +387,230 @@ int main() {
     std::cout << "Total agents drawn from large_initialize: " << total_drawn << "\n";
 
     // save large_initialization
-    cv::imwrite("large_initialize.png", stitched);
-    std::cout << "Saved large_initialize.png (" << stitched.cols << "x" << stitched.rows << ")\n";
+    cv::imwrite("large_initialize_visualization.png", stitched);
+    std::cout << "Saved large_initialize_visualization.png (" << stitched.cols << "x" << stitched.rows << ")\n";
     std::cout << "All done!\n";
-
-    // large_drive simulation 
-    int drive_seed = std::uniform_int_distribution<>(1, 1000000)(gen);
-
-    std::cout << "Starting simulation for " << sim_length << " steps...\n";
-    std::vector<Region> full_regions;
-
-    LargeDriveConfig drive_cfg(session);
-    drive_cfg.location = location;
-    drive_cfg.api_key = API_KEY;
-    drive_cfg.agent_states = agent_states;
-    drive_cfg.agent_properties = agent_props;
-    drive_cfg.recurrent_states = recurrent;
-    drive_cfg.traffic_lights_states = traffic_lights_states;
-    drive_cfg.light_recurrent_states = light_recurrent_states;
-    drive_cfg.random_seed = drive_seed;
-    drive_cfg.get_infractions = true;
-    drive_cfg.single_call_agent_limit = 100;
-    drive_cfg.async_api_calls = true;
-
-    cv::VideoWriter writer("large_drive_quadtree_sim.avi",
-        cv::VideoWriter::fourcc('M','J','P','G'),
-        10, // fps
-        cv::Size(canvas_w, canvas_h));
-    for (int step = 0; step < sim_length; ++step) {   
-        auto out = large_drive_with_regions(drive_cfg);
-        DriveResponse drive_response = std::move(out.response);
-        std::vector<Region> leaf_regions = std::move(out.regions);
-        auto states = drive_response.agent_states();
-        auto recur  = drive_response.recurrent_states();
-        auto lights_recur = drive_response.light_recurrent_states();
-        auto traff  = drive_response.traffic_lights_states();
-        
-        drive_cfg.agent_states           = states;
-        drive_cfg.recurrent_states       = recur;
-        drive_cfg.light_recurrent_states = lights_recur;
-        drive_cfg.traffic_lights_states  = std::nullopt;
-        drive_cfg.api_model_version      = drive_response.model_version();
-        drive_cfg.random_seed            = std::nullopt;
-
-        cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
-        for (size_t i = 0; i < drive_tiles.size(); ++i) {
-            paste_region_tile_drive(
-                drive_tiles[i],
-                drive_cached_tiles,
-                stitched,
-                min_x,
-                max_y,
-                scale,
-                FLIP_X_FOR_THIS_DOMAIN
-            );
-        }
-
-        auto parent_color_at = [&](double x, double y) -> cv::Scalar {
-            int p = parent_index_of_point(final_regions, x, y);
-            size_t parent_count = final_regions.size();
-            size_t pi = (p < 0 ? 0 : static_cast<size_t>(p));
-            return color_from_parent_index(pi, parent_count);
-        };
-        // overlay quadtree regions, children take their parent color
-        for (const Region& r : leaf_regions) {
-            cv::Scalar color = 
-            parent_color_at(r.center.x, r.center.y);
-
-            cv::Rect rr = region_rect_pixels(
-                r, min_x, max_y, scale,
-                stitched.cols, stitched.rows,
-                FLIP_X_FOR_THIS_DOMAIN
-            );
-            if (rr.area() > 0) {
-                // small inward inset to avoid covering seams
-                cv::rectangle(stitched,
-                            {rr.x+1, rr.y+1},
-                            {rr.x + rr.width - 2, rr.y + rr.height - 2},
-                            color, 2, cv::LINE_AA);
-            }
-
-            // draw agents (color by their current parent region) 
-            for (const auto& s : r.agent_states) {
-                cv::Point pt = world_to_canvas(
-                    s.x, s.y, min_x, max_y, scale,
-                    stitched.cols, FLIP_X_FOR_THIS_DOMAIN
-                );
-                if (0 <= pt.x && pt.x < stitched.cols &&
-                    0 <= pt.y && pt.y < stitched.rows) {
-                    cv::circle(stitched, pt, 4, color, cv::FILLED, cv::LINE_AA);
-                }
-            }
-        }
-        auto lights_opt = drive_response.traffic_lights_states();
-        draw_traffic_lights(stitched, lights_opt, traffic_light_positions_px);
-
-        cv::putText(stitched, "Step " + std::to_string(step),
-                    cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
-                    cv::Scalar(0,0,0), 2);
+}
 
 
-        // save frame to video
-        writer.write(stitched);
-        int total_agents = drive_response.agent_states().size();
-        int num_leaves = leaf_regions.size();
-        double avg_agents_per_leaf = double(total_agents) / num_leaves;
+void visualize_large_drive(
+    const LargeDriveConfig& drive_cfg,
+    const std::vector<invertedai::Region> leaf_regions,
+    const std::vector<invertedai::Region> final_regions,
+    const LocationInfoResponse& li_res,
+    const std::optional<std::map<std::string, std::string>>& traffic_lights_states,
+    const std::vector<Region>& drive_tiles,
+    const std::unordered_map<std::pair<double,double>, cv::Mat, invertedai::PairHash>& drive_cached_tiles,
+    cv::VideoWriter writer,
+    bool flip_x,
+    int step
+)  {
+    const double scale = get_render_scale(
+        li_res,
+        drive_tiles.front()
+    );
+    cv::Rect2d bounds = compute_bounds_rect(drive_tiles);
+    const double min_x = bounds.x;
+    const double min_y = bounds.y;
+    const double max_x = bounds.x + bounds.width;
+    const double max_y = bounds.y + bounds.height;
 
-        std::cout << "[Step " << step << "] " << num_leaves
-                << " leaves, avg " << avg_agents_per_leaf << " agents/leaf\n";
+    const int canvas_w = static_cast<int>(std::ceil(bounds.width * scale));
+    const int canvas_h = static_cast<int>(std::ceil(bounds.height * scale));
+    cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
+    for (size_t i = 0; i < drive_tiles.size(); ++i) {
+        paste_region_tile_drive(
+            drive_tiles[i],
+            drive_cached_tiles,
+            stitched,
+            min_x,
+            max_y,
+            scale,
+            flip_x
+        );
     }
-    
-    writer.release();
-    std::cout << "Simulation finished after " << sim_length << " steps.\n";
 
-    return 0;
+    auto parent_color_at = [&](double x, double y) -> cv::Scalar {
+        int p = parent_index_of_point(final_regions, x, y);
+        size_t parent_count = final_regions.size();
+        size_t pi = (p < 0 ? 0 : static_cast<size_t>(p));
+        return color_from_parent_index(pi, parent_count);
+    };
+    // overlay quadtree regions, children take their parent color
+    for (const Region& r : leaf_regions) {
+        cv::Scalar color = 
+        parent_color_at(r.center.x, r.center.y);
+
+        cv::Rect rr = region_rect_pixels(
+            r, min_x, max_y, scale,
+            stitched.cols, stitched.rows,
+            flip_x
+        );
+        if (rr.area() > 0) {
+            // small inward inset to avoid covering seams
+            cv::rectangle(stitched,
+                        {rr.x+1, rr.y+1},
+                        {rr.x + rr.width - 2, rr.y + rr.height - 2},
+                        color, 2, cv::LINE_AA);
+        }
+
+        // draw agents (color by their current parent region) 
+        for (const auto& s : r.agent_states) {
+            cv::Point pt = world_to_canvas(
+                s.x, s.y, min_x, max_y, scale,
+                stitched.cols, flip_x
+            );
+            if (0 <= pt.x && pt.x < stitched.cols &&
+                0 <= pt.y && pt.y < stitched.rows) {
+                cv::circle(stitched, pt, 4, color, cv::FILLED, cv::LINE_AA);
+            }
+        }
+    }
+
+    std::map<std::string, cv::Point> traffic_light_positions_px = get_traffic_light_positions(li_res, min_x, max_y, scale, canvas_w, flip_x);
+    draw_traffic_lights(stitched, traffic_lights_states, traffic_light_positions_px);
+
+    cv::putText(stitched, "Step " + std::to_string(step),
+                cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+                cv::Scalar(255,0,0), 2);
+
+
+    // save frame to video
+    writer.write(stitched);
+}
+
+// TODO
+// void visualize_large_drive_v2(
+//     const LargeDriveConfig& drive_cfg,
+//     const std::vector<invertedai::Region> final_regions,
+//     const LocationInfoResponse& li_res,
+//     bool flip_x,
+//     int sim_length
+// )  {
+//     std::pair<float,float> map_center{
+//         static_cast<float>(li_res.map_origin().x),
+//         static_cast<float>(li_res.map_origin().y)
+//     };
+//     std::map<AgentType,int> agent_count_dict_drive = {
+//         {AgentType::car, 9999} // a lot of agents to initialize every tile 
+//     };
+//     std::vector<Region> drive_tiles = get_regions_default(
+//         drive_config.location,
+//         9999,                              //  a lot of agents to initialize every tile 
+//         agent_count_dict_drive,                              
+//         drive_cfg.session,
+//         std::pair<float,float>{1000/2.f, 1000/2.f}, // TODO : fix hardcoded width and height
+//         map_center,                                    // map center from location_info
+//         1                               // random seed
+
+//     );
+//     const double scale = get_render_scale(
+//         li_res,
+//         drive_tiles.front()
+//     );
+//     cv::Rect2d bounds = compute_bounds_rect(drive_tiles);
+//     const double min_x = bounds.x;
+//     const double min_y = bounds.y;
+//     const double max_x = bounds.x + bounds.width;
+//     const double max_y = bounds.y + bounds.height;
+
+//     const int canvas_w = static_cast<int>(std::ceil(bounds.width * scale));
+//     const int canvas_h = static_cast<int>(std::ceil(bounds.height * scale));
+
+//     std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles = cache_region_tiles_for_drive(
+//         drive_cfg.session, drive_cfg.location, drive_tiles, scale
+//     );
+//     cv::VideoWriter writer("large_drive_quadtree_sim.avi",
+//         cv::VideoWriter::fourcc('M','J','P','G'),
+//         10, // fps
+//         cv::Size(canvas_w, canvas_h));
+//     for (int step = 0; step < sim_length; ++step) {   
+//         auto out = large_drive_with_regions(drive_cfg);
+//         DriveResponse drive_response = std::move(out.response);
+//         std::vector<Region> leaf_regions = std::move(out.regions);
+//         auto states = drive_response.agent_states();
+//         auto recur  = drive_response.recurrent_states();
+//         auto lights_recur = drive_response.light_recurrent_states();
+//         auto traff  = drive_response.traffic_lights_states();
+
+//         drive_cfg.agent_states           = states;
+//         drive_cfg.recurrent_states       = recur;
+//         drive_cfg.light_recurrent_states = lights_recur;
+//         drive_cfg.traffic_lights_states  = std::nullopt;
+//         drive_cfg.api_model_version      = drive_response.model_version();
+//         drive_cfg.random_seed            = std::nullopt;
+
+//         cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
+//         for (size_t i = 0; i < drive_tiles.size(); ++i) {
+//             paste_region_tile_drive(
+//                 drive_tiles[i],
+//                 drive_cached_tiles,
+//                 stitched,
+//                 min_x,
+//                 max_y,
+//                 scale,
+//                 flip_x
+//             );
+//         }
+
+//         auto parent_color_at = [&](double x, double y) -> cv::Scalar {
+//             int p = parent_index_of_point(final_regions, x, y);
+//             size_t parent_count = final_regions.size();
+//             size_t pi = (p < 0 ? 0 : static_cast<size_t>(p));
+//             return color_from_parent_index(pi, parent_count);
+//         };
+//         // overlay quadtree regions, children take their parent color
+//         for (const Region& r : leaf_regions) {
+//             cv::Scalar color = 
+//             parent_color_at(r.center.x, r.center.y);
+
+//             cv::Rect rr = region_rect_pixels(
+//                 r, min_x, max_y, scale,
+//                 stitched.cols, stitched.rows,
+//                 flip_x
+//             );
+//             if (rr.area() > 0) {
+//                 // small inward inset to avoid covering seams
+//                 cv::rectangle(stitched,
+//                             {rr.x+1, rr.y+1},
+//                             {rr.x + rr.width - 2, rr.y + rr.height - 2},
+//                             color, 2, cv::LINE_AA);
+//             }
+
+//             // draw agents (color by their current parent region) 
+//             for (const auto& s : r.agent_states) {
+//                 cv::Point pt = world_to_canvas(
+//                     s.x, s.y, min_x, max_y, scale,
+//                     stitched.cols, flip_x
+//                 );
+//                 if (0 <= pt.x && pt.x < stitched.cols &&
+//                     0 <= pt.y && pt.y < stitched.rows) {
+//                     cv::circle(stitched, pt, 4, color, cv::FILLED, cv::LINE_AA);
+//                 }
+//             }
+//         }
+//         std::map<std::string, cv::Point> traffic_light_positions_px = get_traffic_light_positions(li_res, min_x, max_y, scale, canvas_w, flip_x);
+//         auto lights_opt = drive_response.traffic_lights_states();
+//         draw_traffic_lights(stitched, lights_opt, traffic_light_positions_px);
+
+//         cv::putText(stitched, "Step " + std::to_string(step),
+//                     cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+//                     cv::Scalar(0,0,0), 2);
+
+
+//         // save frame to video
+//         writer.write(stitched);
+//         int total_agents = drive_response.agent_states().size();
+//         int num_leaves = leaf_regions.size();
+//         double avg_agents_per_leaf = double(total_agents) / num_leaves;
+
+//         std::cout << "[Step " << step << "] " << num_leaves
+//                 << " leaves, avg " << avg_agents_per_leaf << " agents/leaf\n";
+//     }
+
+//     writer.release();
+//     std::cout << "Simulation finished after " << sim_length << " steps.\n";
+// }
+    
+
 }

@@ -43,13 +43,36 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
 )
+cc_library(
+    name = "visualizer_helpers",
+    hdrs = ["visualizer_helpers.h"],
+    includes = ["."],  # allow #include "helpers/helpers.h"
+    visibility = ["//visibility:public"],  # accessible from anywhere
+)
 
+cc_library(
+    name = "visualizer_lib",
+    srcs = ["visualizer.cc"],
+    hdrs = ["visualizer.h"],
+    deps = [
+        ":visualizer_helpers",
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:error",
+        ":large_drive_lib",
+        ":large_initialize_lib",
+        "@opencv//:opencv",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 cc_binary(
     name = "large_main",
-    srcs = ["visualizer.cc"],
+    srcs = ["main.cc"],
     deps = [
-        ":large_drive_lib",     # build (drive + initialize)
+        "visualizer_helpers",
+        ":visualizer_lib",
+        ":large_drive_lib",     
         ":large_initialize_lib",
         "//invertedai:error",
         "//invertedai:api",
