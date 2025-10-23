@@ -67,8 +67,8 @@ cc_library(
 )
 
 cc_binary(
-    name = "large_main",
-    srcs = ["main.cc"],
+    name = "large_example",
+    srcs = ["large_example.cc"],
     deps = [
         "visualizer_helpers",
         ":visualizer_lib",

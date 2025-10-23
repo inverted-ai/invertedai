@@ -37,13 +37,31 @@ initialize_agents_for_region(
     bool get_infractions = false
 );
 /*                                                                                 
-            how to run executable:
+            HOW TO RUN EXECUTABLE:
             
-            bazel build //large:large_main 
+            bazel build //large:large_example 
+            
+            To view the visualizers, run with the --debug flag:
+            ./bazel-bin/large/large_example --debug 
 
-            ./bazel-bin/large/large_main
+            To turn off the visualizers, run without the --debug flag:
+            ./bazel-bin/large/large_example
 */
-int main() {
+int main(int argc, char** argv) {
+    bool DEBUG_VISUALS = false;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--debug") {
+            DEBUG_VISUALS = true;
+        } else if (arg == "--help" || arg == "-h") {
+            std::cout << "Usage: " << argv[0] << "to enable visualizer add [--debug ] flag\n";
+            return 0;
+        }
+    }
+
+    std::cout << "[INFO] Debug visualization mode: "
+    << (DEBUG_VISUALS ? "ON" : "OFF") << "\n";
 
     const std::string location = "carla:Town03";
     bool FLIP_X_FOR_THIS_DOMAIN = false; 
@@ -54,7 +72,7 @@ int main() {
     // controls for how many agents to add
     const int total_num_agents = 200;
     // num steps for large_drive simulation
-    const int sim_length = 100;  
+    const int sim_length = 50;  
     // (used by get_regions_default)
     const int width  = 1000;
     const int height = 1000;
@@ -116,7 +134,9 @@ int main() {
 
     std::cout << "Calling large_initialize with " << regions.size() << " regions...\n";
     std::vector<Region> outputed_regions;
-    InitializeResponse response = invertedai::large_initialize(cfg, &outputed_regions);
+    invertedai::InitializeResponse response = DEBUG_VISUALS
+        ? invertedai::large_initialize(cfg, &outputed_regions)
+        : invertedai::large_initialize(cfg);
     std::vector<AgentState> agent_states     = response.agent_states();
     std::vector<AgentProperties> agent_props = response.agent_properties();
     std::vector<std::vector<double>> recurrent    = response.recurrent_states();
@@ -138,7 +158,9 @@ int main() {
 
     );
     // visualize initialize results 
-    visualize_large_initialize(cfg.location, cfg.session, outputed_regions, drive_tiles, li_res, FLIP_X_FOR_THIS_DOMAIN);
+    if(DEBUG_VISUALS) {
+        visualize_large_initialize(cfg.location, cfg.session, outputed_regions, drive_tiles, li_res, FLIP_X_FOR_THIS_DOMAIN);
+    }
     
     // time to drive
     std::cout << "Starting simulation for " << sim_length << " steps...\n";
@@ -154,6 +176,7 @@ int main() {
     drive_cfg.get_infractions = true;
     drive_cfg.single_call_agent_limit = 100;
     drive_cfg.async_api_calls = true;
+    
     cv::Rect2d bounds = compute_bounds_rect(drive_tiles);
     const double scale = get_render_scale(li_res, drive_tiles.front());
     const int canvas_w = static_cast<int>(std::ceil(bounds.width * scale));
@@ -168,7 +191,8 @@ int main() {
         cv::Size(canvas_w, canvas_h));
     for (int step = 0; step < sim_length; ++step) {   
         std::vector<Region> leaf_regions;
-        DriveResponse drive_response = large_drive(drive_cfg, &leaf_regions);
+        invertedai::DriveResponse drive_response = DEBUG_VISUALS ? 
+            invertedai::large_drive(drive_cfg, &leaf_regions) : invertedai::large_drive(drive_cfg);
         auto states = drive_response.agent_states();
         auto recur  = drive_response.recurrent_states();
         auto lights_recur = drive_response.light_recurrent_states();
@@ -180,25 +204,26 @@ int main() {
         drive_cfg.api_model_version      = drive_response.model_version();
         drive_cfg.random_seed            = std::nullopt;
 
+        if(DEBUG_VISUALS) {
         //visualize each drive step
-        visualize_large_drive(drive_cfg,
-            leaf_regions,
-            outputed_regions,
-            li_res,
-            traff,
-            drive_tiles,
-            drive_cached_tiles,
-            writer,
-            FLIP_X_FOR_THIS_DOMAIN,
-            step);
-
-            // track some statistics
-            int total_agents = drive_response.agent_states().size();
-            int num_leaves = leaf_regions.size();
-            double avg_agents_per_leaf = double(total_agents) / num_leaves;
-            std::cout << "[Step " << step << "] " << num_leaves
-                    << " leaves, avg " << avg_agents_per_leaf << " agents/leaf\n";
+            visualize_large_drive(drive_cfg,
+                leaf_regions,
+                outputed_regions,
+                li_res,
+                traff,
+                drive_tiles,
+                drive_cached_tiles,
+                writer,
+                FLIP_X_FOR_THIS_DOMAIN,
+                step);
+                // track some statistics
+                int total_agents = drive_response.agent_states().size();
+                int num_leaves = leaf_regions.size();
+                double avg_agents_per_leaf = double(total_agents) / num_leaves;
+                std::cout << "[Step " << step << "] " << num_leaves
+                        << " leaves, avg " << avg_agents_per_leaf << " agents/leaf\n";
         }
+    }
     writer.release();
 
     return 0;

@@ -150,6 +150,10 @@ struct LargeDriveConfig {
  * independently, and the results are merged into a unified `DriveResponse`.
  *
  * @param cfg LargeDriveConfig configuration containing all simulation parameters.
+ * @param debug_regions Optional pointer to a vector that, if provided,
+ *        will be populated with the final list of quadtree leaf regions used
+ *        during the DRIVE simulation. This can be useful for debugging,
+ *        visualization, or analysis of spatial subdivision.
  * @return DriveResponse Combined DRIVE response containing agent states,
  * recurrent states, infractions, and traffic light data.
  *
