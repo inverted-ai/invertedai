@@ -34,17 +34,9 @@ void visualize_large_drive(
     const std::optional<std::map<std::string, std::string>>& traffic_lights_states,
     const std::vector<Region>& drive_tiles,
     const std::unordered_map<std::pair<double,double>, cv::Mat, invertedai::PairHash>& drive_cached_tiles,
-
     cv::VideoWriter writer,
     bool flip_x,
     int step
-);
-void visualize_large_drive_v2(
-    const LargeDriveConfig& drive_cfg,
-    const std::vector<invertedai::Region> final_regions,
-    const LocationInfoResponse& li_res,
-    bool flip_x,
-    int sim_length
 );
 
 }  // namespace invertedai

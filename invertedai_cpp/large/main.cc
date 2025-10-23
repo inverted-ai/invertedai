@@ -50,21 +50,18 @@ int main() {
     if (location.rfind("carla:", 0) == 0) {
         FLIP_X_FOR_THIS_DOMAIN = true;
     }
-    const std::string API_KEY = getenv("API_KEY"); //or just paste here
-
+    const std::string API_KEY = getenv("API_KEY"); // in the docker - 'export API_KEY="your key here"'
     // controls for how many agents to add
     const int total_num_agents = 200;
-
-    const int sim_length = 50;   // num steps for large_drive simulation
-
+    // num steps for large_drive simulation
+    const int sim_length = 100;  
     // (used by get_regions_default)
     const int width  = 1000;
     const int height = 1000;
-
-    // Random seed
+    // Random seed 
     std::random_device rd;
     std::mt19937 gen(rd());
-    int initialize_seed = std::uniform_int_distribution<>(1, 1000000)(gen); // or fixed for repeatability 
+    int seed = std::uniform_int_distribution<>(1, 1000000)(gen); // or fixed for repeatability 
 
     // session connection
     boost::asio::io_context ioc;
@@ -97,7 +94,7 @@ int main() {
         session,
         std::pair<float,float>{width/2.f, height/2.f}, 
         map_center,                                    
-        initialize_seed                               
+        seed                               
 
     );
     std::cout << "Generated " << regions.size() << " regions.\n";
@@ -106,24 +103,20 @@ int main() {
     LargeInitializeConfig cfg(session);
     cfg.location = location;
     cfg.regions = regions;
-    cfg.random_seed = initialize_seed;
+    cfg.random_seed = seed;
     cfg.get_infractions = true;
     cfg.traffic_light_state_history = std::nullopt;
     cfg.return_exact_agents = true;
     cfg.api_model_version = std::nullopt;
-
-    // Simple agent generator for testing - currently not being used
+    // Optional agent generator per region
     auto [init_states, init_props] =
-    initialize_agents_for_region(session, location, regions[0], 3, initialize_seed);
-
+    initialize_agents_for_region(session, location, regions[0], 3, seed);
     cfg.agent_states = std::nullopt;//init_states; //change to init_states to use the generator function
     cfg.agent_properties = std::nullopt;//init_props; 
 
     std::cout << "Calling large_initialize with " << regions.size() << " regions...\n";
-    auto out = invertedai::large_initialize_with_regions(cfg);
-    InitializeResponse response = std::move(out.response);
-    std::vector<Region> outputed_regions = std::move(out.regions); // use this for drawing
-
+    std::vector<Region> outputed_regions;
+    InitializeResponse response = invertedai::large_initialize(cfg, &outputed_regions);
     std::vector<AgentState> agent_states     = response.agent_states();
     std::vector<AgentProperties> agent_props = response.agent_properties();
     std::vector<std::vector<double>> recurrent    = response.recurrent_states();
@@ -136,21 +129,19 @@ int main() {
     };
     std::vector<Region> drive_tiles = get_regions_default(
         location,
-        9999,                              //  a lot of agents to initialize every tile 
+        9999,                               //  a lot of agents to initialize every tile 
         agent_count_dict_drive,                              
         session,
         std::pair<float,float>{width/2.f, height/2.f}, 
-        map_center,                                    // map center from location_info
-        initialize_seed                               // random seed
+        map_center,                        // map center from location_info
+        seed                               // random seed
 
     );
     // visualize initialize results 
     visualize_large_initialize(cfg.location, cfg.session, outputed_regions, drive_tiles, li_res, FLIP_X_FOR_THIS_DOMAIN);
     
-
     // time to drive
     std::cout << "Starting simulation for " << sim_length << " steps...\n";
-
     LargeDriveConfig drive_cfg(session);
     drive_cfg.location = location;
     drive_cfg.api_key = API_KEY;
@@ -159,16 +150,10 @@ int main() {
     drive_cfg.recurrent_states = recurrent;
     drive_cfg.traffic_lights_states = traffic_lights_states;
     drive_cfg.light_recurrent_states = light_recurrent_states;
-    drive_cfg.random_seed = initialize_seed;
+    drive_cfg.random_seed = seed;
     drive_cfg.get_infractions = true;
     drive_cfg.single_call_agent_limit = 100;
     drive_cfg.async_api_calls = true;
-    // visualize_large_drive_v2(
-    //     drive_cfg,
-    //     outputed_regions,
-    //     li_res,
-    //     FLIP_X_FOR_THIS_DOMAIN,
-    //     sim_length);
     cv::Rect2d bounds = compute_bounds_rect(drive_tiles);
     const double scale = get_render_scale(li_res, drive_tiles.front());
     const int canvas_w = static_cast<int>(std::ceil(bounds.width * scale));
@@ -176,21 +161,18 @@ int main() {
     std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles = cache_region_tiles_for_drive(
         drive_cfg.session, drive_cfg.location, drive_tiles, scale
     );
-
     cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
     cv::VideoWriter writer("large_drive_quadtree_sim.avi",
         cv::VideoWriter::fourcc('M','J','P','G'),
         10, // fps
         cv::Size(canvas_w, canvas_h));
     for (int step = 0; step < sim_length; ++step) {   
-        auto out = large_drive_with_regions(drive_cfg);
-        DriveResponse drive_response = std::move(out.response);
-        std::vector<Region> leaf_regions = std::move(out.regions);
+        std::vector<Region> leaf_regions;
+        DriveResponse drive_response = large_drive(drive_cfg, &leaf_regions);
         auto states = drive_response.agent_states();
         auto recur  = drive_response.recurrent_states();
         auto lights_recur = drive_response.light_recurrent_states();
         auto traff  = drive_response.traffic_lights_states();
-
         drive_cfg.agent_states           = states;
         drive_cfg.recurrent_states       = recur;
         drive_cfg.light_recurrent_states = lights_recur;
@@ -198,6 +180,7 @@ int main() {
         drive_cfg.api_model_version      = drive_response.model_version();
         drive_cfg.random_seed            = std::nullopt;
 
+        //visualize each drive step
         visualize_large_drive(drive_cfg,
             leaf_regions,
             outputed_regions,
@@ -209,10 +192,10 @@ int main() {
             FLIP_X_FOR_THIS_DOMAIN,
             step);
 
+            // track some statistics
             int total_agents = drive_response.agent_states().size();
             int num_leaves = leaf_regions.size();
             double avg_agents_per_leaf = double(total_agents) / num_leaves;
-        
             std::cout << "[Step " << step << "] " << num_leaves
                     << " leaves, avg " << avg_agents_per_leaf << " agents/leaf\n";
         }

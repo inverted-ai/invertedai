@@ -67,7 +67,7 @@ namespace invertedai {
  * - `std::runtime_error` for unexpected internal inconsistencies.
  *
  */
-DriveResponse large_drive(LargeDriveConfig& cfg) {
+DriveResponse large_drive(LargeDriveConfig& cfg, std::vector<Region>* debug_regions) {
     // size checks
     int num_agents = static_cast<int>(cfg.agent_states.size());
     int props_size  = static_cast<int>(cfg.agent_properties.size());
@@ -141,6 +141,10 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         }
     }
     auto leaves = root->get_leaf_nodes(); 
+
+    if(debug_regions) {
+        *debug_regions = root->get_regions();
+    }
     // collect all leaf nodes
     if (leaves.size() > 1) {
         std::vector<DriveResponse> all_responses;
@@ -408,46 +412,6 @@ DriveResponse large_drive(LargeDriveConfig& cfg) {
         }
         
     }
-}
-
-// function to visualize the leaf nodes
-LargeDriveWithRegions large_drive_with_regions(LargeDriveConfig& cfg) {
-    int num_agents = static_cast<int>(cfg.agent_states.size());
-    if (num_agents == 0) {
-        throw InvertedAIError("Valid call must contain at least 1 agent.");
-    }
-
-    // compute root region bounds
-    double max_x = -1e9, min_x = 1e9, max_y = -1e9, min_y = 1e9;
-    for (const auto& s : cfg.agent_states) {
-        max_x = std::max(max_x, s.x);
-        min_x = std::min(min_x, s.x);
-        max_y = std::max(max_y, s.y);
-        min_y = std::min(min_y, s.y);
-    }
-    double region_size = std::ceil(std::max(max_x - min_x, max_y - min_y)) + QUADTREE_SIZE_BUFFER;
-    Point2d region_center{
-        std::round((max_x + min_x) / 2.0),
-        std::round((max_y + min_y) / 2.0)
-    };
-
-    QuadTree root(cfg.single_call_agent_limit, Region::create_square_region(region_center, region_size));
-
-    for (int i = 0; i < num_agents; i++) {
-        QuadTreeAgentInfo info{ cfg.agent_states[i],
-                                cfg.recurrent_states ? std::optional<std::vector<double>>(cfg.recurrent_states->at(i)) : std::nullopt,
-                                cfg.agent_properties[i],
-                                i };
-        if (!root.insert(info)) {
-            throw InvertedAIError("Unable to insert agent into region.");
-        }
-    }
-
-    std::vector<Region> leaf_regions = root.get_regions();
-
-    DriveResponse resp = large_drive(cfg);
-
-    return { std::move(resp), std::move(leaf_regions) };
 }
 
 } // namespace invertedai

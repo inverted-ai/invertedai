@@ -9,16 +9,6 @@
 namespace invertedai {
 using TrafficLightStatesDict = std::vector<TrafficLightState>;
 
-/**
- * @brief Output of large_initialize_with_regions function.
- *
- * Contains the consolidated InitializeResponse and the updated list of regions
- * with their initialized agents, useful for visualization and further analysis.
- */
-struct LargeInitializeOutput {
-    invertedai::InitializeResponse response;
-    std::vector<invertedai::Region> regions; // contains agent_states / props / recurrent_states // for testing the regions
-};
 
 /**
  * @brief Configuration options for large-scale agent initialization.
@@ -100,19 +90,6 @@ struct LargeInitializeConfig {
      */
     LargeInitializeConfig(Session& sess) : session(sess) {}
 };
-
-/**
- * @brief Extended initialize that also returns final region layouts.
- *
- * Similar to `large_initialize`, but also returns the updated list of
- * regions with their initialized agents, useful for visualization.
- *
- * @param cfg LargeInitializeConfig configuration (regions, agents, options).
- * @return LargeInitializeOutput {consolidated response, final regions}.
- *
- * @throws std::invalid_argument if inputs are of varying lengths.
- */
-LargeInitializeOutput large_initialize_with_regions(invertedai::LargeInitializeConfig& cfg); // for testing the regions
 
 /**
  * @brief Assign agents into the nearest simulation regions.
@@ -203,7 +180,7 @@ InitializeResponse consolidate_all_responses(
  *
  * @throws std::invalid_argument if inputs are of varying lengths.
  */
-invertedai::InitializeResponse large_initialize(invertedai::LargeInitializeConfig& cfg);
+invertedai::InitializeResponse large_initialize(invertedai::LargeInitializeConfig& cfg, std::vector<Region>* debug_regions = nullptr);
 } // namespace invertedai
 #ifndef LARGE_INITIALIZE_H
 #define LARGE_INITIALIZE_H

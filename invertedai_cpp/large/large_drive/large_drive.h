@@ -141,18 +141,6 @@ struct LargeDriveConfig {
     explicit LargeDriveConfig(Session& sess) : session(sess) {}
 };
 
-/**
- * @brief Output structure combining DRIVE results with quadtree leaf regions.
- *
- * Used by `large_drive_with_regions()` to return both the merged DRIVE response
- * and the set of quadtree leaf regions used during simulation.
- * 
- * For visualization, the 'regions' can be used to dray quadtree layouts.
- */
-struct LargeDriveWithRegions {
-    invertedai::DriveResponse response;  ///merged DRIVE response across all regions.
-    std::vector<invertedai::Region> regions; ///quadtree leaf regions used for partitioning.
-};
 
 /**
  * @brief Perform a large-scale DRIVE simulation with automatic region subdivision.
@@ -171,21 +159,7 @@ struct LargeDriveWithRegions {
  * parallel using separate sessions. When false, requests are executed
  * sequentially.
  */
-invertedai::DriveResponse large_drive(invertedai::LargeDriveConfig& cfg);
-
-/**
- * @brief Run a large DRIVE simulation and also return the region layout.
- *
- * Same as `large_drive()`, but also returns the quadtree’s final leaf regions
- * used for agent subdivision. Useful for visualization and debugging.
- *
- * @param cfg LargeDriveConfig configuration for the simulation.
- * @return LargeDriveWithRegions Structure containing the DRIVE response and
- * the quadtree leaf regions used during subdivision.
- *
- * @throws InvertedAIError If input data are invalid or DRIVE calls fail.
- */
-invertedai::LargeDriveWithRegions large_drive_with_regions(invertedai::LargeDriveConfig& cfg);
+invertedai::DriveResponse large_drive(invertedai::LargeDriveConfig& cfg, std::vector<Region>* debug_regions = nullptr);
 
 
 } // namespace invertedai
