@@ -343,17 +343,6 @@ DriveResponse large_drive(LargeDriveConfig& cfg, std::vector<Region>* debug_regi
             final_resp.set_infraction_indicators({});
         }
         
-        // old debugging code - might delete ?
-        auto tls_opt = all_responses[0].traffic_lights_states();
-        if (tls_opt && !tls_opt->empty()) {
-            for (const auto& kv : *tls_opt) {
-                final_resp.set_traffic_lights_states(*tls_opt);
-                if (kv.second.empty()) {
-                    std::cerr << "[WARN] traffic_lights_states has empty value for key=" << kv.first << std::endl;
-                }
-            }
-        }
-        
         if (!all_responses.empty()) {
             try {
                 final_resp.set_traffic_lights_states(
