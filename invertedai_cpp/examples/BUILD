@@ -47,17 +47,6 @@ cc_binary(
 )
 
 cc_binary(
-    name = "large_main",
-    srcs = ["large/main.cpp"],   # note the relative path
-    deps = [
-        "//invertedai:api",
-        "@boost//:beast",
-        "@opencv",
-    ],
-)
-
-
-cc_binary(
     name = "initialize_tests",
     srcs = ["initialize_tests.cc"],
     data = [
@@ -115,3 +104,20 @@ cc_binary(
         "@opencv",
     ],
 )
+
+cc_binary(
+    name = "large_example",
+    srcs = ["large_example.cc"],
+    deps = [
+        "//large/visualizer:visualizer_lib",
+        "//large/large_drive:large_drive_lib",
+        "//large/large_initialize:large_initialize_lib",
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:error",
+        "@boost//:asio",
+        "@opencv//:opencv",
+    ],
+    visibility = ["//visibility:public"],
+)
+

@@ -13,10 +13,10 @@
 #include "invertedai/initialize_response.h"
 #include "invertedai/drive_request.h"
 #include "invertedai/drive_response.h"
-#include "large_drive/large_drive.h"
-#include "large_initialize/large_init_helpers.h"
-#include "visualizer.h"
-#include "visualizer_helpers.h"
+#include "large/large_drive/large_drive.h"
+#include "large/large_initialize/large_init_helpers.h"
+#include "large/visualizer/visualizer.h"
+#include "large/visualizer/visualizer_helpers.h"
 
 using namespace invertedai;
 static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_region_tiles_for_drive(
@@ -38,14 +38,18 @@ initialize_agents_for_region(
 );
 /*                                                                                 
             HOW TO RUN EXECUTABLE:
+
+            join docker:
+            docker compose build
+            docker compose run --rm dev 
             
-            bazel build //large:large_example 
+            bazel build //examples:large_example 
             
             To view the visualizers, run with the --debug flag:
-            ./bazel-bin/large/large_example --debug 
+            ./bazel-bin/examples/large_example --debug 
 
             To turn off the visualizers, run without the --debug flag:
-            ./bazel-bin/large/large_example
+            ./bazel-bin/examples/large_example
 */
 int main(int argc, char** argv) {
     bool DEBUG_VISUALS = false;
@@ -68,7 +72,7 @@ int main(int argc, char** argv) {
     if (location.rfind("carla:", 0) == 0) {
         FLIP_X_FOR_THIS_DOMAIN = true;
     }
-    const std::string API_KEY = getenv("API_KEY"); // in the docker - 'export API_KEY="your key here"'
+    const std::string API_KEY = getenv("IAI_API_KEY"); // in the docker - 'export IAI_API_KEY="your key here"'
     // controls for how many agents to add
     const int total_num_agents = 200;
     // num steps for large_drive simulation

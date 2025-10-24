@@ -13,9 +13,9 @@
 #include "invertedai/initialize_response.h"
 #include "invertedai/drive_request.h"
 #include "invertedai/drive_response.h"
-#include "large_drive/large_drive.h"
-#include "visualizer.h"
-#include "visualizer_helpers.h"
+#include "large/large_drive/large_drive.h"
+#include "large/visualizer/visualizer.h"
+#include "large/visualizer/visualizer_helpers.h"
 
 
 namespace invertedai {

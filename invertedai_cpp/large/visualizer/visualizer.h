@@ -3,9 +3,9 @@
 #include "invertedai/location_info_response.h"
 #include "invertedai/drive_response.h"
 #include "invertedai/initialize_response.h"
-#include "large_initialize/large_initialize.h"
-#include "large_drive/large_drive.h"
-#include "large/visualizer_helpers.h"
+#include "large/large_initialize/large_initialize.h"
+#include "large/large_drive/large_drive.h"
+#include "large/visualizer/visualizer_helpers.h"
 
 
 namespace invertedai {
