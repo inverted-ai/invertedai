@@ -51,8 +51,8 @@ initialize_agents_for_region(
             To turn off the visualizers, run without the --debug flag:
             ./bazel-bin/examples/large_example
 
-            To run with all modified arguments and visualization:
-            ./bazel-bin/examples/large_example --location carla:Town10HD --agents 50 --steps 100 --width 500 --height 500 --debug
+            To run modifying all arguments, get_infractions_enabled, and visualizers on:
+            ./bazel-bin/examples/large_example --location carla:Town10HD --num_agents 50 --sim_length 100 --width 500 --height 500 --get_infractions --debug
 
 */
 int main(int argc, char** argv) {
@@ -60,10 +60,11 @@ int main(int argc, char** argv) {
 
     // default
     std::string location = "carla:Town03";
-    int total_num_agents = 1;
+    int total_num_agents = 10;
     int sim_length = 100;
     int width = 100;
     int height = 100;
+    bool get_infractions=false;
 
     const std::string API_KEY = getenv("IAI_API_KEY"); // in the docker - 'export IAI_API_KEY="your key here"'
 
@@ -73,22 +74,26 @@ int main(int argc, char** argv) {
             DEBUG_VISUALS = true;
         } else if (arg == "--location" && i + 1 < argc) {
             location = argv[++i];
-        } else if (arg == "--agents" && i + 1 < argc) {
+        } else if (arg == "--num_agents" && i + 1 < argc) {
             total_num_agents = std::stoi(argv[++i]);
-        } else if (arg == "--steps" && i + 1 < argc) {
+        } else if (arg == "--sim_length" && i + 1 < argc) {
             sim_length = std::stoi(argv[++i]);
         } else if (arg == "--width" && i + 1 < argc) {
             width = std::stoi(argv[++i]);
         } else if (arg == "--height" && i + 1 < argc) {
             height = std::stoi(argv[++i]);
+        } else if (arg == "--get_infractions") {
+            get_infractions = true;
         } else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: " << argv[0] << " [options]\n\n"
                       << "Options:\n"
                       << "  --location <str>   Map location (default: carla:Town03)\n"
-                      << "  --agents <int>     Number of agents (default: 1)\n"
-                      << "  --steps <int>      Simulation length (default: 100)\n"
+                      << "  --num_agents <int>     Number of agents (default: 10)\n"
+                      << "  --sim_length <int>      Simulation length (default: 100)\n"
                       << "  --width <int>      Map width in meters (default: 100)\n"
                       << "  --height <int>     Map height in meters (default: 100)\n";
+                      << "  --get_infractions     Sets simulation capture to infractions data (default: false)\n";
+                      << "  --debug            Enable debug visualization mode\n"
             return 0;
         }
     }
@@ -147,7 +152,7 @@ int main(int argc, char** argv) {
     cfg.location = location;
     cfg.regions = regions;
     cfg.random_seed = seed;
-    cfg.get_infractions = true;
+    cfg.get_infractions = get_infractions;
     cfg.traffic_light_state_history = std::nullopt;
     cfg.return_exact_agents = true;
     cfg.api_model_version = std::nullopt;
