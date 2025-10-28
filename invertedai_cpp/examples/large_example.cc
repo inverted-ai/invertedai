@@ -54,6 +54,9 @@ initialize_agents_for_region(
             To run modifying all arguments, get_infractions_enabled, and visualizers on:
             ./bazel-bin/examples/large_example --location carla:Town10HD --num_agents 50 --sim_length 100 --width 500 --height 500 --get_infractions --debug
 
+            To get help:
+            ./bazel-bin/examples/large_example --help
+
 */
 int main(int argc, char** argv) {
     bool DEBUG_VISUALS = false;
@@ -87,13 +90,13 @@ int main(int argc, char** argv) {
         } else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: " << argv[0] << " [options]\n\n"
                       << "Options:\n"
-                      << "  --location <str>   Map location (default: carla:Town03)\n"
-                      << "  --num_agents <int>     Number of agents (default: 10)\n"
+                      << "  --location <str>        Map location (default: carla:Town03)\n"
+                      << "  --num_agents <int>      Number of agents (default: 10)\n"
                       << "  --sim_length <int>      Simulation length (default: 100)\n"
-                      << "  --width <int>      Map width in meters (default: 100)\n"
-                      << "  --height <int>     Map height in meters (default: 100)\n"
-                      << "  --get_infractions     Enable simulation to capture to infractions data (default: false)\n"
-                      << "  --debug            Enable debug visualization mode (default: false)\n";
+                      << "  --width <int>           Map width in meters (default: 100)\n"
+                      << "  --height <int>          Map height in meters (default: 100)\n"
+                      << "  --get_infractions       Enable simulation to capture to infractions data (default: false)\n"
+                      << "  --debug                 Enable debug visualization mode (default: false)\n";
             return 0;
         }
     }
