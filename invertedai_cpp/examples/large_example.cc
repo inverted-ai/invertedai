@@ -39,7 +39,7 @@ initialize_agents_for_region(
 /*                                                                                 
             HOW TO RUN EXECUTABLE:
 
-            join docker:
+            Join docker:
             docker compose build
             docker compose run --rm dev 
             
@@ -50,36 +50,57 @@ initialize_agents_for_region(
 
             To turn off the visualizers, run without the --debug flag:
             ./bazel-bin/examples/large_example
+
+            To run with all modified arguments and visualization:
+            ./bazel-bin/examples/large_example --location carla:Town10HD --agents 50 --steps 100 --width 500 --height 500 --debug
+
 */
 int main(int argc, char** argv) {
     bool DEBUG_VISUALS = false;
+
+    // default
+    std::string location = "carla:Town03";
+    int total_num_agents = 1;
+    int sim_length = 100;
+    int width = 100;
+    int height = 100;
+
+    const std::string API_KEY = getenv("IAI_API_KEY"); // in the docker - 'export IAI_API_KEY="your key here"'
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--debug") {
             DEBUG_VISUALS = true;
+        } else if (arg == "--location" && i + 1 < argc) {
+            location = argv[++i];
+        } else if (arg == "--agents" && i + 1 < argc) {
+            total_num_agents = std::stoi(argv[++i]);
+        } else if (arg == "--steps" && i + 1 < argc) {
+            sim_length = std::stoi(argv[++i]);
+        } else if (arg == "--width" && i + 1 < argc) {
+            width = std::stoi(argv[++i]);
+        } else if (arg == "--height" && i + 1 < argc) {
+            height = std::stoi(argv[++i]);
         } else if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: " << argv[0] << "to enable visualizer add [--debug ] flag\n";
+            std::cout << "Usage: " << argv[0] << " [options]\n\n"
+                      << "Options:\n"
+                      << "  --location <str>   Map location (default: carla:Town03)\n"
+                      << "  --agents <int>     Number of agents (default: 1)\n"
+                      << "  --steps <int>      Simulation length (default: 100)\n"
+                      << "  --width <int>      Map width in meters (default: 100)\n"
+                      << "  --height <int>     Map height in meters (default: 100)\n";
             return 0;
         }
+    }
+
+    bool FLIP_X_FOR_THIS_DOMAIN = false; 
+    if (location.rfind("carla:", 0) == 0) {
+        FLIP_X_FOR_THIS_DOMAIN = true;
     }
 
     std::cout << "[INFO] Debug visualization mode: "
     << (DEBUG_VISUALS ? "ON" : "OFF") << "\n";
 
-    const std::string location = "carla:Town03";
-    bool FLIP_X_FOR_THIS_DOMAIN = false; 
-    if (location.rfind("carla:", 0) == 0) {
-        FLIP_X_FOR_THIS_DOMAIN = true;
-    }
-    const std::string API_KEY = getenv("IAI_API_KEY"); // in the docker - 'export IAI_API_KEY="your key here"'
-    // controls for how many agents to add
-    const int total_num_agents = 200;
-    // num steps for large_drive simulation
-    const int sim_length = 50;  
-    // (used by get_regions_default)
-    const int width  = 1000;
-    const int height = 1000;
     // Random seed 
     std::random_device rd;
     std::mt19937 gen(rd());
