@@ -42,7 +42,11 @@ initialize_agents_for_region(
             Join docker:
             docker compose build
             docker compose run --rm dev 
+
+            Export your API key in the docker:
+            export IAI_API_KEY="your_key_here"
             
+            Build:
             bazel build //examples:large_example 
             
             To view the visualizers, run with the --debug flag:
