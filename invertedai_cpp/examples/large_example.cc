@@ -91,9 +91,9 @@ int main(int argc, char** argv) {
                       << "  --num_agents <int>     Number of agents (default: 10)\n"
                       << "  --sim_length <int>      Simulation length (default: 100)\n"
                       << "  --width <int>      Map width in meters (default: 100)\n"
-                      << "  --height <int>     Map height in meters (default: 100)\n";
-                      << "  --get_infractions     Enable simulation to capture to infractions data (default: false)\n";
-                      << "  --debug            Enable debug visualization mode (default: false)\n"
+                      << "  --height <int>     Map height in meters (default: 100)\n"
+                      << "  --get_infractions     Enable simulation to capture to infractions data (default: false)\n"
+                      << "  --debug            Enable debug visualization mode (default: false)\n";
             return 0;
         }
     }
