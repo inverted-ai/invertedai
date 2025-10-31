@@ -1353,7 +1353,33 @@ class ScenePlotter():
             ec=ec, 
             lw=lw
         )
+        if agent_properties.waypoint is not None:
+            wp_x = agent_properties.waypoint.x
+            wp_y = agent_properties.waypoint.y
 
+            if self._left_hand_coordinates:
+                wp_x, _ = self._transform_point_to_left_hand_coordinate_frame(wp_x, 0)
+
+            if not hasattr(self, "waypoint_markers"):
+                self.waypoint_markers = {}
+
+            # Create or update waypoint marker
+            if agent_idx not in self.waypoint_markers:
+                self.waypoint_markers[agent_idx] = self.current_ax.plot(
+                    wp_x,
+                    wp_y,
+                    marker='o',
+                    markersize=4,
+                    color='saddlebrown',
+                    linestyle='None',
+                    zorder=5
+                )[0]
+            else:
+                self.waypoint_markers[agent_idx].set_xdata([wp_x])
+                self.waypoint_markers[agent_idx].set_ydata([wp_y])
+
+            self.waypoint_markers[agent_idx].set_visible(True)
+            
         if agent_idx in self.actor_boxes:
             self.actor_boxes[agent_idx].remove()
         self.actor_boxes[agent_idx] = rect
