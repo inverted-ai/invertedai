@@ -861,6 +861,8 @@ class ScenePlotter():
         self.numbers = None
 
         self.reset_recording()
+
+        self.waypoint_markers = {}
         
     def reset_recording(self):
         """
