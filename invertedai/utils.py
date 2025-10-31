@@ -1223,6 +1223,9 @@ class ScenePlotter():
     def _update_frame_to(self, frame_idx):
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
+        if hasattr(self, "waypoint_markers"):
+            for marker in self.waypoint_markers.values():
+                marker.set_visible(False)
         for lines in self.dir_lines.values():
             for line in lines:
                 line.set_visible(False)
@@ -1360,26 +1363,31 @@ class ScenePlotter():
             if self._left_hand_coordinates:
                 wp_x, _ = self._transform_point_to_left_hand_coordinate_frame(wp_x, 0)
 
+            # Initialize storage if missing
             if not hasattr(self, "waypoint_markers"):
                 self.waypoint_markers = {}
+
+            # Scale marker size relative to FOV (smaller for large maps)
+            marker_size = max(2, 200 / self.fov)  # e.g. ~2–4 px typical
 
             # Create or update waypoint marker
             if agent_idx not in self.waypoint_markers:
                 self.waypoint_markers[agent_idx] = self.current_ax.plot(
                     wp_x,
                     wp_y,
-                    marker='o',
-                    markersize=4,
-                    color='saddlebrown',
-                    linestyle='None',
-                    zorder=5
+                    marker="o",
+                    markersize=marker_size,
+                    color=(0.36, 0.25, 0.2),  # brown tone 
+                    linestyle="None",
+                    zorder=6,
                 )[0]
             else:
-                self.waypoint_markers[agent_idx].set_xdata([wp_x])
-                self.waypoint_markers[agent_idx].set_ydata([wp_y])
+                m = self.waypoint_markers[agent_idx]
+                m.set_xdata([wp_x])
+                m.set_ydata([wp_y])
+                m.set_markersize(marker_size)
+                m.set_visible(True)
 
-            self.waypoint_markers[agent_idx].set_visible(True)
-            
         if agent_idx in self.actor_boxes:
             self.actor_boxes[agent_idx].remove()
         self.actor_boxes[agent_idx] = rect
