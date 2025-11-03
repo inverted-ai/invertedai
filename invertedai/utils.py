@@ -1381,37 +1381,6 @@ class ScenePlotter():
             ec=ec, 
             lw=lw
         )
-        if agent_properties.waypoint is not None:
-            wp_x = agent_properties.waypoint.x
-            wp_y = agent_properties.waypoint.y
-
-            if self._left_hand_coordinates:
-                wp_x, _ = self._transform_point_to_left_hand_coordinate_frame(wp_x, 0)# ?
-
-            # Initialize storage if missing
-            if not hasattr(self, "waypoint_markers"):
-                self.waypoint_markers = {}
-
-            # Scale marker size relative to FOV (smaller for large maps)
-            marker_size = max(2, 200 / self.fov)  # e.g. ~2–4 px typical
-
-            # Create or update waypoint marker
-            if agent_idx not in self.waypoint_markers:
-                self.waypoint_markers[agent_idx] = self.current_ax.plot(
-                    wp_x,
-                    wp_y,
-                    marker="o",
-                    markersize=marker_size,
-                    color=(0.36, 0.25, 0.2),  # brown tone 
-                    linestyle="None",
-                    zorder=6,
-                )[0]
-            else:
-                m = self.waypoint_markers[agent_idx]
-                m.set_xdata([wp_x])
-                m.set_ydata([wp_y])
-                m.set_markersize(marker_size)
-                m.set_visible(True)
 
         if agent_idx in self.actor_boxes:
             self.actor_boxes[agent_idx].remove()
@@ -1426,6 +1395,7 @@ class ScenePlotter():
                 x, y = wp.x, wp.y
                 if self._left_hand_coordinates:
                     x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
+                if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
                         x, y,
                         marker='o',
@@ -1436,7 +1406,7 @@ class ScenePlotter():
                 else:
                     # Update marker position
                     self.waypoint_markers[agent_idx].set_data([x], [y])
-                self.waypoint_markers[agent_idx].set_visible(True)
+                    self.waypoint_markers[agent_idx].set_visible(True)
             else:
                 # Hide marker if this agent has no waypoint this frame
                 if agent_idx in self.waypoint_markers:
