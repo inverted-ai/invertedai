@@ -1386,7 +1386,7 @@ class ScenePlotter():
             wp_y = agent_properties.waypoint.y
 
             if self._left_hand_coordinates:
-                wp_x, _ = self._transform_point_to_left_hand_coordinate_frame(wp_x, 0)
+                wp_x, _ = self._transform_point_to_left_hand_coordinate_frame(wp_x, 0)# ?
 
             # Initialize storage if missing
             if not hasattr(self, "waypoint_markers"):
@@ -1424,7 +1424,7 @@ class ScenePlotter():
             wp = getattr(agent_properties, "waypoint", None)
             if wp is not None:
                 x, y = wp.x, wp.y
-                if self.left_hand_coordinates:
+                if self._left_hand_coordinates:
                     x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
                         x, y,
