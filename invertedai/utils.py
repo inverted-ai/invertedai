@@ -922,6 +922,14 @@ class ScenePlotter():
 
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
+        self.waypoint_marker_history = []
+
+        # Initialize first frame of waypoints if agent_properties exist
+        if agent_properties is not None:
+            self.waypoint_marker_history.append([
+                getattr(ap, "waypoint", None) for ap in agent_properties
+            ])
+
 
         self.agent_face_colors = None
         self.agent_edge_colors = None
@@ -960,14 +968,9 @@ class ScenePlotter():
         )
         self.agent_properties.append(agent_properties)
 
-        if not hasattr(self, "waypoint_marker_history"):
-            self.waypoint_marker_history = []
-
-        frame_waypoints = [
-            ap.waypoint if hasattr(ap, "waypoint") else None
-            for ap in agent_properties
-        ]
-        self.waypoint_marker_history.append(frame_waypoints)
+        self.waypoint_marker_history.append([
+            getattr(ap, "waypoint", None) for ap in agent_properties
+        ])
 
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def plot_scene(
