@@ -1247,9 +1247,8 @@ class ScenePlotter():
     def _update_frame_to(self, frame_idx):
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
-        if hasattr(self, "waypoint_markers"):
-            for marker in self.waypoint_markers.values():
-                marker.set_visible(False)
+        for marker in self.waypoint_markers.values():
+            marker.set_visible(False)
         for lines in self.dir_lines.values():
             for line in lines:
                 line.set_visible(False)
@@ -1424,10 +1423,11 @@ class ScenePlotter():
         if self.mark_waypoints:
             wp = getattr(agent_properties, "waypoint", None)
             if wp is not None:
-                # If not drawn before, create marker
-                if agent_idx not in self.waypoint_markers:
+                    x, y = wp.x, wp.y
+                    if self.left_hand_coordinates:
+                        x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
-                        wp.x, wp.y,
+                        x, y,
                         marker='o',
                         color='saddlebrown',
                         markersize=1.5,
@@ -1435,7 +1435,7 @@ class ScenePlotter():
                     )
                 else:
                     # Update marker position
-                    self.waypoint_markers[agent_idx].set_data([wp.x], [wp.y])
+                    self.waypoint_markers[agent_idx].set_data([x], [y])
                 self.waypoint_markers[agent_idx].set_visible(True)
             else:
                 # Hide marker if this agent has no waypoint this frame
