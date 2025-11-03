@@ -105,6 +105,7 @@ class LogBase():
         direction_vec: bool = False,
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
+        mark_waypoints: bool = True,
         left_hand_coordinates: bool = False,
         agent_ids: Optional[List[int]] = None
     ):
@@ -158,6 +159,7 @@ class LogBase():
             direction_vec=direction_vec,
             velocity_vec=velocity_vec,
             plot_frame_number=plot_frame_number,
+            mark_waypoints = mark_waypoints,
             numbers=agent_ids
         )
 
@@ -174,6 +176,7 @@ class LogBase():
         direction_vec: bool = False,
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
+        mark_waypoints: bool = True,
         left_hand_coordinates: bool = False,
         agent_ids: Optional[List[int]] = None
     ):
@@ -192,6 +195,7 @@ class LogBase():
             direction_vec = direction_vec,
             velocity_vec = velocity_vec,
             plot_frame_number = plot_frame_number,
+            mark_waypoints = mark_waypoints,
             left_hand_coordinates = left_hand_coordinates,
             agent_ids = agent_ids
         )
