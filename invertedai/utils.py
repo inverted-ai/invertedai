@@ -1423,9 +1423,9 @@ class ScenePlotter():
         if self.mark_waypoints:
             wp = getattr(agent_properties, "waypoint", None)
             if wp is not None:
-                    x, y = wp.x, wp.y
-                    if self.left_hand_coordinates:
-                        x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
+                x, y = wp.x, wp.y
+                if self.left_hand_coordinates:
+                    x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
                         x, y,
                         marker='o',
