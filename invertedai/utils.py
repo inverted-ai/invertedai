@@ -1390,6 +1390,7 @@ class ScenePlotter():
         self.actor_boxes[agent_idx].set_visible(True)
 
         if self.mark_waypoints:
+            print(f"[Frame {frame_idx}] Updating waypoint for agent {agent_idx}: {wp.x:.2f}, {wp.y:.2f}")
             wp = getattr(agent_properties, "waypoint", None)
             if wp is not None:
                 x, y = wp.x, wp.y
