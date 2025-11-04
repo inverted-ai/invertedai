@@ -1482,13 +1482,10 @@ class ScenePlotter():
 
             # Create or update marker
             if agent_idx not in self.waypoint_markers:
-                self.waypoint_markers[agent_idx], = self.current_ax.plot(
-                    x, y,
-                    marker='o',
-                    color='saddlebrown',
-                    markersize=2.5,
-                    zorder=6
-                )
+                        line_obj = self.current_ax.plot(
+                            x, y, marker='o', color='saddlebrown', markersize=1.5, zorder=6
+                        )
+                        self.waypoint_markers[agent_idx] = line_obj[0] if isinstance(line_obj, list) else line_obj
             else:
                 self.waypoint_markers[agent_idx].set_data([x], [y])
                 self.waypoint_markers[agent_idx].set_visible(True)
