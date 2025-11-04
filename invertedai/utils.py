@@ -1244,9 +1244,12 @@ class ScenePlotter():
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
         if hasattr(self, "waypoint_markers"):
-            for lines in self.waypoint_markers.values():
-                for line in lines:
-                    line.set_visible(False)
+            for marker in self.waypoint_markers.values():
+                if isinstance(marker, list):
+                    for m in marker:
+                        m.set_visible(False)
+                else:
+                    marker.set_visible(False)
         for lines in self.dir_lines.values():
             if isinstance(lines, list):
                 for line in lines:
