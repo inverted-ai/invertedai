@@ -1455,7 +1455,7 @@ class ScenePlotter():
         #         if agent_idx in self.waypoint_markers:
         #             self.waypoint_markers[agent_idx].set_visible(False)
 
-    def _plot_waypoints(self, frame_idx: int, waypoints_per_frame: List[List[Point]]):
+    def _plot_waypoint(self, frame_idx: int, waypoints_per_frame: List[List[Point]]):
         """Plots waypoints from waypoints_per_frame, which is indexed [frame][agent]."""
 
         if not waypoints_per_frame or frame_idx >= len(waypoints_per_frame):
