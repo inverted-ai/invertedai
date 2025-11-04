@@ -49,6 +49,8 @@ class ScenarioLog(BaseModel):
 
     waypoints: Optional[Dict[str,List[Point]]] = None #: As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
 
+    waypoints_per_frame: Optional[List[List[Point]]] = None
+
     present_indexes: List[List[int]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
 
     @model_validator(mode='after')
@@ -107,7 +109,8 @@ class LogBase():
         plot_frame_number: bool = True,
         mark_waypoints: bool = True,
         left_hand_coordinates: bool = False,
-        agent_ids: Optional[List[int]] = None
+        agent_ids: Optional[List[int]] = None,
+        waypoints_per_frame: Optional[List[List[Point]]] = None
     ):
         """
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
@@ -160,7 +163,8 @@ class LogBase():
             velocity_vec=velocity_vec,
             plot_frame_number=plot_frame_number,
             mark_waypoints = mark_waypoints,
-            numbers=agent_ids
+            numbers=agent_ids,
+            waypoints_per_frame=waypoints_per_frame
         )
 
         plt.close(fig)
@@ -178,7 +182,8 @@ class LogBase():
         plot_frame_number: bool = True,
         mark_waypoints: bool = True,
         left_hand_coordinates: bool = False,
-        agent_ids: Optional[List[int]] = None
+        agent_ids: Optional[List[int]] = None,
+        waypoints_per_frame: Optional[List[List[Point]]] = None
     ):
         """
         Use the available internal tools to visualize the entire log and save it to a given location. Please refer to ScenePlotter for details on 
@@ -197,7 +202,8 @@ class LogBase():
             plot_frame_number = plot_frame_number,
             mark_waypoints = mark_waypoints,
             left_hand_coordinates = left_hand_coordinates,
-            agent_ids = agent_ids
+            agent_ids = agent_ids,
+            waypoints_per_frame = waypoints_per_frame
         )
 
     def initialize(self):
@@ -436,7 +442,8 @@ class LogWriter(LogBase):
         self,
         drive_response: DriveResponse,
         current_present_indexes: Optional[List[int]] = None,
-        new_agent_properties: Optional[List[AgentProperties]] = None
+        new_agent_properties: Optional[List[AgentProperties]] = None,
+        waypoints: Optional[List[Point]] = None
     ): 
         """
         Consume and store driving response information from a single timestep and append it to the end of the log. If the number of agents
@@ -457,6 +464,11 @@ class LogWriter(LogBase):
 
         if drive_response.traffic_lights_states is not None:
             self._scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
+        if waypoints is not None:
+            if self._scenario_log.waypoints_per_frame is None:
+                self._scenario_log.waypoints = []
+            self._scenario_log.waypoints_per_frame.append(waypoints)
+
         
         self._scenario_log.drive_model_version = drive_response.api_model_version
         self._scenario_log.light_recurrent_states = drive_response.light_recurrent_states
