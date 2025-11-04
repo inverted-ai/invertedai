@@ -1472,10 +1472,18 @@ class ScenePlotter():
 
         for agent_idx, wp in enumerate(frame_waypoints):
             if wp is not None:
+                x, y = wp.x, wp.y
+                psi = 0.0  # waypoints don't really have orientation
+
+                # Apply left-hand coordinate flip the same way as agents / traffic lights
+                if self._left_hand_coordinates:
+                    x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+                    # Note: y is implicitly mirrored around the map center (via t_x formula)
+                    # so no need to manually flip y separately.
+
                 if agent_idx not in self.waypoint_markers:
-                    # first time drawing
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
-                        wp.x, wp.y,
+                        x, y,
                         marker='o',
                         color='saddlebrown',
                         markersize=1.5,
