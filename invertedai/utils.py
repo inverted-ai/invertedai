@@ -1465,40 +1465,31 @@ class ScenePlotter():
         #             self.waypoint_markers[agent_idx].set_visible(False)
 
     def _plot_waypoint(self, frame_idx: int, waypoints_per_frame: List[List[Point]]):
-        """Plots waypoints from waypoints_per_frame, which is indexed [frame][agent]."""
-
-        if not waypoints_per_frame or frame_idx >= len(waypoints_per_frame):
+        if waypoints_per_frame is None or frame_idx >= len(waypoints_per_frame):
             return
 
         frame_waypoints = waypoints_per_frame[frame_idx]
-        if not frame_waypoints:
-            return
 
-        # Hide old markers
-        for marker in self.waypoint_markers.values():
-            marker.set_visible(False)
-
-        # Loop over agents
         for agent_idx, wp in enumerate(frame_waypoints):
-            if wp is None:
+            if wp is not None:
+                if agent_idx not in self.waypoint_markers:
+                    # first time drawing
+                    self.waypoint_markers[agent_idx], = self.current_ax.plot(
+                        wp.x, wp.y,
+                        marker='o',
+                        color='saddlebrown',
+                        markersize=1.5,
+                        zorder=6
+                    )
+                else:
+                    marker = self.waypoint_markers[agent_idx]
+                    marker.set_data([wp.x], [wp.y])
+                    marker.set_visible(True)
+            else:
+                # hide marker if this agent has no waypoint in this frame
                 if agent_idx in self.waypoint_markers:
                     self.waypoint_markers[agent_idx].set_visible(False)
-                continue
 
-            x, y = wp.x, wp.y
-            if self._left_hand_coordinates:
-                x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
-
-            # Create or update marker
-            if agent_idx not in self.waypoint_markers:
-                        line_obj = self.current_ax.plot(
-                            x, y, marker='o', color='saddlebrown', markersize=1.5, zorder=6
-                        )
-                        self.waypoint_markers[agent_idx] = line_obj[0] if isinstance(line_obj, list) else line_obj
-            else:
-                self.waypoint_markers[agent_idx].set_data([x], [y])
-                self.waypoint_markers[agent_idx].set_visible(True)
-                self.waypoint_markers[i].set_visible(False)
     def _plot_traffic_light(
         self, 
         light_id, 
