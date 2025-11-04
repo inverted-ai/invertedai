@@ -1424,7 +1424,7 @@ class ScenePlotter():
                 x, y = wp.x, wp.y
                 if self._left_hand_coordinates:
                     x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
-                print(f"[Frame {frame_idx}] Updating waypoint for agent {agent_idx}: {x:.2f}, {y:.2f}")
+                # print(f"[Frame {frame_idx}] Updating waypoint for agent {agent_idx}: {x:.2f}, {y:.2f}")
                 if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
                         x, y,
