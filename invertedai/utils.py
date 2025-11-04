@@ -1409,10 +1409,12 @@ class ScenePlotter():
             if wp is not None:
                 x, y = wp.x, wp.y
                 psi = 0.0  
-
-                # if self._left_hand_coordinates:
-                # x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
-
+                if frame_idx == 0 and agent_idx < 3:
+                    print(f"[DEBUG] Frame 0 Agent before flip  {agent_idx}: x={x:.2f}, y={y:.2f}")
+                if self._left_hand_coordinates:
+                    x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+                if frame_idx == 0 and agent_idx < 3:
+                    print(f"[DEBUG] Frame 0 Agent {agent_idx}: x={x:.2f}, y={y:.2f}, flipped={self._left_hand_coordinates}")
 
                 if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
