@@ -1248,11 +1248,17 @@ class ScenePlotter():
                 for line in lines:
                     line.set_visible(False)
         for lines in self.dir_lines.values():
-            for line in lines:
-                line.set_visible(False)
+            if isinstance(lines, list):
+                for line in lines:
+                    line.set_visible(False)
+            else:
+                lines.set_visible(False)
         for lines in self.v_lines.values():
-            for line in lines:
-                line.set_visible(False)
+            if isinstance(lines, list):
+                for line in lines:
+                    line.set_visible(False)
+            else:
+                lines.set_visible(False)
         for label in self.box_labels.values():
             label.set_visible(False)
 
