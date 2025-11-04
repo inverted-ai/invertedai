@@ -1279,8 +1279,6 @@ class ScenePlotter():
                 frame_idx=frame_idx,
                 waypoints_per_frame=waypoints
             )
-        # if self.waypoint_marker_history and frame_idx < len(self.waypoint_history):
-        #     self._plot_waypoints(frame_idx)
 
         if self.plot_frame_number:
             if self.frame_label is None:
@@ -1400,69 +1398,6 @@ class ScenePlotter():
         self.actor_boxes[agent_idx].set_clip_on(True)
         self.current_ax.add_patch(self.actor_boxes[agent_idx])
         self.actor_boxes[agent_idx].set_visible(True)
-        # if self.waypoint_marker_history is not None:
-        #             # Check if this frame has waypoint data for this agent
-        #             if frame_idx < len(self.waypoint_marker_history) and \
-        #             agent_idx < len(self.waypoint_marker_history[frame_idx]):
-                        
-        #                 # Get the list of (x, y) waypoints for this agent at this frame
-        #                 agent_waypoints = self.waypoint_marker_history[frame_idx][agent_idx]
-        #                 self._plot_waypoint(
-        #                     agent_idx=agent_idx,
-        #                     waypoints=agent_waypoints
-                        # )
-        # if self.mark_waypoints:
-        #     wp_dict = None
-        #     if self.waypoints_to_render and frame_idx < len(self.waypoints_to_render):
-        #         wp_dict = self.waypoints_to_render[frame_idx]
-            
-        #     if wp_dict:
-        #         agent_key = str(agent_idx)
-        #         wp_list = wp_dict.get(agent_key, [])
-        #         if wp_list:
-        #             # Only draw the *first* (or most recent) waypoint
-        #             wp = wp_list[0]
-        #             x, y = wp.x, wp.y
-        #             if self._left_hand_coordinates:
-        #                 x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
-
-        #             if agent_idx not in self.waypoint_markers:
-        #                 self.waypoint_markers[agent_idx], = self.current_ax.plot(
-        #                     x, y,
-        #                     marker='o',
-        #                     color='saddlebrown',
-        #                     markersize=2.5,
-        #                     zorder=6
-        #                 )
-        #             else:
-        #                 self.waypoint_markers[agent_idx].set_data([x], [y])
-        #                 self.waypoint_markers[agent_idx].set_visible(True)
-        #         else:
-        #             if agent_idx in self.waypoint_markers:
-        #                 self.waypoint_markers[agent_idx].set_visible(False)
-        # wp = getattr(agent_properties, "waypoint", None)
-        #     if wp is not None:
-                
-        #         x, y = wp.x, wp.y
-        #         if self._left_hand_coordinates:
-        #             x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
-        #         print(f"[Frame {frame_idx}] Updating waypoint for agent {agent_idx}: {x:.2f}, {y:.2f}")
-        #         if agent_idx not in self.waypoint_markers:
-        #             self.waypoint_markers[agent_idx], = self.current_ax.plot(
-        #                 x, y,
-        #                 marker='o',
-        #                 color='saddlebrown',
-        #                 markersize=1.5,
-        #                 zorder=6
-        #             )
-        #         else:
-        #             marker = self.waypoint_markers[agent_idx]
-        #             marker.set_data([x], [y])
-        #             marker.set_visible(True)
-        #     else:
-        #         # Hide marker if this agent has no waypoint this frame
-        #         if agent_idx in self.waypoint_markers:
-        #             self.waypoint_markers[agent_idx].set_visible(False)
 
     def _plot_waypoint(self, frame_idx: int, waypoints_per_frame: List[List[Point]]):
         if waypoints_per_frame is None or frame_idx >= len(waypoints_per_frame):
@@ -1473,13 +1408,11 @@ class ScenePlotter():
         for agent_idx, wp in enumerate(frame_waypoints):
             if wp is not None:
                 x, y = wp.x, wp.y
-                psi = 0.0  # waypoints don't really have orientation
+                psi = 0.0  
 
-                # Apply left-hand coordinate flip the same way as agents / traffic lights
-                if self._left_hand_coordinates:
-                    x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
-                    # Note: y is implicitly mirrored around the map center (via t_x formula)
-                    # so no need to manually flip y separately.
+                # if self._left_hand_coordinates:
+                x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+
 
                 if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
@@ -1494,7 +1427,6 @@ class ScenePlotter():
                     marker.set_data([wp.x], [wp.y])
                     marker.set_visible(True)
             else:
-                # hide marker if this agent has no waypoint in this frame
                 if agent_idx in self.waypoint_markers:
                     self.waypoint_markers[agent_idx].set_visible(False)
 
