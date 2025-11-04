@@ -1268,7 +1268,7 @@ class ScenePlotter():
         if waypoints is not None:
             self._plot_waypoint(
                 frame_idx=frame_idx,
-                waypoints=waypoints
+                waypoints_per_frame=waypoints
             )
         # if self.waypoint_marker_history and frame_idx < len(self.waypoint_history):
         #     self._plot_waypoints(frame_idx)
