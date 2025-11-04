@@ -1395,14 +1395,19 @@ class ScenePlotter():
             if wp_list and frame_idx < len(wp_list):
                 wp = wp_list[frame_idx]
 
-        if wp is not None:
-            if agent_idx not in self.waypoint_markers:
-                self.waypoint_markers[agent_idx], = self.current_ax.plot(
-                    x, y,
-                    marker='o',
-                    color='saddlebrown',
-                    markersize=1.5,
-                    zorder=6
+            if wp is not None:
+                x, y = wp.x, wp.y
+
+                if self._left_hand_coordinates:
+                    x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
+
+                if agent_idx not in self.waypoint_markers:
+                    self.waypoint_markers[agent_idx], = self.current_ax.plot(
+                        x, y,
+                        marker='o',
+                        color='saddlebrown',
+                        markersize=1.5,
+                        zorder=6
                 )
             else:
                 self.waypoint_markers[agent_idx].set_data([x], [y])
