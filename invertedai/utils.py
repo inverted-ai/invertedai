@@ -1390,17 +1390,42 @@ class ScenePlotter():
         self.actor_boxes[agent_idx].set_visible(True)
 
         if self.mark_waypoints:
-            wp = None
-            wp_list = self.scenario_log.waypoints.get(str(agent_idx))
-            if wp_list and frame_idx < len(wp_list):
-                wp = wp_list[frame_idx]
+        #     wp = None
+        #     wp_list = self.scenario_log.waypoints.get(str(agent_idx))
+        #     if wp_list and frame_idx < len(wp_list):
+        #         wp = wp_list[frame_idx]
 
+        #     if wp is not None:
+        #         x, y = wp.x, wp.y
+
+        #         if self._left_hand_coordinates:
+        #             x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
+
+        #         if agent_idx not in self.waypoint_markers:
+        #             self.waypoint_markers[agent_idx], = self.current_ax.plot(
+        #                 x, y,
+        #                 marker='o',
+        #                 color='saddlebrown',
+        #                 markersize=1.5,
+        #                 zorder=6
+        #         )
+        #     else:
+        #         self.waypoint_markers[agent_idx].set_data([x], [y])
+        #         self.waypoint_markers[agent_idx].set_visible(True)
+        #         # marker = self.waypoint_markers[agent_idx]
+        #         # marker.set_data([x], [y])
+        #         # marker.set_visible(True)
+        # else:
+        #     # Hide marker if this agent has no waypoint this frame
+        #     if agent_idx in self.waypoint_markers:
+        #         self.waypoint_markers[agent_idx].set_visible(False)
+            wp = getattr(agent_properties, "waypoint", None)
             if wp is not None:
+                
                 x, y = wp.x, wp.y
-
                 if self._left_hand_coordinates:
                     x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
-
+                print(f"[Frame {frame_idx}] Updating waypoint for agent {agent_idx}: {x:.2f}, {y:.2f}")
                 if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
                         x, y,
@@ -1408,40 +1433,15 @@ class ScenePlotter():
                         color='saddlebrown',
                         markersize=1.5,
                         zorder=6
-                )
+                    )
+                else:
+                    marker = self.waypoint_markers[agent_idx]
+                    marker.set_data([x], [y])
+                    marker.set_visible(True)
             else:
-                self.waypoint_markers[agent_idx].set_data([x], [y])
-                self.waypoint_markers[agent_idx].set_visible(True)
-                # marker = self.waypoint_markers[agent_idx]
-                # marker.set_data([x], [y])
-                # marker.set_visible(True)
-        else:
-            # Hide marker if this agent has no waypoint this frame
-            if agent_idx in self.waypoint_markers:
-                self.waypoint_markers[agent_idx].set_visible(False)
-            # wp = getattr(agent_properties, "waypoint", None)
-            # if wp is not None:
-                
-            #     x, y = wp.x, wp.y
-            #     if self._left_hand_coordinates:
-            #         x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
-            #     print(f"[Frame {frame_idx}] Updating waypoint for agent {agent_idx}: {x:.2f}, {y:.2f}")
-            #     if agent_idx not in self.waypoint_markers:
-            #         self.waypoint_markers[agent_idx], = self.current_ax.plot(
-            #             x, y,
-            #             marker='o',
-            #             color='saddlebrown',
-            #             markersize=1.5,
-            #             zorder=6
-            #         )
-            #     else:
-            #         marker = self.waypoint_markers[agent_idx]
-            #         marker.set_data([x], [y])
-            #         marker.set_visible(True)
-            # else:
-            #     # Hide marker if this agent has no waypoint this frame
-            #     if agent_idx in self.waypoint_markers:
-            #         self.waypoint_markers[agent_idx].set_visible(False)
+                # Hide marker if this agent has no waypoint this frame
+                if agent_idx in self.waypoint_markers:
+                    self.waypoint_markers[agent_idx].set_visible(False)
 
     def _plot_waypoints(self, frame_idx):
             """Draws the waypoints for a single frame index."""
