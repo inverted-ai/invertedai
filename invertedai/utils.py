@@ -1418,7 +1418,7 @@ class ScenePlotter():
 
                 if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
-                        x, y,
+                        -x, y,
                         marker='o',
                         color='saddlebrown',
                         markersize=1.5,
