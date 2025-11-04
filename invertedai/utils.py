@@ -1258,11 +1258,10 @@ class ScenePlotter():
         for label in self.box_labels.values():
             label.set_visible(False)
 
-        for i in range(len(self.agent_properties[frame_idx])):
-            self._update_agent(
-                agent_idx=i,
-                frame_idx=frame_idx
-            )
+        num_agents_this_frame = len(self.agent_states_history[frame_idx])
+
+        for i in range(num_agents_this_frame):
+            self._update_agent(agent_idx=i, frame_idx=frame_idx)
 
         if self.traffic_lights_history[frame_idx] is not None:
             for light_id, light_state in self.traffic_lights_history[frame_idx].items():
@@ -1292,7 +1291,7 @@ class ScenePlotter():
         frame_idx
     ):
         agent = self.agent_states_history[frame_idx][agent_idx]
-        agent_properties = self.agent_properties[frame_idx][agent_idx]
+        agent_properties = self.agent_properties[agent_idx]
 
         l, w = agent_properties.length, agent_properties.width
         if agent_properties.agent_type == "pedestrian":
