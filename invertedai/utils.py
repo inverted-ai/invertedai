@@ -1292,6 +1292,9 @@ class ScenePlotter():
     ):
         agent = self.agent_states_history[frame_idx][agent_idx]
         agent_properties = self.agent_properties[agent_idx]
+        if frame_idx == 0 and agent_idx == 0:
+            print(f"DEBUG: type(self.agent_properties) = {type(self.agent_properties)}")
+            print(f"DEBUG: type(self.agent_properties[{agent_idx}]) = {type(self.agent_properties[agent_idx])}")
 
         l, w = agent_properties.length, agent_properties.width
         if agent_properties.agent_type == "pedestrian":
