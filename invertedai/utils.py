@@ -1258,10 +1258,11 @@ class ScenePlotter():
         for label in self.box_labels.values():
             label.set_visible(False)
 
-        num_agents_this_frame = len(self.agent_states_history[frame_idx])
-
-        for i in range(num_agents_this_frame):
-            self._update_agent(agent_idx=i, frame_idx=frame_idx)
+        for i in range(len(self.agent_properties[frame_idx])):
+            self._update_agent(
+                agent_idx=i,
+                frame_idx=frame_idx
+            )
 
         if self.traffic_lights_history[frame_idx] is not None:
             for light_id, light_state in self.traffic_lights_history[frame_idx].items():
@@ -1291,10 +1292,7 @@ class ScenePlotter():
         frame_idx
     ):
         agent = self.agent_states_history[frame_idx][agent_idx]
-        agent_properties = self.agent_properties[agent_idx]
-        if frame_idx == 0 and agent_idx == 0:
-            print(f"DEBUG: type(self.agent_properties) = {type(self.agent_properties)}")
-            print(f"DEBUG: type(self.agent_properties[{agent_idx}]) = {type(self.agent_properties[agent_idx])}")
+        agent_properties = self.agent_properties[frame_idx][agent_idx]
 
         l, w = agent_properties.length, agent_properties.width
         if agent_properties.agent_type == "pedestrian":
@@ -1427,7 +1425,7 @@ class ScenePlotter():
                 x, y = wp.x, wp.y
                 if self._left_hand_coordinates:
                     x, _ = self._transform_point_to_left_hand_coordinate_frame(x, 0.0)
-                # print(f"[Frame {frame_idx}] Updating waypoint for agent {agent_idx}: {x:.2f}, {y:.2f}")
+                print(f"[Frame {frame_idx}] Updating waypoint for agent {agent_idx}: {x:.2f}, {y:.2f}")
                 if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
                         x, y,
