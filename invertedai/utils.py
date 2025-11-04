@@ -39,7 +39,8 @@ from invertedai.common import (
     RecurrentState,
     StaticMapActor,
     TrafficLightState, 
-    TrafficLightStatesDict 
+    TrafficLightStatesDict,
+    Point 
 )
 
 H_SCALE = 10
@@ -974,7 +975,7 @@ class ScenePlotter():
         velocity_vec: bool = False,
         agent_face_colors: Optional[ColorList] = None,
         agent_edge_colors: Optional[ColorList] = None,
-        waypoints_per_frame: Optional[List[Tuple, Tuple]] = None
+        waypoints_per_frame: Optional[List[Point]] = None
     ):
         """
         Plot a single timestep of data then reset the recording. 
@@ -1053,7 +1054,7 @@ class ScenePlotter():
         mark_waypoints: bool = False,
         agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
         agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None,
-        waypoints_per_frame: Optional[List[List[Tuple, Tuple]]] = None
+        waypoints_per_frame: Optional[List[List[Point]]] = None
     ) -> FuncAnimation:
         """
         Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
@@ -1169,7 +1170,7 @@ class ScenePlotter():
         velocity_vec=False, 
         plot_frame_number=False,
         mark_waypoints=False,
-        waypoints_per_frame:Optional[List[List[Tuple, Tuple]]] = None
+        waypoints_per_frame:Optional[List[List[Point]]] = None
     ):
         self._initialize_plot(
             ax=ax, 
@@ -1190,7 +1191,7 @@ class ScenePlotter():
         velocity_vec=False, 
         plot_frame_number=False,
         mark_waypoints=False,
-        waypoints_per_frame:Optional[List[List[Tuple, Tuple]]] = None
+        waypoints_per_frame:Optional[List[List[Point]]] = None
     ):
         if ax is None:
             plt.clf()
@@ -1239,7 +1240,7 @@ class ScenePlotter():
 
         return c
 
-    def _update_frame_to(self, frame_idx, waypoints:Optional[List[List[Tuple, Tuple]]] = None):
+    def _update_frame_to(self, frame_idx, waypoints:Optional[List[List[Point]]] = None):
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
         if hasattr(self, "waypoint_markers"):
@@ -1454,7 +1455,7 @@ class ScenePlotter():
         #         if agent_idx in self.waypoint_markers:
         #             self.waypoint_markers[agent_idx].set_visible(False)
 
-    def _plot_waypoints(self, frame_idx: int, waypoints_per_frame: List[List[Tuple, Tuple]]):
+    def _plot_waypoints(self, frame_idx: int, waypoints_per_frame: List[List[Point]]):
         """Plots waypoints from waypoints_per_frame, which is indexed [frame][agent]."""
 
         if not waypoints_per_frame or frame_idx >= len(waypoints_per_frame):
