@@ -1411,7 +1411,7 @@ class ScenePlotter():
                 psi = 0.0  
 
                 # if self._left_hand_coordinates:
-                x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+                # x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
 
 
                 if agent_idx not in self.waypoint_markers:
