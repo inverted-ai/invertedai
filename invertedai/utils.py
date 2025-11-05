@@ -1421,7 +1421,7 @@ class ScenePlotter():
                 marker_offset = 1.0  
                 x_data = x + marker_offset * math.cos(psi)
                 y_data = y + marker_offset * math.sin(psi)
-                marker_data = (3, 0, (-90 + 180 * psi / math.pi))
+                marker_data = 'o'
 
                 if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
