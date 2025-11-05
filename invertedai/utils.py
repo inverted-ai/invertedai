@@ -1415,22 +1415,30 @@ class ScenePlotter():
                     x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
                 if frame_idx == 0 and agent_idx < 3:
                     print(f"[DEBUG] Frame 0 Agent {agent_idx}: x={x:.2f}, y={y:.2f}, flipped={self._left_hand_coordinates}")
+                    print(f"Agent 0 (carla left-hand): x={x}, y={y}")
+                    print(f"Map center offset: {self.xy_offset}")
+
+                marker_offset = 1.0  
+                x_data = x + marker_offset * math.cos(psi)
+                y_data = y + marker_offset * math.sin(psi)
+                marker_data = (3, 0, (-90 + 180 * psi / math.pi))
 
                 if agent_idx not in self.waypoint_markers:
                     self.waypoint_markers[agent_idx], = self.current_ax.plot(
-                        -x, y,
-                        marker='o',
+                        x_data,
+                        y_data,
+                        marker=marker_data,
                         color='saddlebrown',
-                        markersize=1.5,
+                        markersize=2.0,
+                        linestyle='None',
                         zorder=6
                     )
                 else:
                     marker = self.waypoint_markers[agent_idx]
-                    marker.set_data([wp.x], [wp.y])
+                    marker.set_xdata([x_data])
+                    marker.set_ydata([y_data])
+                    marker.set_marker(marker_data)
                     marker.set_visible(True)
-            else:
-                if agent_idx in self.waypoint_markers:
-                    self.waypoint_markers[agent_idx].set_visible(False)
 
     def _plot_traffic_light(
         self, 
