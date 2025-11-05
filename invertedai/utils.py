@@ -975,7 +975,7 @@ class ScenePlotter():
         velocity_vec: bool = False,
         agent_face_colors: Optional[ColorList] = None,
         agent_edge_colors: Optional[ColorList] = None,
-        waypoints_per_frame: Optional[List[Point]] = None
+        waypoints_per_frame: Optional[List[List[Point]]] = None
     ):
         """
         Plot a single timestep of data then reset the recording. 
