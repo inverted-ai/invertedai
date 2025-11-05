@@ -1429,7 +1429,7 @@ class ScenePlotter():
                         y_data,
                         marker=marker_data,
                         color='saddlebrown',
-                        markersize=2.0,
+                        markersize=1.5,
                         linestyle='None',
                         zorder=6
                     )
