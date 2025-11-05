@@ -1393,7 +1393,11 @@ class ScenePlotter():
         self.current_ax.add_patch(self.actor_boxes[agent_idx])
         self.actor_boxes[agent_idx].set_visible(True)
 
-    def _plot_waypoint(self, frame_idx: int, waypoints_per_frame: List[List[Point]]):
+    def _plot_waypoint(
+        self, 
+        frame_idx: int, 
+        waypoints_per_frame: List[List[Point]]
+    ):
         if waypoints_per_frame is None or frame_idx >= len(waypoints_per_frame):
             return
 
@@ -1403,14 +1407,8 @@ class ScenePlotter():
             if wp is not None:
                 x, y = wp.x, wp.y
                 psi = 0.0  
-                if frame_idx == 0 and agent_idx < 3:
-                    print(f"[DEBUG] Frame 0 Agent before flip  {agent_idx}: x={x:.2f}, y={y:.2f}")
                 if self._left_hand_coordinates:
                     x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
-                if frame_idx == 0 and agent_idx < 3:
-                    print(f"[DEBUG] Frame 0 Agent {agent_idx}: x={x:.2f}, y={y:.2f}, flipped={self._left_hand_coordinates}")
-                    print(f"Agent 0 (carla left-hand): x={x}, y={y}")
-                    print(f"Map center offset: {self.xy_offset}")
 
                 marker_offset = 1.0  
                 x_data = x + marker_offset * math.cos(psi)
