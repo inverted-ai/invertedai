@@ -1051,7 +1051,6 @@ class ScenePlotter():
         direction_vec: bool = True, 
         velocity_vec: bool = False,
         plot_frame_number: bool = False, 
-        mark_waypoints: bool = False,
         agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
         agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None,
         waypoints_per_frame: Optional[List[List[Point]]] = None
@@ -1099,8 +1098,7 @@ class ScenePlotter():
             numbers=numbers, 
             direction_vec=direction_vec,
             velocity_vec=velocity_vec, 
-            plot_frame_number=plot_frame_number,
-            mark_waypoints=mark_waypoints
+            plot_frame_number=plot_frame_number
         )
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
@@ -1169,7 +1167,6 @@ class ScenePlotter():
         direction_vec=True,
         velocity_vec=False, 
         plot_frame_number=False,
-        mark_waypoints=False,
         waypoints_per_frame:Optional[List[List[Point]]] = None
     ):
         self._initialize_plot(
@@ -1178,7 +1175,6 @@ class ScenePlotter():
             direction_vec=direction_vec,
             velocity_vec=velocity_vec, 
             plot_frame_number=plot_frame_number,
-            mark_waypoints=mark_waypoints,
             waypoints_per_frame = waypoints_per_frame
         )
         self._update_frame_to(idx, waypoints_per_frame)
@@ -1190,7 +1186,6 @@ class ScenePlotter():
         direction_vec=True,
         velocity_vec=False, 
         plot_frame_number=False,
-        mark_waypoints=False,
         waypoints_per_frame:Optional[List[List[Point]]] = None
     ):
         if ax is None:
@@ -1219,7 +1214,6 @@ class ScenePlotter():
         self.direction_vec = direction_vec
         self.velocity_vec = velocity_vec
         self.plot_frame_number = plot_frame_number
-        self.mark_waypoints = mark_waypoints
 
         self._update_frame_to(0, waypoints_per_frame)
 
