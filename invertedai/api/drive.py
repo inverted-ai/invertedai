@@ -126,6 +126,7 @@ def drive(
         width: [float] and rear_axis_offset: [float] all in meters. agent_type: [str],
         currently supports 'car' and 'pedestrian'.
         waypoint: optional [Point], the target waypoint of the agent.
+        waypoints: optional [[Point]], the target waypoints of the agent. If provided, waypoint will be ignored.
         max_speed: optional [float], the desired maximum speed of the agent in m/s.
 
     recurrent_states:
