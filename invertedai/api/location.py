@@ -1,6 +1,7 @@
 import time
 from pydantic import BaseModel, validate_call
 from typing import Optional, List, Tuple
+import tempfile
 
 import invertedai as iai
 from invertedai.api.config import TIMEOUT, should_use_mock_api
@@ -25,6 +26,18 @@ class LocationResponse(BaseModel):
     map_fov: float  #: The field of view in meters for the birdview image.
     static_actors: List[StaticMapActor]  #: Lists traffic lights with their IDs and locations.
 
+    
+    def get_lanelet_map(self):
+        assert self.osm_map is not None and self.osm_map.encoded_map, "Location source is empty, please ensure location was called with `include_map_source` set to true."
+        import lanelet2
+        
+        with tempfile.NamedTemporaryFile(suffix=".osm", delete=True) as tmp:
+            self.osm_map.save_osm_file(tmp.name)
+            tmp.flush()
+            projector = lanelet2.projection.UtmProjector(
+                lanelet2.io.Origin(self.osm_map.origin.x, self.osm_map.origin.y)
+            )
+            return lanelet2.io.load(tmp.name, projector)
 
 @validate_call
 def location_info(
