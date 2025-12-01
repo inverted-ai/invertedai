@@ -975,7 +975,7 @@ class ScenePlotter():
         velocity_vec: bool = False,
         agent_face_colors: Optional[ColorList] = None,
         agent_edge_colors: Optional[ColorList] = None,
-        waypoints_per_frame: Optional[List[List[Point]]] = None
+        waypoints_per_frame: Optional[List[Dict[int, Optional[List[float]]]]] = None
     ):
         """
         Plot a single timestep of data then reset the recording. 
@@ -1053,7 +1053,7 @@ class ScenePlotter():
         plot_frame_number: bool = False, 
         agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
         agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None,
-        waypoints_per_frame: Optional[List[List[Point]]] = None
+        waypoints_per_frame: Optional[List[Dict[int, Optional[List[float]]]]] = None
     ) -> FuncAnimation:
         """
         Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
@@ -1167,7 +1167,7 @@ class ScenePlotter():
         direction_vec=True,
         velocity_vec=False, 
         plot_frame_number=False,
-        waypoints_per_frame:Optional[List[List[Point]]] = None
+        waypoints_per_frame:Optional[List[Dict[int, Optional[List[float]]]]] = None
     ):
         self._initialize_plot(
             ax=ax, 
@@ -1186,7 +1186,7 @@ class ScenePlotter():
         direction_vec=True,
         velocity_vec=False, 
         plot_frame_number=False,
-        waypoints_per_frame:Optional[List[List[Point]]] = None
+        waypoints_per_frame:Optional[List[Dict[int, Optional[List[float]]]]] = None
     ):
         if ax is None:
             plt.clf()
@@ -1396,41 +1396,46 @@ class ScenePlotter():
     def _plot_waypoint(
         self, 
         frame_idx: int, 
-        waypoints_per_frame: List[List[Point]]
+        waypoints_per_frame: List[Dict[int, Optional[List[float]]]]
     ):
         if waypoints_per_frame is None or frame_idx >= len(waypoints_per_frame):
             return
 
-        frame_waypoints = waypoints_per_frame[frame_idx]
+        frame_waypoints_dict = waypoints_per_frame[frame_idx]
+        max_id = max(frame_waypoints_dict.keys())
 
-        for agent_idx, wp in enumerate(frame_waypoints):
-            if wp is not None:
-                x, y = wp.x, wp.y
-                psi = 0.0  
-                if self._left_hand_coordinates:
-                    x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+        for agent_idx in range(max_id + 1):
+            wp = frame_waypoints_dict.get(agent_idx)
+            if wp is None:
+                continue
+            x = float(wp[0])
+            y = float(wp[1])
+            psi = 0.0
+        
+            if self._left_hand_coordinates:
+                x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
 
-                marker_offset = 1.0  
-                x_data = x + marker_offset * math.cos(psi)
-                y_data = y + marker_offset * math.sin(psi)
-                marker_data = 'o'
+            marker_offset = 1.0  
+            x_data = x + marker_offset * math.cos(psi)
+            y_data = y + marker_offset * math.sin(psi)
+            marker_data = 'o'
 
-                if agent_idx not in self.waypoint_markers:
-                    self.waypoint_markers[agent_idx], = self.current_ax.plot(
-                        x_data,
-                        y_data,
-                        marker=marker_data,
-                        color='saddlebrown',
-                        markersize=1.0,
-                        linestyle='None',
-                        zorder=6
-                    )
-                else:
-                    marker = self.waypoint_markers[agent_idx]
-                    marker.set_xdata([x_data])
-                    marker.set_ydata([y_data])
-                    marker.set_marker(marker_data)
-                    marker.set_visible(True)
+            if agent_idx not in self.waypoint_markers:
+                self.waypoint_markers[agent_idx], = self.current_ax.plot(
+                    x_data,
+                    y_data,
+                    marker=marker_data,
+                    color='saddlebrown',
+                    markersize=1.0,
+                    linestyle='None',
+                    zorder=6
+                )
+            else:
+                marker = self.waypoint_markers[agent_idx]
+                marker.set_xdata([x_data])
+                marker.set_ydata([y_data])
+                marker.set_marker(marker_data)
+                marker.set_visible(True)
 
     def _plot_traffic_light(
         self, 

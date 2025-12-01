@@ -107,7 +107,7 @@ class LogBase():
         plot_frame_number: bool = True,
         left_hand_coordinates: bool = False,
         agent_ids: Optional[List[int]] = None,
-        waypoints_per_frame: Optional[List[List[Point]]] = None
+        waypoints_per_frame: Optional[List[Dict[int, Optional[List[float]]]]] = None
     ):
         """
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
@@ -178,7 +178,7 @@ class LogBase():
         plot_frame_number: bool = True,
         left_hand_coordinates: bool = False,
         agent_ids: Optional[List[int]] = None,
-        waypoints_per_frame: Optional[List[List[Point]]] = None
+        waypoints_per_frame: Optional[List[Dict[int, Optional[List[float]]]]] = None
     ):
         """
         Use the available internal tools to visualize the entire log and save it to a given location. Please refer to ScenePlotter for details on 
