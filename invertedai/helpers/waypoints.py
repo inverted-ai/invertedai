@@ -5,17 +5,35 @@ import numpy as np
 
 from invertedai.common import AgentState, Point
 
-def generate_waypoints_from_lane_ids(start_state: AgentState, lanelet_map, lane_ids: List[int], waypoint_spacing: float) -> List[Point]:
+def generate_waypoints_from_lane_ids(
+    start_state: AgentState, 
+    lanelet_map: lanelet2.core.LaneletMapLayers, 
+    lane_ids: List[int], 
+    waypoint_spacing: float
+) -> List[Point]:
+    """
+    Generates a list of waypoints from a sequence of lane ids.
+
+    Args:
+        start_state (AgentState): The starting state of the agent.
+        lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
+        lane_ids (List[int]): Sequence of lane ids to follow.
+        waypoint_spacing (float): Spacing between the waypoints in meters.
+
+    Returns:
+        List[Point]: List of waypoints for the agent to follow.
+    """
+    assert len(lane_ids) >= 1, "Expected the lane_ids to be populated"
     def get_lanelet(id):
         for l in lanelet_map.laneletLayer:
             if l.id == id:
                 return l
         return None
 
-    current_lanelet = get_lanelet(lane_ids[0])
     all_centerline_points = []
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
-    for i, lane_id in enumerate(lane_ids[1:]):
+    for i, lane_id in enumerate(lane_ids):
+        current_lanelet = get_lanelet(lane_id)
         lane_centerline_points = [point for point in current_lanelet.centerline]
         if i == 0:
             distances = [(p.x-x)**2 + (p.y-y)**2 for p in lane_centerline_points]
@@ -42,8 +60,6 @@ def generate_waypoints_from_lane_ids(start_state: AgentState, lanelet_map, lane_
                 if dot_product < 0:
                     return []
         all_centerline_points.extend(lane_centerline_points)
-        current_lanelet = get_lanelet(lane_id)
-
     all_centerline_points = np.array([[point.x, point.y] for point in all_centerline_points])
     deltas = np.diff(all_centerline_points, axis=0)
     seg_lengths = np.hypot(deltas[:, 0], deltas[:, 1])
@@ -61,7 +77,27 @@ def generate_waypoints_from_lane_ids(start_state: AgentState, lanelet_map, lane_
     return waypoints
     
 
-def generate_lane_ids_from_lanelet_map(start_state: AgentState, lanelet_map, target_distance: float, waypoint: Optional[Point] = None) -> List[int]:
+def generate_lane_ids_from_lanelet_map(
+    start_state: AgentState, 
+    lanelet_map: lanelet2.core.LaneletMapLayers, 
+    target_distance: float = 600.0, 
+    waypoint: Optional[Point] = None
+) -> List[int]:
+    """
+    Generates a sequence of lane ids. If given a waypoint, it will generate the shortest possible route between
+    current starting state and the waypoint and target_distance will be ignored. Otherwise, a random route will
+    be generated that is at least `target_distance` long in meters.
+
+    Args:
+        start_state (AgentState): The starting state of the agent.
+        lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
+        target_distance (float): Target distance to generate. Ignored if waypoint is specified. Defaults to 600.
+        waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
+
+    Returns:
+        List[int]: Sequence of lane ids to follow.
+    """
+    
     traffic_rules = lanelet2.traffic_rules.create(lanelet2.traffic_rules.Locations.Germany,
                                                     lanelet2.traffic_rules.Participants.Vehicle)
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
@@ -97,15 +133,6 @@ def generate_lane_ids_from_lanelet_map(start_state: AgentState, lanelet_map, tar
         if len(lane_centerline_points) < 2:
             continue
         lane_length = lanelet2.geometry.length2d(current_lanelet)
-        if total_lane_distance == 0:
-            if len(lane_centerline_points) > 1:
-                # check if the second point is already behind the current position
-                second_point = lane_centerline_points[1]
-                forward_vec = np.array([np.cos(yaw), np.sin(yaw)])
-                waypoint_vec = np.array([second_point.x, second_point.y]) - np.array([x, y])
-                dot_product = np.dot(forward_vec, waypoint_vec)
-                if dot_product < 0:
-                    return []
         path.append(current_lanelet.id)
         total_lane_distance += lane_length
         reachable_lanelets = routing_graph.following(current_lanelet, withLaneChanges=False)
@@ -116,14 +143,19 @@ def generate_lane_ids_from_lanelet_map(start_state: AgentState, lanelet_map, tar
 
     return path
 
-def find_direction_and_nearest_points(linestring, location3d) -> Tuple[lanelet2.core.Point2d, lanelet2.core.Point2d]:
+def find_direction_and_nearest_points(linestring: lanelet2.core.ConstLineString3d, location3d: lanelet2.core.BasicPoint3d) -> Tuple[lanelet2.core.Point2d, lanelet2.core.Point2d]:
     """
     For a given linestring and a point near it, finds the nearest 2 points in forward direction.
 
-    Returns:
-        the nearest 2 points in forward direction.
+    Args:
+        linestring (lanelet2.core.ConstLineString3d): Linestring to check.
+        location3d (lanelet2.core.BasicPoint3d): Point to check.
+
     Raises:
-        LaneletError: when the method fails, usually because the linestring has a weird shape
+        ValueError: Raised when the method fails, usually because the linestring has a weird shape.
+
+    Returns:
+        Tuple[lanelet2.core.Point2d, lanelet2.core.Point2d]: The nearest 2 points in forward direction.
     """
     projected_reference = lanelet2.geometry.project(linestring, location3d)
     first, second = float("inf"), float("inf")

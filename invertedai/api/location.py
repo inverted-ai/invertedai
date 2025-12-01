@@ -28,9 +28,9 @@ class LocationResponse(BaseModel):
 
     
     def get_lanelet_map(self):
-        assert self.osm_map is not None and self.osm_map.encoded_map, "Location source is empty, please ensure location was called with `include_map_source` set to true."
+        assert self.osm_map is not None and self.osm_map.encoded_map, "osm_map is empty, please ensure this response was obtained with `include_map_source` set to true."
         import lanelet2
-        
+
         with tempfile.NamedTemporaryFile(suffix=".osm", delete=True) as tmp:
             self.osm_map.save_osm_file(tmp.name)
             tmp.flush()
