@@ -143,7 +143,10 @@ def generate_lane_ids_from_lanelet_map(
 
     return path
 
-def find_direction_and_nearest_points(linestring: lanelet2.core.ConstLineString3d, location3d: lanelet2.core.BasicPoint3d) -> Tuple[lanelet2.core.Point2d, lanelet2.core.Point2d]:
+def find_direction_and_nearest_points(
+    linestring: lanelet2.core.ConstLineString3d, 
+    location3d: lanelet2.core.BasicPoint3d
+) -> Tuple[lanelet2.core.Point2d, lanelet2.core.Point2d]:
     """
     For a given linestring and a point near it, finds the nearest 2 points in forward direction.
 
