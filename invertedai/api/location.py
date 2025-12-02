@@ -27,15 +27,18 @@ class LocationResponse(BaseModel):
     static_actors: List[StaticMapActor]  #: Lists traffic lights with their IDs and locations.
 
     
-    def get_lanelet_map(self):
-        assert self.osm_map is not None and self.osm_map.encoded_map, "osm_map is empty, please ensure this response was obtained with `include_map_source` set to true."
+    def get_lanelet_map(self, origin: Optional[Point] = None):
+        if self.osm_map is None or not self.osm_map.encoded_map:
+            raise ValueError("osm_map was none or empty, please ensure this response was obtained with `include_map_source` set to true.")
         import lanelet2
 
         with tempfile.NamedTemporaryFile(suffix=".osm", delete=True) as tmp:
             self.osm_map.save_osm_file(tmp.name)
             tmp.flush()
+            origin_x = origin.x if origin else self.osm_map.origin.x
+            origin_y = origin.y if origin else self.osm_map.origin.y
             projector = lanelet2.projection.UtmProjector(
-                lanelet2.io.Origin(self.osm_map.origin.x, self.osm_map.origin.y)
+                lanelet2.io.Origin(origin_x, origin_y)
             )
             return lanelet2.io.load(tmp.name, projector)
 
