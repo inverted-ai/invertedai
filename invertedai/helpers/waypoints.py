@@ -85,13 +85,13 @@ def generate_lane_ids_from_lanelet_map(
 ) -> List[int]:
     """
     Generates a sequence of lane ids. If given a waypoint, it will generate the shortest possible route between
-    current starting state and the waypoint and target_distance will be ignored. Otherwise, a random route will
-    be generated that is at least `target_distance` long in meters.
-
+    current starting state and the specified waypoint. Otherwise, a random route will be generated that is at 
+    least `target_distance` long in meters unless there are no more lanes to follow.
+    
     Args:
         start_state (AgentState): The starting state of the agent.
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
-        target_distance (float): Target distance to generate. Ignored if waypoint is specified. Defaults to 600.
+        target_distance (float): Target distance in meters to generate. Ignored if waypoint is specified. Defaults to 600.
         waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
 
     Returns:
