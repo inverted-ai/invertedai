@@ -26,6 +26,11 @@ using the wrapper provided as a part of our library, the latter version also bei
 available as a Jupyter notebook and
 [Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/npc_only.ipynb).
 
+## Waypoint Example
+
+This demonstration script works similarly to the minimal example, except that it shows 
+setting the waypoints to an agent expliclty.
+
 ## Cosimulation Minimal Example
 
 The minimal example, as shown on the front page, mocks up the local simulator with
