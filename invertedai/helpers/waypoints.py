@@ -9,7 +9,7 @@ def generate_waypoints_from_lane_ids(
     start_state: AgentState, 
     lanelet_map: lanelet2.core.LaneletMapLayers, 
     lane_ids: List[int], 
-    waypoint_spacing: float
+    waypoint_spacing: float = 15.0
 ) -> List[Point]:
     """
     Generates a list of waypoints from a sequence of lane ids.
@@ -18,7 +18,7 @@ def generate_waypoints_from_lane_ids(
         start_state (AgentState): The starting state of the agent.
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
         lane_ids (List[int]): Sequence of lane ids to follow.
-        waypoint_spacing (float): Spacing between the waypoints in meters.
+        waypoint_spacing (float): Spacing between the waypoints in meters. Defaults to 15.
 
     Returns:
         List[Point]: List of waypoints for the agent to follow.
