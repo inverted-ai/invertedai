@@ -862,8 +862,6 @@ class ScenePlotter():
         self.numbers = None
 
         self.reset_recording()
-
-        self.waypoint_markers = {}
         
     def reset_recording(self):
         """
@@ -873,7 +871,7 @@ class ScenePlotter():
         self.agent_states_history = None
         self.traffic_lights_history = None
         self.agent_properties = None
-        self.waypoint_marker_history = None
+        self.waypoints_per_frame = None
         
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
@@ -884,7 +882,8 @@ class ScenePlotter():
         agent_states: List[AgentState], 
         agent_attributes: Optional[List[AgentAttributes]] = None, 
         agent_properties: Optional[List[AgentProperties]] = None,
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None,
+        waypoints_per_frame: Optional[List[Dict[int, Optional[Point]]]] = None
     ):
         """
         Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous 
@@ -927,6 +926,7 @@ class ScenePlotter():
 
         self.agent_face_colors = None
         self.agent_edge_colors = None
+        self.waypoints_per_frame = waypoints_per_frame
 
     @validate_arguments
     def record_step(
@@ -1020,7 +1020,8 @@ class ScenePlotter():
         self.initialize_recording(
             agent_states=agent_states, 
             agent_properties=agent_properties,
-            traffic_light_states=traffic_light_states
+            traffic_light_states=traffic_light_states,
+            waypoints_per_frame=waypoints_per_frame
         )
 
         self._validate_agent_style_data(
@@ -1034,8 +1035,7 @@ class ScenePlotter():
             numbers=numbers, 
             direction_vec=direction_vec,
             velocity_vec=velocity_vec, 
-            plot_frame_number=False,
-            waypoints_per_frame=waypoints_per_frame
+            plot_frame_number=False
         )
 
         self.reset_recording()
@@ -1052,8 +1052,7 @@ class ScenePlotter():
         velocity_vec: bool = False,
         plot_frame_number: bool = False, 
         agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
-        agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None,
-        waypoints_per_frame: Optional[List[Dict[int, Optional[List[float]]]]] = None
+        agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None
     ) -> FuncAnimation:
         """
         Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
@@ -1105,7 +1104,7 @@ class ScenePlotter():
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
 
         def animate(i):
-            self._update_frame_to(i, waypoints=waypoints_per_frame if waypoints_per_frame is not None else None)
+            self._update_frame_to(i)
 
         ani = FuncAnimation(
             fig, animate, np.arange(start_idx, end_idx), interval=100)
@@ -1166,27 +1165,23 @@ class ScenePlotter():
         numbers=None, 
         direction_vec=True,
         velocity_vec=False, 
-        plot_frame_number=False,
-        waypoints_per_frame:Optional[List[Dict[int, Optional[List[float]]]]] = None
+        plot_frame_number=False
     ):
         self._initialize_plot(
             ax=ax, 
             numbers=numbers, 
             direction_vec=direction_vec,
             velocity_vec=velocity_vec, 
-            plot_frame_number=plot_frame_number,
-            waypoints_per_frame = waypoints_per_frame
+            plot_frame_number=plot_frame_number
         )
-        self._update_frame_to(idx, waypoints_per_frame)
-
+        self._update_frame_to(idx)
     def _initialize_plot(
         self, 
         ax=None, 
         numbers=None, 
         direction_vec=True,
         velocity_vec=False, 
-        plot_frame_number=False,
-        waypoints_per_frame:Optional[List[Dict[int, Optional[List[float]]]]] = None
+        plot_frame_number=False
     ):
         if ax is None:
             plt.clf()
@@ -1215,7 +1210,7 @@ class ScenePlotter():
         self.velocity_vec = velocity_vec
         self.plot_frame_number = plot_frame_number
 
-        self._update_frame_to(0, waypoints_per_frame)
+        self._update_frame_to(0)
 
     def _get_color(
         self,
@@ -1234,7 +1229,7 @@ class ScenePlotter():
 
         return c
 
-    def _update_frame_to(self, frame_idx, waypoints:Optional[List[List[Point]]] = None):
+    def _update_frame_to(self, frame_idx):
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
         if hasattr(self, "waypoint_markers"):
@@ -1268,10 +1263,9 @@ class ScenePlotter():
         if self.traffic_lights_history[frame_idx] is not None:
             for light_id, light_state in self.traffic_lights_history[frame_idx].items():
                 self._plot_traffic_light(light_id, light_state)
-        if waypoints is not None:
+        if self.waypoints_per_frame is not None:
             self._plot_waypoint(
-                frame_idx=frame_idx,
-                waypoints_per_frame=waypoints
+                frame_idx=frame_idx
             )
 
         if self.plot_frame_number:
@@ -1395,21 +1389,20 @@ class ScenePlotter():
 
     def _plot_waypoint(
         self, 
-        frame_idx: int, 
-        waypoints_per_frame: List[Dict[int, Optional[List[float]]]]
+        frame_idx: int
     ):
-        if waypoints_per_frame is None or frame_idx >= len(waypoints_per_frame):
+        if self.waypoints_per_frame is None or frame_idx >= len(self.waypoints_per_frame):
             return
 
-        frame_waypoints_dict = waypoints_per_frame[frame_idx]
+        frame_waypoints_dict = self.waypoints_per_frame[frame_idx]
         max_id = max(frame_waypoints_dict.keys())
 
         for agent_idx in range(max_id + 1):
             wp = frame_waypoints_dict.get(agent_idx)
             if wp is None:
                 continue
-            x = float(wp[0])
-            y = float(wp[1])
+            x = float(wp.x)
+            y = float(wp.y)
             psi = 0.0
         
             if self._left_hand_coordinates:
