@@ -225,7 +225,7 @@ class AgentProperties(BaseModel):
     #: Distance from the agent's center to its rear axis in meters. Determines motion constraints.
     rear_axis_offset: Optional[float] = None
     agent_type: Optional[str] = 'car'  #: Valid types are those in `AgentType`, but we use `str` here for extensibility.
-    waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it.
+    waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it. Deprecated in favour of waypoints.
     waypoints: Optional[List[Point]] = None #: Target waypoints of the agent. If provided, waypoint will be ignored.
     max_speed: Optional[float] = None  #: Maximum speed limit of the agent in m/s.
 
