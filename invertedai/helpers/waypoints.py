@@ -81,7 +81,8 @@ def generate_lane_ids_from_lanelet_map(
     start_state: AgentState, 
     lanelet_map: lanelet2.core.LaneletMapLayers, 
     target_distance: float = 600.0, 
-    waypoint: Optional[Point] = None
+    waypoint: Optional[Point] = None,
+    lane_change: bool = False
 ) -> List[int]:
     """
     Generates a sequence of lane ids. If given a waypoint, it will generate the shortest possible route between
@@ -93,6 +94,7 @@ def generate_lane_ids_from_lanelet_map(
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
         target_distance (float): Target distance in meters to generate. Ignored if waypoint is specified. Defaults to 600.
         waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
+        lane_change (bool): Whether lane changes are supported. Defaults to False.
 
     Returns:
         List[int]: Sequence of lane ids to follow.
@@ -119,7 +121,7 @@ def generate_lane_ids_from_lanelet_map(
         possible_routes = []
         for _, ending_lanelet in ending_lanelets:
             for starting_lanelet in filtered_lanelets:
-                possible_route = routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=False)
+                possible_route = routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=lane_change)
                 if possible_route:
                     possible_routes.append(possible_route)
         if not possible_routes:
@@ -135,7 +137,7 @@ def generate_lane_ids_from_lanelet_map(
         lane_length = lanelet2.geometry.length2d(current_lanelet)
         path.append(current_lanelet.id)
         total_lane_distance += lane_length
-        reachable_lanelets = routing_graph.following(current_lanelet, withLaneChanges=False)
+        reachable_lanelets = routing_graph.following(current_lanelet, withLaneChanges=lane_change)
         if reachable_lanelets:
             current_lanelet = random.choice(reachable_lanelets)
         else:
