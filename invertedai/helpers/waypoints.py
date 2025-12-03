@@ -81,7 +81,7 @@ def generate_lane_ids_from_lanelet_map(
     start_state: AgentState, 
     lanelet_map: lanelet2.core.LaneletMapLayers, 
     target_distance: float = 600.0, 
-    waypoint: Optional[Point] = None
+    waypoint: Optional[Point] = None,
 ) -> List[int]:
     """
     Generates a sequence of lane ids. If given a waypoint, it will generate the shortest possible route between
@@ -104,14 +104,16 @@ def generate_lane_ids_from_lanelet_map(
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), 0)
     filtered_lanelets = []
+    angles = []
     for _, lanelet in starting_lanelets:
         a, b = find_direction_and_nearest_points(lanelet.centerline, lanelet2.core.BasicPoint3d(x, y, 0))
         lane_orientation = np.arctan2(b.y - a.y, b.x - a.x)
         angle = np.absolute((yaw - lane_orientation + np.pi) % (2 * np.pi) - np.pi)
         if angle < 75 * np.pi / 180:
+            angles.append(angle)
             filtered_lanelets.append(lanelet)
     if len(filtered_lanelets) > 0:
-        current_lanelet = random.choice(filtered_lanelets)
+        current_lanelet = filtered_lanelets[angles.index(min(angle))]
     else:
         return []
     if waypoint is not None:
