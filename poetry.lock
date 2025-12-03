@@ -1581,6 +1581,20 @@ files = [
 ]
 
 [[package]]
+name = "lanelet2"
+version = "1.2.2"
+description = "Map handling framework for automated driving."
+optional = false
+python-versions = "*"
+files = [
+    {file = "lanelet2-1.2.2-cp310-cp310-manylinux_2_31_x86_64.whl", hash = "sha256:adf6aef92288c8af33a9480b30a34102c1e168c53cb0e9f41d126caffeaf8b35"},
+    {file = "lanelet2-1.2.2-cp311-cp311-manylinux_2_31_x86_64.whl", hash = "sha256:cc8e04519df162bfbe5bd6bc53a727b677afef6241455ed0c0d11190345acd06"},
+    {file = "lanelet2-1.2.2-cp312-cp312-manylinux_2_31_x86_64.whl", hash = "sha256:c5a9c33e21f7b1d897f0c2f442c6c839edef0b11ace8422103551f3b2e88b527"},
+    {file = "lanelet2-1.2.2-cp38-cp38-manylinux_2_27_x86_64.whl", hash = "sha256:33d56e5a70119c4102ec2c49e89b73935aaf3c8bbfa36372d68e9544e6d34343"},
+    {file = "lanelet2-1.2.2-cp39-cp39-manylinux_2_27_x86_64.whl", hash = "sha256:cfcf690ed4a18fff8bfeb25ad27f8b128d4c5f0559d7ecca72cc77942fc871a9"},
+]
+
+[[package]]
 name = "livereload"
 version = "2.7.1"
 description = "Python LiveReload is an awesome tool for web developers"
@@ -3849,4 +3863,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "9bf73125a1a43dee4e44fba2efbcb56b32f0cc6735d6c1c99b66d5be2b269647"
+content-hash = "bd54192bbc7fe7d0dc7f090f5569634016f42ca24357deb3f505e5945c9b52dc"

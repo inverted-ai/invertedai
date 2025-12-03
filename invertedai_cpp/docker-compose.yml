@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./:/usr/src/myapp
-      - /home/user/.cache/bazel_docker:/home/user/.cache/bazel_docker
+      #- /home/user/.cache/bazel_docker:/home/user/.cache/bazel_docker
 
     network_mode: "host"
     # restart: always

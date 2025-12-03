@@ -53,13 +53,14 @@ class ScenarioLog(BaseModel):
 
     @model_validator(mode='after')
     def validate_states_and_present_indexes_init(self):
-        assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
+        if self.present_indexes is not None:
+            assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
 
-        for states, pres_ids in zip(self.agent_states,self.present_indexes):
-            self.validate_states_and_present_indexes_time_step(
-                current_agent_states=states,
-                current_present_indexes=pres_ids
-            )
+            for states, pres_ids in zip(self.agent_states,self.present_indexes):
+                self.validate_states_and_present_indexes_time_step(
+                    current_agent_states=states,
+                    current_present_indexes=pres_ids
+                )
         return self
 
     def validate_states_and_present_indexes_time_step(
@@ -67,7 +68,7 @@ class ScenarioLog(BaseModel):
         current_agent_states: List[AgentState],
         current_present_indexes: List[int]
     ):
-        assert min(current_present_indexes) >= 0 and max(current_present_indexes) < len(self.agent_properties), "Invalid agent ID's in given list of present indexes."
+        assert min(current_present_indexes) >= 0, "Invalid agent ID's in given list of present indexes."
         assert len(current_present_indexes) == len(current_agent_states), "Given number of agent states does not match number of present agents."
 
     def add_time_step_data(
@@ -104,7 +105,8 @@ class LogBase():
         direction_vec: bool = False,
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
-        left_hand_coordinates: bool = False
+        left_hand_coordinates: bool = False,
+        agent_ids: Optional[List[int]] = None
     ):
         """
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
@@ -155,7 +157,8 @@ class LogBase():
             ax=ax,
             direction_vec=direction_vec,
             velocity_vec=velocity_vec,
-            plot_frame_number=plot_frame_number
+            plot_frame_number=plot_frame_number,
+            numbers=agent_ids
         )
 
         plt.close(fig)
@@ -171,7 +174,8 @@ class LogBase():
         direction_vec: bool = False,
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
-        left_hand_coordinates: bool = False
+        left_hand_coordinates: bool = False,
+        agent_ids: Optional[List[int]] = None
     ):
         """
         Use the available internal tools to visualize the entire log and save it to a given location. Please refer to ScenePlotter for details on 
@@ -188,7 +192,8 @@ class LogBase():
             direction_vec = direction_vec,
             velocity_vec = velocity_vec,
             plot_frame_number = plot_frame_number,
-            left_hand_coordinates = left_hand_coordinates
+            left_hand_coordinates = left_hand_coordinates,
+            agent_ids = agent_ids
         )
 
     def initialize(self):
@@ -225,14 +230,12 @@ class LogWriter(LogBase):
                 if wp is not None:
                     individual_suggestions_dict[str(i)] = {
                         "suggestion_strength": 0.8, #Default value
-                        "states": {
-                            "0": {
-                                "center": {
-                                    "x": wp.x,
-                                    "y": wp.y
-                                }
+                        "states":[{
+                            "center": {
+                                "x": wp.x,
+                                "y": wp.y
                             }
-                        }
+                        }]
                     }
         else:
             if scenario_log.waypoints is not None:
@@ -270,8 +273,8 @@ class LogWriter(LogBase):
         for i, prop in enumerate(scenario_log.agent_properties):
             states_dict = {}
             for t, states in enumerate(scenario_log.agent_states):
-                if i in self._scenario_log.present_indexes[t]:
-                    ind = self._scenario_log.present_indexes[t].index(i)
+                if i in scenario_log.present_indexes[t]:
+                    ind = scenario_log.present_indexes[t].index(i)
 
                     states_dict[str(t)] = {
                         "center": {"x": states[ind].center.x, "y": states[ind].center.y},
@@ -500,26 +503,29 @@ class LogReader(LogBase):
         all_agent_states_unsorted = []
         all_agent_properties_unsorted = {}
         present_indexes_unsorted = []
+        agent_id_list = {}
+        agent_id_sequence_num = 0
         for i in range(LOG_DATA["scenario_length"]):
             agent_states_ts = {}
             present_indexes_ts = []
             
-            for agent_num, agent in LOG_DATA["predetermined_agents"].items():
-                agent_num = int(agent_num)
-                if not agent_num in all_agent_properties_unsorted:
+            for agent_id, agent in LOG_DATA["predetermined_agents"].items():
+                if not agent_id in agent_id_list:
                     agent_attributes_json = agent["static_attributes"]
                     agent_properties = AgentProperties()
                     agent_properties.length = agent_attributes_json["length"]
                     agent_properties.width = agent_attributes_json["width"]
                     agent_properties.rear_axis_offset = agent_attributes_json["rear_axis_offset"]
                     agent_properties.agent_type = agent["entity_type"]
-                    all_agent_properties_unsorted[agent_num] = agent_properties
+                    all_agent_properties_unsorted[agent_id] = agent_properties
+                    agent_id_list[agent_id] = agent_id_sequence_num
+                    agent_id_sequence_num += 1
 
                 ts_key = str(i)
                 if ts_key in agent["states"]:
-                    present_indexes_ts.append(agent_num)
+                    present_indexes_ts.append(agent_id_list[agent_id])
                     agent_state = agent["states"][ts_key]
-                    agent_states_ts[agent_num] = AgentState.fromlist([
+                    agent_states_ts[agent_id] = AgentState.fromlist([
                         agent_state["center"]["x"],
                         agent_state["center"]["y"],
                         agent_state["orientation"],
@@ -530,10 +536,16 @@ class LogReader(LogBase):
             present_indexes_unsorted.append(present_indexes_ts)
 
         #Sort agents by index if not in the correct order from the JSON dict
-        all_agent_properties = self._sort_unsorted_dict(all_agent_properties_unsorted)
+        all_agent_properties = self._sort_unsorted_dict(
+            unsorted_dict=all_agent_properties_unsorted,
+            index_key=agent_id_list
+        )
         all_agent_states = []
         for agent_states_ts in all_agent_states_unsorted:
-            all_agent_states.append(self._sort_unsorted_dict(agent_states_ts))
+            all_agent_states.append(self._sort_unsorted_dict(
+                unsorted_dict=agent_states_ts,
+                index_key=agent_id_list
+            ))
         log_present_indexes = []
         for present_indexes_ts in present_indexes_unsorted:
             log_present_indexes.append(sorted(present_indexes_ts))
@@ -567,10 +579,10 @@ class LogReader(LogBase):
             location=location, 
             rendering_center=tuple([LOG_DATA["birdview_options"]["rendering_center"][0],LOG_DATA["birdview_options"]["rendering_center"][1]]),
             rendering_fov=LOG_DATA["birdview_options"]["renderingFOV"],
-            lights_random_seed=LOG_DATA["lights_random_seed"],
-            initialize_random_seed=LOG_DATA["initialize_random_seed"],
+            lights_random_seed=None if not "lights_random_seed" in LOG_DATA else LOG_DATA["lights_random_seed"],
+            initialize_random_seed=None if not "initialize_random_seed" in LOG_DATA else LOG_DATA["initialize_random_seed"],
             drive_random_seed=LOG_DATA["drive_random_seed"],
-            initialize_model_version=LOG_DATA["initialize_model_version"],
+            initialize_model_version=None if not "initialize_model_version" in LOG_DATA else LOG_DATA["initialize_model_version"],
             drive_model_version=LOG_DATA["drive_model_version"],
             light_recurrent_states=None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
             recurrent_states=None,
@@ -582,7 +594,6 @@ class LogReader(LogBase):
         self.reset_log()
 
         self.simulation_length = len(all_agent_states)
-        self.location = location
         self.initialize_model_version = self._scenario_log.initialize_model_version
         self.drive_model_version = self._scenario_log.drive_model_version
         self.all_waypoints = agent_waypoints
@@ -595,11 +606,13 @@ class LogReader(LogBase):
 
     def _sort_unsorted_dict(
         self,
-        unsorted_dict: Dict[int,Any]
+        unsorted_dict: Dict[str,Any],
+        index_key: Dict[str,int]
     ):
         sorted_list = []
-        for agent_id in sorted(unsorted_dict.keys()):
-            sorted_list.append(unsorted_dict[agent_id])
+        present_indexes = {index_key[k]: k for k in list(unsorted_dict.keys())}
+        for agent_id in sorted(present_indexes.keys()):
+            sorted_list.append(unsorted_dict[present_indexes[agent_id]])
 
         return sorted_list
 
@@ -713,3 +726,19 @@ class LogReader(LogBase):
         """
 
         return self._scenario_log.waypoints
+    
+    @property
+    def location(self):
+        """
+        Return the location from the log.
+        """
+
+        return self._scenario_log.location
+    
+    @property
+    def log_length(self):
+        """
+        Return the length of the simulation in time steps captured in this log.
+        """
+
+        return len(self._scenario_log.agent_states)

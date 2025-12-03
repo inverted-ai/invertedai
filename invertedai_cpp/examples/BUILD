@@ -104,3 +104,20 @@ cc_binary(
         "@opencv",
     ],
 )
+
+cc_binary(
+    name = "large_example",
+    srcs = ["large_example.cc"],
+    deps = [
+        "//large/visualizer:visualizer_lib",
+        "//large/large_drive:large_drive_lib",
+        "//large/large_initialize:large_initialize_lib",
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:error",
+        "@boost//:asio",
+        "@opencv//:opencv",
+    ],
+    visibility = ["//visibility:public"],
+)
+

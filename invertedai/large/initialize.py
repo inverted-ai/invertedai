@@ -408,10 +408,6 @@ def _initialize_regions(
     return_exact_agents: bool = False
 ) -> Tuple[List[Region],List[InitializeResponse]]:
     
-    agent_states_sampled = []
-    agent_properties_sampled = []
-    agent_rs_sampled = []
-
     def inside_fov(center: Point, agent_scope_fov: float, point: Point) -> bool:
         return ((center.x - (agent_scope_fov / 2) < point.x < center.x + (agent_scope_fov / 2)) and
                 (center.y - (agent_scope_fov / 2) < point.y < center.y + (agent_scope_fov / 2)))
@@ -493,7 +489,8 @@ def _initialize_regions(
                             get_infractions=get_infractions,
                             traffic_light_state_history=traffic_light_state_history,
                             location_of_interest=(region_center.x, region_center.y),
-                            random_seed=random_seed
+                            random_seed=random_seed,
+                            api_model_version=api_model_version
                         )
             
             if response is not None:
