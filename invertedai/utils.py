@@ -1399,8 +1399,6 @@ class ScenePlotter():
 
         for agent_idx in range(max_id + 1):
             wp = frame_waypoints_dict.get(agent_idx)
-            if wp is None:
-                continue
             x = float(wp.x)
             y = float(wp.y)
             psi = 0.0
