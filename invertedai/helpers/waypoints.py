@@ -15,6 +15,19 @@ def hermite_spline(
     m1: np.ndarray, 
     t: np.ndarray
 ) -> np.ndarray:
+    """
+    Computes the Hermite spline interpolation between two points.
+
+    Args:
+        p0 (np.ndarray): n-D coordinates of the starting point.
+        p1 (np.ndarray): n-D coordinates of the ending point.
+        m0 (np.ndarray): n-D Tangent vector at the starting point.
+        m1 (np.ndarray): n-D Tangent vector at the ending point.
+        t (np.ndarray): Parameter values for interpolation, between 0 and 1.
+
+    Returns:
+        np.ndarray: Interpolated points along the Hermite spline.
+    """
     t = t[np.newaxis, :]
     p0 = p0[:, np.newaxis]
     p1 = p1[:, np.newaxis]
@@ -22,7 +35,20 @@ def hermite_spline(
     m1 = m1[:, np.newaxis]
     return (2*t**3 - 3*t**2 + 1) * p0 + (t**3 - 2*t**2 + t) * m0 + (-2*t**3 + 3*t**2) * p1 + (t**3 - t**2) * m1 + 1e-10
 
-def sample_linestring(linestring: List[lanelet2.core.ConstPoint3d], spacing: float = 1):
+def sample_linestring(
+    linestring: List[lanelet2.core.ConstPoint3d], 
+    spacing: float = 1.0
+) -> List[np.ndarray]:
+    """
+    Sample a linestring at `spacing` meter intervals.
+
+    Args:
+        linestring (List[lanelet2.core.ConstPoint3d]): List of points representing the linestring.
+        spacing (float, optional): Distance between sampled points. Defaults to 1.
+
+    Returns:
+        List[np.ndarray]: List of sampled points as numpy arrays.
+    """
     if len(linestring) < 2:
         pt = linestring[0]
         return [np.array([pt.x, pt.y, pt.z])]
@@ -46,19 +72,47 @@ def sample_linestring(linestring: List[lanelet2.core.ConstPoint3d], spacing: flo
     
     return sampled_points
 
-def closest_point_on_polyline(point, polyline):
+def closest_point_on_line(
+    point: np.ndarray, 
+    line: List[np.ndarray]
+) -> Tuple[np.ndarray, int]:
+    """
+    Finds the closest point on a line to a given point.
+
+    Args:
+        point (np.ndarray): The 2D reference point.
+        line (List[np.ndarray]): List of 2D points representing the line.
+
+    Returns:
+        Tuple[np.ndarray, int]: The closest point on the line and its index.
+    """
     px, py = point[0], point[1]
-    arr = np.array(polyline)
+    arr = np.array(line)
     dx = arr[:, 0] - px
     dy = arr[:, 1] - py
     dist = np.sqrt(dx*dx + dy*dy)
-    idx = np.argmin(dist)
+    idx = np.argmin(dist).item()
     return arr[idx], idx
 
-def find_overlap_region(line1, line2, tolerance=0.1):
+def find_lane_change_region(
+    line1: List[np.ndarray], 
+    line2: List[np.ndarray], 
+    tolerance: float = 0.2
+) -> List[Tuple[np.ndarray, np.ndarray]]:
+    """
+    Finds overlapping regions between two lines where the points are approximately perpendicular within a given tolerance.
+
+    Args:
+        line1 (List[np.ndarray]): List of 2D points representing the first line.
+        line2 (List[np.ndarray]): List of 2D points representing the second line.
+        tolerance (float): Tolerance for considering points as approximately perpendicular. Defaults to 0.2.
+
+    Returns:
+        List[Tuple[np.ndarray, np.ndarray]]: List of tuples containing pairs of overlapping points from both lines.
+    """
     closest_pair = []
     for p1_idx, p1 in enumerate(line1[:-1]):
-        p2, p2_idx = closest_point_on_polyline(p1, line2)
+        p2, _ = closest_point_on_line(p1, line2)
         diff = p2 - p1
         dir = line1[p1_idx+1] - p1
         angle = np.arccos(np.dot(dir, diff))
@@ -66,23 +120,27 @@ def find_overlap_region(line1, line2, tolerance=0.1):
             closest_pair.append((p1, p2))
     return closest_pair
 
-def lane_change_points(linestring1, linestring2, start_state: lanelet2.core.ConstPoint3d, transition_distance: int):
+def lane_change_points(
+    linestring1: List[lanelet2.core.ConstPoint3d], 
+    linestring2: List[lanelet2.core.ConstPoint3d], 
+    start_state: lanelet2.core.ConstPoint3d, 
+    transition_distance: int
+):
     if start_state is None:
         start_state = linestring1[0]
-
     line1 = sample_linestring(linestring1, 1) # do not change spacing without also modifying the ending point indexing
     line2 = sample_linestring(linestring2, 1) # do not change spacing without also modifying the ending point indexing
 
-    pairs = find_overlap_region(line1, line2)
-    starting_point, starting_idx = closest_point_on_polyline(np.array((start_state.x, start_state.y)), [pair[0] for pair in pairs])
+    pairs = find_lane_change_region(line1, line2)
+    starting_point, starting_idx = closest_point_on_line(np.array((start_state.x, start_state.y)), [pair[0] for pair in pairs])
     assert len(pairs) > starting_idx + transition_distance, "Expected transition distance to be greater than the number of samples remaining"
     ending_point = pairs[starting_idx + transition_distance][1]
 
     m0 = pairs[starting_idx + 1][0] - starting_point
     m1 = ending_point - pairs[starting_idx + transition_distance - 1][1]
 
-    m0 = m0 / (np.linalg.norm(m0) + 1e-9)
-    m1 = m1 / (np.linalg.norm(m1) + 1e-9)
+    m0 = m0 / (np.linalg.norm(m0) + 1e-10)
+    m1 = m1 / (np.linalg.norm(m1) + 1e-10)
 
     return starting_point, ending_point, m0, m1
 
@@ -157,8 +215,8 @@ def generate_waypoints_from_lane_ids(
         t_sample = np.linspace(0, 1, 50)
         points = lane_change_fn(start_point, end_point, m0, m1, t_sample)
 
-        _, idx1 = closest_point_on_polyline(start_point, np.array([[pt.x, pt.y, pt.z] for pt in lane1]))
-        _, idx2 = closest_point_on_polyline(end_point, np.array([[pt.x, pt.y, pt.z] for pt in lane2]))
+        _, idx1 = closest_point_on_line(start_point, np.array([[pt.x, pt.y, pt.z] for pt in lane1]))
+        _, idx2 = closest_point_on_line(end_point, np.array([[pt.x, pt.y, pt.z] for pt in lane2]))
         del lane1[idx1:]
         del lane2[:idx2]
         lane1.extend([Point(x=points[0][t_idx], y=points[1][t_idx]) for t_idx in range(t_sample.shape[0])])
