@@ -51,6 +51,8 @@ TIMEOUT_SECS = 600
 MAX_RETRIES = 10
 AGENT_SCOPE_FOV = 120
 
+WaypointsDict = Dict[str,List[Point]]
+
 logger = logging.getLogger(__name__)
 
 STATUS_MESSAGE = {
@@ -882,8 +884,7 @@ class ScenePlotter():
         agent_states: List[AgentState], 
         agent_attributes: Optional[List[AgentAttributes]] = None, 
         agent_properties: Optional[List[AgentProperties]] = None,
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None,
-        waypoints_per_frame: Optional[List[Dict[int, Optional[Point]]]] = None
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
     ):
         """
         Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous 
@@ -923,10 +924,9 @@ class ScenePlotter():
         self.agent_states_history = [agent_states]
         self.traffic_lights_history = [traffic_light_states]
 
-
         self.agent_face_colors = None
         self.agent_edge_colors = None
-        self.waypoints_per_frame = waypoints_per_frame
+        self.waypoints_per_frame = [prop.waypoints for prop in agent_properties]
 
     @validate_arguments
     def record_step(
@@ -962,6 +962,8 @@ class ScenePlotter():
         )
         self.agent_properties.append(agent_properties)
 
+        self.waypoints_per_frame.append([prop.waypoints for prop in agent_properties])
+
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def plot_scene(
         self,
@@ -975,7 +977,6 @@ class ScenePlotter():
         velocity_vec: bool = False,
         agent_face_colors: Optional[ColorList] = None,
         agent_edge_colors: Optional[ColorList] = None,
-        waypoints_per_frame: Optional[List[Dict[int, Optional[List[float]]]]] = None
     ):
         """
         Plot a single timestep of data then reset the recording. 
@@ -985,10 +986,10 @@ class ScenePlotter():
         agent_states:
             A list of agents to be visualized in the image.
         agent_attributes: 
-            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic
+            Static attributes of the agent, which don't change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic
             bicycle model.
         agent_properties:
-            Static attributes of the agent (with the AgentProperties data type), which don’t change over the course of a simulation. We assume every 
+            Static attributes of the agent (with the AgentProperties data type), which don't change over the course of a simulation. We assume every 
             agent is a rectangle obeying a kinematic bicycle model.
         traffic_light_states: 
             Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the 
@@ -1021,7 +1022,6 @@ class ScenePlotter():
             agent_states=agent_states, 
             agent_properties=agent_properties,
             traffic_light_states=traffic_light_states,
-            waypoints_per_frame=waypoints_per_frame
         )
 
         self._validate_agent_style_data(
@@ -1075,8 +1075,6 @@ class ScenePlotter():
             Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
         plot_frame_number: 
             Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
-        mark_waypoint: 
-            Flag to determine if the waypoint should be marked in the animation. By default this flag is set to False.
         agent_face_colors:
             An optional parameter containing a list of RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
             of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent must 
@@ -1232,13 +1230,12 @@ class ScenePlotter():
     def _update_frame_to(self, frame_idx):
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
-        if hasattr(self, "waypoint_markers"):
-            for marker in self.waypoint_markers.values():
-                if isinstance(marker, list):
-                    for m in marker:
-                        m.set_visible(False)
-                else:
-                    marker.set_visible(False)
+        for marker in self.waypoint_markers.values():
+            if isinstance(marker, list):
+                for m in marker:
+                    m.set_visible(False)
+            else:
+                marker.set_visible(False)
         for lines in self.dir_lines.values():
             if isinstance(lines, list):
                 for line in lines:
@@ -1263,9 +1260,9 @@ class ScenePlotter():
         if self.traffic_lights_history[frame_idx] is not None:
             for light_id, light_state in self.traffic_lights_history[frame_idx].items():
                 self._plot_traffic_light(light_id, light_state)
-        if self.waypoints_per_frame is not None:
+        if self.waypoints_per_frame[frame_idx] is not None:
             self._plot_waypoint(
-                frame_idx=frame_idx
+                frame_waypoints_dict=self.waypoints_per_frame[frame_idx]
             )
 
         if self.plot_frame_number:
@@ -1389,16 +1386,12 @@ class ScenePlotter():
 
     def _plot_waypoint(
         self, 
-        frame_idx: int
+        frame_waypoints_dict
     ):
-        if self.waypoints_per_frame is None or frame_idx >= len(self.waypoints_per_frame):
-            return
-
-        frame_waypoints_dict = self.waypoints_per_frame[frame_idx]
         max_id = max(frame_waypoints_dict.keys())
 
         for agent_idx in range(max_id + 1):
-            wp = frame_waypoints_dict.get(agent_idx)
+            wp = frame_waypoints_dict.get(agent_idx)[0]
             x = float(wp.x)
             y = float(wp.y)
             psi = 0.0
