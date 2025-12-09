@@ -577,27 +577,38 @@ class LogReader(LogBase):
             all_traffic_light_states = None
 
         agent_waypoints = {}
-        for agent_id, waypoints in LOG_DATA["individual_suggestions"].items():
-            agent_waypoints[agent_id] = []
-            for pt in waypoints["states"]:
-                data = pt["center"]
-                agent_waypoints[agent_id].append(Point.fromlist([data["x"],data["y"]]))
+        if "individual_suggestions" in LOG_DATA:
+            for agent_id, waypoints in LOG_DATA["individual_suggestions"].items():
+                agent_waypoints[agent_id] = []
+                for pt in waypoints["states"]:
+                    data = pt["center"]
+                    agent_waypoints[agent_id].append(Point.fromlist([data["x"],data["y"]]))
         if not agent_waypoints:
             agent_waypoints = None
+
+        rendering_center = None
+        rendering_fov = None
+        if "birdview_options" in LOG_DATA:
+            rendering_center = tuple([LOG_DATA["birdview_options"]["rendering_center"][0],LOG_DATA["birdview_options"]["rendering_center"][1]])
+            rendering_fov = LOG_DATA["birdview_options"]["renderingFOV"]
+
+        light_recurrent_states = None
+        if "light_recurrent_states" in LOG_DATA:
+            light_recurrent_states = None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]]
 
         self._scenario_log = ScenarioLog(
             agent_states=all_agent_states, 
             agent_properties=all_agent_properties, 
             traffic_lights_states=all_traffic_light_states, 
             location=location, 
-            rendering_center=tuple([LOG_DATA["birdview_options"]["rendering_center"][0],LOG_DATA["birdview_options"]["rendering_center"][1]]),
-            rendering_fov=LOG_DATA["birdview_options"]["renderingFOV"],
+            rendering_center=rendering_center,
+            rendering_fov=rendering_fov,
             lights_random_seed=None if not "lights_random_seed" in LOG_DATA else LOG_DATA["lights_random_seed"],
             initialize_random_seed=None if not "initialize_random_seed" in LOG_DATA else LOG_DATA["initialize_random_seed"],
-            drive_random_seed=LOG_DATA["drive_random_seed"],
+            drive_random_seed=None if not "drive_random_seed" in LOG_DATA else LOG_DATA["drive_random_seed"],
             initialize_model_version=None if not "initialize_model_version" in LOG_DATA else LOG_DATA["initialize_model_version"],
-            drive_model_version=LOG_DATA["drive_model_version"],
-            light_recurrent_states=None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
+            drive_model_version=None if not "drive_model_version" in LOG_DATA else LOG_DATA["drive_model_version"],
+            light_recurrent_states=light_recurrent_states,
             recurrent_states=None,
             waypoints=agent_waypoints,
             present_indexes=log_present_indexes
