@@ -926,7 +926,7 @@ class ScenePlotter():
 
         self.agent_face_colors = None
         self.agent_edge_colors = None
-        self.waypoints_per_frame = [prop.waypoints for prop in agent_properties]
+        self.waypoints_per_frame = [[prop.waypoints for prop in agent_properties]]
 
     @validate_arguments
     def record_step(
@@ -961,7 +961,6 @@ class ScenePlotter():
             agent_properties=agent_properties
         )
         self.agent_properties.append(agent_properties)
-
         self.waypoints_per_frame.append([prop.waypoints for prop in agent_properties])
 
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -1256,14 +1255,14 @@ class ScenePlotter():
                 agent_idx=i,
                 frame_idx=frame_idx
             )
+            self._plot_waypoint(
+                agent_idx=i,
+                frame_idx=frame_idx
+            )
 
         if self.traffic_lights_history[frame_idx] is not None:
             for light_id, light_state in self.traffic_lights_history[frame_idx].items():
                 self._plot_traffic_light(light_id, light_state)
-        if self.waypoints_per_frame[frame_idx] is not None:
-            self._plot_waypoint(
-                frame_waypoints_dict=self.waypoints_per_frame[frame_idx]
-            )
 
         if self.plot_frame_number:
             if self.frame_label is None:
@@ -1386,12 +1385,12 @@ class ScenePlotter():
 
     def _plot_waypoint(
         self, 
-        frame_waypoints_dict
+        agent_idx, 
+        frame_idx
     ):
-        max_id = max(frame_waypoints_dict.keys())
-
-        for agent_idx in range(max_id + 1):
-            wp = frame_waypoints_dict.get(agent_idx)[0]
+        wps = self.waypoints_per_frame[frame_idx][agent_idx]
+        if wps is not None:
+            wp = wps[0]
             x = float(wp.x)
             y = float(wp.y)
             psi = 0.0
@@ -1399,7 +1398,7 @@ class ScenePlotter():
             if self._left_hand_coordinates:
                 x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
 
-            marker_offset = 1.0  
+            marker_offset = 0.0  
             x_data = x + marker_offset * math.cos(psi)
             y_data = y + marker_offset * math.sin(psi)
             marker_data = 'o'
@@ -1410,7 +1409,7 @@ class ScenePlotter():
                     y_data,
                     marker=marker_data,
                     color='saddlebrown',
-                    markersize=1.0,
+                    markersize=15.0,
                     linestyle='None',
                     zorder=6
                 )
