@@ -2,9 +2,12 @@ from typing import List, Optional, Tuple, Callable
 import lanelet2
 import random
 import numpy as np
+import logging
 
 from scipy.interpolate import interp1d
 from invertedai.common import AgentState, Point
+
+logger = logging.getLogger(__name__)
 
 traffic_rules = lanelet2.traffic_rules.create(lanelet2.traffic_rules.Locations.Germany, lanelet2.traffic_rules.Participants.Vehicle)
 
@@ -36,7 +39,7 @@ def hermite_spline(
     return (2*t**3 - 3*t**2 + 1) * p0 + (t**3 - 2*t**2 + t) * m0 + (-2*t**3 + 3*t**2) * p1 + (t**3 - t**2) * m1 + 1e-10
 
 def sample_linestring(
-    linestring: List[lanelet2.core.ConstPoint3d], 
+    linestring: List[np.ndarray], 
     spacing: float = 1.0
 ) -> List[np.ndarray]:
     """
@@ -51,28 +54,26 @@ def sample_linestring(
     """
     if len(linestring) < 2:
         pt = linestring[0]
-        return [np.array([pt.x, pt.y, pt.z])]
+        return [pt]
     
-    points = np.array([[pt.x, pt.y, pt.z] for pt in linestring])
-    distances = np.sqrt(np.sum(np.diff(points, axis=0)**2, axis=1))
+    distances = np.sqrt(np.sum(np.diff(linestring, axis=0)**2, axis=1))
     cumulative_distances = np.concatenate([[0], np.cumsum(distances)])
     
     if cumulative_distances[-1] < 1e-10:
-        return [points[0]]
+        return [linestring[0]]
     
-    interp_x = interp1d(cumulative_distances, points[:, 0], kind='linear')
-    interp_y = interp1d(cumulative_distances, points[:, 1], kind='linear')
-    interp_z = interp1d(cumulative_distances, points[:, 2], kind='linear')
+    interp_x = interp1d(cumulative_distances, np.array([pt[0] for pt in linestring]), kind='linear')
+    interp_y = interp1d(cumulative_distances, np.array([pt[1] for pt in linestring]), kind='linear')
     
     sample_distances = np.arange(0, cumulative_distances[-1], spacing)
     
     sampled_points = []
     for d in sample_distances:
-        sampled_points.append(np.array([interp_x(d), interp_y(d), interp_z(d)]))
+        sampled_points.append(np.array([interp_x(d), interp_y(d)]))
     
     return sampled_points
 
-def closest_point_on_line(
+def find_closest_point_on_line(
     point: np.ndarray, 
     line: List[np.ndarray]
 ) -> Tuple[np.ndarray, int]:
@@ -94,55 +95,43 @@ def closest_point_on_line(
     idx = np.argmin(dist).item()
     return arr[idx], idx
 
-def find_lane_change_region(
-    line1: List[np.ndarray], 
-    line2: List[np.ndarray], 
-    tolerance: float = 0.2
-) -> List[Tuple[np.ndarray, np.ndarray]]:
-    """
-    Finds overlapping regions between two lines where the points are approximately perpendicular within a given tolerance.
-
-    Args:
-        line1 (List[np.ndarray]): List of 2D points representing the first line.
-        line2 (List[np.ndarray]): List of 2D points representing the second line.
-        tolerance (float): Tolerance for considering points as approximately perpendicular. Defaults to 0.2.
-
-    Returns:
-        List[Tuple[np.ndarray, np.ndarray]]: List of tuples containing pairs of overlapping points from both lines.
-    """
-    closest_pair = []
-    for p1_idx, p1 in enumerate(line1[:-1]):
-        p2, _ = closest_point_on_line(p1, line2)
-        diff = p2 - p1
-        dir = line1[p1_idx+1] - p1
-        angle = np.arccos(np.dot(dir, diff))
-        if angle >= np.pi / 2 - tolerance and angle <= np.pi / 2 + tolerance:
-            closest_pair.append((p1, p2))
-    return closest_pair
+def find_min_distance_from_point_to_line(
+    point: np.ndarray, 
+    line: List[np.ndarray]
+) -> Tuple[float, int]:
+    distances = []
+    for i, (p1, p2) in enumerate(zip(line[:-1], line[1:])):
+        line_vec = p2 - p1
+        point_vec = point - p1
+        line_len = np.dot(line_vec, line_vec)
+        if line_len == 0:
+            continue
+        t = np.dot(point_vec, line_vec) / line_len
+        t = max(0, min(1, t))
+        projection = p1 + t * line_vec
+        dist = np.linalg.norm(point - projection).item()
+        distances.append((dist, i))
+    if distances:
+        return min(distances, key=lambda x: x[0])
+    return float('inf'), -1
 
 def lane_change_points(
-    linestring1: List[lanelet2.core.ConstPoint3d], 
-    linestring2: List[lanelet2.core.ConstPoint3d], 
-    start_state: lanelet2.core.ConstPoint3d, 
+    linestring1: List[np.ndarray], 
+    linestring2: List[np.ndarray],
+    start_state: np.ndarray, 
     transition_distance: int
 ):
-    if start_state is None:
-        start_state = linestring1[0]
-    line1 = sample_linestring(linestring1, 1) # do not change spacing without also modifying the ending point indexing
-    line2 = sample_linestring(linestring2, 1) # do not change spacing without also modifying the ending point indexing
+    starting_point_on_line1, starting_idx = find_closest_point_on_line(start_state, linestring1)
+    _, ending_idx = find_closest_point_on_line(starting_point_on_line1, linestring2)
+    ending_point_on_line2 = linestring2[ending_idx + transition_distance]
 
-    pairs = find_lane_change_region(line1, line2)
-    starting_point, starting_idx = closest_point_on_line(np.array((start_state.x, start_state.y)), [pair[0] for pair in pairs])
-    assert len(pairs) > starting_idx + transition_distance, "Expected transition distance to be greater than the number of samples remaining"
-    ending_point = pairs[starting_idx + transition_distance][1]
-
-    m0 = pairs[starting_idx + 1][0] - starting_point
-    m1 = ending_point - pairs[starting_idx + transition_distance - 1][1]
+    m0 = linestring1[starting_idx + 1] - starting_point_on_line1 # @TODO UNSAFE FIX
+    m1 = ending_point_on_line2 - linestring2[ending_idx + transition_distance - 1] # @TODO UNSAFE FIX
 
     m0 = m0 / (np.linalg.norm(m0) + 1e-10)
     m1 = m1 / (np.linalg.norm(m1) + 1e-10)
 
-    return starting_point, ending_point, m0, m1
+    return starting_point_on_line1, ending_point_on_line2, m0, m1
 
 def generate_waypoints_from_lane_ids(
     start_state: AgentState, 
@@ -154,13 +143,16 @@ def generate_waypoints_from_lane_ids(
     lane_change_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray] = hermite_spline,
 ) -> List[Point]:
     """
-    Generates a list of waypoints from a sequence of lane ids. Assume that the start_state is close to the first lane in lane_ids
+    Generates a list of waypoints from a sequence of lane ids. Assume that the start_state is close to the first lane in lane_ids.
 
     Args:
         start_state (AgentState): The starting state of the agent.
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
         lane_ids (List[int]): Sequence of lane ids to follow.
         waypoint_spacing (float): Spacing between the waypoints in meters. Defaults to 15.
+        waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
+        transition_distance (int): Distance over which to perform lane change transitions. Defaults to 3.
+        lane_change_fn (Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray], optional): Function to use for lane change interpolation. Defaults to hermite_spline.
 
     Returns:
         List[Point]: List of waypoints for the agent to follow.
@@ -173,13 +165,13 @@ def generate_waypoints_from_lane_ids(
         return None
 
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
-    all_centerline_points = [[]]
+    lanelets = [[]]
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     current_lanelet = None
     for i, current_lane_id in enumerate(lane_ids):
         prev_lanelet = current_lanelet
         current_lanelet = get_lanelet(current_lane_id)
-        lane_centerline_points = [point for point in current_lanelet.centerline]
+        lane_centerline_points = [Point(x=point.x, y=point.y) for point in current_lanelet.centerline]
         if i == 0:
             distances = [(p.x-x)**2 + (p.y-y)**2 for p in lane_centerline_points]
             idx = distances.index(min(distances))
@@ -193,7 +185,7 @@ def generate_waypoints_from_lane_ids(
                 else:
                     idx = -1
             if idx == -1:
-                lane_centerline_points = []
+                continue
             else:
                 lane_centerline_points = lane_centerline_points[idx:]
             if len(lane_centerline_points) > 1:
@@ -203,25 +195,44 @@ def generate_waypoints_from_lane_ids(
                 waypoint_vec = np.array([second_point.x, second_point.y]) - np.array([x, y])
                 dot_product = np.dot(forward_vec, waypoint_vec)
                 if dot_product < 0:
-                    return []
+                    logger.warning("The starting position is behind the first lane centerline point even after adjustment. This may lead to unexpected behavior.")
+            lane_centerline_points.insert(0, Point(x=x, y=y))
         if prev_lanelet:
             assert current_lanelet in routing_graph.following(prev_lanelet, withLaneChanges=True)
-            if current_lanelet in routing_graph.besides(prev_lanelet):
-                all_centerline_points.append([])
-        all_centerline_points[-1].extend(lane_centerline_points)
-
-    for i, (lane1, lane2) in enumerate(zip(all_centerline_points[:-1], all_centerline_points[1:])):
-        start_point, end_point, m0, m1 = lane_change_points(lane1, lane2, lane1[0], transition_distance)
-        t_sample = np.linspace(0, 1, 50)
-        points = lane_change_fn(start_point, end_point, m0, m1, t_sample)
-
-        _, idx1 = closest_point_on_line(start_point, np.array([[pt.x, pt.y, pt.z] for pt in lane1]))
-        _, idx2 = closest_point_on_line(end_point, np.array([[pt.x, pt.y, pt.z] for pt in lane2]))
-        del lane1[idx1:]
-        del lane2[:idx2]
-        lane1.extend([Point(x=points[0][t_idx], y=points[1][t_idx]) for t_idx in range(t_sample.shape[0])])
+            if current_lanelet == routing_graph.left(prev_lanelet) or current_lanelet == routing_graph.right(prev_lanelet):
+                lanelets.append([])
         
-    all_centerline_points = np.array([[point.x, point.y] for lane in all_centerline_points for point in lane])
+        lanelets[-1].append(sample_linestring([np.array([pt.x, pt.y]) for pt in lane_centerline_points], 1)) # sample at 1m interval
+
+    transition_waypoints = []
+    for i, (lanes1, lanes2) in enumerate(zip(lanelets[:-1], lanelets[1:])):
+        lane1_centerline = lanes1[-1]
+        lane2_centerline = lanes2[0]
+        starting_point_on_line1, ending_point_on_line2, m0, m1 = lane_change_points(
+            linestring1=lane1_centerline, 
+            linestring2=lane2_centerline, 
+            start_state=lane1_centerline[0], 
+            transition_distance=transition_distance,
+        )
+        transition_waypoints.append((starting_point_on_line1, ending_point_on_line2))
+        t_sample = np.linspace(0, 1, 50)
+        points = lane_change_fn(starting_point_on_line1, ending_point_on_line2, m0, m1, t_sample)
+        _, idx1 = find_closest_point_on_line(starting_point_on_line1, lane1_centerline)
+        del lane1_centerline[idx1:]
+        _, idx2 = find_closest_point_on_line(ending_point_on_line2, lane2_centerline)
+        del lane2_centerline[:idx2]
+        lane1_centerline.extend([np.array([points[0][t_idx], points[1][t_idx]]) for t_idx in range(t_sample.shape[0])])
+    if waypoint:
+        dist, idx = find_min_distance_from_point_to_line(
+            np.array([waypoint.x, waypoint.y]),
+            [np.array([point.x, point.y]) for point in lanelets[-1][-1]]
+        )
+        if dist < 5.0:
+            del lanelets[-1][-1][idx+1:]
+            lanelets[-1][-1].append(waypoint)
+        else:
+            logger.warning("Could not find the given waypoint on the last lane within 5 meters, ignoring the given waypoint. Try adjusting the transition distance or waypoint position.")
+    all_centerline_points = np.array([point for lanes in lanelets for lane in lanes for point in lane])
     deltas = np.diff(all_centerline_points, axis=0)
     seg_lengths = np.hypot(deltas[:, 0], deltas[:, 1])
     total_length = np.sum(seg_lengths)
@@ -235,7 +246,7 @@ def generate_waypoints_from_lane_ids(
     new_y = np.interp(new_distances, cumdist, all_centerline_points[:, 1])[1:]
     waypoints = [Point(x=x, y=y) for x, y in zip(new_x, new_y)]
 
-    return waypoints
+    return waypoints, transition_waypoints
 
 def generate_lane_ids_from_lanelet_map(
     start_state: AgentState, 
