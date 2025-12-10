@@ -273,26 +273,28 @@ def generate_waypoints_from_lane_ids(
 def generate_lane_ids_from_lanelet_map(
     start_state: AgentState, 
     lanelet_map: lanelet2.core.LaneletMapLayers, 
-    target_distance: float = 600.0, 
+    min_distance: float = 600.0, 
     waypoint: Optional[Point] = None,
-    lane_change: bool = False
+    lane_change: bool = False,
+    seed: int=0
 ) -> List[int]:
     """
     Generates a sequence of lane ids. If given a waypoint, it will generate the shortest possible route between
     current starting state and the specified waypoint. Otherwise, a random route will be generated that is at 
-    least `target_distance` long in meters unless there are no more lanes to follow.
+    least `min_distance` long in meters unless there are no more lanes to follow.
     
     Args:
         start_state (AgentState): The starting state of the agent.
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
-        target_distance (float): Target distance in meters to generate. Ignored if waypoint is specified. Defaults to 600.
+        min_distance (float): Minimum distance in meters to generate. Ignored if waypoint is specified. Defaults to 600.
         waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
         lane_change (bool): Whether lane changes are supported. Defaults to False.
+        seed (int): Random seed for reproducibility. Defaults to 0.
 
     Returns:
         List[int]: Sequence of lane ids to follow. Empty if no routes are possible.
     """
-    
+    random.seed(seed)
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), 0)
@@ -319,21 +321,8 @@ def generate_lane_ids_from_lanelet_map(
             return []
         return [lanelet.id for lanelet in random.choice(possible_routes).shortestPath()]
     
-    total_lane_distance = 0
-    path = []
-    while total_lane_distance < target_distance:
-        lane_centerline_points = [point for point in current_lanelet.centerline]
-        if len(lane_centerline_points) < 2:
-            continue
-        lane_length = lanelet2.geometry.length2d(current_lanelet)
-        path.append(current_lanelet.id)
-        total_lane_distance += lane_length
-        reachable_lanelets = routing_graph.following(current_lanelet, withLaneChanges=lane_change)
-        if reachable_lanelets:
-            current_lanelet = random.choice(reachable_lanelets)
-        else:
-            break
-    return path
+    candidate_paths = routing_graph.possiblePaths(current_lanelet, minRoutingCost=min_distance, allowLaneChanges=lane_change)
+    return [lane.id for lane in random.choice(candidate_paths)]
 
 def find_direction_and_nearest_points(
     linestring: lanelet2.core.ConstLineString3d, 
@@ -376,3 +365,4 @@ def find_direction_and_nearest_points(
         point_b, point_a = linestring[second_closest_point_idx], linestring[closest_point_idx]
 
     return point_a, point_b
+    
