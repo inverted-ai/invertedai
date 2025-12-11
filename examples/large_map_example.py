@@ -1,9 +1,7 @@
 import invertedai as iai
-from invertedai.large.common import Region
-from invertedai.common import AgentAttributes, AgentType
+from invertedai.common import AgentType
 
 import argparse
-import matplotlib.pyplot as plt
 import random
 import time
 
