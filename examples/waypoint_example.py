@@ -13,7 +13,7 @@ waypoint_threshold = 5.0
 seed = int(time.time())
 
 destination_waypoints = [None,None,Point(x=100.0, y=0.0)]
-target_distances = [None,100.0,None]
+min_distances = [None,100.0,None]
 num_example_agents = len(destination_waypoints)
 
 api_key = os.environ.get("IAI_API_KEY", None)
@@ -51,7 +51,7 @@ waypoints_list = get_default_waypoints(
     location_info_response = location_info_response,
     agent_states = response.agent_states[0:num_example_agents],
     destination_waypoints = destination_waypoints,
-    target_distances = target_distances
+    min_distances = min_distances
 )
 
 idx = [0 for _ in range(num_example_agents)] # starting index of the waypoint
