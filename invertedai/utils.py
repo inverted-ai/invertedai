@@ -1257,10 +1257,11 @@ class ScenePlotter():
                 agent_idx=i,
                 frame_idx=frame_idx
             )
-            self._plot_waypoint(
-                agent_idx=i,
-                frame_idx=frame_idx
-            )
+            if self.numbers is not None and i in self.numbers:
+                self._plot_waypoint(
+                    agent_idx=i,
+                    frame_idx=frame_idx
+                )
 
         if self.traffic_lights_history[frame_idx] is not None:
             for light_id, light_state in self.traffic_lights_history[frame_idx].items():
