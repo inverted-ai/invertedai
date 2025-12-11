@@ -1,10 +1,101 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
+from dataclasses import dataclass
+from math import sqrt
 import lanelet2
 import random
 import numpy as np
 
-from invertedai.common import AgentState, Point
+from invertedai.common import AgentState, Point, AgentProperties
 from invertedai.api.location import LocationResponse
+from invertedai.api.initialize import InitializeResponse
+from invertedai.api.drive import DriveResponse
+
+@dataclass
+class WaypointManagerConfig:
+    waypoint_threshold: float = 5.0 #Distance in meters away from the waypoint to be considered reached
+    waypoint_spacing: float = 15.0
+
+class WaypointManager:
+    def __init__(
+        self,
+        location_info_response: LocationResponse,
+        cfg: Optional[WaypointManagerConfig] = None
+    ):
+        if cfg is None:
+            self.cfg = WaypointManagerConfig()
+        else:
+            self.cfg = cfg
+        self.waypoint_threshold = cfg.waypoint_threshold
+
+        self.lanelet_map = location_info_response.get_lanelet_map()
+
+    @property
+    def agent_properties(self) -> List[AgentProperties]:
+        return self.agent_properties
+    
+    def update(
+        self,
+        response: Union[InitializeResponse,DriveResponse],
+        agent_properties: List[AgentProperties],
+        agents_mask: Optional[List[bool]] = None
+    ) -> List[AgentProperties]:
+        """
+        Given the current agent states, output agent properties populated with waypoints.
+
+        Args:
+            response (Union[InitializeResponse,DriveResponse]): A response object containing agent states used to calculate waypoints.
+            agent_properties (List[AgentProperties]): The list of agent properties in which to check for existing waypoints and add any
+                newly generated waypoints.
+            agents_mask (List[bool]): All indices set to True will have their waypoints updated while indices set to False will be ignored
+                and unchanged.
+
+        Returns:
+            List[AgentProperties]: List of agent properties containing waypoints to execute (unless specified otherwise by the agent mask).
+        """
+        agent_states = response.agent_states
+        num_agents = len(agent_states)
+        assert num_agents == len(agent_properties), "Given number of agent states does not match given number of agent properties."
+
+        if agents_mask is None:
+            agents_mask = [True for _ in range()]
+
+        _agent_properties = []
+
+        for i, mask in enumerate(agents_mask):
+            props = agent_properties[i]
+            if mask:
+                state = agent_states[i]
+                if props.waypoints is not None and len(props.waypoints) > 0:
+                    if self.check_waypoint_achieved(
+                        agent_state = state,
+                        waypoint = props.waypoints[0]
+                    ):
+                        props.waypoints.pop(0)
+                
+                if props.waypoints is None or len(props.waypoints) == 0: #Check both if is None or empty
+                    props.waypoints = generate_waypoints_from_lane_ids(
+                        start_state=state,
+                        lanelet_map=self.lanelet_map, 
+                        waypoint_spacing=self.cfg.waypoint_spacing,
+                        lane_ids=generate_lane_ids_from_lanelet_map(
+                            start_state=state, 
+                            lanelet_map=self.lanelet_map,
+                            # waypoint=destination,
+                            # target_distance=dist
+                        )
+                    )
+
+            _agent_properties.append(props)
+
+
+        return _agent_properties
+
+    def check_waypoint_achieved(
+        self,
+        agent_state: AgentState,
+        waypoint: Point
+    ) -> bool:
+        return sqrt(waypoint.x - agent_state.center.x) ** 2 + (waypoint.y - agent_state.center.y) ** 2 < self.waypoint_threshold
 
 def get_default_waypoints(
     location_info_response: LocationResponse,
