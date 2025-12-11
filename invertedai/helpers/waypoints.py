@@ -13,7 +13,7 @@ from invertedai.api.drive import DriveResponse
 @dataclass
 class WaypointManagerConfig:
     waypoint_threshold: float = 5.0 #Distance in meters away from the waypoint to be considered reached
-    waypoint_spacing: float = 15.0
+    waypoint_spacing: float = 15.0 #Distance in meters between waypoints along a path to an end goal
 
 class WaypointManager:
     def __init__(
@@ -21,6 +21,9 @@ class WaypointManager:
         location_info_response: LocationResponse,
         cfg: Optional[WaypointManagerConfig] = None
     ):
+        #TODO Add ability to change destination or target distance of waypoints
+        #TODO Update example file with this maanger
+        
         if cfg is None:
             self.cfg = WaypointManagerConfig()
         else:
@@ -28,10 +31,6 @@ class WaypointManager:
         self.waypoint_threshold = cfg.waypoint_threshold
 
         self.lanelet_map = location_info_response.get_lanelet_map()
-
-    @property
-    def agent_properties(self) -> List[AgentProperties]:
-        return self.agent_properties
     
     def update(
         self,
