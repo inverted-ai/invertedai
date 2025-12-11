@@ -351,7 +351,7 @@ def generate_lane_ids_from_lanelet_map(
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), 0)
     filtered_lanelets = []
-    for _, lanelet in starting_lanelets:
+    for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet.id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
         a, b = find_direction_and_nearest_points(lanelet.centerline, lanelet2.core.BasicPoint3d(x, y, 0))
         lane_orientation = np.arctan2(b.y - a.y, b.x - a.x)
         angle = np.absolute((yaw - lane_orientation + np.pi) % (2 * np.pi) - np.pi)
@@ -362,7 +362,7 @@ def generate_lane_ids_from_lanelet_map(
     if destination_waypoint is not None:
         ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
         possible_routes = []
-        for _, ending_lanelet in ending_lanelets:
+        for _, ending_lanelet in sorted(ending_lanelets, key=lambda lanelet: lanelet.id):
             for starting_lanelet in filtered_lanelets:
                 possible_route = routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=lane_change)
                 if possible_route:
@@ -371,7 +371,7 @@ def generate_lane_ids_from_lanelet_map(
             return []
         return [lanelet.id for lanelet in random.choice(possible_routes).shortestPath()]
     else:
-        ending_lanelets = random.sample([lanelet for lanelet in lanelet_map.laneletLayer], len(lanelet_map.laneletLayer))
+        ending_lanelets = random.sample(sorted([lanelet for lanelet in lanelet_map.laneletLayer], key=lambda lanelet: lanelet.id), len(lanelet_map.laneletLayer))
         for ending_lanelet in ending_lanelets:
             possible_routes = []
             for starting_lanelet in filtered_lanelets:
