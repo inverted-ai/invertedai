@@ -43,7 +43,7 @@ def sample_linestring(
     spacing: float = 1.0
 ) -> List[np.ndarray]:
     """
-    Sample a linestring at `spacing` meter intervals.
+    Sample a linestring at `spacing` intervals.
 
     Args:
         linestring (List[np.ndarray]): List of points representing the linestring.
@@ -100,7 +100,7 @@ def find_min_distance_from_point_to_line(
     line: List[np.ndarray]
 ) -> Tuple[float, int]:
     """
-    Finds the minimum distance from a point to a line defined by a list of points.
+    Finds the minimum distance from a point to a line
 
     Args:
         point (np.ndarray): The 2D reference point.
@@ -132,7 +132,7 @@ def lane_change_points(
     transition_distance: int
 ) -> Tuple[np.ndarray, np.ndarray, int, int, np.ndarray, np.ndarray]:
     """
-    Finds the start and end points for a lane change between two linestrings.
+    Finds the start and end points to initiate and complete a lane change between two lanes.
 
     Args:
         linestring1 (List[np.ndarray]): The lane to initiate the lane change from.
@@ -164,7 +164,7 @@ def generate_waypoints_from_lane_ids(
     lanelet_map: lanelet2.core.LaneletMapLayers, 
     lane_ids: List[int], 
     waypoint_spacing: float = 15.0,
-    waypoint: Optional[Point] = None,
+    destination_waypoint: Optional[Point] = None,
     transition_distance: int = 3,
     lane_change_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray] = hermite_spline,
 ) -> List[Point]:
@@ -176,7 +176,7 @@ def generate_waypoints_from_lane_ids(
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
         lane_ids (List[int]): Sequence of lane ids to follow.
         waypoint_spacing (float): Spacing between the waypoints in meters. Defaults to 15.
-        waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
+        destination_waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
         transition_distance (int): Distance over which to perform lane change transitions. Defaults to 3.
         lane_change_fn (Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray], optional): Function to use for lane change interpolation. Defaults to hermite_spline.
 
@@ -244,14 +244,14 @@ def generate_waypoints_from_lane_ids(
         del lane1_centerline[start_idx:]
         del lane2_centerline[:end_idx]
         lane1_centerline.extend([np.array([points[0][t_idx], points[1][t_idx]]) for t_idx in range(t_sample.shape[0])])
-    if waypoint:
+    if destination_waypoint:
         dist, idx = find_min_distance_from_point_to_line(
-            np.array([waypoint.x, waypoint.y]),
+            np.array([destination_waypoint.x, destination_waypoint.y]),
             [point for point in lanelets[-1][-1]]
         )
         if dist < 5.0:
             del lanelets[-1][-1][idx:]
-            lanelets[-1][-1].append(np.array([waypoint.x, waypoint.y]))
+            lanelets[-1][-1].append(np.array([destination_waypoint.x, destination_waypoint.y]))
         else:
             logger.warning("Could not find the given waypoint on the last lane within 5 meters, ignoring the given waypoint. Try adjusting the transition distance or waypoint position.")
     all_centerline_points = np.array([point for lanes in lanelets for lane in lanes for point in lane])
@@ -274,7 +274,7 @@ def generate_lane_ids_from_lanelet_map(
     start_state: AgentState, 
     lanelet_map: lanelet2.core.LaneletMapLayers, 
     min_distance: float = 600.0, 
-    waypoint: Optional[Point] = None,
+    destination_waypoint: Optional[Point] = None,
     lane_change: bool = False,
     seed: int = 0,
 ) -> List[int]:
@@ -286,10 +286,10 @@ def generate_lane_ids_from_lanelet_map(
     Args:
         start_state (AgentState): The starting state of the agent.
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
-        min_distance (float): Minimum distance in meters to generate. Ignored if waypoint is specified. Defaults to 600.
-        waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
+        min_distance (float): Minimum distance in meters to generate. Ignored if destination_waypoint is specified. Defaults to 600.
+        destination_waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
         lane_change (bool): Whether lane changes are supported. Defaults to False.
-        seed (int): Random seed for reproducibility when waypoint is not specified. Defaults to 0.
+        seed (int): Random seed for reproducibility. Defaults to 0.
 
     Returns:
         List[int]: Sequence of lane ids to follow. Empty if no routes are possible.
@@ -307,8 +307,8 @@ def generate_lane_ids_from_lanelet_map(
             filtered_lanelets.append(lanelet)
     if len(filtered_lanelets) == 0:
         return []
-    if waypoint is not None:
-        ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(waypoint.x, waypoint.y), 0)
+    if destination_waypoint is not None:
+        ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
         possible_routes = []
         for _, ending_lanelet in ending_lanelets:
             for starting_lanelet in filtered_lanelets:
