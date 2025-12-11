@@ -13,7 +13,7 @@ waypoint_threshold = 5.0
 seed = int(time.time())
 
 destination_waypoints = [None,None,Point(x=100.0, y=0.0)]
-target_distances = [None,600.0,None]
+target_distances = [None,100.0,None]
 num_example_agents = len(destination_waypoints)
 
 api_key = os.environ.get("IAI_API_KEY", None)
@@ -40,7 +40,7 @@ scene_plotter = iai.utils.ScenePlotter(
     (location_info_response.map_center.x, location_info_response.map_center.y),
     location_info_response.static_actors,
     resolution = (2048,2048),
-    left_hand_coordinates = True
+    left_hand_coordinates = location.split(":")[0] == "carla"
 )
 scene_plotter.initialize_recording(
     agent_states=response.agent_states,
