@@ -336,7 +336,7 @@ def generate_lane_ids_from_lanelet_map(
     Args:
         start_state (AgentState): The starting state of the agent.
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
-        min_distance (float): Minimum distance in meters to generate. Ignored if destination_waypoint is specified. Defaults to 600.
+        min_distance (float): Minimum distance in meters to generate. Ignored if destination_waypoint is specified. Defaults to None.
         destination_waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
         lane_change (bool): Whether lane changes are supported. Defaults to False.
         seed (int): Random seed for reproducibility. Defaults to 0.
@@ -380,12 +380,13 @@ def generate_lane_ids_from_lanelet_map(
                     possible_routes.append(possible_route)
             if not possible_routes:
                 continue
+            candidate_routes = []
             for route in possible_routes:
                 if route.length2d() >= min_distance:
-                    return [lanelet.id for lanelet in route.shortestPath()]
-
-    return []
-
+                    candidate_routes.append(route)
+            if not candidate_routes:
+                return []
+            return [lanelet.id for lanelet in random.choice(candidate_routes).shortestPath()]
 
 def find_direction_and_nearest_points(
     linestring: lanelet2.core.ConstLineString3d, 
