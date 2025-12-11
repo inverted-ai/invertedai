@@ -8,8 +8,11 @@ from invertedai.api.location import location_info
 from invertedai.api.initialize import initialize, async_initialize
 from invertedai.api.drive import drive, async_drive
 from invertedai.api.blame import blame, async_blame
+
 from invertedai.cosimulation import BasicCosimulation
+
 from invertedai.utils import Jupyter_Render, IAILogger, Session
+
 from invertedai.large.initialize import (
     get_regions_in_grid, 
     get_number_of_agents_per_region_by_drivable_area, 
@@ -17,9 +20,15 @@ from invertedai.large.initialize import (
     large_initialize
 )
 from invertedai.large.drive import large_drive
+
 from invertedai.logs.logger import LogWriter, LogReader
 from invertedai.logs.diagnostics import DiagnosticTool
 from invertedai.logs.debug_logger import DebugLogger
+
+from invertedai.helpers.waypoints import (
+   WaypointManagerConfig,
+   WaypointManager
+)
 
 warnings.filterwarnings(action="once",message=".*agent_attributes.*")
 
