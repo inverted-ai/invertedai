@@ -1172,6 +1172,7 @@ class ScenePlotter():
             plot_frame_number=plot_frame_number
         )
         self._update_frame_to(idx)
+
     def _initialize_plot(
         self, 
         ax=None, 
@@ -1230,11 +1231,12 @@ class ScenePlotter():
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
         for marker in self.waypoint_markers.values():
-            if isinstance(marker, list):
-                for m in marker:
+            elem = marker["marker"]
+            if isinstance(elem, list):
+                for m in elem:
                     m.set_visible(False)
             else:
-                marker.set_visible(False)
+                elem.set_visible(False)
         for lines in self.dir_lines.values():
             if isinstance(lines, list):
                 for line in lines:
@@ -1346,7 +1348,9 @@ class ScenePlotter():
                     x, 
                     y, 
                     str(agent_idx), 
-                    c="r", 
+                    c="r",
+                    ha='center',
+                    va='center',
                     fontsize=18
                 )
                 self.box_labels[agent_idx].set_clip_on(True)
@@ -1404,21 +1408,38 @@ class ScenePlotter():
             marker_data = 'o'
 
             if agent_idx not in self.waypoint_markers:
-                self.waypoint_markers[agent_idx], = self.current_ax.plot(
+                self.waypoint_markers[agent_idx] = dict()
+                self.waypoint_markers[agent_idx]["marker"] = self.current_ax.plot(
                     x_data,
                     y_data,
                     marker=marker_data,
                     color='saddlebrown',
-                    markersize=15.0,
+                    markersize=17.0,
                     linestyle='None',
                     zorder=6
+                )[0]
+                self.waypoint_markers[agent_idx]["text"] = self.current_ax.text(
+                    x=x_data,
+                    y=y_data,
+                    s=str(agent_idx),
+                    c='w',
+                    ha='center',
+                    va='center',
+                    fontsize=18,
+                    zorder=6
                 )
+                self.waypoint_markers[agent_idx]["text"].set_clip_on(True)
             else:
-                marker = self.waypoint_markers[agent_idx]
+                marker = self.waypoint_markers[agent_idx]["marker"]
                 marker.set_xdata([x_data])
                 marker.set_ydata([y_data])
                 marker.set_marker(marker_data)
                 marker.set_visible(True)
+
+                text = self.waypoint_markers[agent_idx]["text"]
+                text.set_x(x_data)
+                text.set_y(y_data)
+                text.set_visible(True)
 
     def _plot_traffic_light(
         self, 

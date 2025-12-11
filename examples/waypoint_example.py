@@ -7,10 +7,11 @@ import os
 import time
 
 location = "carla_right_handed:Town10HD"  # select one of available locations
-simulation_length = 200
+simulation_length = 300
 seed = int(time.time())
 drive_model = "X9uN"
 num_agents = 10
+fov = 250
 
 api_key = os.environ.get("IAI_API_KEY", None)
 if api_key is None:
@@ -22,6 +23,7 @@ print("Begin initialization.")
 location_info_response = iai.location_info(
     location=location, 
     include_map_source=True,
+    rendering_fov=fov
 )
 
 # initialize the simulation by spawning NPCs
@@ -42,7 +44,7 @@ agent_properties = wp_manager.update(
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_plotter = iai.utils.ScenePlotter(
     map_image = rendered_static_map,
-    fov = location_info_response.map_fov,
+    fov = fov,
     xy_offset = (location_info_response.map_center.x, location_info_response.map_center.y),
     static_actors = location_info_response.static_actors,
     resolution = (2048,2048),
