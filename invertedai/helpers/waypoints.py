@@ -527,7 +527,7 @@ def generate_lane_ids_from_lanelet_map(
     if destination_waypoint is not None:
         ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
         possible_routes = []
-        for _, ending_lanelet in sorted(ending_lanelets, key=lambda lanelet: lanelet.id):
+        for _, ending_lanelet in sorted(ending_lanelets, key=lambda lanelet: lanelet[1].id):
             for starting_lanelet in filtered_lanelets:
                 possible_route = routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=lane_change)
                 if possible_route:
