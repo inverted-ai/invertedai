@@ -119,17 +119,14 @@ static void draw_traffic_lights(
         }
         if (!A) continue;
 
-        // Matching Python: l, w = max(length,1), max(width,1)
         double l_m = std::max(1.0, A->length.value_or(1.0));
         double w_m = std::max(1.0, A->width.value_or(1.0));
 
-        // Convert to pixels using same scale as agents
-        double l_px = l_m * scale;
-        double w_px = w_m * scale;
+        double l_px = l_m * scale*1.2;
+        double w_px = w_m * scale*1.2;
 
-        // Orientation in degrees (OpenCV expects degrees)
-        double psi_deg = A->orientation * 180.0 / CV_PI;
-        if (flip_x) psi_deg = -psi_deg;
+        double psi_deg = - A->orientation * 180.0 / CV_PI;
+        if (flip_x) psi_deg = 180.0 -psi_deg;
 
         cv::RotatedRect box(center_px, cv::Size2f(l_px, w_px), psi_deg);
         cv::Point2f v[4];
@@ -305,7 +302,7 @@ void paste_region_tile_drive(
 int main(int argc, char** argv) {
     LogReader log_reader;
     std::cout << "here\n";
-    log_reader.read_log("invertedai/carla_Town10HD_log_long.json");
+    log_reader.read_log("invertedai/carla_Town03_log.json");
     std::cout << "read";
     const int total_num_agents = log_reader.get_total_num_agents();
     const std::string location = log_reader.get_location();
@@ -353,7 +350,7 @@ int main(int argc, char** argv) {
         total_num_agents,                              
         agent_count_dict,                              
         session,
-        std::make_pair(500/2.f, 500/2.f), 
+        std::make_pair(900/2.f, 900/2.f), 
         map_center,                                    
         seed                               
     );
@@ -366,7 +363,7 @@ int main(int argc, char** argv) {
         500,                               //  a lot of agents to initialize every tile 
         agent_count_dict_drive,                              
         session,
-        std::make_pair(400/2.f, 400/2.f), 
+        std::make_pair(900/2.f, 900/2.f), 
         map_center,                        // map center from location_info
         seed                               // random seed
 
