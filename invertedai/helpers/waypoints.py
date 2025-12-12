@@ -345,8 +345,6 @@ def generate_lane_ids_from_lanelet_map(
         List[int]: Sequence of lane ids to follow. Empty if no routes are possible.
     """
     rng = np.random.default_rng(seed)
-    if min_distance is None:
-        min_distance = 600.0
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), 0)
@@ -386,7 +384,7 @@ def generate_lane_ids_from_lanelet_map(
                 continue
             candidate_routes = []
             for route in possible_routes:
-                if route.length2d() >= min_distance:
+                if min_distance is not None and route.length2d() >= min_distance:
                     candidate_routes.append(route)
             if candidate_routes:
                 return [lanelet.id for lanelet in rng.choice(candidate_routes).shortestPath()]
