@@ -59,10 +59,11 @@ class WaypointManager:
             self.cfg = WaypointManagerConfig()
         else:
             self.cfg = cfg
+        
         self.waypoint_threshold = self.cfg.waypoint_threshold
-
         self.lanelet_map = location_info_response.get_lanelet_map()
-    
+        self.rng = np.random.default_rng(self.cfg.random_seed)
+
     def update(
         self,
         response: Union[InitializeResponse,DriveResponse],
@@ -185,7 +186,7 @@ class WaypointManager:
                 start_state=state, 
                 lanelet_map=self.lanelet_map,
                 destination_waypoint=destination,
-                seed=self.cfg.random_seed
+                seed=self.rng.integers(low=1, high=1700000000)
             )
         )
     
