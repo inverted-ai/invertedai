@@ -326,7 +326,7 @@ def generate_lane_ids_from_lanelet_map(
     min_distance: Optional[float] = None, 
     destination_waypoint: Optional[Point] = None,
     lane_change: bool = False,
-    seed: int = 0,
+    seed: Optional[int] = None,
 ) -> List[int]:
     """
     Generates a sequence of lane ids. If given a waypoint, it will generate the shortest possible route between
@@ -339,12 +339,12 @@ def generate_lane_ids_from_lanelet_map(
         min_distance (float): Minimum distance in meters to generate. Ignored if destination_waypoint is specified. Defaults to None.
         destination_waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
         lane_change (bool): Whether lane changes are supported. Defaults to False.
-        seed (int): Random seed for reproducibility. Defaults to 0.
+        seed (Optional[int]): Random seed for reproducibility. Defaults to None.
 
     Returns:
         List[int]: Sequence of lane ids to follow. Empty if no routes are possible.
     """
-    random.seed(seed)
+    rng = np.random.default_rng(seed)
     if min_distance is None:
         min_distance = 600.0
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
@@ -369,9 +369,13 @@ def generate_lane_ids_from_lanelet_map(
                     possible_routes.append(possible_route)
         if not possible_routes:
             return []
-        return [lanelet.id for lanelet in random.choice(possible_routes).shortestPath()]
+        return [lanelet.id for lanelet in rng.choice(possible_routes).shortestPath()]
     else:
-        ending_lanelets = random.sample(sorted([lanelet for lanelet in lanelet_map.laneletLayer], key=lambda lanelet: lanelet.id), len(lanelet_map.laneletLayer))
+        all_lanelets_sorted = sorted(
+            [ll for ll in lanelet_map.laneletLayer],
+            key=lambda ll: ll.id
+        )
+        ending_lanelets = rng.choice(all_lanelets_sorted, size=len(all_lanelets_sorted), replace=False)
         for ending_lanelet in ending_lanelets:
             possible_routes = []
             for starting_lanelet in filtered_lanelets:
@@ -384,10 +388,10 @@ def generate_lane_ids_from_lanelet_map(
             for route in possible_routes:
                 if route.length2d() >= min_distance:
                     candidate_routes.append(route)
-            if not candidate_routes:
-                return []
-            return [lanelet.id for lanelet in random.choice(candidate_routes).shortestPath()]
-
+            if candidate_routes:
+                return [lanelet.id for lanelet in rng.choice(candidate_routes).shortestPath()]
+        return []
+    
 def find_direction_and_nearest_points(
     linestring: lanelet2.core.ConstLineString3d, 
     location3d: lanelet2.core.BasicPoint3d
