@@ -11,6 +11,188 @@
 using json = nlohmann::json;
 
 namespace invertedai {
+    template<typename ValueType>
+    std::vector<std::pair<std::string, ValueType>>
+    sort_dict(
+        const std::map<std::string, ValueType>& dict,
+        const std::map<std::string, int>& id_map
+    ) {
+        std::vector<std::pair<std::string, ValueType>> out;
+        out.reserve(dict.size());
+    
+        for (const auto& kv : dict) {
+            out.emplace_back(std::string(kv.first), kv.second);
+        }
+    
+        std::sort(out.begin(), out.end(),
+                  [&](const auto& a, const auto& b) {
+                      return id_map.at(a.first) < id_map.at(b.first);
+                  });
+    
+        return out;
+    }
+    void LogReader::read_log(const std::string &file_path) {
+        std::cout << "Reading log from: " << file_path << std::endl;
+        std::cout << "ENTER read_log" << std::endl;
+        std::cout << "file_path = " << file_path << std::endl;
+        std::string json_body = invertedai::read_file(file_path.c_str());
+        std::cout << "json_body size = " << json_body.size() << std::endl;
+
+        json j = json::parse(json_body);
+        std::cout << "JSON parsed successfully" << std::endl;
+        std::cout << j.dump(2) << std::endl;
+
+        location = j["location"]["identifier"];
+
+        if (j.contains("scenario_length")) {
+            this->scenario_length = j["scenario_length"];
+        }
+        if (j.contains("num_agents")) { // assuming only car agents for now
+            this->num_agents = j["num_agents"]["car"];
+        }
+        std::vector<std::map<std::string, AgentState>> all_agent_states_unsorted;
+        std::map<std::string, AgentProperties> all_agent_properties_unsorted;
+
+        std::vector<std::vector<int>> present_indexes_unsorted;
+
+        std::map<std::string, int> agent_id_list;
+        int agent_id_sequence_num = 0;
+
+        for(int t = 0; t < this->scenario_length; t++) {
+            std::map<std::string, AgentState> agent_states_ts;
+            std::vector<int> present_indexes_ts;
+
+            for (auto& kv : j["predetermined_agents"].items()) {
+                std::string agent_id = kv.key();
+                const json& agent = kv.value();
+
+                // If first time encountering the agent ID
+                if (agent_id_list.count(agent_id) == 0) {
+
+                    const json& attr = agent["static_attributes"];
+                    AgentProperties props;
+                    props.length = attr["length"].get<double>();
+                    props.width = attr["width"].get<double>();
+                    props.rear_axis_offset = attr["rear_axis_offset"].get<double>();
+                    props.agent_type = agent["entity_type"].get<std::string>();
+
+                    all_agent_properties_unsorted[agent_id] = props;
+                    agent_id_list[agent_id] = agent_id_sequence_num++;
+                }
+                // Read agent state for this time step
+                std::string ts_key = std::to_string(t);
+
+                if (agent["states"].contains(ts_key)) {
+                    present_indexes_ts.push_back(agent_id_list[agent_id]);
+
+                    const json& st = agent["states"][ts_key];
+                    AgentState state;
+                    state.x = st["center"]["x"].get<double>();
+                    state.y = st["center"]["y"].get<double>();
+                    state.orientation = st["orientation"].get<double>();
+                    state.speed = st["speed"].get<double>();
+
+                    agent_states_ts[agent_id] = state;
+                }
+            }
+            all_agent_states_unsorted.push_back(agent_states_ts);
+            present_indexes_unsorted.push_back(present_indexes_ts);
+        }
+
+        auto properties_sorted = sort_dict(all_agent_properties_unsorted, agent_id_list);
+
+        for (auto& kv : properties_sorted) {
+            sorted_agent_properties.push_back(kv.second);
+        }
+        
+        
+     
+        for (auto& states_map : all_agent_states_unsorted) {
+        
+            auto sorted_vec = sort_dict(states_map, agent_id_list);
+        
+            std::vector<AgentState> states_only;
+            states_only.reserve(sorted_vec.size());
+        
+            for (auto& kv : sorted_vec) {
+                states_only.push_back(kv.second);
+            }
+        
+            
+            agent_states_over_time.push_back(states_only);
+        }
+        
+        
+        // sort present indexes
+        std::vector<std::vector<int>> present_indexes_sorted;
+        for (auto& vec : present_indexes_unsorted) {
+            std::sort(vec.begin(), vec.end());
+            present_indexes_sorted.push_back(vec);
+        }
+
+        if (j.contains("predetermined_controls")) {
+            std::vector<std::map<std::string,std::string>> tl_history(scenario_length);
+            tl_history.resize(scenario_length);
+
+            for (int t = 0; t < scenario_length; t++) {
+                std::string ts_key = std::to_string(t);
+        
+                for (auto& kv : j["predetermined_controls"].items()) {
+                    const std::string actor_id = kv.key();
+                    const json& actor = kv.value();
+        
+                    if (actor["entity_type"] == "traffic_light" &&
+                        actor["states"].contains(ts_key)) 
+                    {
+                        tl_history[t][actor_id] =
+                            actor["states"][ts_key]["control_state"].get<std::string>();
+                    }
+                }
+            }
+            this->traffic_light_states_over_time = tl_history;
+        }
+        std::map<std::string, std::vector<Point2d>> agent_waypoints;
+
+        // if (j.contains("individual_suggestions")) { // ignore for now
+
+        //     for (auto& kv : j["individual_suggestions"].items()) {
+        //         std::string agent_id = kv.key();
+        //         agent_waypoints[agent_id] = {};
+
+        //         for (auto& pt : kv.value()["states"]) {
+        //             const json& c = pt["center"];
+        //             agent_waypoints[agent_id].push_back(
+        //                 Point::fromList({c["x"], c["y"]})
+        //             );
+        //         }
+        //     }
+
+        //     if (agent_waypoints.empty())
+        //         this->agent_waypoints = std::nullopt;
+        //     else
+        //         this->agent_waypoints = agent_waypoints;
+        // }
+    }
+
+    std::string LogReader::get_location() {
+        return this->location;
+    }
+    int LogReader::get_total_num_agents() {
+        return this->num_agents;
+    }
+    int LogReader::get_scenario_length() {
+        return this->scenario_length;
+    }
+    std::vector<AgentProperties> LogReader::get_agent_properties() {
+        return this->sorted_agent_properties;
+    }
+    std::vector<std::vector<AgentState>> LogReader::get_agent_states_over_time() {
+        return this->agent_states_over_time;
+    }
+    std::optional<std::vector<std::map<std::string, std::string>>>
+    LogReader::get_traffic_lights_states_over_time() {
+        return this->traffic_light_states_over_time;
+    }
 
     std::string LogWriter::get_current_time_UTC_(){
         auto now = std::chrono::system_clock::now();

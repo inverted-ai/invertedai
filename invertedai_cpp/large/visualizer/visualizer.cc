@@ -302,6 +302,7 @@ void visualize_large_initialize(
     const LocationInfoResponse& li_res,
     bool flip_x
 ) {
+    std::cout << "visualize large initialie \n";
     const double scale = get_render_scale(li_res, final_regions.front());
 
     // cache the regions tiles 
@@ -319,7 +320,13 @@ void visualize_large_initialize(
     const int canvas_h = static_cast<int>(std::ceil(bounds.height * scale));
     cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
     auto clampi = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
-   
+    std::cout << "[DEBUG] bounds.width=" << bounds.width
+        << " bounds.height=" << bounds.height
+        << " scale=" << scale << std::endl;
+
+    std::cout << "[DEBUG] canvas_w=" << canvas_w
+        << " canvas_h=" << canvas_h << std::endl;
+
     // paste all tiles for initilize
     std::cerr << "Pasting " << final_regions.size() << " tiles for large_initialize visualization...\n";
     for (size_t i = 0; i < final_regions.size(); ++i) {
