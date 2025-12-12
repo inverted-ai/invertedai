@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os
 import time
 
-location = "carla_right_handed:Town10HD"  # select one of available locations
+location = "carla_xodr:Town10HD"  # select one of available locations
 simulation_length = 300
 seed = int(time.time())
 drive_model = "X9uN"
