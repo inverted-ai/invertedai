@@ -1,10 +1,8 @@
 from typing import List, Optional, Tuple, Callable
 import lanelet2
-import random
 import numpy as np
 import logging
 
-from scipy.interpolate import interp1d
 from invertedai.common import AgentState, Point
 from invertedai.api.location import LocationResponse
 
@@ -63,16 +61,17 @@ def sample_linestring(
     if cumulative_distances[-1] < 1e-10:
         return [linestring[0]]
     
-    interp_x = interp1d(cumulative_distances, np.array([pt[0] for pt in linestring]), kind='linear')
-    interp_y = interp1d(cumulative_distances, np.array([pt[1] for pt in linestring]), kind='linear')
-    
+    # Prepare sampling locations
     sample_distances = np.arange(0, cumulative_distances[-1], spacing)
-    
-    sampled_points = []
-    for d in sample_distances:
-        sampled_points.append(np.array([interp_x(d), interp_y(d)]))
+
+    # Use numpy.interp for x and y separately (1D each)
+    xs = np.interp(sample_distances, cumulative_distances, np.array([pt[0] for pt in linestring]))
+    ys = np.interp(sample_distances, cumulative_distances, np.array([pt[1] for pt in linestring]))
+
+    sampled_points = [np.array([x, y]) for x, y in zip(xs, ys)]
     
     return sampled_points
+
 
 def find_closest_point_on_line(
     point: np.ndarray, 
@@ -384,7 +383,9 @@ def generate_lane_ids_from_lanelet_map(
                 continue
             candidate_routes = []
             for route in possible_routes:
-                if min_distance is not None and route.length2d() >= min_distance:
+                if min_distance is None:
+                    candidate_routes.append(route)
+                elif route.length2d() >= min_distance:
                     candidate_routes.append(route)
             if candidate_routes:
                 return [lanelet.id for lanelet in rng.choice(candidate_routes).shortestPath()]
