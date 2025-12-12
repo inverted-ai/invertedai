@@ -55,7 +55,6 @@ def get_default_waypoints(
             lanelet_map=lanelet_map,
             destination_waypoint=destination,
             min_distance=dist,
-            lane_change=True,
         ) , 
     ) for state, destination, dist in zip(agent_states,destination_waypoints,min_distances)]
 
