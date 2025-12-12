@@ -215,7 +215,6 @@ def generate_waypoints_from_lane_ids(
     waypoint_spacing: float = 15.0,
     destination_waypoint: Optional[Point] = None,
     transition_distance: int = 3,
-    lane_change_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray] = hermite_spline,
 ) -> List[Point]:
     """
     Generates a list of waypoints from a sequence of lane ids. The start state should be within the first lane.
@@ -227,7 +226,6 @@ def generate_waypoints_from_lane_ids(
         waypoint_spacing (float): Spacing between the waypoints in meters. Defaults to 15.
         destination_waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
         transition_distance (int): Distance over which to perform lane change transitions. Defaults to 3.
-        lane_change_fn (Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray], optional): Function to use for lane change interpolation. Defaults to hermite_spline.
 
     Returns:
         List[Point]: List of waypoints for the agent to follow.
@@ -289,7 +287,7 @@ def generate_waypoints_from_lane_ids(
             transition_distance=transition_distance,
         )
         t_sample = np.linspace(0, 1, 50)
-        points = lane_change_fn(starting_point_on_line1, ending_point_on_line2, m0, m1, t_sample)
+        points = hermite_spline(starting_point_on_line1, ending_point_on_line2, m0, m1, t_sample)
         del lane1_centerline[start_idx:]
         del lane2_centerline[:end_idx]
         lane1_centerline.extend([np.array([points[0][t_idx], points[1][t_idx]]) for t_idx in range(t_sample.shape[0])])
