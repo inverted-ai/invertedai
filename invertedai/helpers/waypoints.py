@@ -136,7 +136,7 @@ class WaypointManager:
 
                 if self.is_missed_waypoint(
                     state = state,
-                    waypoint_list = props.waypoints
+                    agent_properties = props
                 ):
                     #If the current waypoint has been missed, reroute
                     props.waypoints = self.generate_waypoints(
@@ -152,13 +152,13 @@ class WaypointManager:
     def is_missed_waypoint(
         self,
         state: AgentState,
-        waypoint_list: List[Point]
+        agent_properties: AgentProperties,
     ) -> bool:
         # Two-stage check:
         # 1. Check if agent is facing the waypoint
         # 2. If not, check if high resolution path to waypoint is greater than waypoint spacing
         
-        wp = waypoint_list[0]
+        wp = agent_properties.waypoints[0]
         ap = state.center
 
         if self._is_vehicle_pointing_away(
@@ -167,9 +167,12 @@ class WaypointManager:
             psi=state.orientation,
             threshold=pi/2
         ):
+            props = AgentProperties.deserialize(agent_properties.serialize())
+            props.waypoints = None
             wps = self.generate_waypoints(
                 state = state,
-                destination = wp,
+                target_path = [wp],
+                agent_properties = props,
                 waypoint_spacing = 1.0
             )
             
