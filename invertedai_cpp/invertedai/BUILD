@@ -18,6 +18,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -28,6 +29,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -38,6 +40,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -48,6 +51,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -60,6 +64,7 @@ cc_library(
         ":initialize_response",
         "//invertedai/externals:json",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -70,6 +75,7 @@ cc_library(
         ":data_utils",
         "//invertedai/externals:json",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -127,6 +133,20 @@ cc_library(
 )
 
 cc_library(
+    name = "log_visualizer",
+    srcs = ["log_visualizer.cc"],
+    hdrs = ["log_visualizer.h"],
+    deps = [
+        "//large/visualizer:visualizer_helpers",
+        "//invertedai:api",
+        "//invertedai:logger",
+        ":data_utils",
+        "@opencv//:opencv",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "logger",
     srcs = ["logger.cc"],
     hdrs = ["logger.h"],
@@ -139,6 +159,7 @@ cc_library(
         ":location_info_response",
         "//invertedai/externals:json",
     ],
+    visibility = ["//visibility:public"],
 )
 cc_library(
     name = "error",
