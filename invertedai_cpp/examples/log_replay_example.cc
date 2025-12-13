@@ -33,23 +33,25 @@ static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_reg
 /*                                                                                 
             HOW TO RUN EXECUTABLE:
 
-            Join docker:
+            1. cd into invertedai_cpp folder
+
+            2. Join docker:
             docker compose build
             docker compose run --rm dev 
 
-            Export your API key in the docker:
+            3. Export your API key in the docker:
             export IAI_API_KEY="your_key_here"
             
-            Build:
+            4. Build:
             bazel build //examples:log_replay_example
 
-            To run:
+            5. To run:
             ./bazel-bin/examples/log_replay_example
 
 */
 std::string json_path = "examples/carla_Town10HD_log.json";// put example json file here 
-const int width = 400;  // canvas size for rendering 400x400 is good for smaller maps, ex. carla:Town10HD
-const int height = 400; //                           900x900 is good for larger maps, ex. carla:Town03HD
+const int width = 400;  // canvas size for rendering    400x400 is good for smaller maps, ex. carla:Town10HD
+const int height = 400; //                              900x900 is good for larger maps, ex. carla:Town03HD
 int main(int argc, char** argv) {
     LogReader log_reader;
     log_reader.read_log(json_path); 
