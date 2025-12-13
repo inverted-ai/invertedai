@@ -19,8 +19,10 @@ from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 
 logger = logging.getLogger(__name__)
-
 traffic_rules = lanelet2.traffic_rules.create(lanelet2.traffic_rules.Locations.Germany, lanelet2.traffic_rules.Participants.Vehicle)
+
+WAYPOINT_SPACING_MAX = 30.0
+WAYPOINT_SPACING_MIN = 1.0
 
 class WaypointManagerConfig(BaseModel, validate_assignment=True):
     waypoint_threshold: float = 5.0 #Distance in meters away from the waypoint to be considered reached
@@ -37,7 +39,7 @@ class WaypointManagerConfig(BaseModel, validate_assignment=True):
     @field_validator('waypoint_spacing')
     @classmethod
     def validate_spacing(cls, val: float) -> float:
-        if val > 30.0:
+        if val < WAYPOINT_SPACING_MIN or val > WAYPOINT_SPACING_MAX:
             raise ValueError('waypoint_spacing must be not greater than 30.0')
         return val
     
@@ -47,7 +49,6 @@ class WaypointManagerConfig(BaseModel, validate_assignment=True):
         if val < 1.0 or val > 5.0:
             raise ValueError('waypoint_threshold must be between 1.0m and 5.0m')
         return val
-
 
 class WaypointManager:
     def __init__(
@@ -61,6 +62,7 @@ class WaypointManager:
             self.cfg = cfg
         
         self.waypoint_threshold = self.cfg.waypoint_threshold
+        self.waypoint_spacing = self.cfg.waypoint_spacing
         self.lanelet_map = location_info_response.get_lanelet_map()
         self.rng = np.random.default_rng(self.cfg.random_seed)
 
@@ -68,7 +70,7 @@ class WaypointManager:
         self,
         response: Union[InitializeResponse,DriveResponse],
         agent_properties: List[AgentProperties],
-        agent_paths_override: Optional[List[Optional[List[Point]]]] = None,
+        target_paths: Optional[List[Optional[List[Point]]]] = None,
         agents_mask: Optional[List[bool]] = None
     ) -> List[AgentProperties]:
         """
@@ -78,7 +80,7 @@ class WaypointManager:
             response (Union[InitializeResponse,DriveResponse]): A response object containing agent states used to calculate waypoints.
             agent_properties (List[AgentProperties]): The list of agent properties in which to check for existing waypoints and add any
                 newly generated waypoints.
-            agent_paths_override (Optional[List[Optional[List[Point]]]]): A parameter to provide a set of waypoints given a set of key
+            target_path (Optional[List[Optional[List[Point]]]]): A parameter to provide a set of waypoints given a set of key
                 points to achieve. If this parameter is used, its length must match the number of provided agents.
             agents_mask (List[bool]): All indices set to True will have their waypoints updated while indices set to False will be ignored
                 and unchanged. If this parameter is used, its length must match the number of provided agents.
@@ -96,54 +98,67 @@ class WaypointManager:
         else:
             assert num_agents == len(agents_mask), "Given number of agents in agents_mask does not match given number of agent states."
 
-        if agent_paths_override is None:
-            agent_paths_override = [None for _ in range(num_agents)]
+        if target_paths is None:
+            target_paths = [None for _ in range(num_agents)]
         else:
-            assert num_agents == len(agent_paths_override), "Given number of paths in agents_mask does not match given number of agent states."
+            assert num_agents == len(target_paths), "Given number of paths in agents_mask does not match given number of agent states."
 
         _agent_properties = [AgentProperties.deserialize(props.serialize()) for props in agent_properties]
         for i, mask in enumerate(agents_mask):
             props = _agent_properties[i]
-            if agent_paths_override[i] is not None:
-                waypoints_concatenated = []
-                for destination in agent_paths_override[i]:
-                    waypoints_concatenated += self.generate_waypoints(
-                        state=state,
-                        destination=destination
-                    )
-                props.waypoints = waypoints_concatenated
-            
-            elif mask:
+
+            if mask or target_paths[i] is not None:
                 state = agent_states[i]
-                if props.waypoints is not None and len(props.waypoints) > 0:
+                
+                if props.waypoints is None:
+                    # The current agents waypoints need to be initialized
+                    props.waypoints = self.generate_waypoints(
+                        state=state,
+                        target_path = target_paths[i],
+                        agent_properties = props
+                    )
+                
+                if len(props.waypoints) > 0:
+                    # Most common case, check if current waypoint is achieved
                     if self.check_waypoint_achieved(
                         agent_state = state,
                         waypoint = props.waypoints[0]
                     ):
                         props.waypoints.pop(0)
-                
-                if props.waypoints is None or len(props.waypoints) == 0: #Check both if is None or empty
+
+                if len(props.waypoints) == 0:
+                    #Agent is done its route, generate a new route
+                    #Do not pass the original target path as it should be completed if the list is empty
                     props.waypoints = self.generate_waypoints(state=state)
 
-                if self.check_missed_waypoint(
+                if self.is_missed_waypoint(
                     state = state,
                     waypoint_list = props.waypoints
                 ):
-                    props.waypoints = self.generate_waypoints(state=state)
+                    #If the current waypoint has been missed, reroute
+                    props.waypoints = self.generate_waypoints(
+                        state=state,
+                        target_path = target_paths[i],
+                        agent_properties = props
+                    )
 
             _agent_properties[i] = props
 
         return _agent_properties
 
-    def check_missed_waypoint(
+    def is_missed_waypoint(
         self,
         state: AgentState,
         waypoint_list: List[Point]
     ) -> bool:
+        # Two-stage check:
+        # 1. Check if agent is facing the waypoint
+        # 2. If not, check if high resolution path to waypoint is greater than waypoint spacing
+        
         wp = waypoint_list[0]
         ap = state.center
 
-        if self._check_orientation_diff(
+        if self._is_vehicle_pointing_away(
             pt1=ap,
             pt2=wp,
             psi=state.orientation,
@@ -154,16 +169,23 @@ class WaypointManager:
                 destination = wp,
                 waypoint_spacing = 1.0
             )
-            wp_close = wps[0]
+            
+            dist_sum = 0.0
+            for i in range(len(wps)-1):
+                dist_sum += self._get_L2_distance(wps[i],wps[i+1])
+                if dist_sum > self.waypoint_spacing:
+                    return True
+            
+        return False
 
-            return self._check_orientation_diff(
-                pt1=ap,
-                pt2=wp_close,
-                psi=state.orientation,
-                threshold=pi/2
-            )
-
-    def _check_orientation_diff(
+    def _get_L2_distance(
+        self,
+        pt1: Point,
+        pt2: Point
+    ) -> float:
+        return sqrt((pt2.x - pt1.x) ** 2 + (pt2.y - pt1.y) ** 2)
+    
+    def _is_vehicle_pointing_away(
         self,
         pt1: Point,
         pt2: Point,
@@ -175,27 +197,57 @@ class WaypointManager:
     def generate_waypoints(
         self,
         state: AgentState,
-        destination: Optional[Point] = None,
-        waypoint_spacing: Optional[float] = None
-    ) -> List[Point]:
-        return generate_waypoints_from_lane_ids(
-            start_state=state,
-            lanelet_map=self.lanelet_map, 
-            waypoint_spacing=self.cfg.waypoint_spacing if waypoint_spacing is None else waypoint_spacing,
-            lane_ids=generate_lane_ids_from_lanelet_map(
-                start_state=state, 
-                lanelet_map=self.lanelet_map,
-                destination_waypoint=destination,
-                seed=self.rng.integers(low=1, high=1700000000)
+        waypoint_spacing: Optional[float] = None,
+        target_path: Optional[List[Point]] = None,
+        agent_properties: Optional[AgentProperties] = None
+    ) -> List[Point]:        
+        ROUNDING_ERROR = 0.001
+        waypoint_list = []
+        default_target_path = [None]
+        
+        if target_path is None:
+            target_path = default_target_path
+        else:
+            wps = agent_properties.waypoints
+            if wps is None:
+                # This state occurs when an agent with a defined target path needs its waypoints initialized
+                pass
+            else:
+                target_index = None
+                for i, target in enumerate(target_path):
+                    for wp in wps:
+                        if abs(target.x-wp.x) < ROUNDING_ERROR and abs(target.y-wp.y) < ROUNDING_ERROR:
+                            target_index = i
+                            break
+                    if target_index is not None: break
+                
+                if target_index is not None:
+                    target_path = target_path[target_index:]
+                else:
+                    target_path = default_target_path
+                
+        for destination_waypoint in target_path:
+            waypoint_list += generate_waypoints_from_lane_ids(
+                start_state=state,
+                lanelet_map=self.lanelet_map, 
+                destination_waypoint=destination_waypoint,
+                waypoint_spacing=self.waypoint_spacing if waypoint_spacing is None else waypoint_spacing,
+                lane_ids=generate_lane_ids_from_lanelet_map(
+                    start_state=state, 
+                    lanelet_map=self.lanelet_map,
+                    destination_waypoint=destination_waypoint,
+                    seed=self.rng.integers(low=1, high=1000000000)
+                )
             )
-        )
+
+        return waypoint_list
     
     def check_waypoint_achieved(
         self,
         agent_state: AgentState,
         waypoint: Point
     ) -> bool:
-        return sqrt((waypoint.x - agent_state.center.x) ** 2 + (waypoint.y - agent_state.center.y) ** 2) < self.waypoint_threshold
+        return self._get_L2_distance(agent_state.center,waypoint) < self.waypoint_threshold
 
 def get_default_waypoints(
     location_info_response: LocationResponse,
