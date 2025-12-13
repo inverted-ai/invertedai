@@ -25,7 +25,7 @@ WAYPOINT_SPACING_MAX = 30.0
 WAYPOINT_SPACING_MIN = 1.0
 
 class WaypointManagerConfig(BaseModel, validate_assignment=True):
-    waypoint_threshold: float = 5.0 #Distance in meters away from the waypoint to be considered reached
+    waypoint_threshold: float = 3.0 #Distance in meters away from the waypoint to be considered reached
     waypoint_spacing: float = 15.0 #Distance in meters between waypoints along a path to an end goal
     random_seed: int = int(time.time())
 
