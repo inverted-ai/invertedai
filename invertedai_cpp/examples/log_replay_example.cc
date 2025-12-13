@@ -47,7 +47,9 @@ static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_reg
             ./bazel-bin/examples/log_replay_example
 
 */
-std::string json_path = "examples/pol_2_obwodnica_and_wadowicka_poland_log.json";// put example json file here 
+std::string json_path = "examples/carla_Town10HD_log.json";// put example json file here 
+const int width = 400;  // canvas size for rendering 400x400 is good for smaller maps, ex. carla:Town10HD
+const int height = 400; //                           900x900 is good for larger maps, ex. carla:Town03HD
 int main(int argc, char** argv) {
     LogReader log_reader;
     log_reader.read_log(json_path); 
@@ -62,8 +64,6 @@ int main(int argc, char** argv) {
         FLIP_X_FOR_THIS_DOMAIN = true;
     }
     const std::string API_KEY = getenv("IAI_API_KEY"); // in the docker - 'export IAI_API_KEY="your key here"'
-    const int width = 900;
-    const int height = 900;
 
     // Random seed 
     std::random_device rd;
@@ -105,11 +105,11 @@ int main(int argc, char** argv) {
     );
 
     std::map<AgentType,int> agent_count_dict_drive = {
-        {AgentType::car, 1000} // a lot of agents to initialize every tile 
+        {AgentType::car, 2000} // a lot of agents to initialize every tile 
     };
     std::vector<Region> drive_tiles = get_regions_default(
         log_reader.get_location(),
-        1000,                               //  a lot of agents to initialize every tile 
+        2000,                               //  a lot of agents to initialize every tile 
         agent_count_dict_drive,                              
         session,
         std::make_pair(width/2.f, height/2.f), 
