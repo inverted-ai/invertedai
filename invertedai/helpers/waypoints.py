@@ -78,10 +78,13 @@ class WaypointManager:
 
         Args:
             response (Union[InitializeResponse,DriveResponse]): A response object containing agent states used to calculate waypoints.
-            agent_properties (List[AgentProperties]): The list of agent properties in which to check for existing waypoints and add any
-                newly generated waypoints.
-            target_path (Optional[List[Optional[List[Point]]]]): A parameter to provide a set of waypoints given a set of key
-                points to achieve. If this parameter is used, its length must match the number of provided agents.
+            agent_properties (List[AgentProperties]): The list of agent properties in which to check for existing waypoints and add any newly generated 
+                waypoints. If the waypoints field of an agents AgentProperties is None, it is assumed this agent needs to be initialized with new
+                waypoints unless the agents_mask parameter specifies otherwise. The length must match the number of provided agents.
+            target_path (Optional[List[Optional[List[Point]]]]): A set of key target points for agents to achieve. Inner list is the set of key points and
+                the outer list is per agent. If None is given to an agent, waypoints will be generated automatically. Once the agent has successfully executed
+                the target path, it will no longer attempt to follow that target path. If this parameter is used, its length must match the number of 
+                provided agents.
             agents_mask (List[bool]): All indices set to True will have their waypoints updated while indices set to False will be ignored
                 and unchanged. If this parameter is used, its length must match the number of provided agents.
 
@@ -222,6 +225,7 @@ class WaypointManager:
                     if target_index is not None: break
                 
                 if target_index is not None:
+                    #Assume this indicates that the target path has already been achieved
                     target_path = target_path[target_index:]
                 else:
                     target_path = default_target_path
