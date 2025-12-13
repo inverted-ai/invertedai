@@ -31,20 +31,14 @@ namespace invertedai {
     
         return out;
     }
-    void LogReader::read_log(const std::string &file_path) {
-        std::cout << "Reading log from: " << file_path << std::endl;
-        std::cout << "ENTER read_log" << std::endl;
-        std::cout << "file_path = " << file_path << std::endl;
+    void LogReader::read_log(const std::string &file_path) { 
         std::string json_body = invertedai::read_file(file_path.c_str());
-        std::cout << "json_body size = " << json_body.size() << std::endl;
 
         json j = json::parse(json_body);
-        std::cout << "JSON parsed successfully" << std::endl;
-        std::cout << j.dump(2) << std::endl;
 
         location = j["location"]["identifier"];
 
-        if (j.contains("scenario_length")) {
+        if (j.contains("scenario_length")) { // im not familiar w these json logs, so just as a safety measure ?? clarify later!
             this->scenario_length = j["scenario_length"];
         }
         if (j.contains("num_agents")) { // assuming only car agents for now
@@ -105,7 +99,6 @@ namespace invertedai {
             sorted_agent_properties.push_back(kv.second);
         }
         
-        
      
         for (auto& states_map : all_agent_states_unsorted) {
         
@@ -121,7 +114,6 @@ namespace invertedai {
             
             agent_states_over_time.push_back(states_only);
         }
-        
         
         // sort present indexes
         std::vector<std::vector<int>> present_indexes_sorted;
@@ -153,7 +145,7 @@ namespace invertedai {
         }
         std::map<std::string, std::vector<Point2d>> agent_waypoints;
 
-        // if (j.contains("individual_suggestions")) { // ignore for now
+        // if (j.contains("individual_suggestions")) { // ignore waypoints for now...
 
         //     for (auto& kv : j["individual_suggestions"].items()) {
         //         std::string agent_id = kv.key();
