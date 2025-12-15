@@ -50,8 +50,6 @@ static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_reg
 
 */
 std::string json_path = "examples/carla_Town10HD_log.json";// put example json file here 
-const int width = 400;  // canvas size for rendering    400x400 is good for smaller maps, ex. carla:Town10HD
-const int height = 400; //                              900x900 is good for larger maps, ex. carla:Town03HD
 int main(int argc, char** argv) {
     LogReader log_reader;
     log_reader.read_log(json_path); 
@@ -101,7 +99,7 @@ int main(int argc, char** argv) {
         total_num_agents,                              
         agent_count_dict,                              
         session,
-        std::make_pair(width/2.f, height/2.f), 
+        std::make_pair(100/2.f, 100/2.f), 
         map_center,                                    
         seed                               
     );
@@ -114,7 +112,7 @@ int main(int argc, char** argv) {
         2000,                               //  a lot of agents to initialize every tile 
         agent_count_dict_drive,                              
         session,
-        std::make_pair(width/2.f, height/2.f), 
+        std::make_pair(1000/2.f, 1000/2.f), 
         map_center,                        // map center from location_info
         seed                               // random seed
 
@@ -127,7 +125,7 @@ int main(int argc, char** argv) {
     std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles = cache_region_tiles_for_drive(
         session, location, drive_tiles, scale
     );
-    cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
+    cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(0,0,0));
     cv::VideoWriter writer("log_replay.avi",
         cv::VideoWriter::fourcc('M','J','P','G'),
         10, // fps
@@ -145,7 +143,7 @@ int main(int argc, char** argv) {
             const int canvas_w = static_cast<int>(std::ceil(bounds.width * scale));
             const int canvas_h = static_cast<int>(std::ceil(bounds.height * scale));
         
-            cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
+            cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(0,0,0));
         
 
             for (size_t i = 0; i < drive_tiles.size(); ++i) {
@@ -252,7 +250,7 @@ static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_reg
     const std::vector<Region>& drive_tiles,
     double scale
 ) {
-    std::cerr << "Caching " << drive_tiles.size() << " tiles for drive steps...\n";
+    std::cerr << "Caching " << drive_tiles.size() << " tiles for visualization...\n";
     std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> drive_cached_tiles;
     for (size_t i = 0; i < drive_tiles.size(); ++i) {
         const Region& r = drive_tiles[i];
