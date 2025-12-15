@@ -442,16 +442,23 @@ def generate_lane_ids_from_lanelet_map(
     rng = np.random.default_rng(seed)
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
-    starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), 0)
     filtered_lanelets = []
-    for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
-        a, b = _find_direction_and_nearest_points(lanelet.centerline, lanelet2.core.BasicPoint3d(x, y, 0))
-        lane_orientation = np.arctan2(b.y - a.y, b.x - a.x)
-        angle = np.absolute((yaw - lane_orientation + np.pi) % (2 * np.pi) - np.pi)
-        if angle < 75 * np.pi / 180:
-            filtered_lanelets.append(lanelet)
+    radius_to_check = [0.1, 0.5, 1.0]
+    for radius in radius_to_check:
+        starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), radius)
+        for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
+            a, b = _find_direction_and_nearest_points(lanelet.centerline, lanelet2.core.BasicPoint3d(x, y, 0))
+            lane_orientation = np.arctan2(b.y - a.y, b.x - a.x)
+            angle = np.absolute((yaw - lane_orientation + np.pi) % (2 * np.pi) - np.pi)
+            if angle < 75 * np.pi / 180:
+                filtered_lanelets.append(lanelet)
+        if len(filtered_lanelets) > 0:
+            break
+    if len(starting_lanelets) == 0:
+        logger.warning("Could not find any lanes in the starting position.")
+        return []
     if len(filtered_lanelets) == 0:
-        logger.warning("Could not find any lanes in the starting position facing the correct direction.")
+        logger.warning("Could not find any lanes in the starting position that are aligned with the agent's orientation.")
         return []
     if destination_waypoint is not None:
         ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
