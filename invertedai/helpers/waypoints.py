@@ -115,6 +115,7 @@ class WaypointManager:
                 
                 if props.waypoints is None:
                     # The current agents waypoints need to be initialized
+                    print(f"Generating new waypoints for agent_{i}")
                     props.waypoints = self.generate_waypoints(
                         state=state,
                         target_path = target_paths[i],
@@ -132,7 +133,9 @@ class WaypointManager:
                 if len(props.waypoints) == 0:
                     #Agent is done its route, generate a new route
                     #Do not pass the original target path as it should be completed if the list is empty
+                    print(f"Generating new waypoints for agent_{i}")
                     props.waypoints = self.generate_waypoints(state=state)
+
 
                 if self.is_missed_waypoint(
                     state = state,
@@ -448,6 +451,7 @@ def generate_lane_ids_from_lanelet_map(
         if angle < 75 * np.pi / 180:
             filtered_lanelets.append(lanelet)
     if len(filtered_lanelets) == 0:
+        logger.warning("Could not find any lanelets in the starting position facing the correct direction.")
         return []
     if destination_waypoint is not None:
         ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
@@ -458,6 +462,7 @@ def generate_lane_ids_from_lanelet_map(
                 if possible_route:
                     possible_routes.append(possible_route)
         if not possible_routes:
+            logger.warning("Could not find any possible routes between the starting position and the given destination waypoint.")
             return []
         return [lanelet.id for lanelet in rng.choice(possible_routes).shortestPath()]
     else:
@@ -482,6 +487,7 @@ def generate_lane_ids_from_lanelet_map(
                     candidate_routes.append(route)
             if candidate_routes:
                 return [lanelet.id for lanelet in rng.choice(candidate_routes).shortestPath()]
+        logger.warning("Could not find any possible routes from the starting position that satisfy the given minimum distance.")
         return []
     
 def _find_direction_and_nearest_points(
