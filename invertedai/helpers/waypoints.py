@@ -451,7 +451,7 @@ def generate_lane_ids_from_lanelet_map(
         if angle < 75 * np.pi / 180:
             filtered_lanelets.append(lanelet)
     if len(filtered_lanelets) == 0:
-        logger.warning("Could not find any lanelets in the starting position facing the correct direction.")
+        logger.warning("Could not find any lanes in the starting position facing the correct direction.")
         return []
     if destination_waypoint is not None:
         ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
