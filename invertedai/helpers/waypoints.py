@@ -384,14 +384,18 @@ def generate_waypoints_from_lane_ids(
                 if dot_product < 0:
                     logger.warning("The starting position is behind the first lane centerline point even after adjustment. This may lead to unexpected behavior.")
             lane_centerline_points.insert(0, Point(x=x, y=y))
-        if prev_lanelet:
-            assert current_lanelet in routing_graph.following(prev_lanelet, withLaneChanges=True)
-            if current_lanelet == routing_graph.left(prev_lanelet) or current_lanelet == routing_graph.right(prev_lanelet):
-                lanelets.append([])
+        else:
+            if prev_lanelet:
+                assert current_lanelet in routing_graph.following(prev_lanelet, withLaneChanges=True)
+                if current_lanelet == routing_graph.left(prev_lanelet) or current_lanelet == routing_graph.right(prev_lanelet):
+                    lanelets.append([])
         
         lanelets[-1].append(_sample_linestring([np.array([pt.x, pt.y]) for pt in lane_centerline_points], 1)) # sample at 1m interval
 
     for i, (lanes1, lanes2) in enumerate(zip(lanelets[:-1], lanelets[1:])):
+        if not lanes1 or not lanes2: # lane change happened but no points were added... we should skip
+            logger.warning("Lane change detected but no centerline points found in one of the lanes. Skipping lane change...")
+            continue
         lane1_centerline = lanes1[-1]
         lane2_centerline = lanes2[0]
         starting_point_on_line1, ending_point_on_line2, start_idx, end_idx, m0, m1 = _lane_change_points(
@@ -457,7 +461,7 @@ def generate_lane_ids_from_lanelet_map(
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     filtered_lanelets = []
-    radius_to_check = [0.1, 0.5, 1.0]
+    radius_to_check = [0.1, 0.5, 1.0, 2.0, 5.0]
     for radius in radius_to_check:
         starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), radius)
         for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
