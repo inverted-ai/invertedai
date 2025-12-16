@@ -299,7 +299,13 @@ def generate_waypoints_from_lane_ids(
     Returns:
         List[Point]: List of waypoints for the agent to follow.
     """
-    assert len(lane_ids) >= 1, "Expected the lane_ids to be populated"
+    if len(lane_ids) < 1:
+        msg = f"Cannot find path for agent with state: {start_state}"
+        if logger is not None: 
+            logger.error(msg)
+        else:
+            raise Exception(msg)
+    
     def get_lanelet(id):
         for l in lanelet_map.laneletLayer:
             if l.id == id:
@@ -341,7 +347,12 @@ def generate_waypoints_from_lane_ids(
             lane_centerline_points.insert(0, Point(x=x, y=y))
         else:
             if prev_lanelet:
-                assert current_lanelet in routing_graph.following(prev_lanelet, withLaneChanges=True)
+                if not current_lanelet in routing_graph.following(prev_lanelet, withLaneChanges=True):
+                    msg = f"Current lanelet not in routing graph."
+                    if logger is not None: 
+                        logger.error(msg)
+                    else:
+                        raise Exception(msg)
                 if current_lanelet == routing_graph.left(prev_lanelet) or current_lanelet == routing_graph.right(prev_lanelet):
                     lanelets.append([])
         
