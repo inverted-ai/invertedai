@@ -95,17 +95,20 @@ class WaypointManager:
         
         agent_states = response.agent_states
         num_agents = len(agent_states)
-        assert num_agents == len(agent_properties), "Given number of agent properties does not match given number of agent states."
+        if not num_agents == len(agent_properties): 
+            raise ValueError(f"Given number of agent properties does not match given number of agent states.")
 
         if agents_mask is None:
             agents_mask = [True for _ in range(num_agents)]
         else:
-            assert num_agents == len(agents_mask), "Given number of agents in agents_mask does not match given number of agent states."
+            if not num_agents == len(agents_mask): 
+                raise ValueError(f"Given number of agents in agents_mask does not match given number of agent states.")
 
         if target_paths is None:
             target_paths = [None for _ in range(num_agents)]
         else:
-            assert num_agents == len(target_paths), "Given number of paths in agents_mask does not match given number of agent states."
+            if not num_agents == len(target_paths): 
+                raise ValueError("Given number of paths in target_paths does not match given number of agent states.")
 
         log_update = []
         _agent_properties = [AgentProperties.deserialize(props.serialize()) for props in agent_properties]
