@@ -30,7 +30,7 @@ class WaypointManagerConfig(BaseModel, validate_assignment=True):
     waypoint_threshold: float = 10.0 #Distance in meters away from the waypoint to be considered reached
     waypoint_spacing: float = 30.0 #Distance in meters between waypoints along a path to an end goal
     random_seed: int = int(time.time())
-    log_level: Optional[str] = None
+    log_level: Optional[int] = None
 
 class WaypointUpdateFlags(Enum):
     UNINITIALIZE_WAYPOINTS = 0
@@ -60,7 +60,12 @@ class WaypointManager:
         self.lanelet_map = location_info_response.get_lanelet_map()
         self.rng = np.random.default_rng(self.cfg.random_seed)
 
-        self.log = List[List[WaypointManagerLogState]] if self.cfg.log_level is not None else None
+        if self.cfg.log_level is not None:
+            self.logger = logging.getLogger(__name__)
+            self.logger.setLevel(self.cfg.log_level)
+            self.logger.propagate = False
+
+            self.debug_data = List[List[WaypointManagerLogState]] if self.cfg.log_level is not None else None
 
     def update(
         self,
@@ -148,7 +153,7 @@ class WaypointManager:
                         agent_properties = props
                     )
 
-            if self.log is not None:
+            if self.debug_data is not None:
                 log_update.append(
                     WaypointManagerLogState(
                         agent_state=state,
@@ -159,8 +164,8 @@ class WaypointManager:
                 
             _agent_properties[i] = props
 
-        if self.log is not None:
-            self.log.append(log_update)
+        if self.debug_data is not None:
+            self.debug_data.append(log_update)
         
         return _agent_properties
 
@@ -327,6 +332,7 @@ def generate_waypoints_from_lane_ids(
     waypoint_spacing: float = 15.0,
     destination_waypoint: Optional[Point] = None,
     transition_distance: int = 3,
+    logger: Optional[logging.Logger] = None
 ) -> List[Point]:
     """
     Generates a list of waypoints from a sequence of lane ids. The start state should be within the first lane.
@@ -342,8 +348,6 @@ def generate_waypoints_from_lane_ids(
     Returns:
         List[Point]: List of waypoints for the agent to follow.
     """
-    if len(lane_ids) < 1:
-        print(f"Failed state: {start_state}")
     assert len(lane_ids) >= 1, "Expected the lane_ids to be populated"
     def get_lanelet(id):
         for l in lanelet_map.laneletLayer:
@@ -382,7 +386,7 @@ def generate_waypoints_from_lane_ids(
                 waypoint_vec = np.array([second_point.x, second_point.y]) - np.array([x, y])
                 dot_product = np.dot(forward_vec, waypoint_vec)
                 if dot_product < 0:
-                    logger.warning("The starting position is behind the first lane centerline point even after adjustment. This may lead to unexpected behavior.")
+                    if logger is not None: logger.log("The starting position is behind the first lane centerline point even after adjustment. This may lead to unexpected behavior.")
             lane_centerline_points.insert(0, Point(x=x, y=y))
         else:
             if prev_lanelet:
@@ -394,7 +398,7 @@ def generate_waypoints_from_lane_ids(
 
     for i, (lanes1, lanes2) in enumerate(zip(lanelets[:-1], lanelets[1:])):
         if not lanes1 or not lanes2: # lane change happened but no points were added... we should skip
-            logger.warning("Lane change detected but no centerline points found in one of the lanes. Skipping lane change...")
+            if logger is not None: logger.log("Lane change detected but no centerline points found in one of the lanes. Skipping lane change...")
             continue
         lane1_centerline = lanes1[-1]
         lane2_centerline = lanes2[0]
@@ -418,7 +422,7 @@ def generate_waypoints_from_lane_ids(
             del lanelets[-1][-1][idx:]
             lanelets[-1][-1].append(np.array([destination_waypoint.x, destination_waypoint.y]))
         else:
-            logger.warning("Could not find the given waypoint on the last lane within 5 meters, ignoring the given waypoint. Try adjusting the transition distance or waypoint position.")
+            if logger is not None: logger.log("Could not find the given waypoint on the last lane within 5 meters, ignoring the given waypoint. Try adjusting the transition distance or waypoint position.")
     all_centerline_points = np.array([point for lanes in lanelets for lane in lanes for point in lane])
     deltas = np.diff(all_centerline_points, axis=0)
     seg_lengths = np.hypot(deltas[:, 0], deltas[:, 1])
@@ -441,6 +445,7 @@ def generate_lane_ids_from_lanelet_map(
     min_distance: Optional[float] = None, 
     destination_waypoint: Optional[Point] = None,
     seed: Optional[int] = None,
+    logger: Optional[logging.Logger] = None
 ) -> List[int]:
     """
     Generates a sequence of lane ids. If given a waypoint, it will generate the shortest possible route between
@@ -473,10 +478,10 @@ def generate_lane_ids_from_lanelet_map(
         if len(filtered_lanelets) > 0:
             break
     if len(starting_lanelets) == 0:
-        logger.warning("Could not find any lanes in the starting position.")
+        if logger is not None: logger.log("Could not find any lanes in the starting position.")
         return []
     if len(filtered_lanelets) == 0:
-        logger.warning("Could not find any lanes in the starting position that are aligned with the agent's orientation.")
+        if logger is not None: logger.log("Could not find any lanes in the starting position that are aligned with the agent's orientation.")
         return []
     if destination_waypoint is not None:
         ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
@@ -487,7 +492,7 @@ def generate_lane_ids_from_lanelet_map(
                 if possible_route:
                     possible_routes.append(possible_route)
         if not possible_routes:
-            logger.warning("Could not find any possible routes between the starting position and the given destination waypoint.")
+            if logger is not None: logger.log("Could not find any possible routes between the starting position and the given destination waypoint.")
             return []
         return [lanelet.id for lanelet in rng.choice(possible_routes).shortestPath()]
     else:
@@ -512,7 +517,7 @@ def generate_lane_ids_from_lanelet_map(
                     candidate_routes.append(route)
             if candidate_routes:
                 return [lanelet.id for lanelet in rng.choice(candidate_routes).shortestPath()]
-        logger.warning("Could not find any possible routes from the starting position that satisfy the given minimum distance.")
+        if logger is not None: logger.log("Could not find any possible routes from the starting position that satisfy the given minimum distance.")
         return []
     
 def _find_direction_and_nearest_points(
