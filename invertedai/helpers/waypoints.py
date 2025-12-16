@@ -65,7 +65,7 @@ class WaypointManager:
             self.logger.setLevel(self.cfg.log_level)
             self.logger.propagate = False
 
-            self.debug_data = List[List[WaypointManagerLogState]] if self.cfg.log_level is not None else None
+        self.debug_data = List[List[WaypointManagerLogState]] if self.cfg.log_level is not None else None
 
     def update(
         self,
@@ -275,55 +275,6 @@ class WaypointManager:
         waypoint: Point
     ) -> bool:
         return self._get_L2_distance(agent_state.center,waypoint) < self.waypoint_threshold
-
-def get_default_waypoints(
-    location_info_response: LocationResponse,
-    agent_states: List[AgentState],
-    destination_waypoints: Optional[List[Optional[Point]]] = None,
-    min_distances: Optional[List[Optional[float]]] = None
-) -> List[List[Point]]:
-    """
-    Generates a list of waypoints for each given agent state as an initial position.
-
-    Args:
-        location_info_response (LocationResponse): The location info from the relevant map for the simulation.
-        agent_states (List[AgentState]): The list of agents for which a sequence of waypoints will be calculated.
-        destination_waypoints (Optional[List[Optional[Point]]]): List of destination waypoints paired by index 
-            to the respective agent states. The size of this list must match the number of given agent states. If some 
-            of the given agents do not require a destination waypoint, a value of None must be given at the matching index.
-            Refer to :func:`generate_lane_ids_from_lanelet_map` for more details on this parameter.
-        min_distances (Optional[List[Optional[float]]]): List of minimum distances in meters to generate paired by index 
-            to the respective agent states. The size of this list must match the number of given agent states. If some 
-            of the given agents do not require a minimum distance, a value of None must be given at the matching index.
-            Refer to :func:`generate_lane_ids_from_lanelet_map` for more details on this parameter.
-
-    Returns:
-        List[List[Point]]: List of waypoints for the agents to follow per agent.
-    """
-    
-    num_agents = len(agent_states)
-    if destination_waypoints is not None:
-        assert num_agents == len(destination_waypoints), "Given different number of agents and destination waypoints."
-    else:
-        destination_waypoints = [None for _ in range(num_agents)]
-
-    if min_distances is not None:
-        assert num_agents == len(min_distances), "Given different number of agents and minimum distances."
-    else:
-        min_distances = [None for _ in range(num_agents)]
-    
-    lanelet_map = location_info_response.get_lanelet_map()
-    return [generate_waypoints_from_lane_ids(
-        start_state=state,
-        lanelet_map=lanelet_map, 
-        destination_waypoint=destination,
-        lane_ids=generate_lane_ids_from_lanelet_map(
-            start_state=state, 
-            lanelet_map=lanelet_map,
-            destination_waypoint=destination,
-            min_distance=dist,
-        ) , 
-    ) for state, destination, dist in zip(agent_states,destination_waypoints,min_distances)]
 
 def generate_waypoints_from_lane_ids(
     start_state: AgentState, 
