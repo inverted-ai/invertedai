@@ -36,17 +36,17 @@ static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_reg
             1. cd into invertedai_cpp folder
 
             2. Join docker:
-            docker compose build
-            docker compose run --rm dev 
+                docker compose build
+                docker compose run --rm dev 
 
             3. Export your API key in the docker:
-            export IAI_API_KEY="your_key_here"
+                export IAI_API_KEY="your_key_here"
             
             4. Build:
-            bazel build //examples:log_replay_example
+                bazel build //examples:log_replay_example
 
             5. To run:
-            ./bazel-bin/examples/log_replay_example
+                ./bazel-bin/examples/log_replay_example
 
 */
 std::string json_path = "examples/carla_Town10HD_log.json";// put example json file here 
