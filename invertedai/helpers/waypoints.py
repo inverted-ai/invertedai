@@ -65,7 +65,7 @@ class WaypointManager:
             self.logger.setLevel(self.cfg.log_level)
             self.logger.propagate = False
 
-        self.debug_data = List[List[WaypointManagerLogState]] if self.cfg.log_level is not None else None
+        self.debug_data: Optional[List[List[WaypointManagerLogState]]] = [] if self.cfg.log_level is not None else None
 
     def update(
         self,
@@ -459,7 +459,7 @@ def generate_lane_ids_from_lanelet_map(
             ]
             lane_change_candidates = []
             for adj in [routing_graph.left(current), routing_graph.right(current)]:
-                if adj is not None:
+                if adj is not None and adj.id != route[-1]:
                     lane_change_candidates.append(adj)
             choose_straight = (
                 rng.random() < p_straight and straight_candidates
