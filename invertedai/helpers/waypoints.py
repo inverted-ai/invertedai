@@ -5,6 +5,8 @@ from typing import (
     Union
 )
 from pydantic import BaseModel, field_validator, model_validator
+from dataclasses import dataclass
+from enum import Enum
 from math import sqrt, atan2, pi
 
 import lanelet2
@@ -13,7 +15,6 @@ import logging
 import time
 
 from invertedai.common import AgentState, Point, AgentProperties
-
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
@@ -21,34 +22,27 @@ from invertedai.api.drive import DriveResponse
 logger = logging.getLogger(__name__)
 traffic_rules = lanelet2.traffic_rules.create(lanelet2.traffic_rules.Locations.Germany, lanelet2.traffic_rules.Participants.Vehicle)
 
-WAYPOINT_SPACING_MAX = 30.0
-WAYPOINT_SPACING_MIN = 1.0
-
 class WaypointManagerConfig(BaseModel, validate_assignment=True):
-    waypoint_threshold: float = 5.0 #Distance in meters away from the waypoint to be considered reached
-    waypoint_spacing: float = 15.0 #Distance in meters between waypoints along a path to an end goal
-    random_seed: int = int(time.time())
-
-    @model_validator(mode='after')
-    def validate_data(self):
-        self.validate_spacing(self.waypoint_spacing)
-        self.validate_threshold(self.waypoint_threshold)
-
-        return self
-
-    @field_validator('waypoint_spacing')
-    @classmethod
-    def validate_spacing(cls, val: float) -> float:
-        if val < WAYPOINT_SPACING_MIN or val > WAYPOINT_SPACING_MAX:
-            raise ValueError('waypoint_spacing must be not greater than 30.0')
-        return val
+    """
+    Configuration class for the :class:`iai.WaypointManager` class.
+    """
     
-    @field_validator('waypoint_threshold')
-    @classmethod
-    def validate_threshold(cls, val: float) -> float:
-        if val < 1.0 or val > 5.0:
-            raise ValueError('waypoint_threshold must be between 1.0m and 5.0m')
-        return val
+    waypoint_threshold: float = 10.0 #Distance in meters away from the waypoint to be considered reached
+    waypoint_spacing: float = 30.0 #Distance in meters between waypoints along a path to an end goal
+    random_seed: int = int(time.time())
+    log_level: Optional[str] = None
+
+class WaypointUpdateFlags(Enum):
+    UNINITIALIZE_WAYPOINTS = 0
+    WAYPOINT_REACHED = 1
+    WAYPOINTS_EMPTY = 2
+    MISSED_WAYPOINT = 3
+
+@dataclass 
+class WaypointManagerLogState:
+    agent_state: AgentState
+    agent_properties: AgentProperties
+    flags: Optional[List[WaypointUpdateFlags]] = None
 
 class WaypointManager:
     def __init__(
@@ -65,6 +59,8 @@ class WaypointManager:
         self.waypoint_spacing = self.cfg.waypoint_spacing
         self.lanelet_map = location_info_response.get_lanelet_map()
         self.rng = np.random.default_rng(self.cfg.random_seed)
+
+        self.log = List[List[WaypointManagerLogState]] if self.cfg.log_level is not None else None
 
     def update(
         self,
@@ -106,16 +102,18 @@ class WaypointManager:
         else:
             assert num_agents == len(target_paths), "Given number of paths in agents_mask does not match given number of agent states."
 
+        log_update = []
         _agent_properties = [AgentProperties.deserialize(props.serialize()) for props in agent_properties]
         for i, mask in enumerate(agents_mask):
             props = _agent_properties[i]
+            waypoint_flags = None
+            state = agent_states[i]
 
             if mask or target_paths[i] is not None:
-                state = agent_states[i]
-                
+                waypoint_flags = []
                 if props.waypoints is None:
                     # The current agents waypoints need to be initialized
-                    print(f"Generating new waypoints for agent_{i}")
+                    waypoint_flags.append(WaypointUpdateFlags.UNINITIALIZE_WAYPOINTS)
                     props.waypoints = self.generate_waypoints(
                         state=state,
                         target_path = target_paths[i],
@@ -128,13 +126,14 @@ class WaypointManager:
                         agent_state = state,
                         waypoint = props.waypoints[0]
                     ):
+                        waypoint_flags.append(WaypointUpdateFlags.WAYPOINT_REACHED)
                         props.waypoints.pop(0)
 
                 if len(props.waypoints) == 0:
                     #Agent is done its route, generate a new route
                     #Do not pass the original target path as it should be completed if the list is empty
-                    print(f"Generating new waypoints for agent_{i}")
-                    props.waypoints = self.generate_waypoints(state=state)
+                   waypoint_flags.append(WaypointUpdateFlags.WAYPOINTS_EMPTY)
+                   props.waypoints = self.generate_waypoints(state=state)
 
 
                 if self.is_missed_waypoint(
@@ -142,14 +141,27 @@ class WaypointManager:
                     agent_properties = props
                 ):
                     #If the current waypoint has been missed, reroute
+                    waypoint_flags.append(WaypointUpdateFlags.MISSED_WAYPOINT)
                     props.waypoints = self.generate_waypoints(
                         state=state,
                         target_path = target_paths[i],
                         agent_properties = props
                     )
 
+            if self.log is not None:
+                log_update.append(
+                    WaypointManagerLogState(
+                        agent_state=state,
+                        agent_properties=props,
+                        flags=waypoint_flags
+                    )
+                )
+                
             _agent_properties[i] = props
 
+        if self.log is not None:
+            self.log.append(log_update)
+        
         return _agent_properties
 
     def is_missed_waypoint(
@@ -330,6 +342,8 @@ def generate_waypoints_from_lane_ids(
     Returns:
         List[Point]: List of waypoints for the agent to follow.
     """
+    if len(lane_ids) < 1:
+        print(f"Failed state: {start_state}")
     assert len(lane_ids) >= 1, "Expected the lane_ids to be populated"
     def get_lanelet(id):
         for l in lanelet_map.laneletLayer:

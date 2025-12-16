@@ -486,7 +486,7 @@ class LogWriter(LogBase):
                 drive_model_version=drive_model_version,
                 light_recurrent_states=init_response.light_recurrent_states,
                 recurrent_states=init_response.recurrent_states,
-                waypoints_per_frame=[waypoints],
+                waypoints_per_frame=[waypoints] if waypoints is not None else None,
                 present_indexes=[list(range(len(agent_properties)))]
             )
             self.simulation_length = 1
@@ -526,7 +526,8 @@ class LogWriter(LogBase):
         if drive_response.traffic_lights_states is not None:
             self._scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
         
-        self._scenario_log.waypoints_per_frame.append(waypoints)
+        if waypoints is not None:
+            self._scenario_log.waypoints_per_frame.append(waypoints)
         self._scenario_log.drive_model_version = drive_response.api_model_version
         self._scenario_log.light_recurrent_states = drive_response.light_recurrent_states
         self._scenario_log.recurrent_states = drive_response.recurrent_states
