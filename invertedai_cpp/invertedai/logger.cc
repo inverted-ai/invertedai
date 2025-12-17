@@ -7,7 +7,6 @@
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include <time.h>
-// #include "invertedai/api.h"
 
 using json = nlohmann::json;
 
@@ -99,19 +98,17 @@ namespace invertedai {
     ) {
         std::vector<std::pair<std::string, ValueType>> out;
         out.reserve(dict.size());
-    
         for (const auto& kv : dict) {
             out.emplace_back(std::string(kv.first), kv.second);
         }
-    
         std::sort(out.begin(), out.end(),
                   [&](const auto& a, const auto& b) {
                       return id_map.at(a.first) < id_map.at(b.first);
                   });
-    
         return out;
     }
-    LogReader::LogReader(const std::string &file_path, std::string API_KEY) { 
+
+    LogReader::LogReader(const std::string &file_path) { 
         std::string json_body = invertedai::read_file(file_path.c_str());
 
         json j = json::parse(json_body);
@@ -135,33 +132,25 @@ namespace invertedai {
             for (auto& kv : j["predetermined_agents"].items()) {
                 std::string agent_id = kv.key();
                 const json& agent = kv.value();
-
-                // If first time encountering the agent ID
                 if (agent_id_list.count(agent_id) == 0) {
-
                     const json& attr = agent["static_attributes"];
                     AgentProperties props;
                     props.length = attr["length"].get<double>();
                     props.width = attr["width"].get<double>();
                     props.rear_axis_offset = attr["rear_axis_offset"].get<double>();
                     props.agent_type = agent["entity_type"].get<std::string>();
-
                     all_agent_properties_unsorted[agent_id] = props;
                     agent_id_list[agent_id] = agent_id_sequence_num++;
                 }
-                // Read agent state for this time step
                 std::string ts_key = std::to_string(t);
-
                 if (agent["states"].contains(ts_key)) {
                     present_indexes_ts.push_back(agent_id_list[agent_id]);
-
                     const json& st = agent["states"][ts_key];
                     AgentState state;
                     state.x = st["center"]["x"].get<double>();
                     state.y = st["center"]["y"].get<double>();
                     state.orientation = st["orientation"].get<double>();
                     state.speed = st["speed"].get<double>();
-
                     agent_states_ts[agent_id] = state;
                 }
             }
@@ -177,20 +166,16 @@ namespace invertedai {
         
         std::vector<std::vector<AgentState>> agent_states_over_time;
         for (auto& states_map : all_agent_states_unsorted) {
-        
             auto sorted_vec = sort_dict(states_map, agent_id_list);
-        
             std::vector<AgentState> states_only;
             states_only.reserve(sorted_vec.size());
-        
+
             for (auto& kv : sorted_vec) {
                 states_only.push_back(kv.second);
             }
-
             agent_states_over_time.push_back(states_only);
         }
         
-        // sort present indexes
         std::optional<std::vector<std::map<std::string, std::string>>> traffic_light_states_over_time;
         std::vector<std::vector<int>> present_indexes_sorted;
         for (auto& vec : present_indexes_unsorted) {
@@ -210,8 +195,7 @@ namespace invertedai {
                     const json& actor = kv.value();
         
                     if (actor["entity_type"] == "traffic_light" &&
-                        actor["states"].contains(ts_key)) 
-                    {
+                        actor["states"].contains(ts_key)) {
                         tl_history[t][actor_id] =
                             actor["states"][ts_key]["control_state"].get<std::string>();
                     }
@@ -224,6 +208,7 @@ namespace invertedai {
             std::map<std::string,std::vector<Point2d>> wp;
             for (auto& kv : j["individual_suggestions"].items()) {
                 std::string ag = kv.key();
+
                 for (auto& st : kv.value()["states"]) {
                     const json& c = st["center"];
                     wp[ag].push_back(Point2d{c["x"], c["y"]});
@@ -239,11 +224,9 @@ namespace invertedai {
             j["light_recurrent_states"].size() > 0)
         {
             std::vector<LightRecurrentState> lights;        
-            for (const auto& arr : j["light_recurrent_states"])
-            {
+            for (const auto& arr : j["light_recurrent_states"]) {
                 if (!arr.is_array() || arr.size() != 2 ||
-                    !arr[0].is_number() || !arr[1].is_number())
-                {
+                    !arr[0].is_number() || !arr[1].is_number()) {
                     throw std::runtime_error("Invalid entry in light_recurrent_states");
                 }
                 LightRecurrentState lrs;
@@ -253,30 +236,24 @@ namespace invertedai {
             }
             light_rs = lights;
         }
-        
 
         std::optional<std::vector<RecurrentState>> rnn_states = std::nullopt;
-
         auto lights_seed =
             j.contains("lights_random_seed")
             ? std::optional<int>(j["lights_random_seed"])
             : std::nullopt;
-    
         auto init_seed =
             j.contains("initialize_random_seed")
             ? std::optional<int>(j["initialize_random_seed"])
-            : std::nullopt;
-    
+            : std::nullopt;           
         auto drive_seed =
             j.contains("drive_random_seed")
             ? std::optional<int>(j["drive_random_seed"])
-            : std::nullopt;
-    
+            : std::nullopt;    
         auto init_version =
             j.contains("initialize_model_version")
             ? std::optional<std::string>(j["initialize_model_version"])
-            : std::nullopt;
-    
+            : std::nullopt;  
         auto drive_version =
             j.contains("drive_model_version")
             ? std::optional<std::string>(j["drive_model_version"])
@@ -286,7 +263,6 @@ namespace invertedai {
             j["birdview_options"]["rendering_center"][0],
             j["birdview_options"]["rendering_center"][1]
         });
-
         scenario_log_ = ScenarioLog(
             location,
             agent_states_over_time,

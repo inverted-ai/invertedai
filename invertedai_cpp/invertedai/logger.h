@@ -79,7 +79,7 @@ namespace invertedai {
             int current_timestep = 0;
             int simulation_length;
         public:
-            explicit LogReader(const std::string &file_path, std::string API_KEY);
+            explicit LogReader(const std::string &file_path);
             bool seek(int timestep);
             bool seek_last();
             bool next();
