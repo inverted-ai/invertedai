@@ -28,7 +28,7 @@ static std::unordered_map<std::pair<double,double>, cv::Mat, PairHash> cache_reg
     const std::string& location,
     const std::vector<Region>& drive_tiles,
     double scale
-);
+); //
 
 /*                                                                                 
             HOW TO RUN EXECUTABLE:
