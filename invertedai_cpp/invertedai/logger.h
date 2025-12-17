@@ -17,6 +17,8 @@ namespace invertedai {
     // a struct to hold simulation information
     class ScenarioLog {
         public:
+            ScenarioLog() = default;
+
             std::vector<std::vector<AgentState>> agent_states;
             std::vector<AgentProperties> agent_properties;
             std::optional<std::vector<std::map<std::string, std::string>>> traffic_lights_states;
@@ -33,7 +35,7 @@ namespace invertedai {
             std::optional<std::string> drive_model_version = std::string("best");
 
             // recurrent
-            std::optional<LightRecurrentState>  light_recurrent_states;
+            std::optional<std::vector<LightRecurrentState>>  light_recurrent_states;
             std::optional<std::vector<RecurrentState>> recurrent_states;
 
             // Persistent waypoints for each agent (Python: waypoints)
@@ -57,7 +59,7 @@ namespace invertedai {
                 std::optional<std::string> init_version_,
                 std::optional<std::string> drive_version_,
         
-                std::optional<LightRecurrentState> light_states_,
+                std::optional<std::vector<LightRecurrentState>> light_states_,
                 std::optional<std::vector<RecurrentState>> recurrent_states_,
                 std::optional<std::map<std::string, std::vector<Point2d>>> waypoints_,
                 std::vector<std::vector<int>> present_indexes_
@@ -78,29 +80,31 @@ namespace invertedai {
     class LogReader {
         private:
             std::string location;
-            ScenarioLog scenario_log_;              // current working copy
-            ScenarioLog scenario_log_original_;     // immutable original
+            ScenarioLog scenario_log_;              // current working copy ???
+            ScenarioLog scenario_log_original_;     // immutable original ???? idek anymore
             std::optional<LocationInfoResponse> location_info_response_;
             std::optional<std::string> initialize_model_version_;
             std::optional<std::string> drive_model_version_;
-
-            std::vector<AgentState> agent_states;
-            std::vector<AgentProperties> agent_properties;
             std::optional<std::map<std::string, std::string>> traffic_lights_states;
-            std::optional<LightRecurrentState> light_recurrent_states;
+            std::optional<std::vector<LightRecurrentState>> light_recurrent_states;
             std::optional<std::vector<RecurrentState>> recurrent_states;
             int current_timestep = 0;
 
             int simulation_length;
             int num_agents;
             // std::optional<std::map<std::string, std::string>> traffic_lights_states;
-            LightRecurrentState initial_light_recurr_state;
-            std::vector<AgentProperties> sorted_agent_properties;
-            std::vector<std::vector<AgentState>> agent_states_over_time;
-            std::optional<std::vector<std::map<std::string, std::string>>> traffic_light_states_over_time;
-            std::optional<std::map<std::string, std::vector<Point2d>>> waypoints;
+            public:
+                LightRecurrentState initial_light_recurr_state;
+                std::optional<std::pair<double,double>> rendering_center;
+                std::optional<int> rendering_fov;
+                std::vector<AgentState> agent_states;
+                std::vector<AgentProperties> agent_properties;
+                std::vector<AgentProperties> sorted_agent_properties;
+                std::vector<std::vector<AgentState>> agent_states_over_time;
+                std::optional<std::vector<std::map<std::string, std::string>>> traffic_light_states_over_time;
+                std::optional<std::map<std::string, std::vector<Point2d>>> waypoints;
         public:
-            void read_log(const std::string &file_path, std::string API_KEY);
+            explicit LogReader(const std::string &file_path, std::string API_KEY);
 
             bool initialize(); 
             bool drive();
@@ -109,8 +113,10 @@ namespace invertedai {
             bool return_state_at_timestep(int t);
 
             std::string get_location();
+            // int get_fov();
             int get_total_num_agents();
             int get_scenario_length();
+            ScenarioLog get_scenario_log();
             std::vector<AgentProperties> get_agent_properties();
             std::vector<std::vector<AgentState>> get_agent_states_over_time();
             std::optional<std::vector<std::map<std::string, std::string>>> get_traffic_lights_states_over_time();

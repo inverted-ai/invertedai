@@ -7,9 +7,9 @@
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include <time.h>
-#include "../invertedai/api.h"
+// #include "invertedai/api.h"
 
-using tcp = net::ip::tcp;    // from <boost/asio/ip/tcp.hpp>
+// using tcp = net::ip::tcp;    // from <boost/asio/ip/tcp.hpp>
 
 using json = nlohmann::json;
 
@@ -29,7 +29,7 @@ namespace invertedai {
         std::optional<std::string> init_version_,
         std::optional<std::string> drive_version_,
 
-        std::optional<LightRecurrentState> light_states_,
+        std::optional<std::vector<LightRecurrentState>> light_states_,
         std::optional<std::vector<RecurrentState>> recurrent_states_,
         std::optional<std::map<std::string, std::vector<Point2d>>> waypoints_,
         std::vector<std::vector<int>> present_indexes_
@@ -113,7 +113,7 @@ namespace invertedai {
     
         return out;
     }
-    void LogReader::read_log(const std::string &file_path, std::string API_KEY) { 
+    LogReader::LogReader(const std::string &file_path, std::string API_KEY) { 
         std::string json_body = invertedai::read_file(file_path.c_str());
 
         json j = json::parse(json_body);
@@ -227,7 +227,7 @@ namespace invertedai {
         }
         std::map<std::string, std::vector<Point2d>> agent_waypoints;
 
-        if (j.contains("individual_suggestions")) { // ignore waypoints for now...
+        if (j.contains("individual_suggestions")) { 
             std::map<std::string,std::vector<Point2d>> wp;
             for (auto& kv : j["individual_suggestions"].items()) {
                 std::string ag = kv.key();
@@ -241,13 +241,27 @@ namespace invertedai {
         }
 
         // light rec state
-        std::optional<LightRecurrentState> light_rs = std::nullopt;
-        if (j.contains("light_recurrent_states") && j["light_recurrent_states"].is_array()) {
-            LightRecurrentState lrs;
-            lrs.state = j["light_recurrent_states"][0];
-            lrs.time_remaining = j["light_recurrent_states"][1];
-            light_rs = lrs;
+        std::optional<std::vector<LightRecurrentState>> light_rs = std::nullopt;
+        if (j.contains("light_recurrent_states") &&
+            j["light_recurrent_states"].is_array() &&
+            j["light_recurrent_states"].size() > 0)
+        {
+            std::vector<LightRecurrentState> lights;        
+            for (const auto& arr : j["light_recurrent_states"])
+            {
+                if (!arr.is_array() || arr.size() != 2 ||
+                    !arr[0].is_number() || !arr[1].is_number())
+                {
+                    throw std::runtime_error("Invalid entry in light_recurrent_states");
+                }
+                LightRecurrentState lrs;
+                lrs.state = arr[0].get<int>();
+                lrs.time_remaining = arr[1].get<int>();
+                lights.push_back(lrs);
+            }
+            light_rs = lights;
         }
+        
 
         std::optional<std::vector<RecurrentState>> rnn_states = std::nullopt;
 
@@ -275,7 +289,11 @@ namespace invertedai {
             j.contains("drive_model_version")
             ? std::optional<std::string>(j["drive_model_version"])
             : std::nullopt;
-
+            rendering_fov = j["birdview_options"]["renderingFOV"].get<int>();
+        rendering_center = std::optional<std::pair<double,double>>({
+            j["birdview_options"]["rendering_center"][0],
+            j["birdview_options"]["rendering_center"][1]
+        });
         // construct scneario log
         scenario_log_ = ScenarioLog(
             agent_states_over_time,
@@ -307,19 +325,26 @@ namespace invertedai {
         drive_model_version_ = drive_version;
         waypoints = waypoints;
 
-        std::string loc_body = "{}";
-        invertedai::LocationInfoRequest loc_info_req(loc_body);
-        loc_info_req.set_location(location);
-        loc_info_req.set_rendering_center(scenario_log_.rendering_center);
-        loc_info_req.set_rendering_fov(scenario_log_.rendering_fov);
-        net::io_context ioc;
-        ssl::context ctx(ssl::context::tlsv12_client);
-        // configure connection setting
-        invertedai::Session session(ioc, ctx);
-        session.set_api_key(API_KEY);
-        session.connect();
-        location_info_response_ = invertedai::location_info(loc_info_req, &session); // ! TODO 
+        // std::string loc_body = "{}";
+        // invertedai::LocationInfoRequest loc_info_req(loc_body);
+        // loc_info_req.set_location(location);
+        // loc_info_req.set_rendering_center(scenario_log_.rendering_center);
+        // loc_info_req.set_rendering_fov(scenario_log_.rendering_fov);
+        // net::io_context ioc;
+        // ssl::context ctx(ssl::context::tlsv12_client);
+        // // configure connection setting
+        // invertedai::Session session(ioc, ctx);
+        // session.set_api_key(API_KEY);
+        // session.connect();
+        // location_info_response_ = invertedai::location_info(loc_info_req, &session); // ! TODO 
 
+    }
+
+    // int LogReader::get_fov() {
+    //     return this->fov.value_or(200);
+    // }
+    ScenarioLog LogReader::get_scenario_log() {
+        return this->scenario_log_;
     }
 
     bool LogReader::return_state_at_timestep(int t) {

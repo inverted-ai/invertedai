@@ -1,0 +1,301 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <random>
+#include <optional>
+#include <opencv2/opencv.hpp>
+#include <utility>
+#include <ostream>
+
+
+#include "invertedai/api.h"
+#include "invertedai/session.h"
+#include "invertedai/location_info_request.h"
+#include "invertedai/location_info_response.h"
+#include "invertedai/initialize_request.h"
+#include "invertedai/initialize_response.h"
+#include "invertedai/drive_request.h"
+#include "invertedai/drive_response.h"
+// #include "invertedai/log_visualizer.h"
+#include "large/large_drive/large_drive.h"
+#include "large/large_initialize/large_init_helpers.h"
+#include "large/visualizer/visualizer.h"
+#include "large/visualizer/visualizer_helpers.h"
+
+using namespace invertedai;
+
+/*                                                                                 
+            HOW TO RUN EXECUTABLE:
+
+            1. cd into invertedai_cpp folder
+
+            2. Join docker:
+            docker compose build
+            docker compose run --rm dev 
+
+            3. Export your API key in the docker:
+            export IAI_API_KEY="your_key_here"
+            
+            4. Build:
+            bazel build //examples:scenario_log_example
+
+            5. To run:
+            ./bazel-bin/examples/scenario_log_example
+
+*/
+// inline void left_handed_transform(
+//     double x_in, double y_in, double psi_in,
+//     double cx, double cy,
+//     double &x_out, double &y_out, double &psi_out
+// ) {
+
+//     x_out = 2.0 * cx - x_in;
+
+//     y_out = y_in;
+//     psi_out = -psi_in + M_PI;
+
+//     if (psi_out < 0) psi_out += 2*M_PI;
+//     if (psi_out >= 2*M_PI) psi_out -= 2*M_PI;
+// }
+
+void draw_traffic_lights(
+    cv::Mat& frame,
+    const std::optional<std::map<std::string, std::string>>& tl_states,
+    const std::map<std::string, cv::Point>& tl_positions_px,
+    const std::vector<StaticMapActor>& actors,
+    std::function<cv::Point(double,double)> world_to_pixel,
+    bool flip_x
+) {
+    if (!tl_states.has_value() || tl_states->empty())
+        return;
+
+    for (const auto& [light_id, state] : *tl_states) {
+
+        // color
+        cv::Scalar color = cv::Scalar(128, 128, 128);
+        if (state == "red")    color = cv::Scalar(0,0,255);
+        if (state == "yellow") color = cv::Scalar(0,255,255);
+        if (state == "green")  color = cv::Scalar(0,255,0);
+
+        // position in pixels
+        auto pos_it = tl_positions_px.find(light_id);
+        if (pos_it == tl_positions_px.end())
+            continue;
+
+        cv::Point center_px = pos_it->second;
+
+        // find static actor
+        const StaticMapActor* actor = nullptr;
+        for (const auto& a : actors) {
+            if (a.agent_type == "traffic_light" &&
+                std::to_string(a.actor_id) == light_id) {
+                actor = &a;
+                break;
+            }
+        }
+        if (!actor) continue;
+
+        double L = std::max(1.0, actor->length.value_or(1.0));
+        double W = std::max(1.0, actor->width.value_or(1.0));
+
+        double px_L = L * 3.5;  
+        double px_W = W * 3.5;
+
+        // orientation: Python draws Rectangle(angle=psi*180/π)
+        double psi_deg = -actor->orientation * 180.0 / CV_PI;
+        if (flip_x)
+            psi_deg = 180.0 - psi_deg;
+        cv::RotatedRect box(center_px, cv::Size2f(px_L, px_W), psi_deg);
+        cv::Point2f pts[4];
+        box.points(pts);       
+        cv::fillConvexPoly(
+            frame,
+            std::vector<cv::Point>{pts[0], pts[1], pts[2], pts[3]},
+            color
+        );
+    }
+}
+
+
+std::map<std::string, cv::Point> get_traffic_light_positions(
+    const std::vector<StaticMapActor>& actors,
+    std::function<cv::Point(double,double)> world_to_pixel
+) {
+    std::map<std::string, cv::Point> out;
+
+    for (const auto& a : actors) {
+        if (a.agent_type != "traffic_light")
+            continue;
+
+        cv::Point px = world_to_pixel(a.x, a.y);
+        out[std::to_string(a.actor_id)] = px;
+    }
+
+    return out;
+}
+
+inline void apply_carla_flip(
+    double &x, double &y, double psi,
+    double cx
+) {
+    x = 2.0 * cx - x;   // mirror around center
+}
+
+
+int main(int argc, char** argv) {
+    const std::string API_KEY = getenv("IAI_API_KEY"); 
+    LogReader log_reader("examples/can_appleby_line_and_dryden_ave_canada_log.json", API_KEY);
+    boost::asio::io_context ioc;
+    ssl::context ctx(ssl::context::tlsv12_client);
+    invertedai::Session session(ioc, ctx);
+    session.set_api_key(API_KEY);
+    session.connect();
+
+    const std::string location = log_reader.get_location();
+    bool FLIP_X_FOR_THIS_DOMAIN = false; 
+    if (location.rfind("carla:", 0) == 0) {
+        FLIP_X_FOR_THIS_DOMAIN = true;
+    }
+    LocationInfoRequest li_req("{}");
+    li_req.set_location(location);
+    li_req.set_include_map_source(true);
+    LocationInfoResponse li_res = location_info(li_req, &session);
+    auto image = cv::imdecode(li_res.birdview_image(), cv::IMREAD_COLOR);
+    cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+
+    int frame_width  = image.cols;
+    int frame_height = image.rows;
+    
+    cv::VideoWriter video(
+        "scenario_log_replay.avi",
+        cv::VideoWriter::fourcc('M','J','P','G'),
+        10,  
+        cv::Size(frame_width, frame_height)
+    );
+    
+    // Pull scale + coordinate transform values
+    auto rc = log_reader.rendering_center.value();
+    double cx = rc.first;
+    double cy = rc.second;
+    double FOV = log_reader.rendering_fov.value();
+    
+    // World box
+    double half = FOV * 0.5;
+    
+    double min_x = cx - half;
+    double max_y = cy + half;
+    
+    // px-per-meter (assumes square birdview)
+    double scale = image.rows / FOV;
+    
+    // Transform: world (meters) → pixel (image coords)
+    auto world_to_pixel = [&](double x, double y) -> cv::Point {
+
+        int u = int((x - min_x) * scale);
+        if (FLIP_X_FOR_THIS_DOMAIN) {
+            u = frame_width - u;
+        }
+        int v = int((max_y - y) * scale);  // invert world Y-axis
+
+        // if (FLIP_X_FOR_THIS_DOMAIN) 
+        //     u = cx + half - u;   
+        return cv::Point(
+            std::clamp(u, 0, image.cols - 1),
+            std::clamp(v, 0, image.rows - 1)
+        );
+    };
+    
+    auto draw_agent = [&](cv::Mat &frame,
+        const AgentState &s,
+        const AgentProperties &p
+    ) {
+        double x = s.x;
+        double y = s.y;
+        double psi = s.orientation;
+        // // Apply left-handed coordinate system (if enabled)
+        // if (FLIP_X_FOR_THIS_DOMAIN) {
+        //     left_handed_transform(
+        //         x, y, psi,
+        //         cx, cy,   // map center from location_info
+        //         x, y, psi
+        //     );
+        // }
+    
+        // Vehicle dimensions
+        double L = p.length.value_or(5.0);
+        double W = p.width.value_or(2.0);
+        if (p.agent_type == "pedestrian") {
+            L = W = 1.5;
+        }
+        double hl = L * 0.5;
+        double hw = W * 0.5;
+    
+        // Orientation
+        double c  = std::cos(psi);
+        double sn = std::sin(psi);
+    
+        // Rotation around agent center
+        auto rot = [&](double px, double py){
+            return cv::Point2d(
+                x + c*px - sn*py,
+                y + sn*px + c*py
+            );
+        };    
+    
+        cv::Point2d FLw = rot( hl,  hw);
+        cv::Point2d FRw = rot( hl, -hw);
+        cv::Point2d RRw = rot(-hl, -hw);
+        cv::Point2d RLw = rot(-hl,  hw);
+    
+        cv::Point poly[4] = {
+        world_to_pixel(FLw.x, FLw.y),
+        world_to_pixel(FRw.x, FRw.y),
+        world_to_pixel(RRw.x, RRw.y),
+        world_to_pixel(RLw.x, RLw.y)
+    };
+    
+    cv::fillConvexPoly(frame, poly, 4, cv::Scalar(255,0,0));
+    };
+
+    for (int t = 0; t < log_reader.get_scenario_length(); t++) {
+        cv::Mat frame = image.clone();
+
+        const auto& props  = log_reader.agent_properties;  
+        const auto& states = log_reader.agent_states;
+        
+
+        for (size_t i = 0; i < states.size(); i++) {
+            draw_agent(frame, states[i], props[i]);
+        }
+
+        std::optional<std::map<std::string, std::string>> traffic_lights_states;
+            auto traff_all = log_reader.get_traffic_lights_states_over_time();
+            if (traff_all.has_value()) {
+                traffic_lights_states = traff_all->at(t);
+            } else {
+                traffic_lights_states = std::nullopt;
+            }
+            std::cout << "lights size" << traffic_lights_states->size() << std::endl;
+            std::map<std::string, cv::Point> traffic_light_positions_px =
+                get_traffic_light_positions(
+                    li_res.static_actors(),
+                    world_to_pixel
+                );
+                
+            draw_traffic_lights(
+                frame,
+                traffic_lights_states,
+                traffic_light_positions_px,
+                li_res.static_actors(),
+                world_to_pixel,
+                FLIP_X_FOR_THIS_DOMAIN
+            );
+
+        video.write(frame);
+        if (!log_reader.drive())
+            break;
+    }
+
+    video.release();
+
+}
