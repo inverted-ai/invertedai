@@ -52,20 +52,16 @@ void draw_traffic_lights(
 
     for (const auto& [light_id, state] : *tl_states) {
 
-        // color
         cv::Scalar color = cv::Scalar(128, 128, 128);
         if (state == "red")    color = cv::Scalar(0,0,255);
         if (state == "yellow") color = cv::Scalar(0,255,255);
         if (state == "green")  color = cv::Scalar(0,255,0);
 
-        // position in pixels
         auto pos_it = tl_positions_px.find(light_id);
         if (pos_it == tl_positions_px.end())
             continue;
 
         cv::Point center_px = pos_it->second;
-
-        // find static actor
         const StaticMapActor* actor = nullptr;
         for (const auto& a : actors) {
             if (a.agent_type == "traffic_light" &&
@@ -114,17 +110,9 @@ std::map<std::string, cv::Point> get_traffic_light_positions(
     return out;
 }
 
-inline void apply_carla_flip(
-    double &x, double &y, double psi,
-    double cx
-) {
-    x = 2.0 * cx - x;   // mirror around center
-}
-
-
 int main(int argc, char** argv) {
     const std::string API_KEY = getenv("IAI_API_KEY"); 
-    LogReader log_reader("examples/carla_Town10HD_log.json");
+    LogReader log_reader("examples/can_appleby_line_and_dryden_ave_canada_log.json");
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
@@ -139,6 +127,8 @@ int main(int argc, char** argv) {
     LocationInfoRequest li_req("{}");
     li_req.set_location(location);
     li_req.set_include_map_source(true);
+    li_req.set_rendering_fov(log_reader.get_fov());
+    li_req.set_rendering_center(log_reader.get_rendering_center());
     LocationInfoResponse li_res = location_info(li_req, &session);
     auto image = cv::imdecode(li_res.birdview_image(), cv::IMREAD_COLOR);
     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
@@ -162,26 +152,16 @@ int main(int argc, char** argv) {
     double cx = rc->first;
     double cy = rc->second;
     double FOV = log_reader.get_fov();
-    
-    // World box
     double half = FOV * 0.5;
-    
     double min_x = cx - half;
     double max_y = cy + half;
-    
-    // px-per-meter (assumes square birdview)
     double scale = image.rows / FOV;
-    
     auto world_to_pixel = [&](double x, double y) -> cv::Point {
-
         int u = int((x - min_x) * scale);
         if (FLIP_X_FOR_THIS_DOMAIN) {
             u = frame_width - u;
         }
-        int v = int((max_y - y) * scale);  // invert world Y-axis
-
-        // if (FLIP_X_FOR_THIS_DOMAIN) 
-        //     u = cx + half - u;   
+        int v = int((max_y - y) * scale);
         return cv::Point(
             std::clamp(u, 0, image.cols - 1),
             std::clamp(v, 0, image.rows - 1)
@@ -195,16 +175,7 @@ int main(int argc, char** argv) {
         double x = s.x;
         double y = s.y;
         double psi = s.orientation;
-        // // Apply left-handed coordinate system (if enabled)
-        // if (FLIP_X_FOR_THIS_DOMAIN) {
-        //     left_handed_transform(
-        //         x, y, psi,
-        //         cx, cy,   // map center from location_info
-        //         x, y, psi
-        //     );
-        // }
-    
-        // Vehicle dimensions
+
         double L = p.length.value_or(5.0);
         double W = p.width.value_or(2.0);
         if (p.agent_type == "pedestrian") {
@@ -213,11 +184,9 @@ int main(int argc, char** argv) {
         double hl = L * 0.5;
         double hw = W * 0.5;
     
-        // Orientation
         double c  = std::cos(psi);
         double sn = std::sin(psi);
     
-        // Rotation around agent center
         auto rot = [&](double px, double py){
             return cv::Point2d(
                 x + c*px - sn*py,
