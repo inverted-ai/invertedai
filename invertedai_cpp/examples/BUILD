@@ -135,7 +135,35 @@ cc_binary(
         "//invertedai:initialize_response",
         "//invertedai:drive_request",
         "//invertedai:drive_response",
-        "//invertedai:log_visualizer",
+        # "//invertedai:log_visualizer",
+
+        # "//large/visualizer:visualizer_lib",
+        # "//large/visualizer:visualizer_helpers",
+        # "//large/large_drive:large_drive_lib",
+        # "//large/large_initialize:large_initialize_lib",
+
+        "@boost//:asio",
+        "@opencv//:opencv",
+        "//invertedai/externals:json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "scenario_log_example",
+    srcs = ["scenario_log_example.cc"],
+    deps = [
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:error",
+        "//invertedai:logger",
+        "//invertedai:location_info_request",
+        "//invertedai:location_info_response",
+        "//invertedai:initialize_request",
+        "//invertedai:initialize_response",
+        "//invertedai:drive_request",
+        "//invertedai:drive_response",
+        # "//invertedai:log_visualizer",
 
         "//large/visualizer:visualizer_lib",
         "//large/visualizer:visualizer_helpers",
@@ -148,4 +176,5 @@ cc_binary(
     ],
     visibility = ["//visibility:public"],
 )
+
 
