@@ -14,16 +14,16 @@
 using json = nlohmann::json; // from <json.hpp>
 namespace invertedai {
 
-    // a struct to hold simulation information
+    // a class to hold LogReader information
     class ScenarioLog {
         public:
             ScenarioLog() = default;
+            std::string location;
 
             std::vector<std::vector<AgentState>> agent_states;
             std::vector<AgentProperties> agent_properties;
             std::optional<std::vector<std::map<std::string, std::string>>> traffic_lights_states;
 
-            std::string location;
             std::optional<std::pair<double,double>> rendering_center;
             std::optional<int> rendering_fov;
 
@@ -45,10 +45,10 @@ namespace invertedai {
             // Active agents per timestep 
             std::vector<std::vector<int>> present_indexes;
             ScenarioLog(
+                std::string location_,
                 std::vector<std::vector<AgentState>> agent_states_,
                 std::vector<AgentProperties> agent_properties_,
                 std::optional<std::vector<std::map<std::string, std::string>>> traffic_states_,
-                std::string location_,
                 std::optional<std::pair<double,double>> rendering_center_,
                 std::optional<int> rendering_fov_,
         
@@ -79,42 +79,26 @@ namespace invertedai {
 
     class LogReader {
         private:
-            std::string location;
-            ScenarioLog scenario_log_;              // current working copy ???
-            ScenarioLog scenario_log_original_;     // immutable original ???? idek anymore
+            ScenarioLog scenario_log_;
             std::optional<LocationInfoResponse> location_info_response_;
-            std::optional<std::string> initialize_model_version_;
-            std::optional<std::string> drive_model_version_;
-            std::optional<std::map<std::string, std::string>> traffic_lights_states;
-            std::optional<std::vector<LightRecurrentState>> light_recurrent_states;
-            std::optional<std::vector<RecurrentState>> recurrent_states;
             int current_timestep = 0;
-
             int simulation_length;
-            int num_agents;
-            // std::optional<std::map<std::string, std::string>> traffic_lights_states;
-            public:
-                LightRecurrentState initial_light_recurr_state;
-                std::optional<std::pair<double,double>> rendering_center;
-                std::optional<int> rendering_fov;
-                std::vector<AgentState> agent_states;
-                std::vector<AgentProperties> agent_properties;
-                std::vector<AgentProperties> sorted_agent_properties;
-                std::vector<std::vector<AgentState>> agent_states_over_time;
-                std::optional<std::vector<std::map<std::string, std::string>>> traffic_light_states_over_time;
-                std::optional<std::map<std::string, std::vector<Point2d>>> waypoints;
         public:
             explicit LogReader(const std::string &file_path, std::string API_KEY);
-
+            bool seek(int timestep);
+            bool seek_last();
+            bool next();
+            const std::string& get_location() const;
+            std::optional<std::map<std::string, std::string>> current_traffic_lights() const;
+            const std::vector<AgentState>& current_agent_states() const;
+            std::vector<const AgentProperties*> current_agent_properties() const;
             bool initialize(); 
             bool drive();
             void reset_log();
             bool return_last_state();
             bool return_state_at_timestep(int t);
-
-            std::string get_location();
-            // int get_fov();
-            int get_total_num_agents();
+            int get_fov();
+            std::optional<std::pair<double,double>> get_rendering_center();
             int get_scenario_length();
             ScenarioLog get_scenario_log();
             std::vector<AgentProperties> get_agent_properties();

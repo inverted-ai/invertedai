@@ -9,16 +9,14 @@
 #include <time.h>
 // #include "invertedai/api.h"
 
-// using tcp = net::ip::tcp;    // from <boost/asio/ip/tcp.hpp>
-
 using json = nlohmann::json;
 
 namespace invertedai {
     ScenarioLog::ScenarioLog(
+        std::string location_,
         std::vector<std::vector<AgentState>> agent_states_,
         std::vector<AgentProperties> agent_properties_,
         std::optional<std::vector<std::map<std::string, std::string>>> traffic_states_,
-        std::string location_,
         std::optional<std::pair<double,double>> rendering_center_,
         std::optional<int> rendering_fov_,
 
@@ -34,11 +32,11 @@ namespace invertedai {
         std::optional<std::map<std::string, std::vector<Point2d>>> waypoints_,
         std::vector<std::vector<int>> present_indexes_
     ) {
+        location = location_;
         agent_states = agent_states_;
         agent_properties = agent_properties_;
         traffic_lights_states = traffic_states_;
-    
-        location = location_;
+
         rendering_center = rendering_center_;
         rendering_fov = rendering_fov_;
     
@@ -118,15 +116,10 @@ namespace invertedai {
 
         json j = json::parse(json_body);
 
-        location = j["location"]["identifier"];
+        std::string location = j["location"]["identifier"];
 
-        int scenario_length = 0;
-        if (j.contains("scenario_length")) { // im not familiar w these json logs, so just as a safety measure ?? clarify later!
-            scenario_length = j["scenario_length"];
-        }
-        if (j.contains("num_agents")) { // assuming only car agents for now
-            this->num_agents = j["num_agents"]["car"];
-        }
+        simulation_length = j["scenario_length"];
+
         std::vector<std::map<std::string, AgentState>> all_agent_states_unsorted;
         std::map<std::string, AgentProperties> all_agent_properties_unsorted;
 
@@ -135,7 +128,7 @@ namespace invertedai {
         std::map<std::string, int> agent_id_list;
         int agent_id_sequence_num = 0;
 
-        for(int t = 0; t < scenario_length; t++) {
+        for(int t = 0; t < simulation_length; t++) {
             std::map<std::string, AgentState> agent_states_ts;
             std::vector<int> present_indexes_ts;
 
@@ -177,12 +170,12 @@ namespace invertedai {
         }
 
         auto properties_sorted = sort_dict(all_agent_properties_unsorted, agent_id_list);
-
+        std::vector<AgentProperties> sorted_agent_properties;
         for (auto& kv : properties_sorted) {
             sorted_agent_properties.push_back(kv.second);
         }
         
-     
+        std::vector<std::vector<AgentState>> agent_states_over_time;
         for (auto& states_map : all_agent_states_unsorted) {
         
             auto sorted_vec = sort_dict(states_map, agent_id_list);
@@ -198,6 +191,7 @@ namespace invertedai {
         }
         
         // sort present indexes
+        std::optional<std::vector<std::map<std::string, std::string>>> traffic_light_states_over_time;
         std::vector<std::vector<int>> present_indexes_sorted;
         for (auto& vec : present_indexes_unsorted) {
             std::sort(vec.begin(), vec.end());
@@ -205,10 +199,10 @@ namespace invertedai {
         }
 
         if (j.contains("predetermined_controls")) {
-            std::vector<std::map<std::string,std::string>> tl_history(scenario_length);
-            tl_history.resize(scenario_length);
+            std::vector<std::map<std::string,std::string>> tl_history(simulation_length);
+            tl_history.resize(simulation_length);
 
-            for (int t = 0; t < scenario_length; t++) {
+            for (int t = 0; t < simulation_length; t++) {
                 std::string ts_key = std::to_string(t);
         
                 for (auto& kv : j["predetermined_controls"].items()) {
@@ -223,10 +217,9 @@ namespace invertedai {
                     }
                 }
             }
-            this->traffic_light_states_over_time = tl_history;
+            traffic_light_states_over_time = tl_history;
         }
         std::map<std::string, std::vector<Point2d>> agent_waypoints;
-
         if (j.contains("individual_suggestions")) { 
             std::map<std::string,std::vector<Point2d>> wp;
             for (auto& kv : j["individual_suggestions"].items()) {
@@ -237,10 +230,9 @@ namespace invertedai {
                 }
             }
             if (!wp.empty())
-                waypoints = wp;
+            agent_waypoints = wp;
         }
 
-        // light rec state
         std::optional<std::vector<LightRecurrentState>> light_rs = std::nullopt;
         if (j.contains("light_recurrent_states") &&
             j["light_recurrent_states"].is_array() &&
@@ -289,17 +281,17 @@ namespace invertedai {
             j.contains("drive_model_version")
             ? std::optional<std::string>(j["drive_model_version"])
             : std::nullopt;
-            rendering_fov = j["birdview_options"]["renderingFOV"].get<int>();
-        rendering_center = std::optional<std::pair<double,double>>({
+            auto rendering_fov = j["birdview_options"]["renderingFOV"].get<int>();
+        auto rendering_center = std::optional<std::pair<double,double>>({
             j["birdview_options"]["rendering_center"][0],
             j["birdview_options"]["rendering_center"][1]
         });
-        // construct scneario log
+
         scenario_log_ = ScenarioLog(
+            location,
             agent_states_over_time,
             sorted_agent_properties,
-            traffic_light_states_over_time.has_value() ? this->traffic_light_states_over_time : std::nullopt,
-            location,
+            traffic_light_states_over_time.has_value() ? traffic_light_states_over_time : std::nullopt,
             std::optional<std::pair<double,double>>({
                 j["birdview_options"]["rendering_center"][0],
                 j["birdview_options"]["rendering_center"][1]
@@ -312,68 +304,33 @@ namespace invertedai {
             drive_version,
             light_rs,
             rnn_states,
-            waypoints,
+            agent_waypoints,
             present_indexes_unsorted
         );
-
-        scenario_log_original_ = scenario_log_;
-
         reset_log();
-
-        simulation_length = agent_states_over_time.size();
-        initialize_model_version_ = init_version;
-        drive_model_version_ = drive_version;
-        waypoints = waypoints;
-
-        // std::string loc_body = "{}";
-        // invertedai::LocationInfoRequest loc_info_req(loc_body);
-        // loc_info_req.set_location(location);
-        // loc_info_req.set_rendering_center(scenario_log_.rendering_center);
-        // loc_info_req.set_rendering_fov(scenario_log_.rendering_fov);
-        // net::io_context ioc;
-        // ssl::context ctx(ssl::context::tlsv12_client);
-        // // configure connection setting
-        // invertedai::Session session(ioc, ctx);
-        // session.set_api_key(API_KEY);
-        // session.connect();
-        // location_info_response_ = invertedai::location_info(loc_info_req, &session); // ! TODO 
-
     }
-
-    // int LogReader::get_fov() {
-    //     return this->fov.value_or(200);
-    // }
+    
+    const std::string& LogReader::get_location() const {
+        return this->scenario_log_.location;
+    }
+    
+    int LogReader::get_fov() {
+        return this->scenario_log_.rendering_fov.value_or(200);
+    }
+    std::optional<std::pair<double, double>> LogReader::get_rendering_center() {
+        return this->scenario_log_.rendering_center;
+    }
     ScenarioLog LogReader::get_scenario_log() {
         return this->scenario_log_;
     }
 
     bool LogReader::return_state_at_timestep(int t) {
-        if (t < 0 || t >= simulation_length)
-            return false;
-        agent_states = scenario_log_.agent_states[t];
-
-        // Properties must match present_indexes[t]
-        agent_properties.clear();
-        for (int idx : scenario_log_.present_indexes[t])
-            agent_properties.push_back(scenario_log_.agent_properties[idx]);
-
-        // Traffic lights
-        if (scenario_log_.traffic_lights_states &&
-            t < (int)scenario_log_.traffic_lights_states->size())
-            traffic_lights_states = (*scenario_log_.traffic_lights_states)[t];
-        else
-            traffic_lights_states = std::nullopt;
-
-        // Recurrent states: only present at last timestep in Python
-        if (t == simulation_length - 1) {
-            light_recurrent_states = scenario_log_.light_recurrent_states;
-            recurrent_states = std::nullopt;
-        } else {
-            light_recurrent_states = std::nullopt;
-            recurrent_states= std::nullopt;
-        }
-
-        return true;
+        return seek(t);
+    }
+    
+    
+    bool LogReader::return_last_state() {
+        return seek_last();
     }
 
     bool LogReader::initialize() {
@@ -383,43 +340,69 @@ namespace invertedai {
     }
 
     bool LogReader::drive() {
-        if (current_timestep >= simulation_length) 
-            return false;
-        bool response = return_state_at_timestep(current_timestep);
-        current_timestep += 1;
-        return response;
+        return next();
     }
 
-    bool LogReader::return_last_state() {
-        return return_state_at_timestep(simulation_length-1);
-    }
+    // bool LogReader::return_last_state() {
+    //     return return_state_at_timestep(simulation_length-1);
+    // }
     void LogReader::reset_log() {
-        scenario_log_ = scenario_log_original_;
-        agent_states.clear();
-        agent_properties.clear();
-        traffic_lights_states = std::nullopt;
-        light_recurrent_states = std::nullopt;
-        recurrent_states = std::nullopt;
-        current_timestep = 1;
+        current_timestep = 0;
     }
-    std::string LogReader::get_location() {
-        return this->location;
+
+    bool LogReader::seek(int timestep) {
+        if (timestep < 0 || timestep >= simulation_length) {
+            return false;
+        }
+        current_timestep = timestep;
+        return true;
     }
-    int LogReader::get_total_num_agents() {
-        return this->num_agents;
+    bool LogReader::seek_last() {
+        if (simulation_length == 0) {
+            return false;
+        }
+        current_timestep = simulation_length - 1;
+        return true;
     }
+    bool LogReader::next() {
+        if (current_timestep + 1 >= simulation_length) {
+            return false;
+        }
+        ++current_timestep;
+        return true;
+    }
+    const std::vector<AgentState>&
+    LogReader::current_agent_states() const {
+        return scenario_log_.agent_states[current_timestep];
+    }
+    std::vector<const AgentProperties*>
+    LogReader::current_agent_properties() const {
+        std::vector<const AgentProperties*> result;
+        for (int idx : scenario_log_.present_indexes[current_timestep]) {
+            result.push_back(&scenario_log_.agent_properties[idx]);
+        }
+        return result;
+    }
+    std::optional<std::map<std::string, std::string>>
+    LogReader::current_traffic_lights() const {
+        if (!scenario_log_.traffic_lights_states) {
+            return std::nullopt;
+        }
+        return (*scenario_log_.traffic_lights_states)[current_timestep];
+    }
+
     int LogReader::get_scenario_length() {
-        return this->simulation_length;
+        return this->scenario_log_.agent_states.size();
     }
     std::vector<AgentProperties> LogReader::get_agent_properties() {
-        return this->sorted_agent_properties;
+        return this->scenario_log_.agent_properties;
     }
     std::vector<std::vector<AgentState>> LogReader::get_agent_states_over_time() {
-        return this->agent_states_over_time;
+        return scenario_log_.agent_states;
     }
     std::optional<std::vector<std::map<std::string, std::string>>>
     LogReader::get_traffic_lights_states_over_time() {
-        return this->traffic_light_states_over_time;
+        return this->scenario_log_.traffic_lights_states;
     }
 
     std::string LogWriter::get_current_time_UTC_(){

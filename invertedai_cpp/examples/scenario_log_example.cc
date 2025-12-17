@@ -82,7 +82,6 @@ void draw_traffic_lights(
         double px_L = L * 3.5;  
         double px_W = W * 3.5;
 
-        // orientation: Python draws Rectangle(angle=psi*180/π)
         double psi_deg = -actor->orientation * 180.0 / CV_PI;
         if (flip_x)
             psi_deg = 180.0 - psi_deg;
@@ -125,7 +124,7 @@ inline void apply_carla_flip(
 
 int main(int argc, char** argv) {
     const std::string API_KEY = getenv("IAI_API_KEY"); 
-    LogReader log_reader("examples/can_appleby_line_and_dryden_ave_canada_log.json", API_KEY);
+    LogReader log_reader("examples/carla_Town10HD_log.json", API_KEY);
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
@@ -153,12 +152,16 @@ int main(int argc, char** argv) {
         10,  
         cv::Size(frame_width, frame_height)
     );
-    
-    // Pull scale + coordinate transform values
-    auto rc = log_reader.rendering_center.value();
-    double cx = rc.first;
-    double cy = rc.second;
-    double FOV = log_reader.rendering_fov.value();
+
+    auto rc = log_reader.get_scenario_log().rendering_center;
+    if (!rc) {
+        std::cerr << "please provide a rendering center in JSON logs\n";
+        return 1;
+    }
+
+    double cx = rc->first;
+    double cy = rc->second;
+    double FOV = log_reader.get_fov();
     
     // World box
     double half = FOV * 0.5;
@@ -169,7 +172,6 @@ int main(int argc, char** argv) {
     // px-per-meter (assumes square birdview)
     double scale = image.rows / FOV;
     
-    // Transform: world (meters) → pixel (image coords)
     auto world_to_pixel = [&](double x, double y) -> cv::Point {
 
         int u = int((x - min_x) * scale);
@@ -229,40 +231,34 @@ int main(int argc, char** argv) {
         cv::Point2d RLw = rot(-hl,  hw);
     
         cv::Point poly[4] = {
-        world_to_pixel(FLw.x, FLw.y),
-        world_to_pixel(FRw.x, FRw.y),
-        world_to_pixel(RRw.x, RRw.y),
-        world_to_pixel(RLw.x, RLw.y)
-    };
+            world_to_pixel(FLw.x, FLw.y),
+            world_to_pixel(FRw.x, FRw.y),
+            world_to_pixel(RRw.x, RRw.y),
+            world_to_pixel(RLw.x, RLw.y)
+        };
     
-    cv::fillConvexPoly(frame, poly, 4, cv::Scalar(255,0,0));
+        cv::fillConvexPoly(frame, poly, 4, cv::Scalar(255,0,0));
     };
-
-    for (int t = 0; t < log_reader.get_scenario_length(); t++) {
+    log_reader.reset_log();
+    do {
         cv::Mat frame = image.clone();
 
-        const auto& props  = log_reader.agent_properties;  
-        const auto& states = log_reader.agent_states;
-        
+        const auto& states = log_reader.current_agent_states();
+        const auto  props  = log_reader.current_agent_properties();
 
-        for (size_t i = 0; i < states.size(); i++) {
-            draw_agent(frame, states[i], props[i]);
+        for (size_t i = 0; i < states.size(); ++i) {
+            draw_agent(frame, states[i], *props[i]);
         }
 
-        std::optional<std::map<std::string, std::string>> traffic_lights_states;
-            auto traff_all = log_reader.get_traffic_lights_states_over_time();
-            if (traff_all.has_value()) {
-                traffic_lights_states = traff_all->at(t);
-            } else {
-                traffic_lights_states = std::nullopt;
-            }
-            std::cout << "lights size" << traffic_lights_states->size() << std::endl;
+        auto traffic_lights_states = log_reader.current_traffic_lights();
+
+        if (traffic_lights_states.has_value()) {
             std::map<std::string, cv::Point> traffic_light_positions_px =
                 get_traffic_light_positions(
                     li_res.static_actors(),
                     world_to_pixel
                 );
-                
+
             draw_traffic_lights(
                 frame,
                 traffic_lights_states,
@@ -271,11 +267,11 @@ int main(int argc, char** argv) {
                 world_to_pixel,
                 FLIP_X_FOR_THIS_DOMAIN
             );
+        }
 
         video.write(frame);
-        if (!log_reader.drive())
-            break;
-    }
+
+    } while (log_reader.next());
 
     video.release();
 
