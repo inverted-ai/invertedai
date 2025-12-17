@@ -91,7 +91,7 @@ namespace invertedai {
             void reset_log();
             bool return_last_state();
             bool return_state_at_timestep(int t);
-            int get_fov();
+            std::optional<int> get_fov();
             std::optional<std::pair<double,double>> get_rendering_center();
             int get_scenario_length();
             ScenarioLog get_scenario_log();

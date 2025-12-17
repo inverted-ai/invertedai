@@ -36,12 +36,18 @@ using namespace invertedai;
                 bazel build //examples:scenario_log_example
 
             5. To run:
-                ./bazel-bin/examples/scenario_log_example
+                ./bazel-bin/examples/scenario_log_example --rollout_length 100
 
 */
 const int TIMESTEP_TO_BRANCH_FROM = 10;
-const int NEW_ROLLOUT_LENGTH = 100;
 int main(int argc, char** argv) {
+    int NEW_ROLLOUT_LENGTH = 50; // length of new rollout after branching from json
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--rollout_length") {
+            NEW_ROLLOUT_LENGTH = std::stoi(argv[++i]);
+        }
+    }
     const std::string API_KEY = getenv("IAI_API_KEY"); 
     LogReader log_reader("examples/carla_Town10HD_log.json");
     boost::asio::io_context ioc;
@@ -51,81 +57,38 @@ int main(int argc, char** argv) {
     session.connect();
 
     const std::string location = log_reader.get_location();
-    bool FLIP_X_FOR_THIS_DOMAIN = false; 
+    int fov;
+    if (!log_reader.get_fov().has_value()) {
+        fov = 200;  
+    } else {
+        fov = *log_reader.get_fov();
+    }
+    bool flip_x_for_carla = false; 
     if (location.rfind("carla:", 0) == 0) {
-        FLIP_X_FOR_THIS_DOMAIN = true;
+        flip_x_for_carla = true;
     }
     LocationInfoRequest li_req("{}");
     li_req.set_location(location);
     li_req.set_include_map_source(true);
-    li_req.set_rendering_fov(log_reader.get_fov());
+    li_req.set_rendering_fov(fov);
     li_req.set_rendering_center(log_reader.get_rendering_center());
     LocationInfoResponse li_res = location_info(li_req, &session);
-    auto image = cv::imdecode(li_res.birdview_image(), cv::IMREAD_COLOR);
-    cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-
-    int frame_width  = image.cols;
-    int frame_height = image.rows;
-    
-    cv::VideoWriter video(
-        "scenario_log_replay.avi",
-        cv::VideoWriter::fourcc('M','J','P','G'),
-        10,  
-        cv::Size(frame_width, frame_height)
-    );
-
     auto rc = log_reader.get_scenario_log().rendering_center;
     if (!rc) {
         std::cerr << "please provide a rendering center in JSON logs\n";
         return 1;
     }
 
-    double cx = rc->first;
-    double cy = rc->second;
-    double FOV = log_reader.get_fov();
-    double half = FOV * 0.5;
-    double min_x = cx - half;
-    double max_y = cy + half;
-    double scale = image.rows / FOV;
-    WorldToPixelProjector world_to_pixel {
-        .cx = cx,
-        .cy = cy,
-        .min_x = min_x,
-        .max_y = max_y,
-        .scale = scale,
-        .flip_x = FLIP_X_FOR_THIS_DOMAIN,
-        .width = frame_width,
-        .height = frame_height
-    };
-
-    // Run through the entire log and render each timestep
+    Visualizer viz(li_res, fov,*rc, flip_x_for_carla);
+    viz.initialize_video("scenario_log_replay.avi", 10);
     log_reader.reset_log();
     do {
-        cv::Mat frame = image.clone();
-
         const auto& states = log_reader.current_agent_states();
         const auto  props  = log_reader.current_agent_properties();
-
-        for (size_t i = 0; i < states.size(); ++i) {
-            draw_agent(frame, states[i], props[i], world_to_pixel);
-        }
         auto traffic_lights_states = log_reader.current_traffic_lights();
-        if (traffic_lights_states.has_value()) {
-            std::map<std::string, cv::Point> traffic_light_positions_px =
-                get_traffic_light_positions(li_res.static_actors(), world_to_pixel);
-            draw_traffic_lights(frame,
-                traffic_lights_states,
-                traffic_light_positions_px,
-                li_res.static_actors(),
-                world_to_pixel,
-                FLIP_X_FOR_THIS_DOMAIN
-            );
-        }
-        video.write(frame);
-
+        viz.render_step(states, props, traffic_lights_states);
     } while (log_reader.next());
-
-    video.release();
+    viz.close();
 
     // Choose an earlier timestep from which to branch off
     log_reader.reset_log();
@@ -140,19 +103,11 @@ int main(int argc, char** argv) {
     if (rnn_opt.has_value()) {
         const auto& rnn_vec = *rnn_opt;
         for (const RecurrentState& rs : rnn_vec) {
-            api_rnn.emplace_back(
-                rs.packed.begin(),
-                rs.packed.end()
-            );
+            api_rnn.emplace_back(rs.packed.begin(), rs.packed.end());
         }
     }
-
-    cv::VideoWriter video_branched(
-        "scenario_log_branched.avi",
-        cv::VideoWriter::fourcc('M','J','P','G'),
-        10,  
-        cv::Size(frame_width, frame_height)
-    );
+    Visualizer viz_branched(li_res, fov, *rc, flip_x_for_carla);
+    viz_branched.initialize_video("scenario_log_branched.avi", 10);
 
     for(int i = 0; i < NEW_ROLLOUT_LENGTH; i++) {
         DriveRequest drive_req("{}");
@@ -163,7 +118,7 @@ int main(int argc, char** argv) {
         if (light_rnn.has_value())
             drive_req.set_light_recurrent_states(*light_rnn);
         drive_req.set_rendering_center(log_reader.get_rendering_center());
-        drive_req.set_rendering_fov(log_reader.get_fov());
+        drive_req.set_rendering_fov(fov);
 
         DriveResponse resp = drive(drive_req, &session);
         agent_states = resp.agent_states();
@@ -171,24 +126,12 @@ int main(int argc, char** argv) {
         tl_states    = resp.traffic_lights_states();
         light_rnn    = resp.light_recurrent_states();
 
-        cv::Mat frame_branched = image.clone();
-        for (size_t k = 0; k < agent_states.size(); k++) {
-            draw_agent(frame_branched, agent_states[k], agent_properties[k], world_to_pixel);
-        }
-        if (tl_states.has_value()) {
-            std::map<std::string, cv::Point> traffic_light_positions_px =
-                get_traffic_light_positions(li_res.static_actors(), world_to_pixel);
-            draw_traffic_lights(
-                frame_branched,
-                tl_states,
-                traffic_light_positions_px,
-                li_res.static_actors(),
-                world_to_pixel,
-                FLIP_X_FOR_THIS_DOMAIN
-            );
-        }
-        video_branched.write(frame_branched);
+        viz_branched.render_step(
+            agent_states,
+            agent_properties,
+            tl_states
+        );
     }
-    video_branched.release();
+    viz_branched.close();
 
 }

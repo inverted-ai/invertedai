@@ -290,8 +290,8 @@ namespace invertedai {
         return this->scenario_log_.location;
     }
     
-    int LogReader::get_fov() {
-        return this->scenario_log_.rendering_fov.value_or(200);
+    std::optional<int> LogReader::get_fov() {
+        return this->scenario_log_.rendering_fov;
     }
     std::optional<std::pair<double, double>> LogReader::get_rendering_center() {
         return this->scenario_log_.rendering_center;

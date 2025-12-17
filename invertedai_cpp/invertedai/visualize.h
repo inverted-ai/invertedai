@@ -9,9 +9,8 @@
 #include <algorithm>
 
 #include "invertedai/location_info_response.h"
-#include "invertedai/initialize_response.h"
-#include "invertedai/drive_response.h"
-
+#include "invertedai/data_utils.h"
+namespace invertedai {
 struct WorldToPixelProjector {
     double cx, cy;
     double min_x, max_y;
@@ -19,28 +18,47 @@ struct WorldToPixelProjector {
     bool flip_x;
     int width, height;
 
-    cv::Point operator()(double x, double y) const;
+    cv::Point operator()(double x, double y) const {
+        int u = int((x - min_x) * scale);
+        if (flip_x)
+            u = width - u;
+
+        int v = int((max_y - y) * scale);
+
+        return cv::Point(
+            std::clamp(u, 0, width  - 1),
+            std::clamp(v, 0, height - 1)
+        );
+    }
 };
 
-std::map<std::string, cv::Point> get_traffic_light_positions(
-    const std::vector<invertedai::StaticMapActor>& actors,
-    const WorldToPixelProjector& world_to_pixel
-);
-
-void draw_traffic_lights(
-    cv::Mat& frame,
-    const std::optional<std::map<std::string, std::string>>& tl_states,
-    const std::map<std::string, cv::Point>& tl_positions_px,
-    const std::vector<invertedai::StaticMapActor>& actors,
-    const WorldToPixelProjector& world_to_pixel,
-    bool flip_x
-);
-
-void draw_agent(
-    cv::Mat& frame,
-    const invertedai::AgentState& s,
-    const invertedai::AgentProperties& p,
-    const WorldToPixelProjector& world_to_pixel
-);
-
+class Visualizer {
+    public:
+        Visualizer(
+            const LocationInfoResponse& li_res, 
+            int fov, 
+            std::pair<double, double> rendering_center, 
+            bool flip_x=false
+        );
+    
+        void initialize_video(const std::string& filename, int fps = 10);
+        void render_step(
+            const std::vector<AgentState>& agent_states,
+            const std::vector<AgentProperties>& agent_properties,
+            const std::optional<std::map<std::string, std::string>>& tl_states
+        );
+        void close();
+    
+    private:
+        WorldToPixelProjector projector_;
+        cv::Mat background_;
+        cv::VideoWriter writer_;
+        bool flip_x_;
+        std::vector<StaticMapActor> static_actors_;
+        std::map<std::string, cv::Point> traffic_light_positions_;
+        void compute_traffic_light_positions();
+        void draw_agent(cv::Mat&, const AgentState&, const AgentProperties&);
+        void draw_traffic_lights(cv::Mat&, const std::optional<std::map<std::string,std::string>>&);
+    };
+}
 #endif // VISUALIZE_H
