@@ -79,8 +79,6 @@ namespace invertedai {
             int simulation_length;
         public:
             explicit LogReader(const std::string &file_path);
-            bool seek(int timestep);
-            bool seek_last();
             bool next();
             const std::string& get_location() const;
             std::optional<std::map<std::string, std::string>> current_traffic_lights() const;

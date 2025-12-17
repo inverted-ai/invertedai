@@ -301,12 +301,19 @@ namespace invertedai {
     }
 
     bool LogReader::return_state_at_timestep(int t) {
-        return seek(t);
+        if (t < 0 || t >= simulation_length) {
+            return false;
+        }
+        current_timestep = t;
+        return true;
     }
     
-    
     bool LogReader::return_last_state() {
-        return seek_last();
+        if (simulation_length == 0) {
+            return false;
+        }
+        current_timestep = simulation_length - 1;
+        return true;
     }
 
     bool LogReader::initialize() {
@@ -323,20 +330,6 @@ namespace invertedai {
         current_timestep = 0;
     }
 
-    bool LogReader::seek(int timestep) {
-        if (timestep < 0 || timestep >= simulation_length) {
-            return false;
-        }
-        current_timestep = timestep;
-        return true;
-    }
-    bool LogReader::seek_last() {
-        if (simulation_length == 0) {
-            return false;
-        }
-        current_timestep = simulation_length - 1;
-        return true;
-    }
     bool LogReader::next() {
         if (current_timestep + 1 >= simulation_length) {
             return false;
@@ -344,10 +337,12 @@ namespace invertedai {
         ++current_timestep;
         return true;
     }
+
     const std::vector<AgentState>&
     LogReader::current_agent_states() const {
         return scenario_log_.agent_states[current_timestep];
     }
+
     std::vector<AgentProperties>
     LogReader::current_agent_properties() const {
         std::vector<AgentProperties> result;
@@ -356,6 +351,7 @@ namespace invertedai {
         }
         return result;
     }
+
     std::optional<std::map<std::string, std::string>>
     LogReader::current_traffic_lights() const {
         if (!scenario_log_.traffic_lights_states) {
@@ -367,19 +363,24 @@ namespace invertedai {
     int LogReader::get_scenario_length() {
         return this->scenario_log_.agent_states.size();
     }
+
     std::vector<AgentProperties> LogReader::get_agent_properties() {
         return this->scenario_log_.agent_properties;
     }
+
     std::vector<std::vector<AgentState>> LogReader::get_agent_states_over_time() {
         return scenario_log_.agent_states;
     }
+
     std::optional<std::vector<std::map<std::string, std::string>>>
     LogReader::get_traffic_lights_states_over_time() {
         return this->scenario_log_.traffic_lights_states;
     }
+
     std::optional<std::vector<LightRecurrentState>> LogReader::current_light_recurrent_state() const {
         return this->scenario_log_.light_recurrent_states;
     }
+    
     std::optional<std::vector<RecurrentState>> LogReader::current_recurrent_states() const {
         return this->scenario_log_.recurrent_states;
     }
