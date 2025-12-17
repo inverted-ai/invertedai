@@ -431,7 +431,7 @@ def generate_lane_ids_from_lanelet_map(
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     filtered_lanelets = []
-    radius_to_check = [0.1, 0.5, 1.0, 2.0, 5.0]
+    radius_to_check = [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]
     for radius in radius_to_check:
         starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), radius)
         for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
