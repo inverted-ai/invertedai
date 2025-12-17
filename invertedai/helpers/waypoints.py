@@ -29,8 +29,9 @@ class WaypointManagerConfig(BaseModel, validate_assignment=True):
     
     waypoint_threshold: float = 10.0 #Distance in meters away from the waypoint to be considered reached
     waypoint_spacing: float = 30.0 #Distance in meters between waypoints along a path to an end goal
-    random_seed: int = int(time.time())
-    log_level: Optional[int] = logging.DEBUG
+    random_seed: int = int(time.time()) #Pseudo-random seed for repeatability
+    log_level: Optional[int] = logging.DEBUG #Configure the level of the logger for convenience 
+    fail_soft: Optional[bool] = False #If an error is experienced, the manager will continue in a fail soft state instead of raising an Exception
 
 class WaypointUpdateFlags(Enum):
     UNINITIALIZE_WAYPOINTS = 0
@@ -65,7 +66,7 @@ class WaypointManager:
             self.logger.setLevel(self.cfg.log_level)
             self.logger.propagate = False
 
-        self.debug_data: Optional[List[List[WaypointManagerLogState]]] = [] if self.cfg.log_level is not None else None
+        self._debug_data: Optional[List[List[WaypointManagerLogState]]] = [] if self.cfg.log_level == logging.DEBUG else None
 
     def update(
         self,
@@ -155,7 +156,7 @@ class WaypointManager:
                         agent_properties = props
                     )
 
-            if self.debug_data is not None:
+            if self._debug_data is not None:
                 log_update.append(
                     WaypointManagerLogState(
                         agent_state=state,
@@ -166,62 +167,11 @@ class WaypointManager:
                 
             _agent_properties[i] = props
 
-        if self.debug_data is not None:
-            self.debug_data.append(log_update)
+        if self._debug_data is not None:
+            self._debug_data.append(log_update)
         
         return _agent_properties
 
-    def is_missed_waypoint(
-        self,
-        state: AgentState,
-        agent_properties: AgentProperties,
-    ) -> bool:
-        # Two-stage check:
-        # 1. Check if agent is facing the waypoint
-        # 2. If not, check if high resolution path to waypoint is greater than waypoint spacing
-        
-        wp = agent_properties.waypoints[0]
-        ap = state.center
-
-        if self._is_vehicle_pointing_away(
-            pt1=ap,
-            pt2=wp,
-            psi=state.orientation,
-            threshold=pi/2
-        ):
-            props = AgentProperties.deserialize(agent_properties.serialize())
-            props.waypoints = None
-            wps = self.generate_waypoints(
-                state = state,
-                target_path = [wp],
-                agent_properties = props,
-                waypoint_spacing = 1.0
-            )
-            
-            dist_sum = 0.0
-            for i in range(len(wps)-1):
-                dist_sum += self._get_L2_distance(wps[i],wps[i+1])
-                if dist_sum > self.waypoint_spacing:
-                    return True
-            
-        return False
-
-    def _get_L2_distance(
-        self,
-        pt1: Point,
-        pt2: Point
-    ) -> float:
-        return sqrt((pt2.x - pt1.x) ** 2 + (pt2.y - pt1.y) ** 2)
-    
-    def _is_vehicle_pointing_away(
-        self,
-        pt1: Point,
-        pt2: Point,
-        psi: float,
-        threshold: float
-    ) -> bool:
-        return abs((psi - atan2(pt2.y-pt1.y,pt2.x-pt1.x) + pi)%(2*pi) - pi) > threshold
-    
     def generate_waypoints(
         self,
         state: AgentState,
@@ -256,22 +206,72 @@ class WaypointManager:
                     target_path = default_target_path
                 
         for destination_waypoint in target_path:
-            waypoint_list += generate_waypoints_from_lane_ids(
-                start_state=state,
-                lanelet_map=self.lanelet_map, 
-                destination_waypoint=destination_waypoint,
-                waypoint_spacing=self.waypoint_spacing if waypoint_spacing is None else waypoint_spacing,
-                logger=self.logger,
-                lane_ids=generate_lane_ids_from_lanelet_map(
-                    start_state=state, 
-                    lanelet_map=self.lanelet_map,
+            try:
+                wps = generate_waypoints_from_lane_ids(
+                    start_state=state,
+                    lanelet_map=self.lanelet_map, 
                     destination_waypoint=destination_waypoint,
-                    seed=self.rng.integers(low=1, high=1000000000),
-                    logger=self.logger
+                    waypoint_spacing=self.waypoint_spacing if waypoint_spacing is None else waypoint_spacing,
+                    logger=self.logger,
+                    lane_ids=generate_lane_ids_from_lanelet_map(
+                        start_state=state, 
+                        lanelet_map=self.lanelet_map,
+                        destination_waypoint=destination_waypoint,
+                        seed=self.rng.integers(low=1, high=1000000000),
+                        logger=self.logger
+                    )
                 )
-            )
+            except ValueError as e:
+                err_msg = str(e)
+                if self.cfg.fail_soft:
+                    if self.logger is not None:
+                        self.logger.warning(msg=err_msg)
+                    wps = []
+                else:
+                    self.logger.error(msg=err_msg)
+                    raise ValueError(err_msg)
+
+            waypoint_list += wps
 
         return waypoint_list
+    
+    def is_missed_waypoint(
+        self,
+        state: AgentState,
+        agent_properties: AgentProperties,
+    ) -> bool:
+        # Two-stage check:
+        # 1. Check if agent is facing the waypoint
+        # 2. If not, check if high resolution path to waypoint is greater than waypoint spacing
+        
+        wp = agent_properties.waypoints[0]
+        ap = state.center
+
+        if self._is_vehicle_pointing_away(
+            pt1=ap,
+            pt2=wp,
+            psi=state.orientation,
+            threshold=pi/2
+        ):
+            props = AgentProperties.deserialize(agent_properties.serialize())
+            props.waypoints = None
+            wps = self.generate_waypoints(
+                state = state,
+                target_path = [wp],
+                agent_properties = props,
+                waypoint_spacing = 1.0
+            )
+            
+            dist_sum = 0.0
+            for i in range(len(wps)-1):
+                dist_sum += self._get_L2_distance(wps[i],wps[i+1])
+                if dist_sum > self.waypoint_spacing:
+                    return True
+            
+        return False
+    
+    def get_debug_data(self):
+        return self._debug_data
     
     def check_waypoint_achieved(
         self,
@@ -279,6 +279,22 @@ class WaypointManager:
         waypoint: Point
     ) -> bool:
         return self._get_L2_distance(agent_state.center,waypoint) < self.waypoint_threshold
+
+    def _get_L2_distance(
+        self,
+        pt1: Point,
+        pt2: Point
+    ) -> float:
+        return sqrt((pt2.x - pt1.x) ** 2 + (pt2.y - pt1.y) ** 2)
+    
+    def _is_vehicle_pointing_away(
+        self,
+        pt1: Point,
+        pt2: Point,
+        psi: float,
+        threshold: float
+    ) -> bool:
+        return abs((psi - atan2(pt2.y-pt1.y,pt2.x-pt1.x) + pi)%(2*pi) - pi) > threshold
 
 def generate_waypoints_from_lane_ids(
     start_state: AgentState, 
@@ -305,8 +321,6 @@ def generate_waypoints_from_lane_ids(
     """
     if len(lane_ids) < 1:
         msg = f"Cannot find path for agent with state: {start_state}"
-        if logger is not None: 
-            logger.error(msg) 
         raise ValueError(msg)
     
     def get_lanelet(id):
@@ -357,8 +371,6 @@ def generate_waypoints_from_lane_ids(
             if prev_lanelet:
                 if not current_lanelet in routing_graph.following(prev_lanelet, withLaneChanges=True):
                     msg = f"Current lanelet not in routing graph."
-                    if logger is not None: 
-                        logger.error(msg)
                     raise ValueError(msg)
                 if current_lanelet == routing_graph.left(prev_lanelet) or current_lanelet == routing_graph.right(prev_lanelet):
                     lanelets.append([])

@@ -35,7 +35,10 @@ response = iai.initialize(
 
 wp_manager = iai.WaypointManager(
     location_info_response = location_info_response,
-    cfg = iai.WaypointManagerConfig(random_seed=seed)
+    cfg = iai.WaypointManagerConfig(
+        random_seed=seed,
+        fail_soft=True
+    )
 )
 agent_properties = wp_manager.update(
     response = response,
