@@ -16,11 +16,6 @@
 #include "invertedai/initialize_response.h"
 #include "invertedai/drive_request.h"
 #include "invertedai/drive_response.h"
-// #include "invertedai/log_visualizer.h"
-#include "large/large_drive/large_drive.h"
-#include "large/large_initialize/large_init_helpers.h"
-#include "large/visualizer/visualizer.h"
-#include "large/visualizer/visualizer_helpers.h"
 
 using namespace invertedai;
 
@@ -43,20 +38,6 @@ using namespace invertedai;
             ./bazel-bin/examples/scenario_log_example
 
 */
-// inline void left_handed_transform(
-//     double x_in, double y_in, double psi_in,
-//     double cx, double cy,
-//     double &x_out, double &y_out, double &psi_out
-// ) {
-
-//     x_out = 2.0 * cx - x_in;
-
-//     y_out = y_in;
-//     psi_out = -psi_in + M_PI;
-
-//     if (psi_out < 0) psi_out += 2*M_PI;
-//     if (psi_out >= 2*M_PI) psi_out -= 2*M_PI;
-// }
 
 void draw_traffic_lights(
     cv::Mat& frame,

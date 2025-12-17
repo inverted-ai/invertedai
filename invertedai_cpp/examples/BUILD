@@ -163,13 +163,6 @@ cc_binary(
         "//invertedai:initialize_response",
         "//invertedai:drive_request",
         "//invertedai:drive_response",
-        # "//invertedai:log_visualizer",
-
-        "//large/visualizer:visualizer_lib",
-        "//large/visualizer:visualizer_helpers",
-        "//large/large_drive:large_drive_lib",
-        "//large/large_initialize:large_initialize_lib",
-
         "@boost//:asio",
         "@opencv//:opencv",
         "//invertedai/externals:json",
