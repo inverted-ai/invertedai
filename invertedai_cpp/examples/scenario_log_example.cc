@@ -173,7 +173,7 @@ void draw_agent(
 }
 int main(int argc, char** argv) {
     const std::string API_KEY = getenv("IAI_API_KEY"); 
-    LogReader log_reader("examples/can_appleby_line_and_dryden_ave_canada_log.json");
+    LogReader log_reader("examples/carla_Town10HD_log.json");
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
@@ -267,9 +267,7 @@ int main(int argc, char** argv) {
     // Choose an earlier timestep from which to branch off
     log_reader.reset_log();
     log_reader.initialize();  
-    for (int i = 0; i < 30; i++) {
-        log_reader.drive();           // go to timestep 30
-    }
+    log_reader.return_state_at_timestep(10);
     std::vector<AgentState> agent_states = log_reader.current_agent_states();
     std::vector<AgentProperties> agent_properties = log_reader.current_agent_properties();
     std::optional<std::map<std::string,std::string>> tl_states = log_reader.current_traffic_lights();
@@ -303,16 +301,10 @@ int main(int argc, char** argv) {
         drive_req.set_recurrent_states(api_rnn);
         if (light_rnn.has_value())
             drive_req.set_light_recurrent_states(*light_rnn);
-
-        if (tl_states.has_value())
-            drive_req.set_traffic_lights_states(*tl_states);
-
-        drive_req.set_random_seed(42);
         drive_req.set_rendering_center(log_reader.get_rendering_center());
         drive_req.set_rendering_fov(log_reader.get_fov());
 
         DriveResponse resp = drive(drive_req, &session);
-
         agent_states = resp.agent_states();
         api_rnn    = resp.recurrent_states();
         tl_states    = resp.traffic_lights_states();
