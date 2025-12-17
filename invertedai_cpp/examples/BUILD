@@ -127,12 +127,9 @@ cc_binary(
     deps = [
         "//invertedai:api",
         "//invertedai:session",
-        "//invertedai:error",
         "//invertedai:logger",
         "//invertedai:location_info_request",
         "//invertedai:location_info_response",
-        "//invertedai:initialize_request",
-        "//invertedai:initialize_response",
         "//invertedai:drive_request",
         "//invertedai:drive_response",
         "//invertedai:visualize",

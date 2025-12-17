@@ -1,19 +1,10 @@
 #include <iostream>
-#include <vector>
-#include <string>
-#include <random>
-#include <optional>
 #include <opencv2/opencv.hpp>
-#include <utility>
-#include <ostream>
-
 
 #include "invertedai/api.h"
 #include "invertedai/session.h"
 #include "invertedai/location_info_request.h"
 #include "invertedai/location_info_response.h"
-#include "invertedai/initialize_request.h"
-#include "invertedai/initialize_response.h"
 #include "invertedai/drive_request.h"
 #include "invertedai/drive_response.h"
 #include "invertedai/visualize.h"
