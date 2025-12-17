@@ -34,15 +34,10 @@ namespace invertedai {
             std::optional<std::string> initialize_model_version = std::string("best");
             std::optional<std::string> drive_model_version = std::string("best");
 
-            // recurrent
             std::optional<std::vector<LightRecurrentState>>  light_recurrent_states;
             std::optional<std::vector<RecurrentState>> recurrent_states;
-
-            // Persistent waypoints for each agent (Python: waypoints)
             std::optional<std::map<std::string, std::vector<Point2d>>> waypoints;
-            // Per-frame waypoints (Python: waypoints_per_frame)
             std::optional<std::vector<std::map<int, Point2d>>> waypoints_per_frame;
-            // Active agents per timestep 
             std::vector<std::vector<int>> present_indexes;
             ScenarioLog(
                 std::string location_,

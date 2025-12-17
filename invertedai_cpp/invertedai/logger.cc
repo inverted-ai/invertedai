@@ -343,9 +343,6 @@ namespace invertedai {
         return next();
     }
 
-    // bool LogReader::return_last_state() {
-    //     return return_state_at_timestep(simulation_length-1);
-    // }
     void LogReader::reset_log() {
         current_timestep = 0;
     }
