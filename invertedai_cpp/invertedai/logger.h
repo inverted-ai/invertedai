@@ -75,7 +75,6 @@ namespace invertedai {
     class LogReader {
         private:
             ScenarioLog scenario_log_;
-            std::optional<LocationInfoResponse> location_info_response_;
             int current_timestep = 0;
             int simulation_length;
         public:
