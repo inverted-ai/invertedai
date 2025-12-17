@@ -27,12 +27,12 @@ using namespace invertedai;
                 bazel build //examples:scenario_log_example
 
             5. To run:
-                ./bazel-bin/examples/scenario_log_example --rollout_length 100
+                ./bazel-bin/examples/scenario_log_example --rollout_length 40
 
 */
 const int TIMESTEP_TO_BRANCH_FROM = 10;
 int main(int argc, char** argv) {
-    int NEW_ROLLOUT_LENGTH = 50; // length of new rollout after branching from json
+    int NEW_ROLLOUT_LENGTH = 20; // length of new rollout after branching from json
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--rollout_length") {
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
         }
     }
     const std::string API_KEY = getenv("IAI_API_KEY"); 
-    LogReader log_reader("examples/carla_Town10HD_log.json");
+    LogReader log_reader("examples/assets/scenario_log_example.json");
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);
@@ -108,6 +108,9 @@ int main(int argc, char** argv) {
         drive_req.set_recurrent_states(api_rnn);
         if (light_rnn.has_value())
             drive_req.set_light_recurrent_states(*light_rnn);
+        if (!light_rnn.has_value()) {
+            std::cout << "No LightRecurrentStates found from json file" << std::endl;
+        }
         drive_req.set_rendering_center(log_reader.get_rendering_center());
         drive_req.set_rendering_fov(fov);
 
