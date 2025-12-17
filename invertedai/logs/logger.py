@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import json
 
 from invertedai import location_info
-from invertedai.utils import ScenePlotter
+from invertedai.utils import ScenePlotter, WaypointsDict
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
@@ -20,7 +20,6 @@ from invertedai.common import (
     RecurrentState,
     TrafficLightStatesDict 
 )
-
 
 class ScenarioLog(BaseModel):
     """
@@ -47,8 +46,7 @@ class ScenarioLog(BaseModel):
     light_recurrent_states: Optional[LightRecurrentStates] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
     recurrent_states: Optional[List[RecurrentState]] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
 
-    waypoints: Optional[Dict[str,List[Point]]] = None #: As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
-
+    waypoints_per_frame: Optional[List[WaypointsDict]] = None # As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
     present_indexes: List[List[int]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
 
     @model_validator(mode='after')
@@ -81,9 +79,8 @@ class ScenarioLog(BaseModel):
             current_present_indexes=current_present_indexes
         )
         self.present_indexes.append(current_present_indexes)
-        self.agent_states.append(current_agent_states)
+        self.agent_states.append(current_agent_states)        
     
-
 class LogBase():
     """
     A class for containing features relevant to both log reading and writing such as visualization.
@@ -93,6 +90,67 @@ class LogBase():
         self._scenario_log = None
         self.simulation_length = None
 
+    @classmethod
+    def scenario_log_from_debug_log(
+        cls,
+        debug_log_path
+    ):
+        with open(debug_log_path) as f:
+            DEBUG_LOG_DATA = json.load(f)
+
+        last_init_res = json.loads(DEBUG_LOG_DATA["initialize_responses"][-1])
+        last_init_req = json.loads(DEBUG_LOG_DATA["initialize_requests"][-1])
+        last_drive_req = json.loads(DEBUG_LOG_DATA["drive_requests"][-1])
+        all_drive_responses = []
+        all_agent_states = []
+        all_traffic_lights_states = []
+        for res_ in DEBUG_LOG_DATA["drive_responses"]:
+            res = json.loads(res_)
+            all_drive_responses.append(res)
+            all_agent_states.append([AgentState.fromlist(state) for state in res["agent_states"]])
+            if res["traffic_lights_states"] is not None:
+                all_traffic_lights_states.append(res["traffic_lights_states"])
+            else:
+                all_traffic_lights_states = None
+
+        agent_properties = [AgentProperties.deserialize(prop) for prop in last_init_res["agent_properties"]]
+
+        log_location = last_init_req["location"]
+
+        if len(DEBUG_LOG_DATA["location_responses"]) > 0:
+            loc_res = json.loads(DEBUG_LOG_DATA["location_responses"][-1])
+            rendering_center = loc_res["map_center"]
+            rendering_fov=loc_res["map_fov"]
+        else:
+            location_info_response = location_info(
+                location=log_location,
+            )
+            rendering_center = [
+                location_info_response.map_center.x,
+                location_info_response.map_center.y
+            ]
+            rendering_fov=location_info_response.map_fov
+        
+        scenario_log = ScenarioLog(
+            agent_states=all_agent_states, 
+            agent_properties=agent_properties, 
+            traffic_lights_states=all_traffic_lights_states, 
+            location=log_location,
+            rendering_center=rendering_center,
+            rendering_fov=rendering_fov,
+            lights_random_seed=last_drive_req["random_seed"],
+            initialize_random_seed=last_init_req["random_seed"],
+            drive_random_seed=last_drive_req["random_seed"],
+            initialize_model_version=last_init_res["model_version"],
+            drive_model_version=all_drive_responses[-1]["model_version"],
+            light_recurrent_states=all_drive_responses[-1]["light_recurrent_states"],
+            recurrent_states=[RecurrentState.fromval(rec_state) for rec_state in all_drive_responses[-1]["recurrent_states"]],
+            waypoints={str(i):[prop.waypoint] for i, prop in enumerate(agent_properties)},
+            present_indexes=[list(range(len(agent_properties)))]*len(all_agent_states)
+        )
+
+        return scenario_log
+    
     @validate_arguments
     def visualize_range(
         self,
@@ -112,6 +170,14 @@ class LogBase():
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
         an invalid time step range is given, the function will fail. Please refer to ScenePlotter for details on the visualization tool.
         """
+
+        def format_agent_properties(self,ts,agent_id):
+            agent_properties = deepcopy(self._scenario_log.agent_properties[agent_id])
+            if self._scenario_log.waypoints_per_frame[ts] is not None:
+                agent_id_str = str(agent_id)
+                if agent_id_str in self._scenario_log.waypoints_per_frame[ts]:
+                    agent_properties.waypoints = self._scenario_log.waypoints_per_frame[ts][agent_id_str]
+
 
         for timestep in timestep_range:
             assert timestep >= 0 or timestep <= (self.simulation_length - 1), "Visualization time range valid."
@@ -137,15 +203,19 @@ class LogBase():
         )
         scene_plotter.initialize_recording(
             agent_states=self._scenario_log.agent_states[0],
-            agent_properties=[self._scenario_log.agent_properties[i] for i in self._scenario_log.present_indexes[0]],
-            traffic_light_states=traffic_lights_states[timestep_range[0]]
+            agent_properties=[format_agent_properties(ts=0,agent_id=i) for i in self._scenario_log.present_indexes[0]],
+            traffic_light_states=traffic_lights_states[timestep_range[0]],
         )
 
-        for states, lights, present in zip(self._scenario_log.agent_states[0:],traffic_lights_states[0:],self._scenario_log.present_indexes[0:]):
+        for ts, (states, lights, present) in enumerate(zip(
+            self._scenario_log.agent_states[0:],
+            traffic_lights_states[0:],
+            self._scenario_log.present_indexes[0:]
+        )):
             scene_plotter.record_step(
                 agent_states=states, 
                 traffic_light_states=lights,
-                agent_properties=[self._scenario_log.agent_properties[i] for i in present]
+                agent_properties=[format_agent_properties(ts=ts,agent_id=i) for i in present]
             )
 
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
@@ -359,7 +429,7 @@ class LogWriter(LogBase):
                 outfile,
                 indent=4
             )
-
+    
     @classmethod
     def export_log_to_file(
         cls, 
@@ -382,7 +452,8 @@ class LogWriter(LogBase):
         initialize_random_seed: Optional[int] = None,
         drive_random_seed: Optional[int] = None,
         drive_model_version: Optional[str] = None,
-        scenario_log: Optional[ScenarioLog] = None
+        scenario_log: Optional[ScenarioLog] = None,
+        waypoints: Optional[WaypointsDict] = None
     ): 
         """
         Consume and store all initial information within a ScenarioLog data object. If random seed information is desired to be stored, it 
@@ -415,7 +486,7 @@ class LogWriter(LogBase):
                 drive_model_version=drive_model_version,
                 light_recurrent_states=init_response.light_recurrent_states,
                 recurrent_states=init_response.recurrent_states,
-                waypoints=None,
+                waypoints_per_frame=[waypoints] if waypoints is not None else None,
                 present_indexes=[list(range(len(agent_properties)))]
             )
             self.simulation_length = 1
@@ -432,7 +503,8 @@ class LogWriter(LogBase):
         self,
         drive_response: DriveResponse,
         current_present_indexes: Optional[List[int]] = None,
-        new_agent_properties: Optional[List[AgentProperties]] = None
+        new_agent_properties: Optional[List[AgentProperties]] = None,
+        waypoints: Optional[WaypointsDict] = None
     ): 
         """
         Consume and store driving response information from a single timestep and append it to the end of the log. If the number of agents
@@ -454,6 +526,8 @@ class LogWriter(LogBase):
         if drive_response.traffic_lights_states is not None:
             self._scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
         
+        if waypoints is not None:
+            self._scenario_log.waypoints_per_frame.append(waypoints)
         self._scenario_log.drive_model_version = drive_response.api_model_version
         self._scenario_log.light_recurrent_states = drive_response.light_recurrent_states
         self._scenario_log.recurrent_states = drive_response.recurrent_states
@@ -564,27 +638,38 @@ class LogReader(LogBase):
             all_traffic_light_states = None
 
         agent_waypoints = {}
-        for agent_id, waypoints in LOG_DATA["individual_suggestions"].items():
-            agent_waypoints[agent_id] = []
-            for pt in waypoints["states"]:
-                data = pt["center"]
-                agent_waypoints[agent_id].append(Point.fromlist([data["x"],data["y"]]))
+        if "individual_suggestions" in LOG_DATA:
+            for agent_id, waypoints in LOG_DATA["individual_suggestions"].items():
+                agent_waypoints[agent_id] = []
+                for pt in waypoints["states"]:
+                    data = pt["center"]
+                    agent_waypoints[agent_id].append(Point.fromlist([data["x"],data["y"]]))
         if not agent_waypoints:
             agent_waypoints = None
+
+        rendering_center = None
+        rendering_fov = None
+        if "birdview_options" in LOG_DATA:
+            rendering_center = tuple([LOG_DATA["birdview_options"]["rendering_center"][0],LOG_DATA["birdview_options"]["rendering_center"][1]])
+            rendering_fov = LOG_DATA["birdview_options"]["renderingFOV"]
+
+        light_recurrent_states = None
+        if "light_recurrent_states" in LOG_DATA:
+            light_recurrent_states = None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]]
 
         self._scenario_log = ScenarioLog(
             agent_states=all_agent_states, 
             agent_properties=all_agent_properties, 
             traffic_lights_states=all_traffic_light_states, 
             location=location, 
-            rendering_center=tuple([LOG_DATA["birdview_options"]["rendering_center"][0],LOG_DATA["birdview_options"]["rendering_center"][1]]),
-            rendering_fov=LOG_DATA["birdview_options"]["renderingFOV"],
+            rendering_center=rendering_center,
+            rendering_fov=rendering_fov,
             lights_random_seed=None if not "lights_random_seed" in LOG_DATA else LOG_DATA["lights_random_seed"],
             initialize_random_seed=None if not "initialize_random_seed" in LOG_DATA else LOG_DATA["initialize_random_seed"],
-            drive_random_seed=LOG_DATA["drive_random_seed"],
+            drive_random_seed=None if not "drive_random_seed" in LOG_DATA else LOG_DATA["drive_random_seed"],
             initialize_model_version=None if not "initialize_model_version" in LOG_DATA else LOG_DATA["initialize_model_version"],
-            drive_model_version=LOG_DATA["drive_model_version"],
-            light_recurrent_states=None if (LOG_DATA["light_recurrent_states"] is [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]],
+            drive_model_version=None if not "drive_model_version" in LOG_DATA else LOG_DATA["drive_model_version"],
+            light_recurrent_states=light_recurrent_states,
             recurrent_states=None,
             waypoints=agent_waypoints,
             present_indexes=log_present_indexes
@@ -725,7 +810,7 @@ class LogReader(LogBase):
         Return all waypoints in the simulation keyed to the index of agents corresponding to the full agent properties list.
         """
 
-        return self._scenario_log.waypoints
+        return self._scenario_log.waypoints_per_frame[-1]
     
     @property
     def location(self):

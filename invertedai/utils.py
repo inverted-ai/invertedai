@@ -39,7 +39,8 @@ from invertedai.common import (
     RecurrentState,
     StaticMapActor,
     TrafficLightState, 
-    TrafficLightStatesDict 
+    TrafficLightStatesDict,
+    Point 
 )
 
 H_SCALE = 10
@@ -49,6 +50,8 @@ text_size = 7
 TIMEOUT_SECS = 600
 MAX_RETRIES = 10
 AGENT_SCOPE_FOV = 120
+
+WaypointsDict = Dict[str,List[Point]]
 
 logger = logging.getLogger(__name__)
 
@@ -870,6 +873,7 @@ class ScenePlotter():
         self.agent_states_history = None
         self.traffic_lights_history = None
         self.agent_properties = None
+        self.waypoints_per_frame = None
         
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
@@ -880,7 +884,7 @@ class ScenePlotter():
         agent_states: List[AgentState], 
         agent_attributes: Optional[List[AgentAttributes]] = None, 
         agent_properties: Optional[List[AgentProperties]] = None,
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None 
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
     ):
         """
         Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous 
@@ -922,6 +926,7 @@ class ScenePlotter():
 
         self.agent_face_colors = None
         self.agent_edge_colors = None
+        self.waypoints_per_frame = [[prop.waypoints for prop in agent_properties]]
 
     @validate_arguments
     def record_step(
@@ -956,6 +961,7 @@ class ScenePlotter():
             agent_properties=agent_properties
         )
         self.agent_properties.append(agent_properties)
+        self.waypoints_per_frame.append([prop.waypoints for prop in agent_properties])
 
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def plot_scene(
@@ -969,7 +975,7 @@ class ScenePlotter():
         direction_vec: bool = True, 
         velocity_vec: bool = False,
         agent_face_colors: Optional[ColorList] = None,
-        agent_edge_colors: Optional[ColorList] = None
+        agent_edge_colors: Optional[ColorList] = None,
     ):
         """
         Plot a single timestep of data then reset the recording. 
@@ -979,10 +985,10 @@ class ScenePlotter():
         agent_states:
             A list of agents to be visualized in the image.
         agent_attributes: 
-            Static attributes of the agent, which don’t change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic
+            Static attributes of the agent, which don't change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic
             bicycle model.
         agent_properties:
-            Static attributes of the agent (with the AgentProperties data type), which don’t change over the course of a simulation. We assume every 
+            Static attributes of the agent (with the AgentProperties data type), which don't change over the course of a simulation. We assume every 
             agent is a rectangle obeying a kinematic bicycle model.
         traffic_light_states: 
             Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the 
@@ -1014,7 +1020,7 @@ class ScenePlotter():
         self.initialize_recording(
             agent_states=agent_states, 
             agent_properties=agent_properties,
-            traffic_light_states=traffic_light_states
+            traffic_light_states=traffic_light_states,
         )
 
         self._validate_agent_style_data(
@@ -1194,6 +1200,7 @@ class ScenePlotter():
         self.actor_boxes = {}
         self.traffic_light_boxes = {}
         self.box_labels = {}
+        self.waypoint_markers = {}
         self.frame_label = None
 
         self.numbers = numbers
@@ -1223,12 +1230,25 @@ class ScenePlotter():
     def _update_frame_to(self, frame_idx):
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
+        for marker in self.waypoint_markers.values():
+            elem = marker["marker"]
+            if isinstance(elem, list):
+                for m in elem:
+                    m.set_visible(False)
+            else:
+                elem.set_visible(False)
         for lines in self.dir_lines.values():
-            for line in lines:
-                line.set_visible(False)
+            if isinstance(lines, list):
+                for line in lines:
+                    line.set_visible(False)
+            else:
+                lines.set_visible(False)
         for lines in self.v_lines.values():
-            for line in lines:
-                line.set_visible(False)
+            if isinstance(lines, list):
+                for line in lines:
+                    line.set_visible(False)
+            else:
+                lines.set_visible(False)
         for label in self.box_labels.values():
             label.set_visible(False)
 
@@ -1237,6 +1257,11 @@ class ScenePlotter():
                 agent_idx=i,
                 frame_idx=frame_idx
             )
+            if self.numbers is not None and i in self.numbers:
+                self._plot_waypoint(
+                    agent_idx=i,
+                    frame_idx=frame_idx
+                )
 
         if self.traffic_lights_history[frame_idx] is not None:
             for light_id, light_state in self.traffic_lights_history[frame_idx].items():
@@ -1324,7 +1349,9 @@ class ScenePlotter():
                     x, 
                     y, 
                     str(agent_idx), 
-                    c="r", 
+                    c="r",
+                    ha='center',
+                    va='center',
                     fontsize=18
                 )
                 self.box_labels[agent_idx].set_clip_on(True)
@@ -1360,6 +1387,60 @@ class ScenePlotter():
         self.actor_boxes[agent_idx].set_clip_on(True)
         self.current_ax.add_patch(self.actor_boxes[agent_idx])
         self.actor_boxes[agent_idx].set_visible(True)
+
+    def _plot_waypoint(
+        self, 
+        agent_idx, 
+        frame_idx
+    ):
+        wps = self.waypoints_per_frame[frame_idx][agent_idx]
+        if wps is not None:
+            wp = wps[0]
+            x = float(wp.x)
+            y = float(wp.y)
+            psi = 0.0
+        
+            if self._left_hand_coordinates:
+                x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+
+            marker_offset = 0.0  
+            x_data = x + marker_offset * math.cos(psi)
+            y_data = y + marker_offset * math.sin(psi)
+            marker_data = 'o'
+
+            if agent_idx not in self.waypoint_markers:
+                self.waypoint_markers[agent_idx] = dict()
+                self.waypoint_markers[agent_idx]["marker"] = self.current_ax.plot(
+                    x_data,
+                    y_data,
+                    marker=marker_data,
+                    color='saddlebrown',
+                    markersize=17.0,
+                    linestyle='None',
+                    zorder=6
+                )[0]
+                self.waypoint_markers[agent_idx]["text"] = self.current_ax.text(
+                    x=x_data,
+                    y=y_data,
+                    s=str(agent_idx),
+                    c='w',
+                    ha='center',
+                    va='center',
+                    fontsize=18,
+                    zorder=6
+                )
+                self.waypoint_markers[agent_idx]["text"].set_clip_on(True)
+            else:
+                marker = self.waypoint_markers[agent_idx]["marker"]
+                marker.set_xdata([x_data])
+                marker.set_ydata([y_data])
+                marker.set_marker(marker_data)
+                marker.set_visible(True)
+
+                text = self.waypoint_markers[agent_idx]["text"]
+                text.set_x(x_data)
+                text.set_y(y_data)
+                text.set_visible(True)
 
     def _plot_traffic_light(
         self, 
