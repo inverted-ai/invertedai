@@ -16,6 +16,7 @@
 #include "invertedai/initialize_response.h"
 #include "invertedai/drive_request.h"
 #include "invertedai/drive_response.h"
+#include "invertedai/visualize.h"
 
 using namespace invertedai;
 
@@ -25,152 +26,21 @@ using namespace invertedai;
             1. cd into invertedai_cpp folder
 
             2. Join docker:
-            docker compose build
-            docker compose run --rm dev 
+                docker compose build
+                docker compose run --rm dev 
 
             3. Export your API key in the docker:
-            export IAI_API_KEY="your_key_here"
+                export IAI_API_KEY="your_key_here"
             
             4. Build:
-            bazel build //examples:scenario_log_example
+                bazel build //examples:scenario_log_example
 
             5. To run:
-            ./bazel-bin/examples/scenario_log_example
+                ./bazel-bin/examples/scenario_log_example
 
 */
-struct WorldToPixelProjector {
-    double cx, cy;
-    double min_x, max_y;
-    double scale;
-    bool flip_x;
-    int width, height;
-
-    cv::Point operator()(double x, double y) const {
-        int u = int((x - min_x) * scale);
-        if (flip_x)
-            u = width - u;
-
-        int v = int((max_y - y) * scale);
-
-        return cv::Point(
-            std::clamp(u, 0, width - 1),
-            std::clamp(v, 0, height - 1)
-        );
-    }
-};
-void draw_traffic_lights(
-    cv::Mat& frame,
-    const std::optional<std::map<std::string, std::string>>& tl_states,
-    const std::map<std::string, cv::Point>& tl_positions_px,
-    const std::vector<StaticMapActor>& actors,
-    const WorldToPixelProjector& world_to_pixel,
-    bool flip_x
-) {
-    if (!tl_states.has_value() || tl_states->empty())
-        return;
-
-    for (const auto& [light_id, state] : *tl_states) {
-
-        cv::Scalar color = cv::Scalar(128, 128, 128);
-        if (state == "red")    color = cv::Scalar(0,0,255);
-        if (state == "yellow") color = cv::Scalar(0,255,255);
-        if (state == "green")  color = cv::Scalar(0,255,0);
-
-        auto pos_it = tl_positions_px.find(light_id);
-        if (pos_it == tl_positions_px.end())
-            continue;
-
-        cv::Point center_px = pos_it->second;
-        const StaticMapActor* actor = nullptr;
-        for (const auto& a : actors) {
-            if (a.agent_type == "traffic_light" &&
-                std::to_string(a.actor_id) == light_id) {
-                actor = &a;
-                break;
-            }
-        }
-        if (!actor) continue;
-
-        double L = std::max(1.0, actor->length.value_or(1.0));
-        double W = std::max(1.0, actor->width.value_or(1.0));
-
-        double px_L = L * 3.5;  
-        double px_W = W * 3.5;
-
-        double psi_deg = -actor->orientation * 180.0 / CV_PI;
-        if (flip_x)
-            psi_deg = 180.0 - psi_deg;
-        cv::RotatedRect box(center_px, cv::Size2f(px_L, px_W), psi_deg);
-        cv::Point2f pts[4];
-        box.points(pts);       
-        cv::fillConvexPoly(
-            frame,
-            std::vector<cv::Point>{pts[0], pts[1], pts[2], pts[3]},
-            color
-        );
-    }
-}
-
-
-std::map<std::string, cv::Point> get_traffic_light_positions(
-    const std::vector<StaticMapActor>& actors,
-    const WorldToPixelProjector& world_to_pixel
-) {
-    std::map<std::string, cv::Point> out;
-
-    for (const auto& a : actors) {
-        if (a.agent_type != "traffic_light")
-            continue;
-
-        cv::Point px = world_to_pixel(a.x, a.y);
-        out[std::to_string(a.actor_id)] = px;
-    }
-
-    return out;
-}
-void draw_agent(
-    cv::Mat &frame,
-    const AgentState &s,
-    const AgentProperties &p,
-    const WorldToPixelProjector& world_to_pixel
-
-) {
-    double x = s.x;
-    double y = s.y;
-    double psi = s.orientation;
-
-    double L = p.length.value_or(5.0);
-    double W = p.width.value_or(2.0);
-    if (p.agent_type == "pedestrian") {
-        L = W = 1.5;
-    }
-    double hl = L * 0.5;
-    double hw = W * 0.5;
-
-    double c  = std::cos(psi);
-    double sn = std::sin(psi);
-
-    auto rot = [&](double px, double py){
-        return cv::Point2d(
-            x + c*px - sn*py,
-            y + sn*px + c*py
-        );
-    };    
-
-    cv::Point2d FLw = rot( hl,  hw);
-    cv::Point2d FRw = rot( hl, -hw);
-    cv::Point2d RRw = rot(-hl, -hw);
-    cv::Point2d RLw = rot(-hl,  hw);
-
-    cv::Point poly[4] = {
-        world_to_pixel(FLw.x, FLw.y),
-        world_to_pixel(FRw.x, FRw.y),
-        world_to_pixel(RRw.x, RRw.y),
-        world_to_pixel(RLw.x, RLw.y)
-    };
-
-    cv::fillConvexPoly(frame, poly, 4, cv::Scalar(255,0,0));
-}
+const int TIMESTEP_TO_BRANCH_FROM = 10;
+const int NEW_ROLLOUT_LENGTH = 100;
 int main(int argc, char** argv) {
     const std::string API_KEY = getenv("IAI_API_KEY"); 
     LogReader log_reader("examples/carla_Town10HD_log.json");
@@ -228,6 +98,7 @@ int main(int argc, char** argv) {
         .height = frame_height
     };
 
+    // Run through the entire log and render each timestep
     log_reader.reset_log();
     do {
         cv::Mat frame = image.clone();
@@ -238,18 +109,11 @@ int main(int argc, char** argv) {
         for (size_t i = 0; i < states.size(); ++i) {
             draw_agent(frame, states[i], props[i], world_to_pixel);
         }
-
         auto traffic_lights_states = log_reader.current_traffic_lights();
-
         if (traffic_lights_states.has_value()) {
             std::map<std::string, cv::Point> traffic_light_positions_px =
-                get_traffic_light_positions(
-                    li_res.static_actors(),
-                    world_to_pixel
-                );
-
-            draw_traffic_lights(
-                frame,
+                get_traffic_light_positions(li_res.static_actors(), world_to_pixel);
+            draw_traffic_lights(frame,
                 traffic_lights_states,
                 traffic_light_positions_px,
                 li_res.static_actors(),
@@ -257,7 +121,6 @@ int main(int argc, char** argv) {
                 FLIP_X_FOR_THIS_DOMAIN
             );
         }
-
         video.write(frame);
 
     } while (log_reader.next());
@@ -267,17 +130,15 @@ int main(int argc, char** argv) {
     // Choose an earlier timestep from which to branch off
     log_reader.reset_log();
     log_reader.initialize();  
-    log_reader.return_state_at_timestep(10);
+    log_reader.return_state_at_timestep(TIMESTEP_TO_BRANCH_FROM);
     std::vector<AgentState> agent_states = log_reader.current_agent_states();
     std::vector<AgentProperties> agent_properties = log_reader.current_agent_properties();
     std::optional<std::map<std::string,std::string>> tl_states = log_reader.current_traffic_lights();
     std::optional<std::vector<LightRecurrentState>> light_rnn = log_reader.current_light_recurrent_state();
     std::optional<std::vector<RecurrentState>> rnn_opt = log_reader.current_recurrent_states();
     std::vector<std::vector<double>> api_rnn;
-
     if (rnn_opt.has_value()) {
         const auto& rnn_vec = *rnn_opt;
-
         for (const RecurrentState& rs : rnn_vec) {
             api_rnn.emplace_back(
                 rs.packed.begin(),
@@ -293,7 +154,7 @@ int main(int argc, char** argv) {
         cv::Size(frame_width, frame_height)
     );
 
-    for(int i = 0; i < 100; i++) {
+    for(int i = 0; i < NEW_ROLLOUT_LENGTH; i++) {
         DriveRequest drive_req("{}");
         drive_req.set_location(log_reader.get_location());
         drive_req.set_agent_states(agent_states);

@@ -133,14 +133,13 @@ cc_library(
 )
 
 cc_library(
-    name = "log_visualizer",
-    srcs = ["log_visualizer.cc"],
-    hdrs = ["log_visualizer.h"],
+    name = "visualize",
+    srcs = ["visualize.cc"],
+    hdrs = ["visualize.h"],
     deps = [
-        "//large/visualizer:visualizer_helpers",
-        "//invertedai:api",
-        "//invertedai:logger",
-        ":data_utils",
+        "//invertedai:location_info_response",
+        "//invertedai:initialize_response",
+        "//invertedai:drive_response",
         "@opencv//:opencv",
     ],
     visibility = ["//visibility:public"],
