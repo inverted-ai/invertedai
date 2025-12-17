@@ -348,11 +348,11 @@ namespace invertedai {
     LogReader::current_agent_states() const {
         return scenario_log_.agent_states[current_timestep];
     }
-    std::vector<const AgentProperties*>
+    std::vector<AgentProperties>
     LogReader::current_agent_properties() const {
-        std::vector<const AgentProperties*> result;
+        std::vector<AgentProperties> result;
         for (int idx : scenario_log_.present_indexes[current_timestep]) {
-            result.push_back(&scenario_log_.agent_properties[idx]);
+            result.push_back(scenario_log_.agent_properties[idx]);
         }
         return result;
     }
@@ -376,6 +376,12 @@ namespace invertedai {
     std::optional<std::vector<std::map<std::string, std::string>>>
     LogReader::get_traffic_lights_states_over_time() {
         return this->scenario_log_.traffic_lights_states;
+    }
+    std::optional<std::vector<LightRecurrentState>> LogReader::current_light_recurrent_state() const {
+        return this->scenario_log_.light_recurrent_states;
+    }
+    std::optional<std::vector<RecurrentState>> LogReader::current_recurrent_states() const {
+        return this->scenario_log_.recurrent_states;
     }
 
     std::string LogWriter::get_current_time_UTC_(){

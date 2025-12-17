@@ -85,7 +85,9 @@ namespace invertedai {
             const std::string& get_location() const;
             std::optional<std::map<std::string, std::string>> current_traffic_lights() const;
             const std::vector<AgentState>& current_agent_states() const;
-            std::vector<const AgentProperties*> current_agent_properties() const;
+            std::vector<AgentProperties> current_agent_properties() const;
+            std::optional<std::vector<LightRecurrentState>> current_light_recurrent_state() const;
+            std::optional<std::vector<RecurrentState>> current_recurrent_states() const;
             bool initialize(); 
             bool drive();
             void reset_log();
