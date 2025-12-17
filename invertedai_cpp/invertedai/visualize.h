@@ -32,9 +32,9 @@ struct WorldToPixelProjector {
     }
 };
 
-class Visualizer {
+class ScenePlotter {
     public:
-        Visualizer(
+        ScenePlotter(
             const LocationInfoResponse& li_res, 
             int fov, 
             std::pair<double, double> rendering_center, 

@@ -1,11 +1,11 @@
 #include "visualize.h"
 
 namespace invertedai {
-void Visualizer::close() {
+void ScenePlotter::close() {
     if (writer_.isOpened())
         writer_.release();
 }
-void Visualizer::compute_traffic_light_positions() {
+void ScenePlotter::compute_traffic_light_positions() {
     traffic_light_positions_.clear();
     for (const auto& a : static_actors_) {
         if (a.agent_type != "traffic_light")
@@ -16,7 +16,7 @@ void Visualizer::compute_traffic_light_positions() {
 }
 
 
-void Visualizer::draw_traffic_lights(
+void ScenePlotter::draw_traffic_lights(
     cv::Mat& frame,
     const std::optional<std::map<std::string, std::string>>& tl_states
 ) {
@@ -58,7 +58,7 @@ void Visualizer::draw_traffic_lights(
     }
 }
 
-void Visualizer::draw_agent(
+void ScenePlotter::draw_agent(
     cv::Mat& frame,
     const invertedai::AgentState& s,
     const invertedai::AgentProperties& p
@@ -94,7 +94,7 @@ void Visualizer::draw_agent(
     cv::fillConvexPoly(frame, poly, 4, cv::Scalar(255,0,0));
 }
 
-Visualizer::Visualizer(
+ScenePlotter::ScenePlotter(
     const LocationInfoResponse& li_res, 
     int fov, 
     std::pair<double, double> rendering_center, 
@@ -124,9 +124,9 @@ Visualizer::Visualizer(
     compute_traffic_light_positions();
 }
 
-void Visualizer::initialize_video(const std::string& filename, int fps) {
+void ScenePlotter::initialize_video(const std::string& filename, int fps) {
     if (background_.empty())
-        throw std::runtime_error("Visualizer: background image is empty.");
+        throw std::runtime_error("ScenePlotter: background image is empty.");
     writer_ = cv::VideoWriter(
         filename,
         cv::VideoWriter::fourcc('M','J','P','G'),
@@ -134,16 +134,16 @@ void Visualizer::initialize_video(const std::string& filename, int fps) {
         cv::Size(background_.cols, background_.rows)
     );
     if (!writer_.isOpened())
-        throw std::runtime_error("Visualizer: Failed to open video writer in initialize_video().");
+        throw std::runtime_error("ScenePlotter: Failed to open video writer in initialize_video().");
 }
 
-void Visualizer::render_step(
+void ScenePlotter::render_step(
     const std::vector<AgentState>& agent_states,
     const std::vector<AgentProperties>& agent_properties,
     const std::optional<std::map<std::string, std::string>>& tl_states
 ) {
     if (!writer_.isOpened())
-        throw std::runtime_error("Visualizer: Failed to open video writer in render_step()");
+        throw std::runtime_error("ScenePlotter: Failed to open video writer in render_step()");
 
     cv::Mat frame = background_.clone();
 

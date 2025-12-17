@@ -70,16 +70,16 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    Visualizer viz(li_res, fov,*rc, flip_x_for_carla);
-    viz.initialize_video("scenario_log_replay.avi", 10);
+    ScenePlotter sceneplotter(li_res, fov,*rc, flip_x_for_carla);
+    sceneplotter.initialize_video("scenario_log_replay.avi", 10);
     log_reader.reset_log();
     do {
         const auto& states = log_reader.current_agent_states();
         const auto  props  = log_reader.current_agent_properties();
         auto traffic_lights_states = log_reader.current_traffic_lights();
-        viz.render_step(states, props, traffic_lights_states);
+        sceneplotter.render_step(states, props, traffic_lights_states);
     } while (log_reader.next());
-    viz.close();
+    sceneplotter.close();
 
     // Choose an earlier timestep from which to branch off
     log_reader.reset_log();
@@ -97,8 +97,8 @@ int main(int argc, char** argv) {
             api_rnn.emplace_back(rs.packed.begin(), rs.packed.end());
         }
     }
-    Visualizer viz_branched(li_res, fov, *rc, flip_x_for_carla);
-    viz_branched.initialize_video("scenario_log_branched.avi", 10);
+    ScenePlotter sceneplotter_branched(li_res, fov, *rc, flip_x_for_carla);
+    sceneplotter_branched.initialize_video("scenario_log_branched.avi", 10);
 
     for(int i = 0; i < NEW_ROLLOUT_LENGTH; i++) {
         DriveRequest drive_req("{}");
@@ -120,12 +120,12 @@ int main(int argc, char** argv) {
         tl_states    = resp.traffic_lights_states();
         light_rnn    = resp.light_recurrent_states();
 
-        viz_branched.render_step(
+        sceneplotter_branched.render_step(
             agent_states,
             agent_properties,
             tl_states
         );
     }
-    viz_branched.close();
+    sceneplotter_branched.close();
 
 }
