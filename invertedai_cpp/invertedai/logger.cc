@@ -258,11 +258,6 @@ namespace invertedai {
             j.contains("drive_model_version")
             ? std::optional<std::string>(j["drive_model_version"])
             : std::nullopt;
-            auto rendering_fov = j["birdview_options"]["renderingFOV"].get<int>();
-        auto rendering_center = std::optional<std::pair<double,double>>({
-            j["birdview_options"]["rendering_center"][0],
-            j["birdview_options"]["rendering_center"][1]
-        });
         scenario_log_ = ScenarioLog(
             location,
             agent_states_over_time,

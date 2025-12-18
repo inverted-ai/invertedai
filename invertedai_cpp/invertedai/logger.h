@@ -15,7 +15,7 @@ using json = nlohmann::json; // from <json.hpp>
 namespace invertedai {
 
     // a class to hold LogReader information
-    class ScenarioLog {
+    struct ScenarioLog {
         public:
             ScenarioLog() = default;
             std::string location;
