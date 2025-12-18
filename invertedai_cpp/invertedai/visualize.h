@@ -22,9 +22,7 @@ struct WorldToPixelProjector {
         int u = int((x - min_x) * scale);
         if (flip_x)
             u = width - u;
-
         int v = int((max_y - y) * scale);
-
         return cv::Point(
             std::clamp(u, 0, width  - 1),
             std::clamp(v, 0, height - 1)

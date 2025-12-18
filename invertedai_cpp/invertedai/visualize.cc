@@ -40,14 +40,14 @@ void ScenePlotter::draw_traffic_lights(
             }
         }
         if (!actor) continue;
-        double L = std::max(1.0, actor->length.value_or(1.0));
-        double W = std::max(1.0, actor->width.value_or(1.0));
-        double px_L = L * 3.5;
-        double px_W = W * 3.5;
+        double length_m = std::max(1.0, actor->length.value_or(1.0));
+        double width_m = std::max(1.0, actor->width.value_or(1.0));
+        double pixel_length = length_m * 3.5;
+        double pixel_width = width_m * 3.5;
         double psi_deg = -actor->orientation * 180.0 / CV_PI;
         if (flip_x_)
             psi_deg = 180.0 - psi_deg;
-        cv::RotatedRect box(center_px, cv::Size2f(px_L, px_W), psi_deg);
+        cv::RotatedRect box(center_px, cv::Size2f(pixel_length, pixel_width), psi_deg);
         cv::Point2f pts[4];
         box.points(pts);
         cv::fillConvexPoly(
@@ -66,32 +66,32 @@ void ScenePlotter::draw_agent(
     double x = s.x;
     double y = s.y;
     double psi = s.orientation;
-    double L = p.length.value_or(5.0);
-    double W = p.width.value_or(2.0);
+    double length_m = p.length.value_or(5.0);
+    double width_m = p.width.value_or(2.0);
     if (p.agent_type == "pedestrian") {
-        L = W = 1.5;
+        length_m = width_m = 1.5;
     }
-    double hl = L * 0.5;
-    double hw = W * 0.5;
-    double c  = std::cos(psi);
-    double sn = std::sin(psi);
+    double half_length = length_m * 0.5;
+    double half_width = width_m * 0.5;
+    double cos_h  = std::cos(psi);
+    double sin_h = std::sin(psi);
     auto rot = [&](double px, double py){
         return cv::Point2d(
-            x + c*px - sn*py,
-            y + sn*px + c*py
+            x + cos_h*px - sin_h*py,
+            y + sin_h*px + cos_h*py
         );
     };
-    cv::Point2d FLw = rot( hl,  hw);
-    cv::Point2d FRw = rot( hl, -hw);
-    cv::Point2d RRw = rot(-hl, -hw);
-    cv::Point2d RLw = rot(-hl,  hw);
-    cv::Point poly[4] = {
-        projector_(FLw.x, FLw.y),
-        projector_(FRw.x, FRw.y),
-        projector_(RRw.x, RRw.y),
-        projector_(RLw.x, RLw.y)
+    cv::Point2d front_left_world  = rot( half_length,  half_width );
+    cv::Point2d front_right_world = rot( half_length, -half_width );
+    cv::Point2d rear_right_world  = rot(-half_length, -half_width );
+    cv::Point2d rear_left_world   = rot(-half_length,  half_width );
+    cv::Point polygon[4] = {
+        projector_(front_left_world.x,  front_left_world.y),
+        projector_(front_right_world.x, front_right_world.y),
+        projector_(rear_right_world.x,  rear_right_world.y),
+        projector_(rear_left_world.x,   rear_left_world.y)
     };
-    cv::fillConvexPoly(frame, poly, 4, cv::Scalar(255,0,0));
+    cv::fillConvexPoly(frame, polygon, 4, cv::Scalar(255,0,0));
 }
 
 ScenePlotter::ScenePlotter(
@@ -103,28 +103,31 @@ ScenePlotter::ScenePlotter(
     flip_x_ = flip_x;
     static_actors_ = li_res.static_actors();
     background_ = cv::imdecode(li_res.birdview_image(), cv::IMREAD_COLOR);
-    int H = background_.rows;
-    int W = background_.cols;
+    int image_height = background_.rows;
+    int image_width  = background_.cols;
     cv::cvtColor(background_, background_, cv::COLOR_BGR2RGB);
 
-    double cx  = rendering_center.first;
-    double cy  = rendering_center.second;
+    double center_x = rendering_center.first;
+    double center_y = rendering_center.second;
     double half = fov * 0.5;
 
     projector_ = {
-        .cx    = cx,
-        .cy    = cy,
-        .min_x = cx - half,
-        .max_y = cy + half,
-        .scale = double(H) / fov,
+        .cx    = center_x,
+        .cy    = center_y,
+        .min_x = center_x - half,
+        .max_y = center_y + half,
+        .scale = double(image_height) / fov,
         .flip_x = flip_x,
-        .width  = W,
-        .height = H
+        .width  = image_width,
+        .height = image_height
     };
     compute_traffic_light_positions();
 }
 
-void ScenePlotter::initialize_video(const std::string& filename, int fps) {
+void ScenePlotter::initialize_video(
+    const std::string& filename, 
+    int fps
+) {
     if (background_.empty())
         throw std::runtime_error("ScenePlotter: background image is empty.");
     writer_ = cv::VideoWriter(
