@@ -21,7 +21,7 @@
 #include <boost/iostreams/device/array.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
-
+#include <filesystem>
 #include "externals/root_certificates.hpp"
 #include "version.h"
 

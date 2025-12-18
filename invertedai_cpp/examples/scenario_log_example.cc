@@ -8,6 +8,7 @@
 #include "invertedai/drive_request.h"
 #include "invertedai/drive_response.h"
 #include "invertedai/visualize.h"
+#include "invertedai/logger.h"
 
 using namespace invertedai;
 
@@ -40,7 +41,7 @@ int main(int argc, char** argv) {
         }
     }
     const std::string API_KEY = getenv("IAI_API_KEY"); 
-    LogReader log_reader("examples/assets/scenario_log_example.json");
+    ScenarioLogReader log_reader("examples/assets/scenario_log_example.json");
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
     invertedai::Session session(ioc, ctx);

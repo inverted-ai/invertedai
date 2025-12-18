@@ -13,9 +13,9 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/filesystem.hpp>
-
+#include <filesystem>
 #include "version.h"
-#include "logger.h"
+#include "debug_logger.h"
 
 namespace beast = boost::beast; // from <boost/beast.hpp>
 namespace net = boost::asio;    // from <boost/asio.hpp>
@@ -48,7 +48,7 @@ private:
   const std::filesystem::path iai_logger_path = !is_log_path_null ? (std::strcmp(&str_path.back(),"/") != 0 ? str_path + "/" : str_path) : "./";
   bool is_logging = false;
   
-  invertedai::LogWriter logger;
+  invertedai::DebugLogger logger;
 
 public:
   const char* host_ = local_mode ? "localhost" : "api.inverted.ai";

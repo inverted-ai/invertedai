@@ -109,7 +109,7 @@ cc_library(
         "//invertedai/externals:root-certificates",
         "@boost//:beast",
         ":version",
-        ":logger",
+        ":debug_logger",
     ],
     visibility = ["//visibility:public"],
 )
@@ -156,6 +156,15 @@ cc_library(
         ":initialize_response",
         ":location_info_request",
         ":location_info_response",
+        "//invertedai/externals:json",
+    ],
+    visibility = ["//visibility:public"],
+)
+cc_library(
+    name = "debug_logger",
+    srcs = ["debug_logger.cc"],
+    hdrs = ["debug_logger.h"],
+    deps = [
         "//invertedai/externals:json",
     ],
     visibility = ["//visibility:public"],

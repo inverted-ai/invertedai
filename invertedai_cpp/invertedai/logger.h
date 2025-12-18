@@ -7,11 +7,8 @@
 #include "initialize_response.h"
 #include "location_info_request.h"
 #include "location_info_response.h"
+#include <iostream>
 
-#include <string>
-#include <memory>
-
-using json = nlohmann::json; // from <json.hpp>
 namespace invertedai {
 
     // a class to hold LogReader information
@@ -72,13 +69,13 @@ namespace invertedai {
             );
     };
 
-    class LogReader {
+    class ScenarioLogReader {
         private:
             ScenarioLog scenario_log_;
             int current_timestep = 0;
             int simulation_length;
         public:
-            explicit LogReader(const std::string &file_path);
+            explicit ScenarioLogReader(const std::string &file_path);
             const std::string& get_location() const;
             std::optional<std::map<std::string, std::string>> current_traffic_lights() const;
             std::vector<AgentState> current_agent_states() const;
@@ -98,35 +95,6 @@ namespace invertedai {
             std::vector<std::vector<AgentState>> get_agent_states_over_time();
             std::optional<std::vector<std::map<std::string, std::string>>> get_traffic_lights_states_over_time();
 
-    };
-    class LogWriter {
-        private:
-            std::vector<std::string> loc_requests_;
-            std::vector<std::string> loc_responses_;
-            std::vector<std::string> loc_request_timestamps_;
-            std::vector<std::string> loc_response_timestamps_;
-
-            std::vector<std::string> init_requests_;
-            std::vector<std::string> init_responses_;
-            std::vector<std::string> init_request_timestamps_;
-            std::vector<std::string> init_response_timestamps_;
-
-            std::vector<std::string> drive_requests_;
-            std::vector<std::string> drive_responses_;
-            std::vector<std::string> drive_request_timestamps_;
-            std::vector<std::string> drive_response_timestamps_;
-
-            std::string get_current_time_UTC_();
-
-        public:
-
-            void append_request(const std::string &req, const std::string &mode);
-
-            void append_response(const std::string &res, const std::string &mode);
-
-            void write_scenario_log(const std::string &dir_path,const std::string &log_path);
-
-            void write_log_to_file(const std::string &file_path, const bool &is_scenario_log);
     };
 }
 
