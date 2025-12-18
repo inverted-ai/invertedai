@@ -79,10 +79,9 @@ namespace invertedai {
             int simulation_length;
         public:
             explicit LogReader(const std::string &file_path);
-            bool next();
             const std::string& get_location() const;
             std::optional<std::map<std::string, std::string>> current_traffic_lights() const;
-            const std::vector<AgentState>& current_agent_states() const;
+            std::vector<AgentState> current_agent_states() const;
             std::vector<AgentProperties> current_agent_properties() const;
             std::optional<std::vector<LightRecurrentState>> current_light_recurrent_state() const;
             std::optional<std::vector<RecurrentState>> current_recurrent_states() const;

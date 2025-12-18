@@ -74,11 +74,11 @@ int main(int argc, char** argv) {
     sceneplotter.initialize_video("scenario_log_replay.avi", 10);
     log_reader.reset_log();
     do {
-        const auto& states = log_reader.current_agent_states();
-        const auto  props  = log_reader.current_agent_properties();
-        auto traffic_lights_states = log_reader.current_traffic_lights();
+        std::vector<AgentState> states = log_reader.current_agent_states();
+        std::vector<AgentProperties>  props  = log_reader.current_agent_properties();
+        std::optional<std::map<std::string,std::string>> traffic_lights_states = log_reader.current_traffic_lights();
         sceneplotter.render_step(states, props, traffic_lights_states);
-    } while (log_reader.next());
+    } while (log_reader.drive());
     sceneplotter.close();
 
     // Choose an earlier timestep from which to branch off

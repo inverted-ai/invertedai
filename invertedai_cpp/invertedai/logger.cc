@@ -318,14 +318,6 @@ namespace invertedai {
     }
 
     bool LogReader::drive() {
-        return next();
-    }
-
-    void LogReader::reset_log() {
-        current_timestep = 0;
-    }
-
-    bool LogReader::next() {
         if (current_timestep + 1 >= simulation_length) {
             return false;
         }
@@ -333,10 +325,15 @@ namespace invertedai {
         return true;
     }
 
-    const std::vector<AgentState>&
+    void LogReader::reset_log() {
+        current_timestep = 0;
+    }
+
+    std::vector<AgentState>
     LogReader::current_agent_states() const {
         return scenario_log_.agent_states[current_timestep];
     }
+
 
     std::vector<AgentProperties>
     LogReader::current_agent_properties() const {
