@@ -210,7 +210,7 @@ void paste_region_tile(
     bool flip_x,
     double scale
 ) {
-    
+
     auto it = tiles.find(idx);
     if (it == tiles.end()) {
         std::cerr << "[WARN] Missing cached tile for region " << idx << "\n";
@@ -319,7 +319,7 @@ void visualize_large_initialize(
     const int canvas_h = static_cast<int>(std::ceil(bounds.height * scale));
     cv::Mat stitched(canvas_h, canvas_w, CV_8UC3, cv::Scalar(255,255,255));
     auto clampi = [](int v, int lo, int hi){ return std::max(lo, std::min(v, hi)); };
-   
+
     // paste all tiles for initilize
     std::cerr << "Pasting " << final_regions.size() << " tiles for large_initialize visualization...\n";
     for (size_t i = 0; i < final_regions.size(); ++i) {
@@ -341,16 +341,16 @@ void visualize_large_initialize(
     for (size_t i = 0; i < final_regions.size(); ++i) {
         const Region& r = final_regions[i];
         const cv::Scalar color = color_from_parent_index(i, final_regions.size());
-    
+
         // compute tile size in pixels
         const int tile_px = static_cast<int>(std::llround(r.size * scale));
-    
+
         int offset_x, offset_y;
         if (flip_x) {
             int num_cols = static_cast<int>(std::round((max_x - min_x) / r.size));
             int col = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) / r.size));
             int flipped_col = (num_cols - 1) - col;
-    
+
             offset_x = flipped_col * tile_px;
             offset_y = static_cast<int>(
                 std::floor((max_y - (r.center.y + r.size * 0.5)) * scale)
@@ -360,7 +360,7 @@ void visualize_large_initialize(
             offset_x = static_cast<int>(std::floor((r.center.x - r.size * 0.5 - min_x) * scale));
             offset_y = static_cast<int>(std::floor((max_y - (r.center.y + r.size * 0.5)) * scale));
         }
-    
+
         int L  = clampi(offset_x, 0, stitched.cols) + 2;
         int T  = clampi(offset_y, 0, stitched.rows) + 2;
         int Rr = clampi(offset_x + tile_px - 1, 0, stitched.cols) - 2;
@@ -368,15 +368,15 @@ void visualize_large_initialize(
         if (Rr > L && Bb > T) {
             cv::rectangle(stitched, {L, T}, {Rr, Bb}, color, 2, cv::LINE_AA);
         }
-    
+
         for (const auto& s : r.agent_states) {
             int u = static_cast<int>(std::llround((s.x - min_x) * scale));
             int v = static_cast<int>(std::llround((max_y - s.y) * scale));
-    
+
             if (flip_x) {
                 u = stitched.cols - u;
             }
-    
+
             if ((unsigned)u < (unsigned)stitched.cols &&
                 (unsigned)v < (unsigned)stitched.rows) {
                 cv::circle(stitched, {u, v}, 4, color, cv::FILLED, cv::LINE_AA);

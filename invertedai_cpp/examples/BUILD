@@ -121,3 +121,23 @@ cc_binary(
     visibility = ["//visibility:public"],
 )
 
+cc_binary(
+    name = "scenario_log_example",
+    srcs = ["scenario_log_example.cc"],
+    deps = [
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:logger",
+        "//invertedai:location_info_request",
+        "//invertedai:location_info_response",
+        "//invertedai:drive_request",
+        "//invertedai:drive_response",
+        "//invertedai:visualize",
+        "@boost//:asio",
+        "@opencv//:opencv",
+        "//invertedai/externals:json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+
