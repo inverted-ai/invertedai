@@ -32,7 +32,7 @@ namespace invertedai {
             std::optional<std::string> drive_model_version = std::string("best");
 
             std::optional<std::vector<LightRecurrentState>>  light_recurrent_states;
-            std::optional<std::vector<RecurrentState>> recurrent_states;
+            std::optional<std::vector<std::vector<double>>> recurrent_states;
             std::optional<std::map<std::string, std::vector<Point2d>>> waypoints;
             std::optional<std::vector<std::map<int, Point2d>>> waypoints_per_frame;
             std::vector<std::vector<int>> present_indexes;
@@ -52,7 +52,7 @@ namespace invertedai {
                 std::optional<std::string> drive_version_,
         
                 std::optional<std::vector<LightRecurrentState>> light_states_,
-                std::optional<std::vector<RecurrentState>> recurrent_states_,
+                std::optional<std::vector<std::vector<double>>> recurrent_states_,
                 std::optional<std::map<std::string, std::vector<Point2d>>> waypoints_,
                 std::vector<std::vector<int>> present_indexes_
             );
@@ -81,7 +81,7 @@ namespace invertedai {
             std::vector<AgentState> current_agent_states() const;
             std::vector<AgentProperties> current_agent_properties() const;
             std::optional<std::vector<LightRecurrentState>> current_light_recurrent_state() const;
-            std::optional<std::vector<RecurrentState>> current_recurrent_states() const;
+            std::optional<std::vector<std::vector<double>>> current_recurrent_states() const;
             bool initialize(); 
             bool drive();
             void reset_log();
@@ -94,7 +94,54 @@ namespace invertedai {
             std::vector<AgentProperties> get_agent_properties();
             std::vector<std::vector<AgentState>> get_agent_states_over_time();
             std::optional<std::vector<std::map<std::string, std::string>>> get_traffic_lights_states_over_time();
+    };
 
+    class ScenarioLogWriter {
+        private:
+            ScenarioLog scenario_log_;
+            nlohmann::json output_dict;
+            int simulation_length;
+            //count agent types
+            std::pair<int, int> count_agent_types() const;
+            // count control types from static actors
+            std::tuple<int, int, int, int> count_control_types(const LocationInfoResponse& location_info_response) const;
+            nlohmann::json build_individual_suggestions_dict(const ScenarioLog& log) const;
+            nlohmann::json build_predetermined_agents_dict(const ScenarioLog& log) const;
+            nlohmann::json build_predetermined_controls_dict(
+                const ScenarioLog& log,
+                const LocationInfoResponse& location_info_response
+            ) const;
+        public:
+            //scenario_log Optional external scenario log to export (if null, uses internal log)
+            ScenarioLogWriter();
+            void export_to_file(
+                const std::string& log_path,
+                std::optional<ScenarioLog> scenario_log = std::nullopt,
+                std::optional<LocationInfoResponse> location_info_response = std::nullopt
+            );
+            //Initialize the log writer with initial simulation data
+            void initialize(
+                std::optional<std::string> location = std::nullopt,
+                std::optional<LocationInfoResponse> location_info_response = std::nullopt,
+                std::optional<InitializeResponse> init_response = std::nullopt,
+                std::optional<int> lights_random_seed = std::nullopt,
+                std::optional<int> initialize_random_seed = std::nullopt,
+                std::optional<int> drive_random_seed = std::nullopt,
+                std::optional<std::string> drive_model_version = std::nullopt,
+                std::optional<int> fov = std::nullopt,
+                std::optional<ScenarioLog> scenario_log = std::nullopt
+            );
+            //Add a drive response to the log
+            void drive(
+                const DriveResponse& drive_response,
+                std::optional<std::vector<int>> current_present_indexes = std::nullopt,
+                std::optional<std::vector<AgentProperties>> new_agent_properties = std::nullopt,
+                std::optional<std::map<int, std::optional<Point2d>>> waypoints = std::nullopt
+            );
+            //Get the indexes of agents currently present in the simulation
+            std::vector<int> current_present_indexes() const;
+            // get all agent props
+            std::vector<AgentProperties> all_agent_properties() const;
     };
 }
 
