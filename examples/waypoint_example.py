@@ -67,7 +67,8 @@ for _ in range(simulation_length):  # how many simulation steps to execute (10 s
         agent_states=response.agent_states,
         recurrent_states=response.recurrent_states,
         light_recurrent_states=response.light_recurrent_states,
-        random_seed=seed
+        random_seed=seed,
+        api_model_version=drive_model
     )
     agent_properties = wp_manager.update(
         response = response,
