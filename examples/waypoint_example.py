@@ -41,6 +41,7 @@ response = iai.initialize(
 #2. Setting the log level can adjust how warnings and messages are displayed and stored for you.
 #3. The WaypointManager normally raises an exception if a path cannot be found for an agent. Instead, if the fail_soft parameter is set to True, the
 #   the WaypointManager will ignore this exception and leave the agents waypoint list unchanged.
+#NOTE: WaypointManager functions best on closed maps where all lanes are reachable. On other maps, this may impact computational performance.
 wp_manager = iai.WaypointManager(
     location_info_response = location_info_response,
     cfg = iai.WaypointManagerConfig(
