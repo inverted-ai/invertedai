@@ -162,7 +162,7 @@ class WaypointManager:
                     if self.cfg.fail_soft:
                         if self.logger is not None:
                             self.logger.warning(msg=err_msg)
-                        props = _agent_properties[i]
+                        props.waypoints = []
                     else:
                         self.logger.error(msg=err_msg)
                         raise ValueError(err_msg)
