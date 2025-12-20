@@ -46,7 +46,7 @@ wp_manager = iai.WaypointManager(
     location_info_response = location_info_response,
     cfg = iai.WaypointManagerConfig(
         random_seed=seed,
-        fail_soft=True
+        fail_soft=False
     )
 )
 
