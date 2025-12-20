@@ -119,42 +119,54 @@ class WaypointManager:
             state = agent_states[i]
 
             if mask or target_paths[i] is not None:
-                waypoint_flags = []
-                if props.waypoints is None:
-                    # The current agents waypoints need to be initialized
-                    waypoint_flags.append(WaypointUpdateFlags.UNINITIALIZE_WAYPOINTS)
-                    props.waypoints = self.generate_waypoints(
-                        state=state,
-                        target_path = target_paths[i],
+                try:
+                    waypoint_flags = []
+                    if props.waypoints is None:
+                        # The current agents waypoints need to be initialized
+                        waypoint_flags.append(WaypointUpdateFlags.UNINITIALIZE_WAYPOINTS)
+                        props.waypoints = self.generate_waypoints(
+                            state=state,
+                            target_path = target_paths[i],
+                            agent_properties = props
+                        )
+                    
+                    if len(props.waypoints) > 0:
+                        # Most common case, check if current waypoint is achieved
+                        if self.check_waypoint_achieved(
+                            agent_state = state,
+                            waypoint = props.waypoints[0]
+                        ):
+                            waypoint_flags.append(WaypointUpdateFlags.WAYPOINT_REACHED)
+                            props.waypoints.pop(0)
+
+                    if len(props.waypoints) == 0:
+                        #Agent is done its route, generate a new route
+                        #Do not pass the original target path as it should be completed if the list is empty
+                        waypoint_flags.append(WaypointUpdateFlags.WAYPOINTS_EMPTY)
+                        props.waypoints = self.generate_waypoints(state=state)
+
+                    if self.is_missed_waypoint(
+                        state = state,
                         agent_properties = props
-                    )
-                
-                if len(props.waypoints) > 0:
-                    # Most common case, check if current waypoint is achieved
-                    if self.check_waypoint_achieved(
-                        agent_state = state,
-                        waypoint = props.waypoints[0]
                     ):
-                        waypoint_flags.append(WaypointUpdateFlags.WAYPOINT_REACHED)
-                        props.waypoints.pop(0)
+                        #If the current waypoint has been missed, reroute
+                        waypoint_flags.append(WaypointUpdateFlags.MISSED_WAYPOINT)
+                        props.waypoints = self.generate_waypoints(
+                            state=state,
+                            target_path = target_paths[i],
+                            agent_properties = props
+                        )
 
-                if len(props.waypoints) == 0:
-                    #Agent is done its route, generate a new route
-                    #Do not pass the original target path as it should be completed if the list is empty
-                   waypoint_flags.append(WaypointUpdateFlags.WAYPOINTS_EMPTY)
-                   props.waypoints = self.generate_waypoints(state=state)
-
-                if self.is_missed_waypoint(
-                    state = state,
-                    agent_properties = props
-                ):
-                    #If the current waypoint has been missed, reroute
-                    waypoint_flags.append(WaypointUpdateFlags.MISSED_WAYPOINT)
-                    props.waypoints = self.generate_waypoints(
-                        state=state,
-                        target_path = target_paths[i],
-                        agent_properties = props
-                    )
+                except ValueError as e:
+                    err_msg = str(e)
+                    if self.cfg.fail_soft:
+                        if self.logger is not None:
+                            self.logger.warning(msg=err_msg)
+                        props = _agent_properties[i]
+                    else:
+                        self.logger.error(msg=err_msg)
+                        raise ValueError(err_msg)
+                
 
             if self._debug_data is not None:
                 log_update.append(
@@ -206,30 +218,20 @@ class WaypointManager:
                     target_path = default_target_path
                 
         for destination_waypoint in target_path:
-            try:
-                wps = generate_waypoints_from_lane_ids(
-                    start_state=state,
-                    lanelet_map=self.lanelet_map, 
+            wps = generate_waypoints_from_lane_ids(
+                start_state=state,
+                lanelet_map=self.lanelet_map, 
+                destination_waypoint=destination_waypoint,
+                waypoint_spacing=self.waypoint_spacing if waypoint_spacing is None else waypoint_spacing,
+                logger=self.logger,
+                lane_ids=generate_lane_ids_from_lanelet_map(
+                    start_state=state, 
+                    lanelet_map=self.lanelet_map,
                     destination_waypoint=destination_waypoint,
-                    waypoint_spacing=self.waypoint_spacing if waypoint_spacing is None else waypoint_spacing,
-                    logger=self.logger,
-                    lane_ids=generate_lane_ids_from_lanelet_map(
-                        start_state=state, 
-                        lanelet_map=self.lanelet_map,
-                        destination_waypoint=destination_waypoint,
-                        seed=self.rng.integers(low=1, high=1000000000),
-                        logger=self.logger
-                    )
+                    seed=self.rng.integers(low=1, high=1000000000),
+                    logger=self.logger
                 )
-            except ValueError as e:
-                err_msg = str(e)
-                if self.cfg.fail_soft:
-                    if self.logger is not None:
-                        self.logger.warning(msg=err_msg)
-                    wps = []
-                else:
-                    self.logger.error(msg=err_msg)
-                    raise ValueError(err_msg)
+            )
 
             waypoint_list += wps
 
@@ -244,6 +246,8 @@ class WaypointManager:
         # 1. Check if agent is facing the waypoint
         # 2. If not, check if high resolution path to waypoint is greater than waypoint spacing
         
+        if not agent_properties.waypoints:
+            return False
         wp = agent_properties.waypoints[0]
         ap = state.center
 
@@ -319,9 +323,11 @@ def generate_waypoints_from_lane_ids(
     Returns:
         List[Point]: List of waypoints for the agent to follow.
     """
+
+    cannot_find_path_msg = f"Cannot find path for agent with state: {start_state}"
+    
     if len(lane_ids) < 1:
-        msg = f"Cannot find path for agent with state: {start_state}"
-        raise ValueError(msg)
+        raise ValueError(cannot_find_path_msg)
     
     def get_lanelet(id):
         for l in lanelet_map.laneletLayer:
