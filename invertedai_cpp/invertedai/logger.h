@@ -128,7 +128,6 @@ namespace invertedai {
                 std::optional<int> initialize_random_seed = std::nullopt,
                 std::optional<int> drive_random_seed = std::nullopt,
                 std::optional<std::string> drive_model_version = std::nullopt,
-                std::optional<int> fov = std::nullopt,
                 std::optional<ScenarioLog> scenario_log = std::nullopt
             );
             //Add a drive response to the log
@@ -140,7 +139,6 @@ namespace invertedai {
             );
             //Get the indexes of agents currently present in the simulation
             std::vector<int> current_present_indexes() const;
-            // get all agent props
             std::vector<AgentProperties> all_agent_properties() const;
     };
 }

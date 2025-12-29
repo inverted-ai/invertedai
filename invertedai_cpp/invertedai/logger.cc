@@ -421,7 +421,6 @@ namespace invertedai {
     json ScenarioLogWriter::build_individual_suggestions_dict(const ScenarioLog& log) const {
         json suggestions = json::object();
         if (!log.waypoints.has_value()) {
-            //rom agent_properties waypoints
             for (size_t i = 0; i < log.agent_properties.size(); i++) {
                 const auto& prop = log.agent_properties[i];
                 if (prop.waypoint.has_value()) {
@@ -440,7 +439,6 @@ namespace invertedai {
                 }
             }
         } else {
-            // from waypoints map
             for (const auto& [agent_id, wps] : log.waypoints.value()) {
                 json states_array = json::array();
                 for (const auto& wp : wps) {
@@ -473,9 +471,6 @@ namespace invertedai {
         }
         
         auto static_actors = location_info_response.static_actors();
-        for (auto actor : static_actors) {
-            std::cout << "actor length and width" << actor.length.value_or(1.0) << ", " << actor.width.value_or(1.0) << std::endl;
-        }
         for (const auto& actor : static_actors) {
             if (actor.agent_type == "traffic_light") {
                 json states_dict = json::object();
@@ -508,7 +503,6 @@ namespace invertedai {
                 };
             }
         }
-        
         return controls_dict;
     }
 
@@ -577,8 +571,7 @@ namespace invertedai {
                 build_predetermined_controls_dict(log, location_info_response.value());
         } else {
         }
-    
-        std::cout << "[EXPORT] Building light_recurrent_array..." << std::endl;
+
         json light_recurrent_array = json::array();
         if (log.light_recurrent_states.has_value()) {
             for (const auto& lrs : log.light_recurrent_states.value()) {
@@ -586,7 +579,7 @@ namespace invertedai {
                 light_recurrent_array.push_back({lrs.state, lrs.time_remaining});
             }
         } else {
-            std::cout << "[EXPORT] No light recurrent states" << std::endl;
+            std::cout << "[EXPORT] Found no light recurrent states" << std::endl;
         }
     
         json output_dict = {
@@ -621,7 +614,7 @@ namespace invertedai {
                     log.rendering_center->first,
                     log.rendering_center->second
                 }},
-                {"renderingFOV", log.rendering_fov.value_or(0)}
+                {"renderingFOV", log.rendering_fov.value()}
             };
             output_dict["rendering_centers"] = {
                 log.rendering_center->first,
@@ -637,7 +630,6 @@ namespace invertedai {
         std::string dump_str;
         try {
             dump_str = output_dict.dump(4);
-            std::cout << dump_str.substr(0, 200) << "..." << std::endl; // preview first 200 chars
         } catch (const std::exception& e) {
             throw;
         }
@@ -656,7 +648,6 @@ namespace invertedai {
         std::optional<int> initialize_random_seed,
         std::optional<int> drive_random_seed,
         std::optional<std::string> drive_model_version,
-        std::optional<int> fov,
         std::optional<ScenarioLog> scenario_log
     ) {
         if (scenario_log.has_value()) {
@@ -671,7 +662,6 @@ namespace invertedai {
             
             simulation_length = scenario_log_.agent_states.size();
         } else {
-            // Creating new scenario log from initialization
             if (!location.has_value()) {
                 throw std::invalid_argument("No scenario log given, must provide a location argument.");
             }
@@ -689,16 +679,15 @@ namespace invertedai {
             std::vector<int> initial_present(init_resp.agent_properties().size());
             std::iota(initial_present.begin(), initial_present.end(), 0);
             present_indexes.push_back(initial_present);
-            
             scenario_log_ = ScenarioLog(
                 location.value(),
                 {init_resp.agent_states()},
                 init_resp.agent_properties(),
-                init_resp.traffic_lights_states().has_value() 
-                    ? std::optional<std::vector<std::map<std::string, std::string>>>({init_resp.traffic_lights_states().value()})
-                    : std::nullopt,
-                std::make_pair(loc_resp.map_origin().x, loc_resp.map_origin().y),
-                fov, // huh
+                std::optional<std::vector<std::map<std::string, std::string>>>(
+                    std::vector<std::map<std::string,std::string>>{ init_resp.traffic_lights_states().value() }
+                ),
+                std::optional<std::pair<double,double>>(std::make_pair(loc_resp.rendering_center().x,loc_resp.rendering_center().y)),
+                loc_resp.rendering_fov(),
                 lights_random_seed,
                 initialize_random_seed,
                 drive_random_seed,
