@@ -439,7 +439,7 @@ def generate_waypoints_from_lane_ids(
 def generate_lane_ids_from_lanelet_map(
     start_state: AgentState, 
     lanelet_map: lanelet2.core.LaneletMapLayers, 
-    min_distance: float = 1000.0, 
+    min_distance: Optional[float] = 1000.0, 
     destination_waypoint: Optional[Point] = None,
     seed: Optional[int] = None,
     logger: Optional[logging.Logger] = None
@@ -452,7 +452,7 @@ def generate_lane_ids_from_lanelet_map(
     Args:
         start_state (AgentState): The starting state of the agent.
         lanelet_map (lanelet2.core.LaneletMapLayers): Projected lanelet map.
-        min_distance (float): Minimum distance in meters to generate. Ignored if destination_waypoint is specified. Defaults to 1000.
+        min_distance (Optional[float]): Minimum distance in meters to generate. Ignored if destination_waypoint is specified. Defaults to 1000.
         destination_waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
         seed (Optional[int]): Random seed for reproducibility. Defaults to None.
 
@@ -463,7 +463,7 @@ def generate_lane_ids_from_lanelet_map(
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     filtered_lanelets = []
-    radius_to_check = [0.1, 0.5, 1.0, 2.0, 5.0]
+    radius_to_check = [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]
     for radius in radius_to_check:
         starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), radius)
         for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
@@ -507,33 +507,29 @@ def generate_lane_ids_from_lanelet_map(
             return []
         return [lanelet.id for lanelet in rng.choice(possible_routes).shortestPath()]
     else:
-        best_starting_lanelet, _ = min(filtered_lanelets, key=lambda lane: lane[1])
-        route = [best_starting_lanelet.id]
-        total_distance = _lanelet_length(best_starting_lanelet, start_state.center)
-        current = best_starting_lanelet
-        p_straight = 0.8
-        while total_distance < (min_distance) if min_distance is not None else 0.0:
-            next_lanelet = None
-            straight_candidates = [
-                ll for ll in routing_graph.following(current, withLaneChanges=False)
-            ]
-            lane_change_candidates = []
-            for adj in [routing_graph.left(current), routing_graph.right(current)]:
-                if adj is not None and adj.id != route[-1]:
-                    lane_change_candidates.append(adj)
-            choose_straight = (
-                rng.random() < p_straight and straight_candidates
-            ) or not lane_change_candidates or len(route) == 1
-            if choose_straight and straight_candidates:
-                next_lanelet = rng.choice(straight_candidates)
-                total_distance += _lanelet_length(next_lanelet)
-            elif lane_change_candidates:
-                next_lanelet = rng.choice(lane_change_candidates)
-                total_distance = total_distance - _lanelet_length(current) + _lanelet_length(next_lanelet)
-            else:
+        maxRoutingCost = min_distance if min_distance is not None else 1000.0
+        for starting_lanelet, _ in sorted(filtered_lanelets, key=lambda lane: lane[1]):
+            ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=maxRoutingCost, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
+            if ending_lanelets:
                 break
-            route.append(next_lanelet.id)
-            current = next_lanelet
+        if not ending_lanelets:
+            if logger is not None:
+                logger.log(
+                    level=logger.getEffectiveLevel(),
+                    msg="Warning: Could not find any possible routes from the starting position."
+                )
+            return []
+        route = [starting_lanelet.id]
+        total_distance = 0
+        while ending_lanelets and total_distance <= (min_distance if min_distance is not None else 0):
+            ending_lanelet = rng.choice(ending_lanelets)
+            possible_route = routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=True)
+            if not possible_route:
+                continue
+            starting_lanelet = ending_lanelet
+            ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=maxRoutingCost, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
+            total_distance += possible_route.length2d()
+            route.extend([lanelet.id for lanelet in list(possible_route.shortestPath())[1:]])
         return route
 
     
