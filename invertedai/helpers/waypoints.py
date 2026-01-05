@@ -501,8 +501,9 @@ def generate_lane_ids_from_lanelet_map(
             return []
         return [lanelet.id for lanelet in rng.choice(possible_routes).shortestPath()]
     else:
+        maxRoutingCost = min_distance if min_distance is not None else 1000.0
         for starting_lanelet, _ in sorted(filtered_lanelets, key=lambda lane: lane[1]):
-            ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=1000.0, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
+            ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=maxRoutingCost, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
             if ending_lanelets:
                 break
         if not ending_lanelets:
@@ -520,7 +521,7 @@ def generate_lane_ids_from_lanelet_map(
             if not possible_route:
                 continue
             starting_lanelet = ending_lanelet
-            ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=1000.0, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
+            ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=maxRoutingCost, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
             total_distance += possible_route.length2d()
             route.extend([lanelet.id for lanelet in list(possible_route.shortestPath())[1:]])
         return route
