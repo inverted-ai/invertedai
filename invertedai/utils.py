@@ -1394,7 +1394,7 @@ class ScenePlotter():
         frame_idx
     ):
         wps = self.waypoints_per_frame[frame_idx][agent_idx]
-        if wps is not None:
+        if wps is not None and wps: #Ensure list is not empty
             wp = wps[0]
             x = float(wp.x)
             y = float(wp.y)
