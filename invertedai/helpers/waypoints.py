@@ -522,17 +522,36 @@ def generate_lane_ids_from_lanelet_map(
         route = [starting_lanelet.id]
         total_distance = 0
         while ending_lanelets and total_distance <= (min_distance if min_distance is not None else 0):
-            ending_lanelet = rng.choice(ending_lanelets)
-            possible_route = routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=True)
-            if not possible_route:
-                continue
+            routes = [(routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=True), ending_lanelet) for ending_lanelet in ending_lanelets]
+            routes = [route for route, _ in routes if route is not None]
+            if not routes:
+                if logger is not None:
+                    logger.log(
+                        level=logger.getEffectiveLevel(),
+                        msg="Warning: Could not find any possible routes from the starting position."
+                    )
+                return []
+            p = np.array([1 / np.e ** _find_max_num_lane_change(routing_graph, route) for route, _ in routes])
+            route, ending_lanelet = rng.choice(routes, p=p/p.sum())
             starting_lanelet = ending_lanelet
             ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=maxRoutingCost, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
-            total_distance += possible_route.length2d()
-            route.extend([lanelet.id for lanelet in list(possible_route.shortestPath())[1:]])
+            total_distance += route.length2d()
+            route.extend([lanelet.id for lanelet in list(route.shortestPath())[1:]])
         return route
 
-    
+def _find_max_num_lane_change(routing_graph: lanelet2.routing.RoutingGraph, route: lanelet2.routing.LaneletPath):
+    lanelets = list(route)
+    max_lane_change = 0
+    num_lane_change = 0
+    for lanelet1, lanelet2 in zip(lanelets[:-1], lanelets[1:]):
+        if lanelet2 == routing_graph.left(lanelet1) or lanelet2 == routing_graph.right(lanelet1):
+            num_lane_change += 1
+        else:
+            max_lane_change = max(max_lane_change, num_lane_change)
+            num_lane_change = 0
+    max_lane_change = max(max_lane_change, num_lane_change)
+    return max_lane_change
+
 def _find_direction_and_nearest_points(
     linestring: lanelet2.core.ConstLineString3d, 
     location3d: lanelet2.core.BasicPoint3d
