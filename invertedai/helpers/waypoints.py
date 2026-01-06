@@ -519,11 +519,11 @@ def generate_lane_ids_from_lanelet_map(
                     msg="Warning: Could not find any possible routes from the starting position."
                 )
             return []
-        route = [starting_lanelet.id]
+        route_lane_ids = [starting_lanelet.id]
         total_distance = 0
         while ending_lanelets and total_distance <= (min_distance if min_distance is not None else 0):
             routes = [(routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=True), ending_lanelet) for ending_lanelet in ending_lanelets]
-            routes = [route for route, _ in routes if route is not None]
+            routes = [(route, ending_lanelet) for route, ending_lanelet in routes if route is not None]
             if not routes:
                 if logger is not None:
                     logger.log(
@@ -531,13 +531,13 @@ def generate_lane_ids_from_lanelet_map(
                         msg="Warning: Could not find any possible routes from the starting position."
                     )
                 return []
-            p = np.array([1 / np.e ** _find_max_num_lane_change(routing_graph, route) for route, _ in routes])
+            p = np.array([1 / np.e ** _find_max_num_lane_change(routing_graph, route.shortestPath()) for route, _ in routes])
             route, ending_lanelet = rng.choice(routes, p=p/p.sum())
             starting_lanelet = ending_lanelet
             ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=maxRoutingCost, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
             total_distance += route.length2d()
-            route.extend([lanelet.id for lanelet in list(route.shortestPath())[1:]])
-        return route
+            route_lane_ids.extend([lanelet.id for lanelet in list(route.shortestPath())[1:]])
+        return route_lane_ids
 
 def _find_max_num_lane_change(routing_graph: lanelet2.routing.RoutingGraph, route: lanelet2.routing.LaneletPath):
     lanelets = list(route)
