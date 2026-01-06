@@ -421,7 +421,7 @@ def generate_waypoints_from_lane_ids(
                     msg=msg
                 )
     all_centerline_points = np.array([point for lanes in lanelets for lane in lanes for point in lane])
-    if all_centerline_points < 2:
+    if all_centerline_points.shape[0] < 2:
         if logger is not None: 
                 msg = f"Could not calculate a path following the given lanes."
                 logger.log(
