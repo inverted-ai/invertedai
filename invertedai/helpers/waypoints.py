@@ -421,12 +421,26 @@ def generate_waypoints_from_lane_ids(
                     msg=msg
                 )
     all_centerline_points = np.array([point for lanes in lanelets for lane in lanes for point in lane])
+    if all_centerline_points < 2:
+        if logger is not None: 
+                msg = f"Could not calculate a path following the given lanes."
+                logger.log(
+                    level=logger.getEffectiveLevel(),
+                    msg=msg
+                )
+        return []
     deltas = np.diff(all_centerline_points, axis=0)
     seg_lengths = np.hypot(deltas[:, 0], deltas[:, 1])
     total_length = np.sum(seg_lengths)
     cumdist = np.concatenate(([0], np.cumsum(seg_lengths)))
     num_points = int(np.ceil(total_length / waypoint_spacing)) + 1
     if num_points < 2:
+        if logger is not None: 
+                msg = f"Could not calculate a path with the given waypoint spacing."
+                logger.log(
+                    level=logger.getEffectiveLevel(),
+                    msg=msg
+                )
         return []
     new_distances = np.linspace(0, total_length, num_points)
 
