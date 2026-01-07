@@ -161,7 +161,8 @@ class WaypointManager:
                     err_msg = str(e)
                     if self.cfg.fail_soft:
                         if self.logger is not None:
-                            self.logger.warning(msg=err_msg)
+                            fail_soft_msg = "(Fail Soft): " + err_msg
+                            self.logger.warning(msg=fail_soft_msg)
                         props.waypoints = []
                     else:
                         self.logger.error(msg=err_msg)
