@@ -128,6 +128,7 @@ def drive(
         waypoint: optional [Point], the target waypoint of the agent. Deprecated in favour of waypoints.
         waypoints: optional [[Point]], the target waypoints of the agent. If provided, waypoint will be ignored.
         max_speed: optional [float], the desired maximum speed of the agent in m/s.
+        aggressiveness: optional [float], the aggressiveness of the agent.
 
     recurrent_states:
         Recurrent states for all agents, obtained from the previous call to

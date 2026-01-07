@@ -126,6 +126,7 @@ def initialize(
         The pre-defined agents should be specified first, followed by the sampled agents.
         The optional waypoint passed will be ignored for Initialize.
         max_speed: optional [float], the desired maximum speed of the agent in m/s.
+        aggressiveness: optional [float], the aggressiveness of the agent
 
     states_history:
         History of pre-defined agent states - the outer list is over time and the inner over agents,
