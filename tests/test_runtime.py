@@ -26,7 +26,7 @@ if api_key is None:
 
 configurations = list(itertools.product(LOCATIONS_TO_TEST, SIM_LENGTHS, NUM_AGENTS))
 
-def time_function(func):
+def timed(func):
     def wrapper(*args, **kwargs):
         start = time.time()
         func(*args, **kwargs)
@@ -35,7 +35,7 @@ def time_function(func):
     wrapper.__name__ = func.__name__
     return wrapper
 
-@time_function
+@timed
 def with_wp(location, sim_length, num_agents):
     location_info_response = iai.location_info(
         location=location, 
@@ -73,7 +73,7 @@ def with_wp(location, sim_length, num_agents):
             agent_properties = agent_properties,
         )
 
-@time_function
+@timed
 def without_wp(location, sim_length, num_agents):
     initialize_response = iai.initialize(
         location=location,
