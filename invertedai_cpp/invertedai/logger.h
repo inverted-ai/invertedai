@@ -22,7 +22,7 @@ namespace invertedai {
             std::optional<std::vector<std::map<std::string, std::string>>> traffic_lights_states;
 
             std::optional<std::pair<double,double>> rendering_center;
-            std::optional<int> rendering_fov;
+            std::optional<float> rendering_fov;
 
             std::optional<int> lights_random_seed;
             std::optional<int> initialize_random_seed;
@@ -42,7 +42,7 @@ namespace invertedai {
                 std::vector<AgentProperties> agent_properties_,
                 std::optional<std::vector<std::map<std::string, std::string>>> traffic_states_,
                 std::optional<std::pair<double,double>> rendering_center_,
-                std::optional<int> rendering_fov_,
+                std::optional<float> rendering_fov_,
         
                 std::optional<int> lights_seed_,
                 std::optional<int> init_seed_,

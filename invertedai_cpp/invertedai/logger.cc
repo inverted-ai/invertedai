@@ -14,7 +14,7 @@ namespace invertedai {
         std::vector<AgentProperties> agent_properties_,
         std::optional<std::vector<std::map<std::string, std::string>>> traffic_states_,
         std::optional<std::pair<double,double>> rendering_center_,
-        std::optional<int> rendering_fov_,
+        std::optional<float> rendering_fov_,
 
         std::optional<int> lights_seed_,
         std::optional<int> init_seed_,

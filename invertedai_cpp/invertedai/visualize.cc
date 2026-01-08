@@ -42,8 +42,8 @@ void ScenePlotter::draw_traffic_lights(
         if (!actor) continue;
         double length_m = std::max(1.0, actor->length.value_or(1.0));
         double width_m = std::max(1.0, actor->width.value_or(1.0));
-        double pixel_length = length_m * 3.5;
-        double pixel_width = width_m * 3.5;
+        double pixel_length = length_m * 875/this->li_res_.rendering_fov();
+        double pixel_width = width_m * 625/this->li_res_.rendering_fov();
         double psi_deg = -actor->orientation * 180.0 / CV_PI;
         if (flip_x_)
             psi_deg = 180.0 - psi_deg;
@@ -96,11 +96,12 @@ void ScenePlotter::draw_agent(
 
 ScenePlotter::ScenePlotter(
     const LocationInfoResponse& li_res, 
-    int fov, 
     std::pair<double, double> rendering_center, 
     bool flip_x
-) {
-    flip_x_ = flip_x;
+) :    
+    li_res_(li_res),
+    flip_x_(flip_x)
+ {
     static_actors_ = li_res.static_actors();
     background_ = cv::imdecode(li_res.birdview_image(), cv::IMREAD_COLOR);
     int image_height = background_.rows;
@@ -109,14 +110,14 @@ ScenePlotter::ScenePlotter(
 
     double center_x = rendering_center.first;
     double center_y = rendering_center.second;
-    double half = fov * 0.5;
+    double half = li_res.rendering_fov() * 0.5;
 
     projector_ = {
         .cx    = center_x,
         .cy    = center_y,
         .min_x = center_x - half,
         .max_y = center_y + half,
-        .scale = double(image_height) / fov,
+        .scale = double(image_height) / li_res.rendering_fov(),
         .flip_x = flip_x,
         .width  = image_width,
         .height = image_height

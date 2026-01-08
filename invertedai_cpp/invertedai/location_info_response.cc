@@ -5,13 +5,6 @@ using json = nlohmann::json;
 namespace invertedai {
 
 LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
-  // std::cout << "RAW body_str:\n" << body_str << std::endl;
-
-  // bool has_fov = body_str.find("map_fov") != std::string::npos;
-  // bool has_center = body_str.find("map_center") != std::string::npos;
-
-  // std::cout << "contains map_fov? " << has_fov << std::endl;
-  // std::cout << "contains map_center? " << has_center << std::endl;
 
   this->body_json_ = json::parse(body_str);
 
@@ -37,10 +30,7 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
     this->body_json_["map_center"][0],
     this->body_json_["map_center"][1]
   };
-  this->rendering_fov_ =
-    this->body_json_.contains("map_fov")
-        ? this->body_json_["map_fov"].get<double>()
-        : 100.0;
+  this->rendering_fov_ = this->body_json_["map_fov"].get<float>();
   this->static_actors_.clear();
   for (const auto &element : this->body_json_["static_actors"]) {
     std::optional<int> length = element["length"].is_number_float()
@@ -140,7 +130,7 @@ Point2d LocationInfoResponse::map_origin() const {
 Point2d LocationInfoResponse::rendering_center() const { 
   return this->rendering_center_; 
 }
-int LocationInfoResponse::rendering_fov() const { 
+float LocationInfoResponse::rendering_fov() const { 
   return this->rendering_fov_; 
 }
 

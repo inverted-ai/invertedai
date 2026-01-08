@@ -31,8 +31,8 @@ using namespace invertedai;
                 ./bazel-bin/examples/scenario_log_example --rollout_length 40
 
 */
-const int TIMESTEP_TO_BRANCH_FROM = 1;
-const int SIMULATION_LENGTH = 2;
+const int TIMESTEP_TO_BRANCH_FROM = 10;
+const int SIMULATION_LENGTH = 50;
 const std::string LOCATION = "carla:Town10HD"; // location used to write the json log
 int main(int argc, char** argv) {
     int NEW_ROLLOUT_LENGTH = 20; // length of new rollout after branching from json
@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    ScenePlotter sceneplotter(li_res, li_res.rendering_fov(),*rc, flip_x_for_carla);
+    ScenePlotter sceneplotter(li_res, *rc, flip_x_for_carla);
     sceneplotter.initialize_video("scenario_log_replay.avi", 10);
     log_reader.reset_log();
     do {
@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
         branched_log   // scenario_log 
     );
     
-    ScenePlotter sceneplotter_branched(li_res, li_res.rendering_fov(), *rc, flip_x_for_carla); // could remove fov from param list
+    ScenePlotter sceneplotter_branched(li_res, *rc, flip_x_for_carla); // could remove fov from param list
     sceneplotter_branched.initialize_video("scenario_log_branched.avi", 10);
 
     for(int i = 0; i < NEW_ROLLOUT_LENGTH; i++) {
