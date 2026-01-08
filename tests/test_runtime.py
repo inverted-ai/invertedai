@@ -108,7 +108,7 @@ for f in FUNCTIONS_UNDER_TEST:
         if REDUCTION == "mean":
             elapsed = np.mean(elapsed_times)
         elif REDUCTION == "sum":
-            elapsed = np.mean(elapsed_times)
+            elapsed = np.sum(elapsed_times)
         else:
             raise NotImplementedError("Reduction method not implemented")
         ret_reduced = f"{location},{sim_length},{num_agents},{elapsed}\n"
