@@ -112,7 +112,7 @@ for f in FUNCTIONS_UNDER_TEST:
         else:
             raise NotImplementedError("Reduction method not implemented")
         ret_reduced = f"{location},{sim_length},{num_agents},{elapsed}\n"
-    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_raw.csv"), "w+") as f:
-        f.write(ret_raw)
-    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_reduced.csv"), "w+") as f:
-        f.write(ret_reduced)
+    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_raw.csv"), "w+") as file:
+        file.write(ret_raw)
+    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_reduced.csv"), "w+") as file:
+        file.write(ret_reduced)
