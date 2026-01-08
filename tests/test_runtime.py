@@ -2,6 +2,7 @@ import invertedai as iai
 from invertedai.utils import get_default_agent_properties
 from invertedai.common import AgentType
 
+import numpy as np
 import itertools
 import os
 import time
@@ -16,6 +17,7 @@ FOV = 250
 DRIVE_MODEL = "nBu1"
 seed = int(time.time())
 SAVE_CSV_PATH = "./results"
+REDUCTION = "mean"
 os.makedirs(SAVE_CSV_PATH, exist_ok=True)
 
 api_key = os.environ.get("IAI_API_KEY", None)
@@ -93,13 +95,24 @@ def without_wp(location, sim_length, num_agents):
 FUNCTIONS_UNDER_TEST = [with_wp, without_wp]
 
 for f in FUNCTIONS_UNDER_TEST:
-    ret = ""
-    for _ in range(REPETITIONS):
-        for iteration, (location, sim_length, num_agents) in enumerate(tqdm.tqdm(configurations)):
-            if iteration % (len(SIM_LENGTHS) * len(NUM_AGENTS)) == 0:
-                for _ in range(API_WARMUP):
-                    f(location, sim_length, num_agents) # Run warmup round per location...
+    ret_raw = ""
+    ret_reduced = ""
+    for location, sim_length, num_agents in tqdm.tqdm(configurations):
+        for _ in range(API_WARMUP): # Run warmup rounds per configuration...
+            f(location, sim_length, num_agents)
+        elapsed_times = []
+        for _ in range(REPETITIONS):
             elapsed = f(location, sim_length, num_agents)
-            ret += f"{location},{sim_length},{num_agents},{elapsed}\n"
-    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}.csv"), "w+") as f:
-        f.write(ret)
+            ret_raw += f"{location},{sim_length},{num_agents},{elapsed}\n"
+            elapsed_times.append(elapsed)
+        if REDUCTION == "mean":
+            elapsed = np.mean(elapsed_times)
+        elif REDUCTION == "sum":
+            elapsed = np.mean(elapsed_times)
+        else:
+            raise NotImplementedError("Reduction method not implemented")
+        ret_reduced = f"{location},{sim_length},{num_agents},{elapsed}\n"
+    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_raw.csv"), "w+") as f:
+        f.write(ret_raw)
+    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_reduced.csv"), "w+") as f:
+        f.write(ret_reduced)
