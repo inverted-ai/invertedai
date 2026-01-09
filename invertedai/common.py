@@ -228,7 +228,7 @@ class AgentProperties(BaseModel):
     waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it. Deprecated in favour of waypoints.
     waypoints: Optional[List[Point]] = None #: Target waypoints of the agent. If provided, waypoint will be ignored.
     max_speed: Optional[float] = None  #: Maximum speed limit of the agent in m/s.
-    aggressiveness: Optional[float] = None #: Aggressiveness of the agent
+    aggressiveness: Optional[float] = None #: Aggressiveness of the agent, value in [-1,1]
 
     @classmethod
     def deserialize(cls, val):
