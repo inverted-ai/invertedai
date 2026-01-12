@@ -173,10 +173,13 @@ class LogBase():
 
         def format_agent_properties(self,ts,agent_id):
             agent_properties = deepcopy(self._scenario_log.agent_properties[agent_id])
-            if self._scenario_log.waypoints_per_frame[ts] is not None:
-                agent_id_str = str(agent_id)
-                if agent_id_str in self._scenario_log.waypoints_per_frame[ts]:
-                    agent_properties.waypoints = self._scenario_log.waypoints_per_frame[ts][agent_id_str]
+            if self._scenario_log.waypoints_per_frame is not None:
+                if self._scenario_log.waypoints_per_frame[ts] is not None:
+                    agent_id_str = str(agent_id)
+                    if agent_id_str in self._scenario_log.waypoints_per_frame[ts]:
+                        agent_properties.waypoints = self._scenario_log.waypoints_per_frame[ts][agent_id_str]
+
+            return agent_properties
 
 
         for timestep in timestep_range:
@@ -203,7 +206,7 @@ class LogBase():
         )
         scene_plotter.initialize_recording(
             agent_states=self._scenario_log.agent_states[0],
-            agent_properties=[format_agent_properties(ts=0,agent_id=i) for i in self._scenario_log.present_indexes[0]],
+            agent_properties=[format_agent_properties(self,ts=0,agent_id=i) for i in self._scenario_log.present_indexes[0]],
             traffic_light_states=traffic_lights_states[timestep_range[0]],
         )
 
@@ -215,7 +218,7 @@ class LogBase():
             scene_plotter.record_step(
                 agent_states=states, 
                 traffic_light_states=lights,
-                agent_properties=[format_agent_properties(ts=ts,agent_id=i) for i in present]
+                agent_properties=[format_agent_properties(self,ts=ts,agent_id=i) for i in present]
             )
 
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
