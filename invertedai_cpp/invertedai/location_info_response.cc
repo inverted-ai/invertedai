@@ -70,8 +70,8 @@ void LocationInfoResponse::refresh_body_json_() {
   }
   this->body_json_["osm_map"] = this->osm_map_;
   this->body_json_["map_origin"] = {this->map_origin_.x, this->map_origin_.y};
-  this->body_json_["rendering_center"] = {this->rendering_center_.x, this->rendering_center_.y};
-  this->body_json_["rendering_fov"] = this->rendering_fov_;
+  this->body_json_["map_center"] = {this->rendering_center_.x, this->rendering_center_.y};
+  this->body_json_["map_fov"] = this->rendering_fov_;
   this->body_json_["static_actors"].clear();
   for (const auto &static_map_actor : this->static_actors_) {
     json element;
