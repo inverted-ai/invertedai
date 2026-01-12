@@ -463,7 +463,8 @@ def _initialize_regions(
                         get_infractions=get_infractions,
                         traffic_light_state_history=traffic_light_state_history,
                         location_of_interest=(region_center.x, region_center.y),
-                        random_seed=random_seed
+                        random_seed=random_seed,
+                        api_model_version=api_model_version
                     )
 
                 except InvertedAIError as e:
