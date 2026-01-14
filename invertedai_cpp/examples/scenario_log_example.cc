@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    ScenePlotter sceneplotter(li_res, *rc, flip_x_for_carla);
+    ScenePlotter sceneplotter(li_res, flip_x_for_carla);
     sceneplotter.initialize_video("scenario_log_replay.avi", 10); // initialize video to record visualization
     log_reader.reset_log();
     do {
@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
         branched_log   // scenario_log 
     );
     
-    ScenePlotter sceneplotter_branched(li_res, *rc, flip_x_for_carla); // could remove fov from param list
+    ScenePlotter sceneplotter_branched(li_res, flip_x_for_carla); // could remove fov from param list
     sceneplotter_branched.initialize_video("scenario_log_branched.avi", 10);
 
     for(int i = 0; i < NEW_ROLLOUT_LENGTH; i++) {

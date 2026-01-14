@@ -96,7 +96,6 @@ void ScenePlotter::draw_agent(
 
 ScenePlotter::ScenePlotter(
     const LocationInfoResponse& li_res, 
-    std::pair<double, double> rendering_center, 
     bool flip_x
 ) :    
     li_res_(li_res),
@@ -108,8 +107,8 @@ ScenePlotter::ScenePlotter(
     int image_width  = background_.cols;
     cv::cvtColor(background_, background_, cv::COLOR_BGR2RGB);
 
-    double center_x = rendering_center.first;
-    double center_y = rendering_center.second;
+    double center_x = li_res.rendering_center().x;
+    double center_y = li_res.rendering_center().y;
     double half = li_res.rendering_fov() * 0.5;
 
     projector_ = {

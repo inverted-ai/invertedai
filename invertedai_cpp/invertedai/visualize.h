@@ -34,7 +34,6 @@ class ScenePlotter {
     public:
         ScenePlotter(
             const LocationInfoResponse& li_res, 
-            std::pair<double, double> rendering_center, 
             bool flip_x=false
         );
     
