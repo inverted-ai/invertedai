@@ -478,6 +478,7 @@ def generate_lane_ids_from_lanelet_map(
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     filtered_lanelets = []
     radius_to_check = [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]
+    beta = 1.0 # parameter for lane change probability
     for radius in radius_to_check:
         starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), radius)
         for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
@@ -545,7 +546,7 @@ def generate_lane_ids_from_lanelet_map(
                         msg="Warning: Could not find any possible routes from the starting position."
                     )
                 return []
-            p = np.array([1 / np.e ** _find_max_num_lane_change(routing_graph, route.shortestPath()) for route, _ in routes])
+            p = np.array([1 / np.e ** (beta * _find_max_num_lane_change(routing_graph, route.shortestPath())) for route, _ in routes])
             route, ending_lanelet = rng.choice(routes, p=p/p.sum())
             starting_lanelet = ending_lanelet
             ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=maxRoutingCost, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
@@ -607,48 +608,7 @@ def _hermite_spline(
     p1 = p1[:, np.newaxis]
     m0 = m0[:, np.newaxis]
     m1 = m1[:, np.newaxis]
-    return (2*t**3 - 3*t**2 + 1) * p0 + (t**3 - 2*t**2 + t) * m0 + (-2*t**3 + 3*t**2) * p1 + (t**3 - t**2) * m1 + 1e-10
-
-def _lanelet_length(ll: lanelet2.core.ConstLanelet, starting_pos: Optional[Point] = None) -> float:
-    cl = ll.centerline
-    if starting_pos is None:
-        return sum(
-            hypot(cl[i].x - cl[i - 1].x, cl[i].y - cl[i - 1].y)
-            for i in range(1, len(cl))
-        )
-    else:
-        min_dist = float('inf')
-        closest_segment_idx = 0
-        for i in range(1, len(cl)):
-            p1 = cl[i - 1]
-            p2 = cl[i]
-            dx = p2.x - p1.x
-            dy = p2.y - p1.y
-            px = starting_pos.x - p1.x
-            py = starting_pos.y - p1.y
-        
-            segment_length_sq = dx * dx + dy * dy
-            if segment_length_sq == 0:
-                proj_point = p1
-            else:
-                t = max(0, min(1, (px * dx + py * dy) / segment_length_sq))
-                proj_point = Point(x=p1.x + t * dx, y=p1.y + t * dy)
-            dist = hypot(proj_point.x - starting_pos.x, proj_point.y - starting_pos.y)
-            
-            if dist < min_dist:
-                min_dist = dist
-                closest_segment_idx = i
-                closest_point_on_segment = proj_point
-
-        total_length = 0.0
-        total_length += hypot(
-            cl[closest_segment_idx].x - closest_point_on_segment.x,
-            cl[closest_segment_idx].y - closest_point_on_segment.y
-        )
-        for i in range(closest_segment_idx + 1, len(cl)):
-            total_length += hypot(cl[i].x - cl[i - 1].x, cl[i].y - cl[i - 1].y)
-        
-        return total_length
+    return (2*t**3 - 3*t**2 + 1) * p0 + (t**3 - 2*t**2 + t) * m0 + (-2*t**3 + 3*t**2) * p1 + (t**3 - t**2) * m1
     
 def _sample_linestring(
     linestring: List[np.ndarray], 
