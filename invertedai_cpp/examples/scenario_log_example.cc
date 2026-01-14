@@ -131,13 +131,13 @@ int main(int argc, char** argv) {
     }
 
     ScenePlotter sceneplotter(li_res, *rc, flip_x_for_carla);
-    sceneplotter.initialize_video("scenario_log_replay.avi", 10);
+    sceneplotter.initialize_video("scenario_log_replay.avi", 10); // initialize video to record visualization
     log_reader.reset_log();
     do {
         std::vector<AgentState> states = log_reader.current_agent_states();
         std::vector<AgentProperties>  props  = log_reader.current_agent_properties();
         std::optional<std::map<std::string,std::string>> traffic_lights_states = log_reader.current_traffic_lights();
-        sceneplotter.render_step(states, props, traffic_lights_states);
+        sceneplotter.render_step(states, props, traffic_lights_states); // render timestep to video
     } while (log_reader.drive());
     sceneplotter.close();
 
