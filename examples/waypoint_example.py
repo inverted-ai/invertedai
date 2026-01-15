@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 import os
 import time
 
-location = "carla_xodr:Town10HD"  # select one of available locations
-simulation_length = 300
+# location = "carla_xodr:Town10HD"  # select one of available locations
+location = "carla:Town10HD"
+simulation_length = 100
 seed = int(time.time())
 drive_model = "nBu1"
 num_agents = 10

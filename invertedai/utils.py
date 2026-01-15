@@ -20,7 +20,7 @@ from requests.adapters import HTTPAdapter, Retry
 
 import matplotlib.pyplot as plt
 from matplotlib import animation
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Wedge
 from matplotlib.animation import FuncAnimation
 from matplotlib.axes import Axes
 from matplotlib import transforms
@@ -852,12 +852,14 @@ class ScenePlotter():
         self.cond_c = (0.78, 0.0, 0.0)
         self.dir_c = (0.392,1.0,1.0)
         self.v_c = (0.2, 0.75, 0.2)
+        self.fov_c = (1.0, 0.5, 0.0)  # Orange color for FoV
 
         self.dir_lines = {}
         self.v_lines = {}
         self.actor_boxes = {}
         self.traffic_light_boxes = {}
         self.box_labels = {}
+        self.fov_wedges = {}
         self.frame_label = None
         self.current_ax = None
 
@@ -974,6 +976,9 @@ class ScenePlotter():
         numbers: Optional[List[int]] = None, 
         direction_vec: bool = True, 
         velocity_vec: bool = False,
+        fov_vec: bool = False,
+        fov_angle: float = 120.0,
+        fov_range: float = 50.0,
         agent_face_colors: Optional[ColorList] = None,
         agent_edge_colors: Optional[ColorList] = None,
     ):
@@ -1033,7 +1038,10 @@ class ScenePlotter():
             ax=ax, 
             numbers=numbers, 
             direction_vec=direction_vec,
-            velocity_vec=velocity_vec, 
+            velocity_vec=velocity_vec,
+            fov_vec=fov_vec,
+            fov_angle=fov_angle,
+            fov_range=fov_range,
             plot_frame_number=False
         )
 
@@ -1049,7 +1057,10 @@ class ScenePlotter():
         numbers: Optional[List[int]] = None, 
         direction_vec: bool = True, 
         velocity_vec: bool = False,
-        plot_frame_number: bool = False, 
+        plot_frame_number: bool = False,
+        fov_vec: bool = False,
+        fov_angle: float = 120.0,
+        fov_range: float = 50.0,
         agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
         agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None
     ) -> FuncAnimation:
@@ -1074,6 +1085,12 @@ class ScenePlotter():
             Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
         plot_frame_number: 
             Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
+        fov_vec:
+            Flag to determine if a wedge showing the agent's field of view should be plotted in the animation. By default this flag is set to False.
+        fov_angle:
+            The angle of the field of view in degrees. By default this is set to 120.0.
+        fov_range:
+            The range of the field of view in meters. By default this is set to 50.0.
         agent_face_colors:
             An optional parameter containing a list of RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
             of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent must 
@@ -1093,7 +1110,10 @@ class ScenePlotter():
             ax=ax, 
             numbers=numbers, 
             direction_vec=direction_vec,
-            velocity_vec=velocity_vec, 
+            velocity_vec=velocity_vec,
+            fov_vec=fov_vec,
+            fov_angle=fov_angle,
+            fov_range=fov_range,
             plot_frame_number=plot_frame_number
         )
         end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
@@ -1161,14 +1181,20 @@ class ScenePlotter():
         ax=None, 
         numbers=None, 
         direction_vec=True,
-        velocity_vec=False, 
+        velocity_vec=False,
+        fov_vec=False,
+        fov_angle=120.0,
+        fov_range=50.0,
         plot_frame_number=False
     ):
         self._initialize_plot(
             ax=ax, 
             numbers=numbers, 
             direction_vec=direction_vec,
-            velocity_vec=velocity_vec, 
+            velocity_vec=velocity_vec,
+            fov_vec=fov_vec,
+            fov_angle=fov_angle,
+            fov_range=fov_range,
             plot_frame_number=plot_frame_number
         )
         self._update_frame_to(idx)
@@ -1178,7 +1204,10 @@ class ScenePlotter():
         ax=None, 
         numbers=None, 
         direction_vec=True,
-        velocity_vec=False, 
+        velocity_vec=False,
+        fov_vec=False,
+        fov_angle=120.0,
+        fov_range=50.0,
         plot_frame_number=False
     ):
         if ax is None:
@@ -1201,11 +1230,15 @@ class ScenePlotter():
         self.traffic_light_boxes = {}
         self.box_labels = {}
         self.waypoint_markers = {}
+        self.fov_wedges = {}
         self.frame_label = None
 
         self.numbers = numbers
         self.direction_vec = direction_vec
         self.velocity_vec = velocity_vec
+        self.fov_vec = fov_vec
+        self.fov_angle = fov_angle
+        self.fov_range = fov_range
         self.plot_frame_number = plot_frame_number
 
         self._update_frame_to(0)
@@ -1249,6 +1282,12 @@ class ScenePlotter():
                     line.set_visible(False)
             else:
                 lines.set_visible(False)
+        for wedge in self.fov_wedges.values():
+            if isinstance(wedge, list):
+                for w in wedge:
+                    w.set_visible(False)
+            else:
+                wedge.set_visible(False)
         for label in self.box_labels.values():
             label.set_visible(False)
 
@@ -1342,6 +1381,37 @@ class ScenePlotter():
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
 
             self.v_lines[agent_idx][0].set_visible(True)
+        
+        if self.fov_vec:
+            # Calculate FoV wedge parameters
+            fov_half_angle_rad = (self.fov_angle / 2.0) * math.pi / 180.0
+            start_angle_deg = (psi - fov_half_angle_rad) * 180.0 / math.pi
+            theta_deg = self.fov_angle
+            
+            if agent_idx not in self.fov_wedges:
+                wedge = Wedge(
+                    (x, y),
+                    self.fov_range,
+                    start_angle_deg,
+                    start_angle_deg + theta_deg,
+                    width=0,
+                    fc=self.fov_c,
+                    ec=(1.0, 0.5, 0.0),  # Orange edge
+                    lw=3.0,  # Thicker orange line
+                    alpha=0.3,
+                    zorder=1  # Draw behind agents
+                )
+                self.fov_wedges[agent_idx] = wedge
+                self.current_ax.add_patch(wedge)
+            else:
+                wedge = self.fov_wedges[agent_idx]
+                wedge.set_center((x, y))
+                wedge.set_theta1(start_angle_deg)
+                wedge.set_theta2(start_angle_deg + theta_deg)
+                wedge.set_radius(self.fov_range)
+                wedge.set_linewidth(3.0)  # Ensure line width is thick
+            
+            self.fov_wedges[agent_idx].set_visible(True)
         
         if self.numbers is not None and agent_idx in self.numbers:
             if agent_idx not in self.box_labels:

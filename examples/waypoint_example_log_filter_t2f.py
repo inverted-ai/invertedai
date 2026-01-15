@@ -34,6 +34,7 @@ location_info_response = iai.location_info(
 response = iai.initialize(
     location=location,  # select one of available locations
     agent_properties=get_default_agent_properties({AgentType.car:num_agents}),  # number of NPCs to spawn
+    location_of_interest=(100.0, location_info_response.map_center.y),
     random_seed=seed
 )
 initialize_response = response
@@ -514,14 +515,22 @@ if log_output_path is not None:
         # Fallback: use agent_properties from the last waypoint manager update
         # This should be available from the script's agent_properties variable
         agent_properties_for_detection = agent_properties
-    
+    # 2000 data use the following parameters to detect t2f scenarios    
+    # t2f_scenarios = detect_t2f_scenarios(
+    #     drive_responses=drive_responses,
+    #     num_agents=num_agents,
+    #     all_agent_properties=agent_properties_for_detection,
+    #     fov_angle=120.0,  # Match the FoV angle used in visualization
+    #     fov_range=30.0,  # Match the FoV range used in visualization
+    #     min_window_length=40
+    # )
     t2f_scenarios = detect_t2f_scenarios(
         drive_responses=drive_responses,
         num_agents=num_agents,
         all_agent_properties=agent_properties_for_detection,
         fov_angle=120.0,  # Match the FoV angle used in visualization
-        fov_range=30.0,  # Match the FoV range used in visualization
-        min_window_length=40
+        fov_range=25.0,  # Match the FoV range used in visualization
+        min_window_length=30
     )
     print(f"Found {len(t2f_scenarios)} t2f scenarios")
     
