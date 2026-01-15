@@ -145,7 +145,7 @@ class LogBase():
             drive_model_version=all_drive_responses[-1]["model_version"],
             light_recurrent_states=all_drive_responses[-1]["light_recurrent_states"],
             recurrent_states=[RecurrentState.fromval(rec_state) for rec_state in all_drive_responses[-1]["recurrent_states"]],
-            waypoints={str(i):[prop.waypoint] for i, prop in enumerate(agent_properties)},
+            waypoints={str(i):prop.waypoints for i, prop in enumerate(agent_properties)},
             present_indexes=[list(range(len(agent_properties)))]*len(all_agent_states)
         )
 
@@ -295,33 +295,30 @@ class LogWriter(LogBase):
         used to export a given scenario log instead of the log contained within the object.
         """
 
+        def _format_waypoints_json(
+            wps: List[Point]
+        ):
+            return {
+                "suggestion_strength": 0.8, #Default value
+                "states": [{
+                    "center": {
+                        "x": wp.x,
+                        "y": wp.y
+                    }
+                } for wp in wps]
+            }
+        
         individual_suggestions_dict = {}
         if scenario_log is None:
             scenario_log = self._scenario_log
             for i, prop in enumerate(scenario_log.agent_properties):
-                wp = prop.waypoint
-                if wp is not None:
-                    individual_suggestions_dict[str(i)] = {
-                        "suggestion_strength": 0.8, #Default value
-                        "states":[{
-                            "center": {
-                                "x": wp.x,
-                                "y": wp.y
-                            }
-                        }]
-                    }
+                wps = prop.waypoints
+                if wps is not None or len(wps) > 0:
+                    individual_suggestions_dict[str(i)] = _format_waypoints_json(wps)
         else:
             if scenario_log.waypoints is not None:
                 for agent_id, wps in scenario_log.waypoints.items():
-                        individual_suggestions_dict[agent_id] = {
-                            "suggestion_strength": 0.8, #Default value
-                            "states": [{
-                                "center": {
-                                    "x": wp.x,
-                                    "y": wp.y
-                                }
-                            } for wp in wps]
-                        }
+                        individual_suggestions_dict[agent_id] = _format_waypoints_json(wps)
 
         num_cars, num_pedestrians = 0, 0
         for prop in scenario_log.agent_properties:
@@ -446,6 +443,33 @@ class LogWriter(LogBase):
         cls.export_to_file(cls,log_path,scenario_log)
 
     @validate_arguments
+    def _format_waypoints(
+        self,
+        current_present_indexes: List[int],
+        agent_properties: Optional[List[AgentProperties]] = None,
+        waypoints: Optional[WaypointsDict] = None
+    ) -> Optional[WaypointsDict]:
+        if agent_properties is not None:
+            assert len(agent_properties) == len(current_present_indexes), "Must pass same number of agent properties as present agents."
+        
+        is_waypoints = False
+        waypoints_dict = dict()
+
+        if agent_properties is not None:
+            for i, prop in zip(current_present_indexes,agent_properties):
+                agent_id = str(i)
+                if prop.waypoints is not None:
+                    is_waypoints = True
+                    waypoints_dict[agent_id] = prop.waypoints
+        if waypoints is not None: #Overwrite it waypoints were given explicitly
+            for agent_id, wps in waypoints.items():
+                waypoints_dict[agent_id] = wps
+        if is_waypoints or waypoints is not None:
+            waypoints = waypoints_dict 
+
+        return waypoints
+    
+    @validate_arguments
     def initialize(
         self,
         location: Optional[str] = None,
@@ -472,6 +496,13 @@ class LogWriter(LogBase):
             if type(agent_properties[0]) == AgentAttributes:
                 agent_properties = [convert_attributes_to_properties(attr) for attr in agent_properties]
 
+            present_indexes = list(range(len(agent_properties)))
+            waypoints = self._format_waypoints(
+                current_present_indexes = present_indexes,
+                agent_properties = agent_properties,
+                waypoints = waypoints
+            )
+            
             self._scenario_log = ScenarioLog(
                 agent_states=[init_response.agent_states], 
                 agent_properties=agent_properties, 
@@ -489,8 +520,8 @@ class LogWriter(LogBase):
                 drive_model_version=drive_model_version,
                 light_recurrent_states=init_response.light_recurrent_states,
                 recurrent_states=init_response.recurrent_states,
-                waypoints_per_frame=[waypoints] if waypoints is not None else None,
-                present_indexes=[list(range(len(agent_properties)))]
+                waypoints_per_frame=[waypoints],
+                present_indexes=[present_indexes]
             )
             self.simulation_length = 1
 
@@ -507,7 +538,8 @@ class LogWriter(LogBase):
         drive_response: DriveResponse,
         current_present_indexes: Optional[List[int]] = None,
         new_agent_properties: Optional[List[AgentProperties]] = None,
-        waypoints: Optional[WaypointsDict] = None
+        waypoints: Optional[WaypointsDict] = None,
+        agent_properties: Optional[List[AgentProperties]] = None
     ): 
         """
         Consume and store driving response information from a single timestep and append it to the end of the log. If the number of agents
@@ -529,8 +561,13 @@ class LogWriter(LogBase):
         if drive_response.traffic_lights_states is not None:
             self._scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
         
-        if waypoints is not None:
-            self._scenario_log.waypoints_per_frame.append(waypoints)
+        waypoints = self._format_waypoints(
+            current_present_indexes = current_present_indexes,
+            agent_properties = agent_properties,
+            waypoints = waypoints
+        )
+        self._scenario_log.waypoints_per_frame.append(waypoints)
+
         self._scenario_log.drive_model_version = drive_response.api_model_version
         self._scenario_log.light_recurrent_states = drive_response.light_recurrent_states
         self._scenario_log.recurrent_states = drive_response.recurrent_states
@@ -577,6 +614,16 @@ class LogReader(LogBase):
 
         location = LOG_DATA["location"]["identifier"]
 
+        agent_waypoints = None
+        if "individual_suggestions" in LOG_DATA:
+            agent_waypoints_dict = {}
+            for agent_id, waypoints in LOG_DATA["individual_suggestions"].items():
+                agent_waypoints_dict[agent_id] = []
+                for pt in waypoints["states"]:
+                    data = pt["center"]
+                    agent_waypoints_dict[agent_id].append(Point.fromlist([data["x"],data["y"]]))
+            agent_waypoints = agent_waypoints_dict
+        
         all_agent_states_unsorted = []
         all_agent_properties_unsorted = {}
         present_indexes_unsorted = []
@@ -594,6 +641,9 @@ class LogReader(LogBase):
                     agent_properties.width = agent_attributes_json["width"]
                     agent_properties.rear_axis_offset = agent_attributes_json["rear_axis_offset"]
                     agent_properties.agent_type = agent["entity_type"]
+                    if agent_waypoints is not None:
+                        if agent_id in agent_waypoints:
+                            agent_properties.waypoints = agent_waypoints[agent_id]
                     all_agent_properties_unsorted[agent_id] = agent_properties
                     agent_id_list[agent_id] = agent_id_sequence_num
                     agent_id_sequence_num += 1
@@ -639,16 +689,6 @@ class LogReader(LogBase):
 
         if not all_traffic_light_states:
             all_traffic_light_states = None
-
-        agent_waypoints = {}
-        if "individual_suggestions" in LOG_DATA:
-            for agent_id, waypoints in LOG_DATA["individual_suggestions"].items():
-                agent_waypoints[agent_id] = []
-                for pt in waypoints["states"]:
-                    data = pt["center"]
-                    agent_waypoints[agent_id].append(Point.fromlist([data["x"],data["y"]]))
-        if not agent_waypoints:
-            agent_waypoints = None
 
         rendering_center = None
         rendering_fov = None
