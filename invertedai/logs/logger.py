@@ -520,7 +520,7 @@ class LogWriter(LogBase):
                 drive_model_version=drive_model_version,
                 light_recurrent_states=init_response.light_recurrent_states,
                 recurrent_states=init_response.recurrent_states,
-                waypoints_per_frame=[waypoints],
+                waypoints_per_frame=[waypoints] if waypoints is not None else waypoints,
                 present_indexes=[present_indexes]
             )
             self.simulation_length = 1
