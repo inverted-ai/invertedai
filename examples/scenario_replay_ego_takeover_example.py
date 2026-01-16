@@ -139,6 +139,7 @@ def main(args):
             direction_vec = True,
             velocity_vec = False,
             plot_frame_number = True,
+            map_center = scenario_center,
             left_hand_coordinates = location.split(":")[0] == "carla",
             agent_ids = list(range(len(agent_properties)))
         )

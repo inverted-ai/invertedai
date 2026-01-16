@@ -313,8 +313,9 @@ class LogWriter(LogBase):
             scenario_log = self._scenario_log
             for i, prop in enumerate(scenario_log.agent_properties):
                 wps = prop.waypoints
-                if wps is not None or len(wps) > 0:
-                    individual_suggestions_dict[str(i)] = _format_waypoints_json(wps)
+                if wps is not None:
+                    if len(wps) > 0:
+                        individual_suggestions_dict[str(i)] = _format_waypoints_json(wps)
         else:
             if scenario_log.waypoints is not None:
                 for agent_id, wps in scenario_log.waypoints.items():
@@ -464,10 +465,8 @@ class LogWriter(LogBase):
         if waypoints is not None: #Overwrite it waypoints were given explicitly
             for agent_id, wps in waypoints.items():
                 waypoints_dict[agent_id] = wps
-        if is_waypoints or waypoints is not None:
-            waypoints = waypoints_dict 
 
-        return waypoints
+        return waypoints_dict
     
     @validate_arguments
     def initialize(
@@ -520,7 +519,7 @@ class LogWriter(LogBase):
                 drive_model_version=drive_model_version,
                 light_recurrent_states=init_response.light_recurrent_states,
                 recurrent_states=init_response.recurrent_states,
-                waypoints_per_frame=[waypoints] if waypoints is not None else waypoints,
+                waypoints_per_frame=[waypoints],
                 present_indexes=[present_indexes]
             )
             self.simulation_length = 1
