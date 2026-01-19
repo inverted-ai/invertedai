@@ -422,12 +422,26 @@ def generate_waypoints_from_lane_ids(
                     msg=msg
                 )
     all_centerline_points = np.array([point for lanes in lanelets for lane in lanes for point in lane])
+    if all_centerline_points.shape[0] < 2:
+        if logger is not None: 
+                msg = f"Could not calculate a path following the given lanes."
+                logger.log(
+                    level=logger.getEffectiveLevel(),
+                    msg=msg
+                )
+        return []
     deltas = np.diff(all_centerline_points, axis=0)
     seg_lengths = np.hypot(deltas[:, 0], deltas[:, 1])
     total_length = np.sum(seg_lengths)
     cumdist = np.concatenate(([0], np.cumsum(seg_lengths)))
     num_points = int(np.ceil(total_length / waypoint_spacing)) + 1
     if num_points < 2:
+        if logger is not None: 
+                msg = f"Could not calculate a path with the given waypoint spacing."
+                logger.log(
+                    level=logger.getEffectiveLevel(),
+                    msg=msg
+                )
         return []
     new_distances = np.linspace(0, total_length, num_points)
 
@@ -465,6 +479,7 @@ def generate_lane_ids_from_lanelet_map(
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     filtered_lanelets = []
     radius_to_check = [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]
+    beta = 1.0 # parameter for lane change probability
     for radius in radius_to_check:
         starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), radius)
         for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
@@ -520,20 +535,39 @@ def generate_lane_ids_from_lanelet_map(
                     msg="Warning: Could not find any possible routes from the starting position."
                 )
             return []
-        route = [starting_lanelet.id]
+        route_lane_ids = [starting_lanelet.id]
         total_distance = 0
         while ending_lanelets and total_distance <= (min_distance if min_distance is not None else 0):
-            ending_lanelet = rng.choice(ending_lanelets)
-            possible_route = routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=True)
-            if not possible_route:
-                continue
+            routes = [(routing_graph.getRoute(starting_lanelet, ending_lanelet, withLaneChanges=True), ending_lanelet) for ending_lanelet in ending_lanelets]
+            routes = [(route, ending_lanelet) for route, ending_lanelet in routes if route is not None]
+            if not routes:
+                if logger is not None:
+                    logger.log(
+                        level=logger.getEffectiveLevel(),
+                        msg="Warning: Could not find any possible routes from the starting position."
+                    )
+                return []
+            p = np.array([1 / np.e ** (beta * _find_max_num_lane_change(routing_graph, route.shortestPath())) for route, _ in routes])
+            route, ending_lanelet = rng.choice(routes, p=p/p.sum())
             starting_lanelet = ending_lanelet
             ending_lanelets = sorted(list(routing_graph.reachableSet(starting_lanelet, maxRoutingCost=maxRoutingCost, allowLaneChanges=True)), key=lambda lanelet: lanelet.id)
-            total_distance += possible_route.length2d()
-            route.extend([lanelet.id for lanelet in list(possible_route.shortestPath())[1:]])
-        return route
+            total_distance += route.length2d()
+            route_lane_ids.extend([lanelet.id for lanelet in list(route.shortestPath())[1:]])
+        return route_lane_ids
 
-    
+def _find_max_num_lane_change(routing_graph: lanelet2.routing.RoutingGraph, route: lanelet2.routing.LaneletPath):
+    lanelets = list(route)
+    max_lane_change = 0
+    num_lane_change = 0
+    for lanelet1, lanelet2 in zip(lanelets[:-1], lanelets[1:]):
+        if lanelet2 == routing_graph.left(lanelet1) or lanelet2 == routing_graph.right(lanelet1):
+            num_lane_change += 1
+        else:
+            max_lane_change = max(max_lane_change, num_lane_change)
+            num_lane_change = 0
+    max_lane_change = max(max_lane_change, num_lane_change)
+    return max_lane_change
+
 def _find_direction_and_nearest_points(
     linestring: lanelet2.core.ConstLineString3d, 
     location3d: lanelet2.core.BasicPoint3d
@@ -575,48 +609,7 @@ def _hermite_spline(
     p1 = p1[:, np.newaxis]
     m0 = m0[:, np.newaxis]
     m1 = m1[:, np.newaxis]
-    return (2*t**3 - 3*t**2 + 1) * p0 + (t**3 - 2*t**2 + t) * m0 + (-2*t**3 + 3*t**2) * p1 + (t**3 - t**2) * m1 + 1e-10
-
-def _lanelet_length(ll: lanelet2.core.ConstLanelet, starting_pos: Optional[Point] = None) -> float:
-    cl = ll.centerline
-    if starting_pos is None:
-        return sum(
-            hypot(cl[i].x - cl[i - 1].x, cl[i].y - cl[i - 1].y)
-            for i in range(1, len(cl))
-        )
-    else:
-        min_dist = float('inf')
-        closest_segment_idx = 0
-        for i in range(1, len(cl)):
-            p1 = cl[i - 1]
-            p2 = cl[i]
-            dx = p2.x - p1.x
-            dy = p2.y - p1.y
-            px = starting_pos.x - p1.x
-            py = starting_pos.y - p1.y
-        
-            segment_length_sq = dx * dx + dy * dy
-            if segment_length_sq == 0:
-                proj_point = p1
-            else:
-                t = max(0, min(1, (px * dx + py * dy) / segment_length_sq))
-                proj_point = Point(x=p1.x + t * dx, y=p1.y + t * dy)
-            dist = hypot(proj_point.x - starting_pos.x, proj_point.y - starting_pos.y)
-            
-            if dist < min_dist:
-                min_dist = dist
-                closest_segment_idx = i
-                closest_point_on_segment = proj_point
-
-        total_length = 0.0
-        total_length += hypot(
-            cl[closest_segment_idx].x - closest_point_on_segment.x,
-            cl[closest_segment_idx].y - closest_point_on_segment.y
-        )
-        for i in range(closest_segment_idx + 1, len(cl)):
-            total_length += hypot(cl[i].x - cl[i - 1].x, cl[i].y - cl[i - 1].y)
-        
-        return total_length
+    return (2*t**3 - 3*t**2 + 1) * p0 + (t**3 - 2*t**2 + t) * m0 + (-2*t**3 + 3*t**2) * p1 + (t**3 - t**2) * m1
     
 def _sample_linestring(
     linestring: List[np.ndarray], 
