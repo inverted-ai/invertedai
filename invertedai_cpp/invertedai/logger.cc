@@ -578,8 +578,6 @@ namespace invertedai {
                 // Each entry should be a two-element array: [state, time_remaining]
                 light_recurrent_array.push_back({lrs.state, lrs.time_remaining});
             }
-        } else {
-            std::cout << "[EXPORT] Found no light recurrent states" << std::endl;
         }
     
         json output_dict = {
