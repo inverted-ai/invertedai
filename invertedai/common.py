@@ -228,6 +228,7 @@ class AgentProperties(BaseModel):
     waypoint: Optional[Point] = None  #: Target waypoint of the agent. If provided the agent will attempt to reach it. Deprecated in favour of waypoints.
     waypoints: Optional[List[Point]] = None #: Target waypoints of the agent. If provided, waypoint will be ignored.
     max_speed: Optional[float] = None  #: Maximum speed limit of the agent in m/s.
+    aggressiveness: Optional[float] = None #: The aggressiveness of the agent, a value in [-1,1] (-1 = minimum, 0 = neutral, 1 = maximum)
 
     @classmethod
     def deserialize(cls, val):
@@ -238,7 +239,8 @@ class AgentProperties(BaseModel):
             agent_type=val['agent_type'], 
             waypoint=Point(x=val['waypoint'][0], y=val['waypoint'][1]) if val['waypoint'] else None, 
             waypoints=[Point(x=point[0], y=point[1]) for point in val['waypoints']] if val.get('waypoints', None) else None,
-            max_speed=val['max_speed']
+            max_speed=val['max_speed'],
+            aggressiveness=val['aggressiveness']
         )
     
     def serialize(self):
@@ -252,7 +254,8 @@ class AgentProperties(BaseModel):
             "agent_type": self.agent_type, 
             "waypoint": [self.waypoint.x, self.waypoint.y] if self.waypoint else None, 
             "waypoints": [(waypoint.x, waypoint.y) for waypoint in self.waypoints] if self.waypoints else None,
-            "max_speed": self.max_speed
+            "max_speed": self.max_speed,
+            "aggressiveness": self.aggressiveness
         }
     
     

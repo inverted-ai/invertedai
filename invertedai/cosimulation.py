@@ -104,7 +104,7 @@ class BasicCosimulation:
     @property
     def agent_properties(self) -> List[AgentProperties]:
         """
-        The properties (length, width, rear_axis_offset, max_speed) for all agents, including ego.
+        The properties (length, width, rear_axis_offset, max_speed, aggressiveness) for all agents, including ego.
         """
         return self._agent_properties
 
