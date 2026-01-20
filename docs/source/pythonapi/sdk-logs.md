@@ -1,5 +1,5 @@
 [scenario-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/examples/scenario_log_example.py
-[diagnostic-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/invertedai/logs/diagnostics_logger.py
+[diagnostic-log-example-link]: https://github.com/inverted-ai/invertedai/blob/master/invertedai/logs/diagnostics.py
 
 # Logs, Scenarios, & Debugging
 
