@@ -10,12 +10,14 @@ import math
 from typing import List, Tuple, Dict
 
 # location = "carla_xodr:Town10HD"  # select one of available locations
-location = "carla:Town10HD"
-simulation_length = 80
+# location = "carla:Town10HD"
+location = "carla:Town01"
+simulation_length = 60
 seed = int(time.time())
 drive_model = "nBu1"
 num_agents = 10
-fov = 250
+# fov = 250
+fov = 500
 
 api_key = os.environ.get("IAI_API_KEY", None)
 if api_key is None:
@@ -31,10 +33,13 @@ location_info_response = iai.location_info(
 )
 
 # initialize the simulation by spawning NPCs
+location_x = 380.0
+location_y = location_info_response.map_center.y
+
 response = iai.initialize(
     location=location,  # select one of available locations
     agent_properties=get_default_agent_properties({AgentType.car:num_agents}),  # number of NPCs to spawn
-    location_of_interest=(100.0, location_info_response.map_center.y),
+    location_of_interest=(location_x, location_y),
     random_seed=seed
 )
 initialize_response = response
@@ -554,7 +559,7 @@ for _ in range(simulation_length):  # how many simulation steps to execute (10 s
         traffic_light_states=response.traffic_lights_states
     )
 
-log_output_path = os.path.join(os.getcwd(),"waypoint_example_log_filter_t2f",f"waypoint_example_{seed}_{num_agents}.json")
+log_output_path = os.path.join(os.getcwd(),"waypoint_example_log_filter_t2f",f"waypoint_example_{seed}_{num_agents}_{location.split(':')[1]}_{location_x:.1f}_{location_y:.1f}.json")
 if log_output_path is not None:
     log_writer = iai.LogWriter()
     location_info_response = iai.location_info(
@@ -627,7 +632,7 @@ print("Simulation finished, save visualization.")
 # save the visualization to disk
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
 plt.axis('off')
-gif_name = f'{seed}_waypoint_example.gif'
+gif_name = f'{location.split(":")[1]}_{location_x:.1f}_{location_y:.1f}_{seed}_waypoint_example.gif'
 scene_plotter.animate_scene(
     output_name=gif_name,
     ax=ax,
