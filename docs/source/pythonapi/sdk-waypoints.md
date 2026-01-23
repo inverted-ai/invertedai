@@ -2,11 +2,7 @@
 
 # Waypoint Management
 
-Inverted AI provides the most sophisticated NPC behavior of any traffic simulation tool currently available in the market for AV/ADAS development. Inverted AI has widened that gap with a line of even more realistic, reactive, and diverse traffic behavioral simulation models based on waypoints. These waypoints can be used to manually direct agents during V&V testing, scenario-based data generation, and so forth or to automatically enhance the diversity of NPC behavior. In an effort to make this feature as accessible as possible, a Waypoint Manager tool is available to handle the details of using waypoints so users can focus on the aspects of developing AV/ADAS simulations that are important to them using the Inverted AI SDK. This tutorial will discuss how the Waypoint Manager tool works to enable rapid improvement of the quality of your AV/ADAS simulations today.
-
-Within the Inverted AI SDK domain, waypoints are simple 2D points on a drivable region of a map that an agent is meant to reach. An agent given a waypoint will progress towards this goal every time step, while maintaining the characteristic realistic, reactive, and diverse behavior of Inverted AI agents. However, the waypoint must be reachable by the agent from its current state (i.e. the waypoint is on a drivable road surface with no gap in drivable lanes between itself and the agent). 
-
-The Waypoint Manager is designed to manage these waypoints under-the-hood while being as unintrusive to your code as possible. The main features of the Waypoint Manager are to format a list of user-defined waypoints to direct the agents through the API or to generate a realistic and diverse path if none is provided. Check out the [Waypoint Manager example script][waypoint-manager-example-link] for how to integrate this feature into your code.
+Inverted AI DRIVE API provides an option to direct the NPC behavior by setting their target waypoints. This is in particular useful when instructing the NPCs to follow a specific route, but also helps maintain global coherence of paths taken by free roaming agents. While low level access to target waypoints allows the user finer control over the NPC behavior, "prompting" NPCs with waypoints takes some practice and for convenience we provide a helper that abstracts low-level waypoint generation in the typical use case of having the NPCs follow a specific route. This computation is performed and cached client side, in order to allow the API to be stateless, and encapsulated inside the Waypoint Manager. Check out the [Waypoint Manager example script][waypoint-manager-example-link] for how to integrate this feature into your code. In short, it translates high-level waypoints placed along a user-defined reachable path into low-level waypoints that can be inserted into DRIVE calls with desired effects.
 
 ```{eval-rst}
 .. autoclass:: invertedai.helpers.waypoints.WaypointManager
@@ -38,6 +34,6 @@ Example of executing the previously configured aggressive on-ramp merging scenar
 
 ## No Waypoints
 
-This is the simplest case for an agent. No waypoints are sampled and the vehicle travels realistically, reactively, and diversely as directed by the Inverted AI DRIVE model.
+This is the simplest case for an agent. No waypoints are sampled or passed to the DRIVE API calls.
 
 ![](../images/waypoint_Town02_frame.png)
