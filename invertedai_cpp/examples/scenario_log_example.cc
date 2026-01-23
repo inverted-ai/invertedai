@@ -28,19 +28,36 @@ using namespace invertedai;
                 bazel build //examples:scenario_log_example
 
             5. To run:
-                ./bazel-bin/examples/scenario_log_example --rollout_length 40
+                ./bazel-bin/examples/scenario_log_example --location "carla:Town10HD" --init_sim_length 50 --sim_begin_new_rollout 10 --new_sim_length_extend 20 
 
 */
-const int TIMESTEP_TO_BRANCH_FROM = 10;
-const int SIMULATION_LENGTH = 50;
-const std::string LOCATION = "carla:Town10HD"; // location used to write the json log
+std::string LOCATION = ""; // location used to write the json log
+int INIT_SIMULATION_LENGTH = 50; // initial simulation length to write the json log
+int SIMULATION_BEGIN_NEW_ROLLOUT = 10; // timestep from which to branch off
+int NEW_SIMULATION_LENGTH_EXTEND = 20; // length of new rollout after branching from json log
 int main(int argc, char** argv) {
-    int NEW_ROLLOUT_LENGTH = 20; // length of new rollout after branching from json
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--rollout_length") {
-            NEW_ROLLOUT_LENGTH = std::stoi(argv[++i]);
+            NEW_SIMULATION_LENGTH_EXTEND = std::stoi(argv[++i]);
+        } 
+        if(arg == "--location") {
+            LOCATION = argv[++i];
         }
+        if(arg == "--init_sim_length") {
+            INIT_SIMULATION_LENGTH = std::stoi(argv[++i]);
+        }
+        if(arg == "--sim_begin_new_rollout") {
+            SIMULATION_BEGIN_NEW_ROLLOUT = std::stoi(argv[++i]);
+        }
+    }
+    if(LOCATION == "") {
+        std::cerr << "Please provide a location using --location flag\n";
+        return 1;
+    }
+    if(SIMULATION_BEGIN_NEW_ROLLOUT >= INIT_SIMULATION_LENGTH) {
+        std::cerr << "--sim_begin_new_rollout must be less than --init_sim_length\n";
+        return 1;
     }
     const std::string API_KEY = getenv("IAI_API_KEY"); 
     boost::asio::io_context ioc;
@@ -79,9 +96,9 @@ int main(int argc, char** argv) {
     std::vector<std::vector<double>> rec_states = init_res.recurrent_states();
     std::optional<std::vector<LightRecurrentState>> l_rec_states = init_res.light_recurrent_states();
 
-    std::cout << "Running simulation for " << SIMULATION_LENGTH << " timesteps..." << std::endl;
+    std::cout << "Running simulation for " << INIT_SIMULATION_LENGTH << " timesteps..." << std::endl;
     
-    for (int ts = 0; ts < SIMULATION_LENGTH; ts++) {
+    for (int ts = 0; ts < INIT_SIMULATION_LENGTH; ts++) {
         DriveRequest drive_request("{}");
         drive_request.set_location(LOCATION);
         drive_request.set_agent_states(as);
@@ -144,7 +161,7 @@ int main(int argc, char** argv) {
     // Choose an earlier timestep from which to branch off
     log_reader.reset_log();
     log_reader.initialize();  
-    log_reader.return_state_at_timestep(TIMESTEP_TO_BRANCH_FROM);
+    log_reader.return_state_at_timestep(SIMULATION_BEGIN_NEW_ROLLOUT);
     std::vector<AgentState> agent_states = log_reader.current_agent_states();
     std::vector<AgentProperties> agent_properties = log_reader.current_agent_properties();
     std::optional<std::map<std::string,std::string>> tl_states = log_reader.current_traffic_lights();
@@ -154,10 +171,10 @@ int main(int argc, char** argv) {
     ScenarioLogWriter log_writer_branched;
     
     ScenarioLog branched_log = log_reader.get_scenario_log();
-    branched_log.agent_states.resize(TIMESTEP_TO_BRANCH_FROM + 1);
-    branched_log.present_indexes.resize(TIMESTEP_TO_BRANCH_FROM + 1);
+    branched_log.agent_states.resize(SIMULATION_BEGIN_NEW_ROLLOUT + 1);
+    branched_log.present_indexes.resize(SIMULATION_BEGIN_NEW_ROLLOUT + 1);
     if (branched_log.traffic_lights_states.has_value()) {
-        branched_log.traffic_lights_states.value().resize(TIMESTEP_TO_BRANCH_FROM + 1);
+        branched_log.traffic_lights_states.value().resize(SIMULATION_BEGIN_NEW_ROLLOUT + 1);
     }
     
     log_writer_branched.initialize(
@@ -174,7 +191,7 @@ int main(int argc, char** argv) {
     ScenePlotter sceneplotter_branched(li_res, flip_x_for_carla); // could remove fov from param list
     sceneplotter_branched.initialize_video("scenario_log_branched.avi", 10);
 
-    for(int i = 0; i < NEW_ROLLOUT_LENGTH; i++) {
+    for(int i = 0; i < NEW_SIMULATION_LENGTH_EXTEND; i++) {
         DriveRequest drive_req("{}");
         drive_req.set_location(log_reader.get_location());
         drive_req.set_agent_states(agent_states);
