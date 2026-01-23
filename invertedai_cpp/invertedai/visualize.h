@@ -34,8 +34,6 @@ class ScenePlotter {
     public:
         ScenePlotter(
             const LocationInfoResponse& li_res, 
-            int fov, 
-            std::pair<double, double> rendering_center, 
             bool flip_x=false
         );
     
@@ -54,6 +52,7 @@ class ScenePlotter {
         bool flip_x_;
         std::vector<StaticMapActor> static_actors_;
         std::map<std::string, cv::Point> traffic_light_positions_;
+        LocationInfoResponse li_res_;
         void compute_traffic_light_positions();
         void draw_agent(cv::Mat&, const AgentState&, const AgentProperties&);
         void draw_traffic_lights(cv::Mat&, const std::optional<std::map<std::string,std::string>>&);
