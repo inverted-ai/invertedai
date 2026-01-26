@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 import os
 import time
 
-location = "carla_xodr:Town10HD"  # select one of available locations
-simulation_length = 300
+location = "carla:Town10HD"  # select one of available locations
+simulation_length = 200
 seed = int(time.time())
 drive_model = "nBu1"
-num_agents = 10
+num_agents = 15
 fov = 250
 
 api_key = os.environ.get("IAI_API_KEY", None)
@@ -74,6 +74,7 @@ scene_plotter = iai.utils.ScenePlotter(
     xy_offset = (location_info_response.map_center.x, location_info_response.map_center.y),
     static_actors = location_info_response.static_actors,
     resolution = (2048,2048),
+    dpi = 300,
     left_hand_coordinates = location.split(":")[0] == "carla"
 )
 scene_plotter.initialize_recording(

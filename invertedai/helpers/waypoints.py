@@ -46,6 +46,10 @@ class WaypointManagerLogState:
     flags: Optional[List[WaypointUpdateFlags]] = None
 
 class WaypointManager:
+    """
+    Helper class to manage waypoints statelessly for a simulation.
+    """
+    
     def __init__(
         self,
         location_info_response: LocationResponse,

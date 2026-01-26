@@ -19,8 +19,7 @@ def main(args):
         model_version = None
     else:
         model_version = args.model_version_drive
-    initialize_seed = random.randint(1,10000)
-    drive_seed = random.randint(1,10000)
+    random_seed = int(time.time())
 
     #Acquire the scenario center over which the visualization will be focused
     scenario_center = args.scenario_center if args.scenario_center is None else tuple(args.scenario_center)
@@ -28,7 +27,8 @@ def main(args):
     location_info_response = iai.location_info(
         location = location,
         rendering_fov = args.fov,
-        rendering_center = scenario_center
+        rendering_center = scenario_center,
+        include_map_source = True
     )
     scenario_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if scenario_center is None else scenario_center
 
@@ -36,17 +36,28 @@ def main(args):
     print(f"Begin initialization.") 
     log_reader.initialize()
 
-    regions = iai.get_regions_default(
-        location = location,
-        agent_count_dict = {AgentType.car: args.num_agents},
-        area_shape = (int(args.width/2),int(args.height/2)),
-        map_center = scenario_center
-    )
+    if args.num_agents > 0:
+        regions = iai.get_regions_default(
+            location = location,
+            agent_count_dict = {AgentType.car: args.num_agents},
+            area_shape = (int(args.width/2),int(args.height/2)),
+            map_center = scenario_center
+        )
+    else:
+        regions = [
+            iai.large.common.Region.create_square_region(
+                center = iai.common.Point(
+                    x = scenario_center[0],
+                    y = scenario_center[1]
+                ),
+                size = args.fov
+            )
+        ]
 
     response = iai.large_initialize(
         location = location,
         regions = regions,
-        random_seed = initialize_seed,
+        random_seed = random_seed,
         get_infractions = args.get_infractions,
         agent_properties = log_reader.agent_properties,
         agent_states = log_reader.agent_states,
@@ -54,6 +65,18 @@ def main(args):
     )
     NUM_LOG_AGENTS = len(log_reader.agent_properties)
     LOG_LENGTH = log_reader.log_length
+
+    wp_manager = iai.WaypointManager(
+        location_info_response = location_info_response,
+        cfg = iai.WaypointManagerConfig(
+            random_seed=random_seed,
+            fail_soft=True
+        )
+    )
+    response.agent_properties = wp_manager.update(
+        response = response,
+        agent_properties = response.agent_properties,
+    )
     
     print(f"Set up simulation.")
     if args.save_sim:
@@ -61,7 +84,7 @@ def main(args):
         log_writer.initialize(
             location=location,
             location_info_response=location_info_response,
-            init_response=response
+            init_response=response,
         )
 
     total_num_agents = len(response.agent_states)
@@ -79,9 +102,13 @@ def main(args):
             recurrent_states = response.recurrent_states,
             traffic_lights_states = log_reader.traffic_lights_states if is_log_traffic_light_states else None,
             light_recurrent_states = response.light_recurrent_states if not is_log_traffic_light_states else None,
-            random_seed = drive_seed,
+            random_seed = random_seed,
             api_model_version = model_version,
             get_infractions = args.get_infractions,
+        )
+        agent_properties = wp_manager.update(
+            response = response,
+            agent_properties = agent_properties,
         )
 
         # Get the safety critical agent states
@@ -95,14 +122,15 @@ def main(args):
 
         if args.save_sim: 
             log_writer.drive(
-                drive_response=response
+                drive_response=response,
+                agent_properties=agent_properties
             )
 
     if args.save_sim:
         print("Simulation finished, save visualization.")
         current_time = int(time.time())
         log_name = args.log_path.split("/")[-1].split(".json")[0]
-        gif_name = f'safety_critical_scenario_{log_name}_{current_time}_driveseed-{drive_seed}_modelversion-{model_version}.gif'
+        gif_name = f'safety_critical_scenario_{log_name}_{current_time}_seed-{random_seed}_modelversion-{model_version}.gif'
         log_writer.visualize(
             gif_path=gif_name,
             fov = args.fov,
@@ -111,10 +139,14 @@ def main(args):
             direction_vec = True,
             velocity_vec = False,
             plot_frame_number = True,
-            left_hand_coordinates = location.split(":")[0] == "carla"
+            map_center = scenario_center,
+            left_hand_coordinates = location.split(":")[0] == "carla",
+            agent_ids = list(range(len(agent_properties)))
         )
         log_writer.export_to_file(log_path=gif_name.split(".gif")[0]+".json")
     print("Done")
+
+    
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description=__doc__)
@@ -194,5 +226,6 @@ if __name__ == '__main__':
         default="None"
     )
     args = argparser.parse_args()
+
 
     main(args)
