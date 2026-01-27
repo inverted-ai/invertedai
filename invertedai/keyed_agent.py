@@ -1,9 +1,10 @@
 from typing import Dict, List, Optional, Tuple
-from invertedai.common import AgentState, AgentProperties, RecurrentState
-from pydantic import BaseModel
+from invertedai.common import AgentState, AgentProperties, RecurrentState, AgentType
+from pydantic import BaseModel, Field
 import invertedai as iai
 from invertedai.api.drive import DriveResponse
 from invertedai.api.initialize import InitializeResponse
+from invertedai.utils import get_default_agent_properties
 
 class AgentData(BaseModel):
     """
@@ -14,10 +15,45 @@ class AgentData(BaseModel):
     recurrent: Optional[RecurrentState] = None
 
 class KeyedAgents(BaseModel):
-    @classmethod
-    def unpack_agents(
-        cls,
-        agents: Dict[str, AgentData],
+    """
+    Class for managing keyed agents and wrapping initialize/drive calls
+    """
+    agents_dict: Dict[str, AgentData] = Field(default_factory=dict)
+    def __init__(self, num_agents: int = 0, **data):
+        agents_dict = {}
+        for i in range(num_agents):
+            aid = f"agent_{i}"
+            agents_dict[aid] = AgentData(
+                properties=get_default_agent_properties({AgentType.car: 1})[0]
+            )
+        super().__init__(agents_dict=agents_dict, **data)
+
+    def add_agent(
+        self,
+        agent_id: str,
+        agent: AgentData,
+        overwrite: bool = False,
+    ):
+        """
+        Add one agent to the dictionary
+        Checks for overwriting 
+        """
+        if agent_id in self.agents_dict and not overwrite:
+            raise ValueError(f"Agent '{agent_id}' already exists")
+        self.agents_dict[agent_id] = agent
+
+    def remove_agent(self, agent_id: str) -> AgentData:
+        """
+        Remove an agent from the container
+        Returns the removed AgentData so the caller may:
+            discard it, store it or reinsert it later with preserved recurrence
+        """
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        return self.agents_dict.pop(agent_id)
+
+    def unpack(
+        self
     ) -> Tuple[
         List[str],
         List[AgentState],
@@ -31,7 +67,7 @@ class KeyedAgents(BaseModel):
         states: List[AgentState] = []
         properties: List[AgentProperties] = []
         recurrent_states: List[RecurrentState] = []
-        for aid, data in agents.items():
+        for aid, data in self.agents_dict.items():
             agent_ids.append(aid)
             if data.state is not None:
                 states.append(data.state)
@@ -40,38 +76,35 @@ class KeyedAgents(BaseModel):
             if data.recurrent is not None:
                 recurrent_states.append(data.recurrent)
         return agent_ids, states, properties, recurrent_states
-    @classmethod
-    def pack_agents(
-        cls,
+    
+    def pack(
+        self,
         agent_ids: List[str],
         states: List[AgentState],
         properties: Optional[List[AgentProperties]],
         recurrent_states: Optional[List[RecurrentState]],
-    ) -> Dict[str, AgentData]:
+    ):
         """"
         Reconstruct keyed AgentData dictionary from API responses
         """
-        out: Dict[str, AgentData] = {}
-        for i, aid in enumerate(agent_ids):
-            out[aid] = AgentData(
-                state=states[i] if states else None,
+        self.agents_dict = {
+            aid: AgentData(
+                state=states[i],
                 properties=properties[i] if properties else None,
                 recurrent=recurrent_states[i] if recurrent_states else None,
             )
-        return out
-    @classmethod
-    def keyed_initialize(
-        cls,
-        agents: Dict[str, AgentData],
-        *,
+            for i, aid in enumerate(agent_ids)
+        }
+
+    def initialize(
+        self,
         large: bool = False,
         **kwargs,
-    ) -> Tuple[Dict[str, AgentData], InitializeResponse]:
+    ) -> InitializeResponse:
         """
         Wrapper around initialize or large_initialize
-        takes in keyed AgentData dict
         """
-        agent_ids, _, properties, _ = KeyedAgents.unpack_agents(agents)
+        _, _, properties, _ = self.unpack()
         if large:
             response = iai.large_initialize(
                 agent_properties=properties if properties else None,
@@ -83,25 +116,23 @@ class KeyedAgents(BaseModel):
                 **kwargs,
             )
         agent_ids = [f"agent_{i}" for i in range(len(response.agent_states))]
-        updated_agents = KeyedAgents.pack_agents(
+        self.pack(
             agent_ids=agent_ids,
             states=response.agent_states,
             properties=response.agent_properties,
             recurrent_states=response.recurrent_states,
         )
-        return updated_agents, response
-    @classmethod
-    def keyed_drive(
-        cls,
-        agents: Dict[str, AgentData],
-        *,
+        return response
+
+    def drive(
+        self,
         large: bool = False,
         **kwargs,
-    ) -> Tuple[Dict[str, AgentData], DriveResponse]:
+    ) ->  DriveResponse:
         """
         Wrapper around drive or large_drive
         """
-        agent_ids, states, properties, recurrent = KeyedAgents.unpack_agents(agents)
+        agent_ids, states, properties, recurrent = self.unpack()
         if large:
             response = iai.large_drive(
                 agent_states=states,
@@ -116,10 +147,20 @@ class KeyedAgents(BaseModel):
                 recurrent_states=recurrent if recurrent else None,
                 **kwargs,
             )
-        updated_agents = KeyedAgents.pack_agents(
+        self.pack(
             agent_ids=agent_ids,
             states=response.agent_states,
             properties=properties,
             recurrent_states=response.recurrent_states,
         )
-        return updated_agents, response
+        return response
+    #Getters
+    def get_states(self) -> List[AgentState]:
+        return [data.state for data in self.agents_dict.values()]
+    def get_agent_ids(self) -> List[str]:
+        return list(self.agents_dict.keys())
+    def get_properties(self) -> List[AgentProperties]:
+        return [data.properties for data in self.agents_dict.values()]
+    def get_recurrent_states(self) -> List[RecurrentState]:
+        return [data.recurrent for data in self.agents_dict.values()]
+    

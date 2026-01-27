@@ -9,6 +9,7 @@ import os
 
 location = "canada:drake_street_and_pacific_blvd"
 num_agents_to_add = 4 # number of agents initialized
+agent_to_remove = "agent_1"
 
 api_key = os.environ.get("IAI_API_KEY", None)
 if api_key is None:
@@ -19,16 +20,9 @@ print("Begin initialization.")
 # format and list traffic lights with their IDs and locations.
 location_info_response = iai.location_info(location=location)
 
-#create keyed agents dict with default naming "agent_i"
-agents = {}
-for i in range(num_agents_to_add):
-    agent_properties = AgentData(
-        properties=get_default_agent_properties({AgentType.car:1})[0]
-    )
-    agents[f"agent_{i}"] = agent_properties
-
-#keyed_initialize calls initialize/large_intialize under the hood and returns updated agents with states
-agents, response = KeyedAgents.keyed_initialize(agents, location=location)
+agents = KeyedAgents(num_agents=num_agents_to_add)
+#keyed_initialize calls initialize/large_intialize under the hood and returns InitializeResponse
+response = agents.initialize(location=location)
 
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_plotter = iai.utils.ScenePlotter(
@@ -44,38 +38,25 @@ scene_plotter.initialize_recording(
 )
 
 print("Begin stepping through simulation.")
-state_history: List[List[AgentState]] = []
-recurr: RecurrentState
 for step in range(100):
-    # pop agent 1 at step 50 and re-add as "ego" at step 100
+    # pop agent 1 at step 30 and reinsert at step 60 
     if step == 30:
-        # save the states for addition later
-        recurr = agents["agent_1"].recurrent 
-        state = agents["agent_1"].state
-        prop = agents["agent_1"].properties
-        agents.pop("agent_1")
-        print(f"Removed agent_1 at step {step}")
+        # save the agent data for later
+        saved_agent_data = agents.remove_agent(agent_to_remove)
+        print(f"Removed {agent_to_remove} at step {step}")
 
     if step == 60:
-        # add into agents dict with key "ego"
-        agents["agent_x"] = AgentData(
-            state=state,
-            properties=prop,
-            recurrent = recurr,
-        )
+        # add into agents dict with key "agent_x"
+        agents.add_agent("ego", saved_agent_data)
         print(f"Added agent_x at step {step}")
 
-    # keyed_drive calls drive/large_drive under the hood and returns updated agents with states
-    agents, response = KeyedAgents.keyed_drive(
-        agents,
-        location=location,
-        light_recurrent_states=response.light_recurrent_states,
-    )
+    # calls drive/large_drive under the hood and returns DriveResponse
+    response = agents.drive(location=location, light_recurrent_states=response.light_recurrent_states)
 
     scene_plotter.record_step(
-        [a.state for a in agents.values()],
+        agents.get_states(),
         traffic_light_states=response.traffic_lights_states,
-        agent_properties=[a.properties for a in agents.values()],
+        agent_properties=agents.get_properties(),
     )
 
 print("Simulation finished, save visualization.")
