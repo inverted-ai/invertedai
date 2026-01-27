@@ -7,70 +7,66 @@ import os
 import time
 import json
 import math
+import argparse
 from typing import List, Tuple, Dict
+import random
 
-# location = "carla_xodr:Town10HD"  # select one of available locations
-location = "carla:Town10HD"
-# location = "carla:Town01"
-simulation_length = 20
-seed = int(time.time())
-drive_model = "nBu1"
-num_agents = 10
-fov = 250
-# fov = 500
-
-api_key = os.environ.get("IAI_API_KEY", None)
-if api_key is None:
-    iai.add_apikey('<INSERT_KEY_HERE>')  # specify your key here or through the IAI_API_KEY variable
-
-print("Begin initialization.")
-# get static information about a given location including map in osm
-# format and list traffic lights with their IDs and locations.
-location_info_response = iai.location_info(
-    location=location, 
-    include_map_source=True,
-    rendering_fov=fov
-)
-
-# initialize the simulation by spawning NPCs
-# location_x = 380.0
-# location_y = location_info_response.map_center.y
-location_x = -50
-location_y = -75
-
-response = iai.initialize(
-    location=location,  # select one of available locations
-    agent_properties=get_default_agent_properties({AgentType.car:num_agents}),  # number of NPCs to spawn
-    location_of_interest=(location_x, location_y),
-    random_seed=seed
-)
-initialize_response = response
-
-wp_manager = iai.WaypointManager(
-    location_info_response = location_info_response,
-    cfg = iai.WaypointManagerConfig(
-        random_seed=seed,
-        fail_soft=True
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Run waypoint example simulation with configurable location and coordinates'
     )
-)
-agent_properties = wp_manager.update(
-    response = response,
-    agent_properties = response.agent_properties,
-)
+    parser.add_argument(
+        '--town',
+        type=str,
+        required=True,
+        help='Town name (e.g., Town10HD, Town03)'
+    )
+    parser.add_argument(
+        '--x',
+        type=float,
+        default=None,
+        help='Location x coordinate (defaults to map_center.x if not provided)'
+    )
+    parser.add_argument(
+        '--y',
+        type=float,
+        default=None,
+        help='Location y coordinate (defaults to map_center.y if not provided)'
+    )
+    parser.add_argument(
+        '--simulation-length',
+        type=int,
+        default=80,
+        help='Simulation length in steps (default: 60)'
+    )
+    parser.add_argument(
+        '--num-agents',
+        type=int,
+        default=10,
+        help='Number of agents (default: 10)'
+    )
+    parser.add_argument(
+        '--fov',
+        type=float,
+        default=250.0,
+        help='Field of view for rendering (default: 500.0)'
+    )
+    parser.add_argument(
+        '--drive-model',
+        type=str,
+        default='nBu1',
+        help='Drive model to use (default: nBu1)'
+    )
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=None,
+        help='Random seed (defaults to current timestamp if not provided)'
+    )
+    
+    return parser.parse_args()
 
-rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(
-    map_image = rendered_static_map,
-    fov = fov,
-    xy_offset = (location_info_response.map_center.x, location_info_response.map_center.y),
-    static_actors = location_info_response.static_actors,
-    resolution = (2048,2048),
-    left_hand_coordinates = location.split(":")[0] == "carla"
-)
-scene_plotter.initialize_recording(
-    agent_states=response.agent_states,
-    agent_properties=agent_properties,
-)
 
 def line_segment_intersects_rectangle(
     p1_x: float, p1_y: float,
@@ -297,7 +293,7 @@ def find_nearby_agents(
     agent_a_id: int,
     agent_b_id: int,
     timestep: int,
-    max_agents: int = 3,
+    max_agents: int = 4,
     max_distance: float = None
 ) -> List[int]:
     """
@@ -454,7 +450,7 @@ def detect_t2f_scenarios(
     fov_range: float = 50.0,
     min_window_length: int = 40,
     filter_stalling: bool = True,
-    min_stall_duration: int = 20,
+    min_stall_duration: int = 10,
     filter_collisions: bool = True,
     filter_offroad: bool = True
 ) -> List[Dict]:
@@ -535,116 +531,199 @@ def detect_t2f_scenarios(
     return scenarios
 
 
-print("Begin stepping through simulation.")
-drive_responses = []
-for _ in range(simulation_length):  # how many simulation steps to execute (10 steps is 1 second)
-    response = iai.drive(
-        location=location,
-        agent_properties=agent_properties,
-        agent_states=response.agent_states,
-        recurrent_states=response.recurrent_states,
-        light_recurrent_states=response.light_recurrent_states,
-        random_seed=seed,
-        api_model_version=drive_model,
-        get_infractions=True  # Enable infraction tracking for collision and off-road detection
-        # drive_model=drive_model
+def main():
+    args = parse_arguments()
+    
+    # Set up location string
+    location = f"carla:{args.town}"
+    
+    # Set up other parameters
+    simulation_length = args.simulation_length
+    seed = args.seed if args.seed is not None else int(time.time())
+    drive_model = args.drive_model
+    num_agents = args.num_agents
+    fov = args.fov
+    
+    api_key = os.environ.get("IAI_API_KEY", None)
+    if api_key is None:
+        iai.add_apikey('<INSERT_KEY_HERE>')  # specify your key here or through the IAI_API_KEY variable
+    
+    print("Begin initialization.")
+    # get static information about a given location including map in osm
+    # format and list traffic lights with their IDs and locations.
+    location_info_response = iai.location_info(
+        location=location, 
+        include_map_source=True,
+        rendering_fov=fov
+    )
+    
+    # Set location coordinates - use provided values or default to map_center
+    location_x = args.x if args.x is not None else location_info_response.map_center.x
+    location_y = args.y if args.y is not None else location_info_response.map_center.y
+    
+    print(f"Using location: {location}")
+    print(f"Using coordinates: x={location_x:.1f}, y={location_y:.1f}")
+    
+    # Create folder name based on town name and coordinates
+    folder_name = f"iai_waypoints_{args.town}_{location_x:.1f}_{location_y:.1f}"
+    print(f"Output folder: {folder_name}")
+    
+    # initialize the simulation by spawning NPCs
+    response = iai.initialize(
+        location=location,  # select one of available locations
+        agent_properties=get_default_agent_properties({AgentType.car:num_agents}),  # number of NPCs to spawn
+        location_of_interest=(location_x, location_y),
+        random_seed=seed
+    )
+    initialize_response = response
+    
+    wp_manager = iai.WaypointManager(
+        location_info_response = location_info_response,
+        cfg = iai.WaypointManagerConfig(
+            random_seed=seed,
+            fail_soft=True
+        )
     )
     agent_properties = wp_manager.update(
         response = response,
-        agent_properties = agent_properties,
+        agent_properties = response.agent_properties,
     )
-    drive_responses.append(response)
-    # save the visualization
-    scene_plotter.record_step(
+    
+    rendered_static_map = location_info_response.birdview_image.decode()
+    scene_plotter = iai.utils.ScenePlotter(
+        map_image = rendered_static_map,
+        fov = fov,
+        xy_offset = (location_info_response.map_center.x, location_info_response.map_center.y),
+        static_actors = location_info_response.static_actors,
+        resolution = (2048,2048),
+        left_hand_coordinates = location.split(":")[0] == "carla"
+    )
+    scene_plotter.initialize_recording(
         agent_states=response.agent_states,
-        agent_properties=agent_properties, #This is important to capture the new waypoints every time step
-        traffic_light_states=response.traffic_lights_states
+        agent_properties=agent_properties,
     )
-
-log_output_path = os.path.join(os.getcwd(),"waypoint_example_log_filter_t2f",f"waypoint_example_{seed}_{num_agents}_{location.split(':')[1]}_{location_x:.1f}_{location_y:.1f}.json")
-if log_output_path is not None:
-    log_writer = iai.LogWriter()
-    location_info_response = iai.location_info(
+    
+    print("Begin stepping through simulation.")
+    drive_responses = []
+    for _ in range(simulation_length):  # how many simulation steps to execute (10 steps is 1 second)
+        response = iai.drive(
             location=location,
-            rendering_fov=fov,
-            rendering_center=(location_info_response.map_center.x, location_info_response.map_center.y),
-    )
-    log_writer.initialize(
-            location=location,
-            location_info_response=location_info_response,
-            init_response=initialize_response,
-            lights_random_seed=0,
-            initialize_random_seed=0,
-            drive_random_seed=0
+            agent_properties=agent_properties,
+            agent_states=response.agent_states,
+            recurrent_states=response.recurrent_states,
+            light_recurrent_states=response.light_recurrent_states,
+            random_seed=seed,
+            api_model_version=drive_model,
+            get_infractions=True  # Enable infraction tracking for collision and off-road detection
+            # drive_model=drive_model
         )
-    if drive_model is not None:
-        log_writer._scenario_log.drive_model_version = drive_model
-    
-    for response in drive_responses:
-        log_writer.drive(drive_response=response)
-    
-    log_writer.export_to_file(log_path=log_output_path)
-    
-    # Detect t2f scenarios
-    print("Detecting t2f scenarios...")
-    # Get agent properties from the log writer (they should be consistent across timesteps)
-    # Agent properties are static, so we can use them from any timestep
-    agent_properties_for_detection = log_writer._scenario_log.agent_properties if hasattr(log_writer, '_scenario_log') else None
-    if agent_properties_for_detection is None:
-        # Fallback: use agent_properties from the last waypoint manager update
-        # This should be available from the script's agent_properties variable
-        agent_properties_for_detection = agent_properties
-    # 2000 data use the following parameters to detect t2f scenarios    
-    # t2f_scenarios = detect_t2f_scenarios(
-    #     drive_responses=drive_responses,
-    #     num_agents=num_agents,
-    #     all_agent_properties=agent_properties_for_detection,
-    #     fov_angle=120.0,  # Match the FoV angle used in visualization
-    #     fov_range=30.0,  # Match the FoV range used in visualization
-    #     min_window_length=40
-    # )
-    t2f_scenarios = detect_t2f_scenarios(
-        drive_responses=drive_responses,
-        num_agents=num_agents,
-        all_agent_properties=agent_properties_for_detection,
-        fov_angle=120.0,  # Match the FoV angle used in visualization
-        fov_range=25.0,  # Match the FoV range used in visualization
-        min_window_length=30,
-        filter_stalling=True,
-        filter_collisions=True,  # Filter out scenarios with collisions
-        filter_offroad=True  # Filter out scenarios with off-road behavior
-    )
-    print(f"Found {len(t2f_scenarios)} t2f scenarios")
-    
-    # Add t2f_scenarios to output_dict
-    log_writer.output_dict['t2f_scenarios'] = t2f_scenarios
-    
-    # log_writer.output_dict['vehicle_blueprints'] = [left_turning_vehicle_model, oncoming_vehicle_model]
-    # log_writer.output_dict['intersection_id'] = intersection_id
-    with open(log_output_path, "w") as outfile:
-        json.dump(
-                log_writer.output_dict, 
-                outfile,
-                indent=4
+        agent_properties = wp_manager.update(
+            response = response,
+            agent_properties = agent_properties,
         )
-    print(f'Scenario log written to {os.path.abspath(log_output_path)}')
+        drive_responses.append(response)
+        # save the visualization
+        scene_plotter.record_step(
+            agent_states=response.agent_states,
+            agent_properties=agent_properties, #This is important to capture the new waypoints every time step
+            traffic_light_states=response.traffic_lights_states
+        )
+    
+    # Create output directory if it doesn't exist
+    output_dir = os.path.join(os.getcwd(), folder_name)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    log_output_path = os.path.join(output_dir, f"waypoint_example_{seed}_{num_agents}_{args.town}_{location_x:.1f}_{location_y:.1f}.json")
+    if log_output_path is not None:
+        log_writer = iai.LogWriter()
+        location_info_response = iai.location_info(
+                location=location,
+                rendering_fov=fov,
+                rendering_center=(location_info_response.map_center.x, location_info_response.map_center.y),
+        )
+        log_writer.initialize(
+                location=location,
+                location_info_response=location_info_response,
+                init_response=initialize_response,
+                lights_random_seed=0,
+                initialize_random_seed=0,
+                drive_random_seed=0
+            )
+        if drive_model is not None:
+            log_writer._scenario_log.drive_model_version = drive_model
+        
+        for response in drive_responses:
+            log_writer.drive(drive_response=response)
+        
+        log_writer.export_to_file(log_path=log_output_path)
+        
+        # Detect t2f scenarios
+        print("Detecting t2f scenarios...")
+        # Get agent properties from the log writer (they should be consistent across timesteps)
+        # Agent properties are static, so we can use them from any timestep
+        agent_properties_for_detection = log_writer._scenario_log.agent_properties if hasattr(log_writer, '_scenario_log') else None
+        if agent_properties_for_detection is None:
+            # Fallback: use agent_properties from the last waypoint manager update
+            # This should be available from the script's agent_properties variable
+            agent_properties_for_detection = agent_properties
+        # 2000 data use the following parameters to detect t2f scenarios    
+        # t2f_scenarios = detect_t2f_scenarios(
+        #     drive_responses=drive_responses,
+        #     num_agents=num_agents,
+        #     all_agent_properties=agent_properties_for_detection,
+        #     fov_angle=120.0,  # Match the FoV angle used in visualization
+        #     fov_range=30.0,  # Match the FoV range used in visualization
+        #     min_window_length=40
+        # )
+        t2f_scenarios = detect_t2f_scenarios(
+            drive_responses=drive_responses,
+            num_agents=num_agents,
+            all_agent_properties=agent_properties_for_detection,
+            fov_angle=110.0,  # Match the FoV angle used in visualization
+            fov_range=20.0,  # Match the FoV range used in visualization
+            min_window_length=30,
+            filter_stalling=True,
+            filter_collisions=True,  # Filter out scenarios with collisions
+            filter_offroad=True  # Filter out scenarios with off-road behavior
+        )
+        print(f"Found {len(t2f_scenarios)} t2f scenarios")
+        
+        # Add t2f_scenarios to output_dict
+        log_writer.output_dict['t2f_scenarios'] = t2f_scenarios
+        
+        # log_writer.output_dict['vehicle_blueprints'] = [left_turning_vehicle_model, oncoming_vehicle_model]
+        # log_writer.output_dict['intersection_id'] = intersection_id
+        with open(log_output_path, "w") as outfile:
+            json.dump(
+                    log_writer.output_dict, 
+                    outfile,
+                    indent=4
+            )
+        print(f'Scenario log written to {os.path.abspath(log_output_path)}')
+    
+    print("Simulation finished, save visualization.")
+    
 
-print("Simulation finished, save visualization.")
+    # save the visualization to disk
+    # toss a coin to decide whether to save the visualization
+    if random.random() < 0.1:
+        fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
+        plt.axis('off')
+        gif_name = os.path.join(output_dir, f'{args.town}_{location_x:.1f}_{location_y:.1f}_{seed}_waypoint_example.gif')
+        scene_plotter.animate_scene(
+            output_name=gif_name,
+            ax=ax,
+            direction_vec=False,
+            velocity_vec=False,
+            plot_frame_number=True,
+            fov_vec=True,  # Enable FoV visualization
+            fov_angle=110.0,  # 120 degree field of view
+            fov_range=20.0,  # 50 meter range
+            numbers=list(range(num_agents))
+        )
+        print(f"Visualization saved to {gif_name}")
+        print("Done")
 
-# save the visualization to disk
-fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-plt.axis('off')
-gif_name = f'{location.split(":")[1]}_{location_x:.1f}_{location_y:.1f}_{seed}_waypoint_example.gif'
-scene_plotter.animate_scene(
-    output_name=gif_name,
-    ax=ax,
-    direction_vec=False,
-    velocity_vec=False,
-    plot_frame_number=True,
-    fov_vec=True,  # Enable FoV visualization
-    fov_angle=120.0,  # 120 degree field of view
-    fov_range=30.0,  # 50 meter range
-    numbers=list(range(num_agents))
-)
-print(f"Visualization saved to {gif_name}")
-print("Done")
+
+if __name__ == "__main__":
+    main()
