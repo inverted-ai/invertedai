@@ -1,9 +1,5 @@
 from typing import Dict, List, Optional, Tuple
-from invertedai.common import (
-AgentState,
-AgentProperties,
-RecurrentState,
-)
+from invertedai.common import AgentState, AgentProperties, RecurrentState
 from pydantic import BaseModel
 import invertedai as iai
 from invertedai.api.drive import DriveResponse
@@ -17,9 +13,9 @@ class AgentData(BaseModel):
     properties: Optional[AgentProperties] = None
     recurrent: Optional[RecurrentState] = None
 
-class AgentWrapperManager(BaseModel):
+class KeyedAgents(BaseModel):
     @classmethod
-    def pack_agents(
+    def unpack_agents(
         cls,
         agents: Dict[str, AgentData],
     ) -> Tuple[
@@ -45,7 +41,7 @@ class AgentWrapperManager(BaseModel):
                 recurrent_states.append(data.recurrent)
         return agent_ids, states, properties, recurrent_states
     @classmethod
-    def unpack_agents(
+    def pack_agents(
         cls,
         agent_ids: List[str],
         states: List[AgentState],
@@ -70,12 +66,12 @@ class AgentWrapperManager(BaseModel):
         *,
         large: bool = False,
         **kwargs,
-    ) -> Dict[str, AgentData]:
+    ) -> Tuple[Dict[str, AgentData], InitializeResponse]:
         """
         Wrapper around initialize or large_initialize
         takes in keyed AgentData dict
         """
-        agent_ids, _, properties, _ = AgentWrapperManager.pack_agents(agents)
+        agent_ids, _, properties, _ = KeyedAgents.unpack_agents(agents)
         if large:
             response = iai.large_initialize(
                 agent_properties=properties if properties else None,
@@ -87,10 +83,7 @@ class AgentWrapperManager(BaseModel):
                 **kwargs,
             )
         agent_ids = [f"agent_{i}" for i in range(len(response.agent_states))]
-        print(agent_ids)
-        print("states length", len(response.agent_states))
-        print("props length", len(response.agent_properties))
-        updated_agents = AgentWrapperManager.unpack_agents(
+        updated_agents = KeyedAgents.pack_agents(
             agent_ids=agent_ids,
             states=response.agent_states,
             properties=response.agent_properties,
@@ -108,7 +101,7 @@ class AgentWrapperManager(BaseModel):
         """
         Wrapper around drive or large_drive
         """
-        agent_ids, states, properties, recurrent = AgentWrapperManager.pack_agents(agents)
+        agent_ids, states, properties, recurrent = KeyedAgents.unpack_agents(agents)
         if large:
             response = iai.large_drive(
                 agent_states=states,
@@ -123,10 +116,7 @@ class AgentWrapperManager(BaseModel):
                 recurrent_states=recurrent if recurrent else None,
                 **kwargs,
             )
-        print(agent_ids)
-        print("states length", len(response.agent_states))
-        # print("props length", len(response.agent_properties))
-        updated_agents = AgentWrapperManager.unpack_agents( # need to return the response as well
+        updated_agents = KeyedAgents.pack_agents(
             agent_ids=agent_ids,
             states=response.agent_states,
             properties=properties,

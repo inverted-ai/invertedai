@@ -1,12 +1,14 @@
 import invertedai as iai
+from typing import List
 from invertedai.utils import get_default_agent_properties
-from invertedai.common import AgentType
-from invertedai.keyed_agent import AgentData, AgentWrapperManager
+from invertedai.common import AgentType, AgentState, RecurrentState
+from invertedai.keyed_agent import AgentData, KeyedAgents
 import matplotlib.pyplot as plt
 import os
 
 
 location = "canada:drake_street_and_pacific_blvd"
+num_agents_to_add = 4 # number of agents initialized
 
 api_key = os.environ.get("IAI_API_KEY", None)
 if api_key is None:
@@ -17,21 +19,16 @@ print("Begin initialization.")
 # format and list traffic lights with their IDs and locations.
 location_info_response = iai.location_info(location=location)
 
-def make_agent_id(i: int) -> str:
-    return f"car_{i}"
-
-#create keyed agents 
+#create keyed agents dict with default naming "agent_i"
 agents = {}
-for i in range(10):
+for i in range(num_agents_to_add):
     agent_properties = AgentData(
         properties=get_default_agent_properties({AgentType.car:1})[0]
     )
-    agents[make_agent_id(i)] = agent_properties
+    agents[f"agent_{i}"] = agent_properties
+
 #keyed_initialize calls initialize/large_intialize under the hood and returns updated agents with states
-agents, response = AgentWrapperManager.keyed_initialize(
-    agents,
-    location=location,
-)
+agents, response = KeyedAgents.keyed_initialize(agents, location=location)
 
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_plotter = iai.utils.ScenePlotter(
@@ -47,19 +44,29 @@ scene_plotter.initialize_recording(
 )
 
 print("Begin stepping through simulation.")
-
+state_history: List[List[AgentState]] = []
+recurr: RecurrentState
 for step in range(100):
-
+    # pop agent 1 at step 50 and re-add as "ego" at step 100
     if step == 30:
-        agents.pop("agent_9")
+        # save the states for addition later
+        recurr = agents["agent_1"].recurrent 
+        state = agents["agent_1"].state
+        prop = agents["agent_1"].properties
+        agents.pop("agent_1")
+        print(f"Removed agent_1 at step {step}")
 
-    # if step == 50:
-    #     agents["agent_100"] = AgentData(
-    #         properties=get_default_agent_properties({AgentType.car:1})[0]
-    #     )
+    if step == 60:
+        # add into agents dict with key "ego"
+        agents["agent_x"] = AgentData(
+            state=state,
+            properties=prop,
+            recurrent = recurr,
+        )
+        print(f"Added agent_x at step {step}")
 
     # keyed_drive calls drive/large_drive under the hood and returns updated agents with states
-    agents, response = AgentWrapperManager.keyed_drive( # light recurrent states is not here!!!!
+    agents, response = KeyedAgents.keyed_drive(
         agents,
         location=location,
         light_recurrent_states=response.light_recurrent_states,
