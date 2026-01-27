@@ -46,7 +46,7 @@ class KeyedAgents(BaseModel):
         """
         Remove an agent from the container
         Returns the removed AgentData so the caller may:
-            discard it, store it or reinsert it later with preserved recurrence
+            discard it, store it or reinsert it later with preserved states
         """
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
@@ -102,7 +102,7 @@ class KeyedAgents(BaseModel):
         **kwargs,
     ) -> InitializeResponse:
         """
-        Wrapper around initialize or large_initialize
+        Wrapper around initialize /large_initialize
         """
         _, _, properties, _ = self.unpack()
         if large:
@@ -130,7 +130,7 @@ class KeyedAgents(BaseModel):
         **kwargs,
     ) ->  DriveResponse:
         """
-        Wrapper around drive or large_drive
+        Wrapper around drive/large_drive
         """
         agent_ids, states, properties, recurrent = self.unpack()
         if large:
