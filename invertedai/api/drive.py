@@ -24,6 +24,7 @@ from invertedai.common import (
     LightRecurrentStates,
     LightRecurrentState,
 )
+from invertedai.keyed_agent import KeyedAgents
 
 
 class DriveResponse(BaseModel):
@@ -86,7 +87,7 @@ def serialize_drive_request_parameters(
 @validate_call
 def drive(
     location: str,
-    agent_states: List[AgentState],
+    agent_states: Optional[List[AgentState]] = None,
     agent_attributes: Optional[List[AgentAttributes]] = None,
     agent_properties: Optional[List[AgentProperties]] = None,
     recurrent_states: Optional[List[RecurrentState]] = None,
@@ -97,7 +98,8 @@ def drive(
     rendering_fov: Optional[float] = None,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
-    api_model_version: Optional[str] = None
+    api_model_version: Optional[str] = None,
+    keyed_agents: Optional[KeyedAgents] = None
 ) -> DriveResponse:
     """
     Update the state of all given agents forward one time step. Agents are identified by their list index.
@@ -168,6 +170,9 @@ def drive(
 
     api_model_version:
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
+
+    keyed_agents:
+        Optionally pass in a KeyedAgents object which contains all agent states, properties and recurrent states. 
     See Also
     --------
     :func:`initialize`
@@ -203,21 +208,39 @@ def drive(
             return input_data
 
     recurrent_states = _tolist(recurrent_states) if recurrent_states is not None else None
-    model_inputs = serialize_drive_request_parameters(
-        location=location,
-        agent_states=agent_states,
-        agent_attributes=agent_attributes,
-        agent_properties=agent_properties,
-        recurrent_states=recurrent_states,
-        traffic_lights_states=traffic_lights_states,
-        light_recurrent_states=light_recurrent_states,
-        get_birdview=get_birdview,
-        rendering_center=rendering_center,
-        rendering_fov=rendering_fov,
-        get_infractions=get_infractions,
-        random_seed=random_seed,
-        api_model_version=api_model_version
-    )
+    if keyed_agents is not None:
+        agent_ids, keyed_states, keyed_properties, keyed_recurrent_states = keyed_agents.unpack()
+        model_inputs = serialize_drive_request_parameters(
+            location=location,
+            agent_states=keyed_states,
+            agent_attributes=agent_attributes,
+            agent_properties=keyed_properties,
+            recurrent_states=keyed_recurrent_states,
+            traffic_lights_states=traffic_lights_states,
+            light_recurrent_states=light_recurrent_states,
+            get_birdview=get_birdview,
+            rendering_center=rendering_center,
+            rendering_fov=rendering_fov,
+            get_infractions=get_infractions,
+            random_seed=random_seed,
+            api_model_version=api_model_version
+        )
+    else:
+        model_inputs = serialize_drive_request_parameters(
+            location=location,
+            agent_states=agent_states,
+            agent_attributes=agent_attributes,
+            agent_properties=agent_properties,
+            recurrent_states=recurrent_states,
+            traffic_lights_states=traffic_lights_states,
+            light_recurrent_states=light_recurrent_states,
+            get_birdview=get_birdview,
+            rendering_center=rendering_center,
+            rendering_fov=rendering_fov,
+            get_infractions=get_infractions,
+            random_seed=random_seed,
+            api_model_version=api_model_version
+        )
     start = time.time()
     timeout = TIMEOUT
 
@@ -253,7 +276,13 @@ def drive(
                 if response["light_recurrent_states"] is not None 
                 else None
             )
-
+            if keyed_agents is not None:
+                keyed_agents.pack(
+                    agent_ids = agent_ids,
+                    states = response.agent_states,
+                    properties = keyed_properties,
+                    recurrent_states = response.recurrent_states
+                )
             return response
 
         except APIConnectionError as e:

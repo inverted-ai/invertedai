@@ -21,8 +21,9 @@ print("Begin initialization.")
 location_info_response = iai.location_info(location=location)
 
 agents = KeyedAgents(num_agents=num_agents_to_add)
+print("initialized agents", agents.agents_dict.keys())
 #keyed_initialize calls initialize/large_intialize under the hood and returns InitializeResponse
-response = agents.initialize(location=location)
+response = iai.initialize(location=location, keyed_agents= agents)
 
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_plotter = iai.utils.ScenePlotter(
@@ -53,10 +54,10 @@ for step in range(150):
     if step == 100:
         # create new agent with saved agent 1 data
         agents.add_agent("new_agent", saved_agent_data, overwrite=True)
-        print(f"Added new_agent at step {step}")
+        print(f"Added new_agent with past states of {agent_to_remove} at step {step}")
 
     # calls drive/large_drive under the hood and returns DriveResponse
-    response = agents.drive(location=location, light_recurrent_states=response.light_recurrent_states)
+    response = iai.drive(location=location, light_recurrent_states=response.light_recurrent_states, keyed_agents=agents)
 
     scene_plotter.record_step(
         agents.get_states(),

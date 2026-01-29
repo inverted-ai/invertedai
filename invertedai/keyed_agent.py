@@ -2,10 +2,9 @@ from typing import Dict, List, Optional, Tuple
 from invertedai.common import AgentState, AgentProperties, RecurrentState, AgentType
 from pydantic import BaseModel, Field
 import invertedai as iai
-from invertedai.api.drive import DriveResponse
-from invertedai.api.initialize import InitializeResponse
 from invertedai.utils import get_default_agent_properties
 
+AgentID = str
 class AgentData(BaseModel):
     """
     Container for all agent data
@@ -14,11 +13,12 @@ class AgentData(BaseModel):
     properties: Optional[AgentProperties] = None
     recurrent: Optional[RecurrentState] = None
 
+AgentDict = Dict[AgentID, AgentData]
 class KeyedAgents(BaseModel):
     """
-    Class for managing keyed agents and wrapping initialize/drive calls
+    Class for managing keyed agents with an internal dictionary structure to manage AgentData by AgentID
     """
-    agents_dict: Dict[str, AgentData] = Field(default_factory=dict)
+    agents_dict: AgentDict
     def __init__(self, num_agents: int = 0, **data):
         agents_dict = {}
         for i in range(num_agents):
@@ -27,7 +27,6 @@ class KeyedAgents(BaseModel):
                 properties=get_default_agent_properties({AgentType.car: 1})[0]
             )
         super().__init__(agents_dict=agents_dict, **data)
-
     def add_agent(
         self,
         agent_id: str,
@@ -61,7 +60,7 @@ class KeyedAgents(BaseModel):
         List[RecurrentState],
     ]:
         """
-        Convert keyed AgentData dict into List[AgentID] + 3 lists for API
+        Convert AgentDict into List[AgentID] + 3 lists for API
         """
         agent_ids: List[str] = []
         states: List[AgentState] = []
@@ -85,7 +84,7 @@ class KeyedAgents(BaseModel):
         recurrent_states: Optional[List[RecurrentState]],
     ):
         """"
-        Reconstruct keyed AgentData dictionary from API responses
+        Reconstruct AgentDict from API response
         """
         self.agents_dict = {
             aid: AgentData(
@@ -96,64 +95,6 @@ class KeyedAgents(BaseModel):
             for i, aid in enumerate(agent_ids)
         }
 
-    def initialize(
-        self,
-        large: bool = False,
-        **kwargs,
-    ) -> InitializeResponse:
-        """
-        Wrapper around initialize /large_initialize
-        """
-        _, _, properties, _ = self.unpack()
-        if large:
-            response = iai.large_initialize(
-                agent_properties=properties if properties else None,
-                **kwargs,
-            )
-        else:
-            response = iai.initialize(
-                agent_properties=properties if properties else None,
-                **kwargs,
-            )
-        agent_ids = [f"agent_{i}" for i in range(len(response.agent_states))]
-        self.pack(
-            agent_ids=agent_ids,
-            states=response.agent_states,
-            properties=response.agent_properties,
-            recurrent_states=response.recurrent_states,
-        )
-        return response
-
-    def drive(
-        self,
-        large: bool = False,
-        **kwargs,
-    ) ->  DriveResponse:
-        """
-        Wrapper around drive/large_drive
-        """
-        agent_ids, states, properties, recurrent = self.unpack()
-        if large:
-            response = iai.large_drive(
-                agent_states=states,
-                agent_properties=properties if properties else None,
-                recurrent_states=recurrent if recurrent else None,
-                **kwargs,
-            )
-        else:
-            response = iai.drive(
-                agent_states=states,
-                agent_properties=properties if properties else None,
-                recurrent_states=recurrent if recurrent else None,
-                **kwargs,
-            )
-        self.pack(
-            agent_ids=agent_ids,
-            states=response.agent_states,
-            properties=properties,
-            recurrent_states=response.recurrent_states,
-        )
-        return response
     #Getters
     def get_states(self) -> List[AgentState]:
         return [data.state for data in self.agents_dict.values()]
@@ -163,4 +104,3 @@ class KeyedAgents(BaseModel):
         return [data.properties for data in self.agents_dict.values()]
     def get_recurrent_states(self) -> List[RecurrentState]:
         return [data.recurrent for data in self.agents_dict.values()]
-    

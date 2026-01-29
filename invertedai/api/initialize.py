@@ -28,6 +28,7 @@ from invertedai.common import (
     RecurrentState,
     TrafficLightStatesDict
 )
+from invertedai.keyed_agent import KeyedAgents
 
 
 class InitializeResponse(BaseModel):
@@ -96,7 +97,8 @@ def initialize(
     get_infractions: bool = False,
     agent_count: Optional[int] = None,
     random_seed: Optional[int] = None,
-    api_model_version: Optional[str] = None  # Model version used for this API call
+    api_model_version: Optional[str] = None,  # Model version used for this API call
+    keyed_agents: Optional[KeyedAgents] = None
 ) -> InitializeResponse:
     """
     Initializes a simulation in a given location, using a combination of **user-defined** and **sampled** agents.
@@ -156,6 +158,9 @@ def initialize(
 
     api_model_version:
         Optionally specify the version of the model. If None is passed which is by default, the best model will be used.
+    
+    keyed_agents:
+        Optionally pass in a KeyedAgents object which contains all agent states, properties and recurrent states. 
 
     See Also
     --------
@@ -196,20 +201,35 @@ def initialize(
 
     if agent_attributes is not None:
         warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
-
-    model_inputs = serialize_initialize_request_parameters(
-        location=location,
-        agent_attributes=agent_attributes,
-        agent_properties=agent_properties,
-        states_history=states_history,
-        traffic_light_state_history=traffic_light_state_history,
-        get_birdview=get_birdview,
-        location_of_interest=location_of_interest,
-        get_infractions=get_infractions,
-        agent_count=agent_count,
-        random_seed=random_seed,
-        api_model_version=api_model_version
-    )
+    if keyed_agents is not None:
+        agent_ids, _, keyed_properties, _ = keyed_agents.unpack()
+        model_inputs = serialize_initialize_request_parameters(
+            location=location,
+            agent_attributes=agent_attributes,
+            agent_properties=keyed_properties,
+            states_history=states_history,
+            traffic_light_state_history=traffic_light_state_history,
+            get_birdview=get_birdview,
+            location_of_interest=location_of_interest,
+            get_infractions=get_infractions,
+            agent_count=agent_count,
+            random_seed=random_seed,
+            api_model_version=api_model_version
+        )
+    else: 
+        model_inputs = serialize_initialize_request_parameters(
+            location=location,
+            agent_attributes=agent_attributes,
+            agent_properties=agent_properties,
+            states_history=states_history,
+            traffic_light_state_history=traffic_light_state_history,
+            get_birdview=get_birdview,
+            location_of_interest=location_of_interest,
+            get_infractions=get_infractions,
+            agent_count=agent_count,
+            random_seed=random_seed,
+            api_model_version=api_model_version
+        )
     start = time.time()
     timeout = TIMEOUT
     while True:
@@ -248,6 +268,13 @@ def initialize(
                 if response["light_recurrent_states"] is not None 
                 else None
             )
+            if keyed_agents is not None:
+                keyed_agents.pack(
+                    agent_ids=agent_ids,
+                    states=response.agent_states,
+                    properties=response.agent_properties,
+                    recurrent_states=response.recurrent_states,
+                )
             return response
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
