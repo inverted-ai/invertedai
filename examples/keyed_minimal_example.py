@@ -1,8 +1,5 @@
 import invertedai as iai
-from typing import List
-from invertedai.utils import get_default_agent_properties
-from invertedai.common import AgentType, AgentState, RecurrentState
-from invertedai.keyed_agent import AgentData, KeyedAgents
+from invertedai.keyed_agent import KeyedAgents
 import matplotlib.pyplot as plt
 import os
 

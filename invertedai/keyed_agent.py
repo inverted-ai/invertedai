@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 from invertedai.common import AgentState, AgentProperties, RecurrentState, AgentType
-from pydantic import BaseModel, Field
-import invertedai as iai
+from pydantic import BaseModel
 from invertedai.utils import get_default_agent_properties
 
 AgentID = str
