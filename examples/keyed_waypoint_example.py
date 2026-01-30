@@ -61,7 +61,7 @@ wp_manager = iai.WaypointManager(
 # The WaypointManager will generate waypoints based on the above algorithm by default unless specified otherwise by the agents_mask field. This mask,
 #   if specified, must be the same length as the list of given agents. A value of False means the agent at that index will be ignored.
 agents.set_properties(
-    wp_manager.update(
+    wp_manager.update( # returns List[AgentProperties] we can use to set the properties of KeyedAgents
         response = response,
         agent_properties = response.agent_properties,
     )
@@ -98,7 +98,7 @@ for _ in range(simulation_length):  # how many simulation steps to execute (10 s
     agents.set_properties(
         wp_manager.update(
             response = response,
-            agent_properties = agents.get_properties(),
+            agent_properties = agents.get_properties(), # KeyedAgents method to get AgentProperties
         )
     )
     
