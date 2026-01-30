@@ -103,3 +103,32 @@ class KeyedAgents(BaseModel):
         return [data.properties for data in self.agents_dict.values()]
     def get_recurrent_states(self) -> List[RecurrentState]:
         return [data.recurrent for data in self.agents_dict.values()]
+    # Setters for individual agents
+    def set_state(self, agent_id: str, state: AgentState):
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        self.agents_dict[agent_id].state = state
+    def set_property(self, agent_id: str, properties: AgentProperties):
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        self.agents_dict[agent_id].properties = properties
+    def set_recurrent_state(self, agent_id: str, recurrent: RecurrentState):
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        self.agents_dict[agent_id].recurrent = recurrent
+    #Setters for all agents
+    def set_states(self, states: List[AgentState]):
+        if len(states) != len(self.agents_dict):
+            raise ValueError(f"Expected {len(self.agents_dict)} states, got {len(states)}")
+        for i, agent_id in enumerate(self.agents_dict.keys()):
+            self.agents_dict[agent_id].state = states[i]
+    def set_properties(self, properties: List[AgentProperties]):
+        if len(properties) != len(self.agents_dict):
+            raise ValueError(f"Expected {len(self.agents_dict)} properties, got {len(properties)}")
+        for i, agent_id in enumerate(self.agents_dict.keys()):
+            self.agents_dict[agent_id].properties = properties[i]
+    def set_recurrent_states(self, recurrent_states: List[RecurrentState]):
+        if len(recurrent_states) != len(self.agents_dict):
+            raise ValueError(f"Expected {len(self.agents_dict)} recurrent states, got {len(recurrent_states)}")
+        for i, agent_id in enumerate(self.agents_dict.keys()):
+            self.agents_dict[agent_id].recurrent = recurrent_states[i]
