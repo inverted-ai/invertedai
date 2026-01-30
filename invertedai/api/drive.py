@@ -209,38 +209,22 @@ def drive(
 
     recurrent_states = _tolist(recurrent_states) if recurrent_states is not None else None
     if keyed_agents is not None:
-        agent_ids, keyed_states, keyed_properties, keyed_recurrent_states = keyed_agents.unpack()
-        model_inputs = serialize_drive_request_parameters(
-            location=location,
-            agent_states=keyed_states,
-            agent_attributes=agent_attributes,
-            agent_properties=keyed_properties,
-            recurrent_states=keyed_recurrent_states,
-            traffic_lights_states=traffic_lights_states,
-            light_recurrent_states=light_recurrent_states,
-            get_birdview=get_birdview,
-            rendering_center=rendering_center,
-            rendering_fov=rendering_fov,
-            get_infractions=get_infractions,
-            random_seed=random_seed,
-            api_model_version=api_model_version
-        )
-    else:
-        model_inputs = serialize_drive_request_parameters(
-            location=location,
-            agent_states=agent_states,
-            agent_attributes=agent_attributes,
-            agent_properties=agent_properties,
-            recurrent_states=recurrent_states,
-            traffic_lights_states=traffic_lights_states,
-            light_recurrent_states=light_recurrent_states,
-            get_birdview=get_birdview,
-            rendering_center=rendering_center,
-            rendering_fov=rendering_fov,
-            get_infractions=get_infractions,
-            random_seed=random_seed,
-            api_model_version=api_model_version
-        )
+        agent_ids, agent_states, agent_properties, recurrent_states = keyed_agents.unpack()
+    model_inputs = serialize_drive_request_parameters(
+        location=location,
+        agent_states=agent_states,
+        agent_attributes=agent_attributes,
+        agent_properties=agent_properties,
+        recurrent_states=recurrent_states,
+        traffic_lights_states=traffic_lights_states,
+        light_recurrent_states=light_recurrent_states,
+        get_birdview=get_birdview,
+        rendering_center=rendering_center,
+        rendering_fov=rendering_fov,
+        get_infractions=get_infractions,
+        random_seed=random_seed,
+        api_model_version=api_model_version
+    )
     start = time.time()
     timeout = TIMEOUT
 
@@ -280,7 +264,7 @@ def drive(
                 keyed_agents.pack(
                     agent_ids = agent_ids,
                     states = response.agent_states,
-                    properties = keyed_properties,
+                    properties = agent_properties,
                     recurrent_states = response.recurrent_states
                 )
             return response
@@ -294,7 +278,7 @@ def drive(
 @validate_call
 async def async_drive(
     location: str,
-    agent_states: List[AgentState],
+    agent_states: Optional[List[AgentState]],
     agent_attributes: Optional[List[AgentAttributes]]=None,
     agent_properties: Optional[List[AgentProperties]]=None,
     recurrent_states: Optional[List[RecurrentState]] = None,
@@ -305,7 +289,8 @@ async def async_drive(
     rendering_fov: Optional[float] = None,
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
-    api_model_version: Optional[str] = None
+    api_model_version: Optional[str] = None,
+    keyed_agents: Optional[KeyedAgents] = None
 ) -> DriveResponse:
     """
     A light async version of :func:`drive`
@@ -318,21 +303,39 @@ async def async_drive(
             return input_data
 
     recurrent_states = _tolist(recurrent_states) if recurrent_states is not None else None
-    model_inputs = serialize_drive_request_parameters(
-        location=location,
-        agent_states=agent_states,
-        agent_attributes=agent_attributes,
-        agent_properties=agent_properties,
-        recurrent_states=recurrent_states,
-        traffic_lights_states=traffic_lights_states,
-        light_recurrent_states=light_recurrent_states,
-        get_birdview=get_birdview,
-        rendering_center=rendering_center,
-        rendering_fov=rendering_fov,
-        get_infractions=get_infractions,
-        random_seed=random_seed,
-        api_model_version=api_model_version
-    )
+    if keyed_agents is not None:
+        agent_ids, keyed_states, keyed_properties, keyed_recurrent_states = keyed_agents.unpack()
+        model_inputs = serialize_drive_request_parameters(
+            location=location,
+            agent_states=keyed_states,
+            agent_attributes=agent_attributes,
+            agent_properties=keyed_properties,
+            recurrent_states=keyed_recurrent_states,
+            traffic_lights_states=traffic_lights_states,
+            light_recurrent_states=light_recurrent_states,
+            get_birdview=get_birdview,
+            rendering_center=rendering_center,
+            rendering_fov=rendering_fov,
+            get_infractions=get_infractions,
+            random_seed=random_seed,
+            api_model_version=api_model_version
+        )
+    else:
+        model_inputs = serialize_drive_request_parameters(
+            location=location,
+            agent_states=agent_states,
+            agent_attributes=agent_attributes,
+            agent_properties=agent_properties,
+            recurrent_states=recurrent_states,
+            traffic_lights_states=traffic_lights_states,
+            light_recurrent_states=light_recurrent_states,
+            get_birdview=get_birdview,
+            rendering_center=rendering_center,
+            rendering_fov=rendering_fov,
+            get_infractions=get_infractions,
+            random_seed=random_seed,
+            api_model_version=api_model_version
+        )
     response = await iai.session.async_request(model="drive", data=model_inputs)
 
     response = DriveResponse(
@@ -363,5 +366,11 @@ async def async_drive(
         if response["light_recurrent_states"] is not None 
         else None
     )
-
+    if keyed_agents is not None:
+        keyed_agents.pack(
+            agent_ids = agent_ids,
+            states = response.agent_states,
+            properties = keyed_properties,
+            recurrent_states = response.recurrent_states
+        )
     return response

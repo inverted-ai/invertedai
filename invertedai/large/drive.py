@@ -11,6 +11,7 @@ from invertedai.api.drive import DriveResponse, serialize_drive_request_paramete
 from invertedai.utils import convert_attributes_to_properties
 from invertedai.error import InvertedAIError, InvalidRequestError
 from invertedai.logs.debug_logger import DebugLogger
+from invertedai.keyed_agent import KeyedAgents
 from ._quadtree import QuadTreeAgentInfo, QuadTree, _flatten_and_sort, QUADTREE_SIZE_BUFFER
 
 DRIVE_MAXIMUM_NUM_AGENTS = 100
@@ -22,8 +23,8 @@ async def async_drive_all(async_input_params):
 @validate_call
 def large_drive(
     location: str,
-    agent_states: List[AgentState],
-    agent_properties: List[Union[AgentAttributes,AgentProperties]],
+    agent_states: Optional[List[AgentState]]=None,
+    agent_properties: Optional[List[Union[AgentAttributes,AgentProperties]]]=None,
     recurrent_states: Optional[List[RecurrentState]] = None,
     traffic_lights_states: Optional[TrafficLightStatesDict] = None,
     light_recurrent_states: Optional[List[LightRecurrentState]] = None,
@@ -31,7 +32,8 @@ def large_drive(
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
     single_call_agent_limit: Optional[int] = None,
-    async_api_calls: bool = True
+    async_api_calls: bool = True,
+    keyed_agents: Optional[KeyedAgents] = None
 ) -> DriveResponse:
     """
     A utility function to drive more than the normal capacity of agents in a call to :func:`drive`.
@@ -84,6 +86,9 @@ def large_drive(
     """
 
     # Validate input arguments
+    if keyed_agents is not None:
+        agent_ids, agent_states, agent_properties, recurrent_states = keyed_agents.unpack()
+    print(agent_states)
     if single_call_agent_limit is None:
         single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS
     if single_call_agent_limit > DRIVE_MAXIMUM_NUM_AGENTS:
@@ -229,5 +234,11 @@ def large_drive(
             model = "large_drive",
             data_dict = response.serialize_drive_response_parameters()
         )
-
+    if keyed_agents is not None:
+        keyed_agents.pack(
+            agent_ids = agent_ids,
+            states = response.agent_states,
+            properties = agent_properties,
+            recurrent_states = response.recurrent_states
+        )
     return response

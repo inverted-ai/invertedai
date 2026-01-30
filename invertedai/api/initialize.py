@@ -202,34 +202,20 @@ def initialize(
     if agent_attributes is not None:
         warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
     if keyed_agents is not None:
-        agent_ids, _, keyed_properties, _ = keyed_agents.unpack()
-        model_inputs = serialize_initialize_request_parameters(
-            location=location,
-            agent_attributes=agent_attributes,
-            agent_properties=keyed_properties,
-            states_history=states_history,
-            traffic_light_state_history=traffic_light_state_history,
-            get_birdview=get_birdview,
-            location_of_interest=location_of_interest,
-            get_infractions=get_infractions,
-            agent_count=agent_count,
-            random_seed=random_seed,
-            api_model_version=api_model_version
-        )
-    else: 
-        model_inputs = serialize_initialize_request_parameters(
-            location=location,
-            agent_attributes=agent_attributes,
-            agent_properties=agent_properties,
-            states_history=states_history,
-            traffic_light_state_history=traffic_light_state_history,
-            get_birdview=get_birdview,
-            location_of_interest=location_of_interest,
-            get_infractions=get_infractions,
-            agent_count=agent_count,
-            random_seed=random_seed,
-            api_model_version=api_model_version
-        )
+        agent_ids, agent_states, agent_properties, recurrent_states = keyed_agents.unpack()
+    model_inputs = serialize_initialize_request_parameters(
+        location=location,
+        agent_attributes=agent_attributes,
+        agent_properties=agent_properties,
+        states_history=states_history,
+        traffic_light_state_history=traffic_light_state_history,
+        get_birdview=get_birdview,
+        location_of_interest=location_of_interest,
+        get_infractions=get_infractions,
+        agent_count=agent_count,
+        random_seed=random_seed,
+        api_model_version=api_model_version
+    )
     start = time.time()
     timeout = TIMEOUT
     while True:
