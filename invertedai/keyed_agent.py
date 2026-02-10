@@ -18,7 +18,13 @@ class KeyedAgents(BaseModel):
     Class for managing keyed agents with an internal dictionary structure to manage AgentData by AgentID
     """
     agents_dict: AgentDict
-    def __init__(self, num_agents: int = 0, **data):
+    def __init__(
+            self,
+            agents_dict: Optional[AgentDict] = None,
+            *, 
+            num_agents: int = 0,   
+            **data
+        ):
         agents_dict = {}
         for i in range(num_agents):
             aid = f"agent_{i}"
@@ -39,7 +45,6 @@ class KeyedAgents(BaseModel):
         if agent_id in self.agents_dict and not overwrite:
             raise ValueError(f"Agent '{agent_id}' already exists")
         self.agents_dict[agent_id] = agent
-
     def remove_agent(self, agent_id: str) -> AgentData:
         """
         Remove an agent from the container
@@ -49,7 +54,6 @@ class KeyedAgents(BaseModel):
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
         return self.agents_dict.pop(agent_id)
-
     def unpack(
         self
     ) -> Tuple[
@@ -103,6 +107,12 @@ class KeyedAgents(BaseModel):
         return [data.properties for data in self.agents_dict.values()]
     def get_recurrent_states(self) -> List[RecurrentState]:
         return [data.recurrent for data in self.agents_dict.values()]
+    def get_agent_data(self, agent_id:str) -> AgentData:
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        return self.agents_dict[agent_id]
+    def get_agent_dict(self)-> AgentDict:
+        return self.agents_dict
     # Setters for individual agents
     def set_state(self, agent_id: str, state: AgentState):
         if agent_id not in self.agents_dict:
