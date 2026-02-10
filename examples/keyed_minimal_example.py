@@ -20,7 +20,7 @@ location_info_response = iai.location_info(location=location)
 agents = KeyedAgents(num_agents=num_agents_to_add)
 print("initialized agents", agents.agents_dict.keys())
 response = iai.initialize(location=location, keyed_agents= agents)
-
+agents = response.keyed_agents
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_plotter = iai.utils.ScenePlotter(
     rendered_static_map,

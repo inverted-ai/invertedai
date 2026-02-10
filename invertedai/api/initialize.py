@@ -28,7 +28,7 @@ from invertedai.common import (
     RecurrentState,
     TrafficLightStatesDict
 )
-from invertedai.keyed_agent import KeyedAgents
+from invertedai.keyed_agent import KeyedAgents, AgentData
 
 
 class InitializeResponse(BaseModel):
@@ -44,6 +44,7 @@ class InitializeResponse(BaseModel):
     traffic_lights_states: Optional[TrafficLightStatesDict] #: Traffic light states for the full map, each key-value pair corresponds to one particular traffic light.
     light_recurrent_states: Optional[LightRecurrentStates] #: Light recurrent states for the full map. Pass this to :func:`iai.drive` at the first time step to let the server generate a realistic continuation of the traffic light state sequence. This does not work correctly if any specific light states were specified as input to `initialize`.
     api_model_version: str #: Model version used for this API call
+    keyed_agents: Optional[KeyedAgents] = None #: Optionally pass in a KeyedAgents object which contains all agent states, properties and recurrent states. This will be populated with the initialized agents after initialization.
 
     def serialize_initialize_response_parameters(self):
         output_dict = dict(self)
@@ -261,6 +262,7 @@ def initialize(
                     properties=response.agent_properties,
                     recurrent_states=response.recurrent_states,
                 )
+                response.keyed_agents = KeyedAgents(keyed_agents.get_agent_dict())
             return response
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
