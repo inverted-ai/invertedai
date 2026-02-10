@@ -256,13 +256,14 @@ def initialize(
                 else None
             )
             if keyed_agents is not None:
-                keyed_agents.pack(
-                    agent_ids=agent_ids,
+                aid = keyed_agents.get_agent_ids()
+                response.keyed_agents = KeyedAgents()
+                response.keyed_agents.pack(
+                    agent_ids=aid,
                     states=response.agent_states,
                     properties=response.agent_properties,
                     recurrent_states=response.recurrent_states,
                 )
-                response.keyed_agents = KeyedAgents(keyed_agents.get_agent_dict())
             return response
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
