@@ -1,33 +1,50 @@
-from invertedai.keyed_agent import KeyedAgents, AgentData
 from typing import Dict, List, Optional, Tuple
 from invertedai.common import AgentState, AgentProperties, RecurrentState, AgentType, Point
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
+from invertedai.api.location import LocationResponse
+from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
 from pydantic import BaseModel
 from invertedai.utils import get_default_agent_properties
 import invertedai as iai
 import uuid
+
 AgentID = str                
+class AgentData(BaseModel):
+    """
+    Container for all agent data
+    """
+    state: Optional[AgentState] = None
+    properties: Optional[AgentProperties] = None
+    recurrent: Optional[RecurrentState] = None
+    # waypoint: Optional[Point] = None
+    # waypoints: Optional[List[Point]] = None for later improvements
+
 AgentDict = Dict[AgentID, AgentData]
-class AgentDataManager(BaseModel): 
+class AgentDataManager: 
     """
     Class for managing keyed agents with an internal dictionary structure to manage AgentData by AgentID
     """
-    agents_dict: AgentDict
     def __init__(
             self,
-            *, 
+            location_info_response: Optional[LocationResponse] = None,
             agents_dict: Optional[AgentDict] = None,
             num_agents: int = 0,   
-            **data
+            waypoint_cfg : Optional[WaypointManagerConfig] = None
         ):
-        agents_dict = {}
-        for i in range(num_agents):
-            uid = str(uuid.uuid4())
-            agents_dict[uid] = AgentData(
-                properties=get_default_agent_properties({AgentType.car: 1})[0]
-            )
-        super().__init__(agents_dict=agents_dict, **data)
+            self.location_info_response = location_info_response
+            if agents_dict is None:
+                agents_dict = {
+                    str(uuid.uuid4()): AgentData(
+                        properties=get_default_agent_properties({AgentType.car: 1})[0]
+                    )
+                    for _ in range(num_agents)
+            }
+            self.agents_dict = agents_dict
+            self.waypoint_manager: Optional[WaypointManager] = None
+            if location_info_response:
+                self.waypoint_manager = WaypointManager(location_info_response, waypoint_cfg)
+
     def add_agent(
         self,
         agent_id: str,
@@ -41,15 +58,16 @@ class AgentDataManager(BaseModel):
         if agent_id in self.agents_dict and not overwrite:
             raise ValueError(f"Agent '{agent_id}' already exists")
         self.agents_dict[agent_id] = agent
+
     def remove_agent(self, agent_id: str) -> AgentData:
         """
-        Remove an agent from the container
-        Returns the removed AgentData so the caller may:
-            discard it, store it or reinsert it later with preserved states
+        Remove an agent from the dictionary
+        Returns the removed AgentData
         """
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
         return self.agents_dict.pop(agent_id)
+    
     def unpack(
         self
     ) -> Tuple[
@@ -96,38 +114,41 @@ class AgentDataManager(BaseModel):
     
     def initialize(self, location: str, **kwargs)->InitializeResponse:
         """
-        Wrapper around iai.initialize/large_initialize
-        Calls unpack before, pack after.
+        Wrapper around iai.large_initialize
         """
         agent_ids, states, properties, recurrent_states = self.unpack()
+
         regions = iai.get_regions_default(
             location = location,
             agent_count_dict = {AgentType.car: len(self.agents_dict)},
             # area_shape = (int(args.width/2),int(args.height/2)),
             # map_center = map_center, 
         )
-        response = iai.large_initialize( # later change to large_intiialize and call get_default regions
+        response = iai.large_initialize( 
             location=location,
             regions=regions,
             agent_properties=properties,
             **kwargs
         )
-
-        # response contains updated states, properties, recurrent states
+        properties = response.agent_properties
+        if self.waypoint_manager:
+            properties = self.waypoint_manager.update( # consider isolating the waypoints later
+                response = response,
+                agent_properties = response.agent_properties,
+            )
         self.pack(
             agent_ids=agent_ids,
             states=response.agent_states,
-            properties=response.agent_properties,
+            properties=properties, ## # consider isolating later
             recurrent_states=response.recurrent_states,
         )
         return response
     
     def drive(self, location: str, **kwargs)-> DriveResponse:
         """
-        Wrapper around iai.large_drive.
+        Wrapper around iai.large_drive
         """
         agent_ids, states, properties, recurrent_states = self.unpack()
-
         response = iai.large_drive(
             location=location,
             agent_states=states,
@@ -135,11 +156,15 @@ class AgentDataManager(BaseModel):
             recurrent_states=recurrent_states,
             **kwargs
         )
-
+        if self.waypoint_manager:
+            properties = self.waypoint_manager.update(
+                response = response,
+                agent_properties = properties, # consdier isolating later
+            )
         self.pack(
             agent_ids=agent_ids,
             states=response.agent_states,
-            properties=properties,
+            properties=properties,# consdier isolating later
             recurrent_states=response.recurrent_states,
         )
 
