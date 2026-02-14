@@ -5,7 +5,8 @@ from invertedai.api.drive import DriveResponse
 from invertedai.api.location import LocationResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
 from pydantic import BaseModel
-from invertedai.utils import get_default_agent_properties
+from invertedai.utils import get_default_agent_properties, ScenePlotterConfig, ScenePlotter
+from matplotlib.animation import FuncAnimation
 import invertedai as iai
 import uuid
 
@@ -27,12 +28,22 @@ class AgentDataManager:
     """
     def __init__(
             self,
-            location_info_response: Optional[LocationResponse] = None,
+            scene_plotter_cfg: Optional[ScenePlotterConfig] = None,
+            location_info_response: Optional[LocationResponse] = None, # Sceneplotter/waypoint dpeendent, maybe it shouldnt be optional or passed in thru Sceneplotter/waypoint config
             agents_dict: Optional[AgentDict] = None,
             num_agents: int = 0,   
             waypoint_cfg : Optional[WaypointManagerConfig] = None
         ):
             self.location_info_response = location_info_response
+            self.scene_plotter = None
+            if scene_plotter_cfg and location_info_response:
+                self.scene_plotter = ScenePlotter(
+                    location_info_response.birdview_image.decode(),
+                    location_info_response.map_fov,
+                    (location_info_response.map_center.x, location_info_response.map_center.y),
+                    location_info_response.static_actors,
+                    left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla"
+                )
             if agents_dict is None:
                 agents_dict = {
                     str(uuid.uuid4()): AgentData(
@@ -136,6 +147,11 @@ class AgentDataManager:
                 response = response,
                 agent_properties = response.agent_properties,
             )
+        if self.scene_plotter:
+            self.scene_plotter.initialize_recording(
+                agent_states=response.agent_states,
+                agent_properties=response.agent_properties,
+            )
         self.pack(
             agent_ids=agent_ids,
             states=response.agent_states,
@@ -161,6 +177,13 @@ class AgentDataManager:
                 response = response,
                 agent_properties = properties, # consdier isolating later
             )
+        if self.scene_plotter:
+            print("scene plotter recorded", len(response.agent_states))
+            self.scene_plotter.record_step(
+                response.agent_states,
+                traffic_light_states=response.traffic_lights_states,
+                agent_properties=properties,
+            )
         self.pack(
             agent_ids=agent_ids,
             states=response.agent_states,
@@ -169,7 +192,17 @@ class AgentDataManager:
         )
 
         return response
+    def animate_scene(self, **kwargs) -> FuncAnimation:
+        """
+        wrapper around scenePlotter animate...
+        """
+        if self.scene_plotter is None:
+            raise ValueError("ScenePlotter not initialized, failed to animate scene")
+        return self.scene_plotter.animate_scene(**kwargs)
+    
     #Getters
+    def get_scene_plotter(self) -> Optional[ScenePlotter]:
+        return self.scene_plotter
     def get_states(self) -> List[AgentState]:
         return [data.state for data in self.agents_dict.values()]
     def get_agent_ids(self) -> List[str]:

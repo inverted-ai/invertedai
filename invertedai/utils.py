@@ -11,7 +11,7 @@ import warnings
 
 from typing import Dict, Optional, List, Tuple, Union, Any
 from copy import deepcopy
-from pydantic import validate_call, validate_arguments
+from pydantic import validate_call, validate_arguments, BaseModel
 
 import requests
 from requests import Response
@@ -771,6 +771,9 @@ def rot(rot):
     """Rotate in 2d"""
     return np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
 
+class ScenePlotterConfig(BaseModel):
+    location: str
+    
 
 class ScenePlotter():
     """
