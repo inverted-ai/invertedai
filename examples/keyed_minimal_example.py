@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 
 
-location = "carla_xodr:Town10HD" 
+location = "carla:Town10HD" 
 num_agents_to_add = 4 # number of agents initialized
 agent_to_remove = "agent_1"
 
@@ -23,22 +23,6 @@ rendered_static_map = location_info_response.birdview_image.decode()
 
 print("Begin stepping through simulation.")
 for step in range(150):
-    # pop agent 1 at step 30 and reinsert at step 60 
-    # if step == 30:
-    #     # save agent data for later
-    #     saved_agent_data = agents.remove_agent(agent_to_remove)
-    #     print(f"Removed {agent_to_remove} at step {step}")
-
-    # if step == 60:
-    #     # replace agent 0 with saved agent 1 data
-    #     agents.add_agent("agent_0", saved_agent_data, overwrite=True)
-    #     print(f"Replaced agent_0 at step {step}")
-
-    # if step == 100:
-    #     # create new agent with saved agent 1 data
-    #     agents.add_agent("new_agent", saved_agent_data, overwrite=True)
-    #     print(f"Added new_agent with past states of {agent_to_remove} at step {step}")
-
     response = agents.drive(location=location, light_recurrent_states=response.light_recurrent_states)
 
 print("Simulation finished, save visualization.")
