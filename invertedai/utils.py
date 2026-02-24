@@ -27,6 +27,7 @@ from matplotlib import transforms
 
 import invertedai as iai
 import invertedai.api
+from invertedai.api.location import LocationResponse
 import invertedai.api.config
 from invertedai import error
 from invertedai.future import to_thread
@@ -773,6 +774,7 @@ def rot(rot):
 
 class ScenePlotterConfig(BaseModel):
     location: str
+    location_info_response: LocationResponse
     
 
 class ScenePlotter():

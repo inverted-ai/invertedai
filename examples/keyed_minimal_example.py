@@ -1,6 +1,8 @@
 import invertedai as iai
-from invertedai.agent_data_manager import AgentDataManager
+from invertedai.simulation_manager import SimulationManager
 from invertedai.utils import ScenePlotterConfig
+from invertedai.helpers.waypoints import WaypointManagerConfig
+from invertedai.logs.logger import LogWriterConfig
 import matplotlib.pyplot as plt
 import os
 
@@ -15,8 +17,10 @@ if api_key is None:
 
 print("Begin initialization.")
 location_info_response = iai.location_info(location=location, include_map_source=True)
-scene_plotter_cfg = ScenePlotterConfig(location=location)
-agents = AgentDataManager(num_agents=num_agents_to_add, scene_plotter_cfg=scene_plotter_cfg, location_info_response=location_info_response)
+scene_plotter_cfg = ScenePlotterConfig(location=location, location_info_response=location_info_response)
+waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
+log_cfg = LogWriterConfig(log_path="keyed_minimal_example_log.json",location=location, location_info_response=location_info_response)
+agents = SimulationManager(num_agents=num_agents_to_add, scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
 print("initialized agents with ids ", agents.get_agent_ids())
 response = agents.initialize(location=location)
 rendered_static_map = location_info_response.birdview_image.decode()
@@ -36,5 +40,6 @@ agents.animate_scene( # we can try making this a flag in the AgentDataManager cl
     plot_frame_number=True,
     numbers = list(range(num_agents_to_add))
 )
-
+print("Simulation finished, save to json log.")
+agents.export_log()
 print("Done")
