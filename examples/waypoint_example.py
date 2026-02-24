@@ -43,7 +43,7 @@ response = iai.initialize(
 #   the WaypointManager will ignore this exception and leave the agents waypoint list unchanged.
 #NOTE: WaypointManager functions best on closed maps where all lanes are reachable. On other maps, this may impact computational performance.
 wp_manager = iai.WaypointManager(
-    location_info_response = location_info_response,
+    lanelet_map = location_info_response.get_lanelet_map(),
     cfg = iai.WaypointManagerConfig(
         random_seed=seed,
         fail_soft=False
