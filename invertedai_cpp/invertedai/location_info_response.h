@@ -19,6 +19,8 @@ private:
   std::vector<unsigned char> birdview_image_;
   std::string osm_map_;
   Point2d map_origin_;
+  Point2d rendering_center_;
+  float rendering_fov_; 
   std::vector<StaticMapActor> static_actors_;
   json body_json_;
 
@@ -63,6 +65,14 @@ public:
    * Lists traffic lights with their IDs and locations.
    */
   std::vector<StaticMapActor> static_actors() const;
+    /**
+   * Gets the map center
+   */
+  Point2d rendering_center() const;
+    /**
+   * Gets the map fov 
+   */
+  float rendering_fov() const;
 
   // setters
   /**

@@ -1,12 +1,9 @@
 #include "logger.h"
 #include "externals/json.hpp"
 
-#include <chrono>
 #include <string>
 #include <iostream>
 #include <fstream>
-#include <boost/filesystem.hpp>
-#include <time.h>
 
 using json = nlohmann::json;
 
@@ -17,7 +14,7 @@ namespace invertedai {
         std::vector<AgentProperties> agent_properties_,
         std::optional<std::vector<std::map<std::string, std::string>>> traffic_states_,
         std::optional<std::pair<double,double>> rendering_center_,
-        std::optional<int> rendering_fov_,
+        std::optional<float> rendering_fov_,
 
         std::optional<int> lights_seed_,
         std::optional<int> init_seed_,
@@ -27,7 +24,7 @@ namespace invertedai {
         std::optional<std::string> drive_version_,
 
         std::optional<std::vector<LightRecurrentState>> light_states_,
-        std::optional<std::vector<RecurrentState>> recurrent_states_,
+        std::optional<std::vector<std::vector<double>>> recurrent_states_,
         std::optional<std::map<std::string, std::vector<Point2d>>> waypoints_,
         std::vector<std::vector<int>> present_indexes_
     ) {
@@ -108,7 +105,7 @@ namespace invertedai {
         return out;
     }
 
-    LogReader::LogReader(const std::string &file_path) { 
+    ScenarioLogReader::ScenarioLogReader(const std::string &file_path) { 
         std::string json_body = invertedai::read_file(file_path.c_str());
 
         json j = json::parse(json_body);
@@ -185,8 +182,6 @@ namespace invertedai {
 
         if (j.contains("predetermined_controls")) {
             std::vector<std::map<std::string,std::string>> tl_history(simulation_length);
-            tl_history.resize(simulation_length);
-
             for (int t = 0; t < simulation_length; t++) {
                 std::string ts_key = std::to_string(t);
         
@@ -230,14 +225,14 @@ namespace invertedai {
                     throw std::runtime_error("Invalid entry in light_recurrent_states");
                 }
                 LightRecurrentState lrs;
-                lrs.state = arr[0].get<int>();
-                lrs.time_remaining = arr[1].get<int>();
+                lrs.state = arr[0].get<float>();
+                lrs.time_remaining = arr[1].get<float>();
                 lights.push_back(lrs);
             }
             light_rs = lights;
         }
 
-        std::optional<std::vector<RecurrentState>> rnn_states = std::nullopt;
+        std::optional<std::vector<std::vector<double>>> rnn_states = std::nullopt;
         auto lights_seed =
             j.contains("lights_random_seed")
             ? std::optional<int>(j["lights_random_seed"])
@@ -281,21 +276,21 @@ namespace invertedai {
         reset_log();
     }
     
-    const std::string& LogReader::get_location() const {
+    const std::string& ScenarioLogReader::get_location() const {
         return this->scenario_log_.location;
     }
     
-    std::optional<int> LogReader::get_fov() {
+    std::optional<int> ScenarioLogReader::get_fov() {
         return this->scenario_log_.rendering_fov;
     }
-    std::optional<std::pair<double, double>> LogReader::get_rendering_center() {
+    std::optional<std::pair<double, double>> ScenarioLogReader::get_rendering_center() {
         return this->scenario_log_.rendering_center;
     }
-    ScenarioLog LogReader::get_scenario_log() {
+    ScenarioLog ScenarioLogReader::get_scenario_log() {
         return this->scenario_log_;
     }
 
-    bool LogReader::return_state_at_timestep(int t) {
+    bool ScenarioLogReader::return_state_at_timestep(int t) {
         if (t < 0 || t >= simulation_length) {
             return false;
         }
@@ -303,7 +298,7 @@ namespace invertedai {
         return true;
     }
     
-    bool LogReader::return_last_state() {
+    bool ScenarioLogReader::return_last_state() {
         if (simulation_length == 0) {
             return false;
         }
@@ -311,13 +306,13 @@ namespace invertedai {
         return true;
     }
 
-    bool LogReader::initialize() {
+    bool ScenarioLogReader::initialize() {
         bool init_response = return_state_at_timestep(0);
         current_timestep = 1;
         return init_response;
     }
 
-    bool LogReader::drive() {
+    bool ScenarioLogReader::drive() {
         if (current_timestep + 1 >= simulation_length) {
             return false;
         }
@@ -325,18 +320,18 @@ namespace invertedai {
         return true;
     }
 
-    void LogReader::reset_log() {
+    void ScenarioLogReader::reset_log() {
         current_timestep = 0;
     }
 
     std::vector<AgentState>
-    LogReader::current_agent_states() const {
+    ScenarioLogReader::current_agent_states() const {
         return scenario_log_.agent_states[current_timestep];
     }
 
 
     std::vector<AgentProperties>
-    LogReader::current_agent_properties() const {
+    ScenarioLogReader::current_agent_properties() const {
         std::vector<AgentProperties> result;
         for (int idx : scenario_log_.present_indexes[current_timestep]) {
             result.push_back(scenario_log_.agent_properties[idx]);
@@ -345,360 +340,429 @@ namespace invertedai {
     }
 
     std::optional<std::map<std::string, std::string>>
-    LogReader::current_traffic_lights() const {
+    ScenarioLogReader::current_traffic_lights() const {
         if (!scenario_log_.traffic_lights_states) {
             return std::nullopt;
         }
         return (*scenario_log_.traffic_lights_states)[current_timestep];
     }
 
-    int LogReader::get_scenario_length() {
+    int ScenarioLogReader::get_scenario_length() {
         return this->scenario_log_.agent_states.size();
     }
 
-    std::vector<AgentProperties> LogReader::get_agent_properties() {
+    std::vector<AgentProperties> ScenarioLogReader::get_agent_properties() {
         return this->scenario_log_.agent_properties;
     }
 
-    std::vector<std::vector<AgentState>> LogReader::get_agent_states_over_time() {
+    std::vector<std::vector<AgentState>> ScenarioLogReader::get_agent_states_over_time() {
         return scenario_log_.agent_states;
     }
 
     std::optional<std::vector<std::map<std::string, std::string>>>
-    LogReader::get_traffic_lights_states_over_time() {
+    ScenarioLogReader::get_traffic_lights_states_over_time() {
         return this->scenario_log_.traffic_lights_states;
     }
 
-    std::optional<std::vector<LightRecurrentState>> LogReader::current_light_recurrent_state() const {
+    std::optional<std::vector<LightRecurrentState>> ScenarioLogReader::current_light_recurrent_state() const {
         return this->scenario_log_.light_recurrent_states;
     }
     
-    std::optional<std::vector<RecurrentState>> LogReader::current_recurrent_states() const {
+    std::optional<std::vector<std::vector<double>>> ScenarioLogReader::current_recurrent_states() const {
         return this->scenario_log_.recurrent_states;
     }
 
+    ScenarioLogWriter::ScenarioLogWriter() {}
+
+    std::pair<int, int> ScenarioLogWriter::count_agent_types() const {
+        int num_cars = 0;
+        int num_pedestrians = 0;
+        
+        for (const auto& prop : scenario_log_.agent_properties) {
+            if (prop.agent_type.has_value()) {
+                if (prop.agent_type.value() == "car") {
+                    num_cars++;
+                } else if (prop.agent_type.value() == "pedestrian") {
+                    num_pedestrians++;
+                }
+            }
+        }
+        
+        return {num_cars, num_pedestrians};
+    }
     
-    std::string LogWriter::get_current_time_UTC_(){
-        auto now = std::chrono::system_clock::now();
-        auto duration = now.time_since_epoch();
-        auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 
-        std::time_t now_t = std::time(0);
-        std::tm* now_tm = std::gmtime(&now_t);
-        char buf[42];
-        std::strftime(buf, 42, "%Y-%m-%d_%H:%M:%S", now_tm);
-        std::string date_time = buf;
-        date_time += ":" + std::to_string(milliseconds % 1000) + "_UTC";
-
-        return date_time;
-    };
-
-    void LogWriter::append_request(const std::string &req, const std::string &mode){
-        std::string date_time = this->get_current_time_UTC_();
-
-        if (mode == "location_info"){
-            this->loc_request_timestamps_.push_back(date_time);
-            this->loc_requests_.push_back(req);
+    std::tuple<int, int, int, int> ScenarioLogWriter::count_control_types(
+        const LocationInfoResponse& location_info_response
+    ) const {
+        int num_lights = 0;
+        int num_yield = 0;
+        int num_stop = 0;
+        int num_other = 0;
+        
+        auto static_actors = location_info_response.static_actors();
+        
+        for (const auto& actor : static_actors) {
+            if (actor.agent_type == "traffic_light") {
+                num_lights++;
+            } else if (actor.agent_type == "yield_sign") {
+                num_yield++;
+            } else if (actor.agent_type == "stop_sign") {
+                num_stop++;
+            } else {
+                num_other++;
+            }
         }
-        else if (mode == "initialize"){
-            this->init_request_timestamps_.push_back(date_time);
-            this->init_requests_.push_back(req);
-        }
-        else if (mode == "drive"){
-            this->drive_request_timestamps_.push_back(date_time);
-            this->drive_requests_.push_back(req);
-        }
-    };
-
-    void LogWriter::append_response(const std::string &res, const std::string &mode){
-        std::string date_time = this->get_current_time_UTC_();
-
-        if (mode == "location_info"){
-            this->loc_response_timestamps_.push_back(date_time);
-            this->loc_responses_.push_back(res);
-        }
-        else if (mode == "initialize"){
-            this->init_response_timestamps_.push_back(date_time);
-            this->init_responses_.push_back(res);
-        }
-        else if (mode == "drive"){
-            this->drive_response_timestamps_.push_back(date_time);
-            this->drive_responses_.push_back(res);
-        }
-    };
-
-    nlohmann::ordered_json get_agent_state_data(nlohmann::ordered_json res_agents, const int &index) {
-        std::vector<double> state = res_agents[index];
-                
-        nlohmann::ordered_json state_info;
-        state_info["center"]["x"] = state[0];
-        state_info["center"]["y"] = state[1];
-        state_info["orientation"] = state[2];
-        state_info["speed"] = state[3];
-
-        return state_info;
+        
+        return {num_lights, num_yield, num_stop, num_other};
     }
 
-    void LogWriter::write_scenario_log(const std::string &dir_path, const std::string &log_path = ""){
-        // Produce an IAI formatted log that can be used in various applications
-        // Assumptions: The number of vehicles stays consistent throughout the simulation
-        
-        //Get data to parse from specified source
-        std::vector<nlohmann::ordered_json> drive_responses;
-        nlohmann::ordered_json last_init_res;
-        nlohmann::ordered_json last_init_req;
-        nlohmann::ordered_json last_drive_req;
-        nlohmann::ordered_json last_loc_res;
-        nlohmann::ordered_json last_loc_req;
-
-        if (log_path.empty()){
-            last_init_res = json::parse(this->init_responses_.back());
-            last_init_req = json::parse(this->init_requests_.back());
-            
-            for (auto res: this->drive_responses_) {
-                drive_responses.push_back(json::parse(res));
-            }
-            last_drive_req = json::parse(this->drive_requests_.back());
-
-            //TODO: Find a way to produce data that would be in location info without using Session object.
-            if (this->loc_responses_.empty()) {
-                last_loc_res = NULL;
-            }
-            else {
-                last_loc_res = json::parse(this->loc_responses_.back());
-            }
-            if (this->loc_requests_.empty()) {
-                last_loc_req = NULL;
-            }
-            else {
-                try {
-                    last_loc_req = json::parse(this->loc_requests_.back());
-                }
-                catch (nlohmann::json_abi_v3_11_2::detail::parse_error err) {
-                    std::cout << "WARNING: Could not parse request message: " << this->loc_requests_.back() << ". Not processing data from this message." << std::endl;
-                }
-            }
-        }
-        else {
-            std::ifstream f(log_path);
-            nlohmann::ordered_json data = json::parse(f);
-
-            last_init_res = data["initialize_responses"].back();
-            last_init_req = data["initialize_requests"].back();
-            std::vector<nlohmann::ordered_json> drive_responses;
-            for (auto res: data["drive_responses"]) {
-                drive_responses.push_back(res);
-            }
-            last_drive_req = data["drive_requests"].back();
-
-            if (data["location_responses"].empty()) {
-                last_loc_res = NULL;
-            }
-            else {
-                last_loc_res = data["location_responses"].back();
-            }
-            if (data["location_requests"].empty()) {
-                last_loc_req = NULL;
-            }
-            else {
-                last_loc_req = data["location_requests"].back();
-            }
-        }
-
-        //Begin parsing data
-        int num_drive_responses = drive_responses.size();
-        nlohmann::ordered_json predetermined_agents;
-        nlohmann::ordered_json predetermined_controls;
-
-        //Get agent properties, as well as initial simulation states for agents and controls
-        nlohmann::ordered_json num_controls;
-        num_controls["traffic_light"] = 0;
-        num_controls["yield_sign"] = 0;
-        num_controls["stop_sign"] = 0;
-        num_controls["other"] = 0;
-
-        if (!last_loc_res.is_null()) {
-            if (!last_loc_res["static_actors"].empty()) {
-                for (auto actor: last_loc_res["static_actors"]) {
-                    std::string agent_type = actor["agent_type"];
-                    if (num_controls.contains(agent_type)) {
-                        num_controls[agent_type] += 1;
-                    }
-                    else {
-                        num_controls["other"] += 1;
-                    }
-                    nlohmann::ordered_json control_data;
-                    control_data["entity_type"] = agent_type;
-                    nlohmann::ordered_json static_attributes;
-                    static_attributes["length"] = actor["length"];
-                    static_attributes["width"] = actor["width"];
-                    static_attributes["rear_axis_offset"] = 0.0;
-                    control_data["static_attributes"] = static_attributes;
-
-                    nlohmann::ordered_json states;
-                    control_data["states"] = states;
-                    int id_int = actor["actor_id"];
-                    std::string actor_id = std::to_string(id_int);
-                    predetermined_controls[actor_id] = control_data;
-
-                    nlohmann::ordered_json controls_info;
-                    controls_info["center"]["x"] = actor["x"];
-                    controls_info["center"]["y"] = actor["y"];
-                    controls_info["orientation"] = actor["orientation"];
-                    controls_info["speed"] = 0.0;
-                    if (agent_type == "traffic_light") {
-                        controls_info["control_state"] = last_init_res["traffic_lights_states"][actor_id];
-                    }
-                    else {
-                        controls_info["control_state"] = "none";
-                    }
-                    predetermined_controls[actor_id]["states"]["0"] = controls_info;
-                }
-            }
-            
-        }
-
-        //Get agent properties, as well as initial simulation states for agents and controls
-        int num_vehicles = 0;
-        int num_pedestrians = 0;
-        for (int i = 0; i < last_init_res["agent_properties"].size(); i++) {
-            nlohmann::ordered_json prop = last_init_res["agent_properties"][i];
-            std::string entity_type = prop["agent_type"];
-            std::string agent_id = std::to_string(i);
-
-            if (entity_type == "car") {
-                num_vehicles++;
-            }
-            if (entity_type == "pedestrian") {
-                num_pedestrians++;
-            }
-
-            predetermined_agents[agent_id]["entity_type"] = entity_type;
-            
-            nlohmann::ordered_json static_attributes;
-            static_attributes["length"] = prop["length"];
-            static_attributes["width"] = prop["width"];
-            static_attributes["rear_axis_offset"] = prop["rear_axis_offset"];
-            static_attributes["is_parked"] = false;
-            predetermined_agents[agent_id]["static_attributes"] = static_attributes;
-
-            nlohmann::ordered_json states;
-            predetermined_agents[agent_id]["states"] = states;
-            predetermined_agents[agent_id]["states"]["0"] = get_agent_state_data(last_init_res["agent_states"],i);
-        }
-
-        //Get all agent states data for all time steps
-        for (int i = 0; i < num_drive_responses; i++) {
-            nlohmann::ordered_json drive_res = drive_responses[i];
-            std::string ts = std::to_string(i+1);
-            
-            for (int j = 0; j < drive_res["agent_states"].size(); j++) {
-                std::string agent_id = std::to_string(j);
-                predetermined_agents[agent_id]["states"][ts] = get_agent_state_data(drive_res["agent_states"],j);
-            }
-
-            if (!drive_res["traffic_lights_states"].empty() && !last_loc_res.is_null()) {
-                for (const auto& tl_state: drive_res["traffic_lights_states"].items()) {
-                    nlohmann::ordered_json tl_state_template = predetermined_controls[tl_state.key()]["states"]["0"];
-                    tl_state_template["control_state"] = tl_state.value();
-                    predetermined_controls[tl_state.key()]["states"][ts] = tl_state_template;
-                }
-            }
-        }
-
-        //Get waypoint information for last time step
-        nlohmann::ordered_json individual_suggestions;
-        if (!last_drive_req.is_null()) {
-            for (int i = 0; i < last_drive_req["agent_properties"].size(); i++) {
-                nlohmann::ordered_json prop = last_drive_req["agent_properties"][i];
-
-                if (prop.contains("waypoint")) {
-                    nlohmann::ordered_json wp;
-                    wp["suggestion_strength"] = 0.8;
-                    std::vector<nlohmann::ordered_json> wp_states;
-                    nlohmann::ordered_json wp_state_next;
-                    
-                    wp_state_next["center"]["x"] = prop["waypoint"][0];
-                    wp_state_next["center"]["y"] = prop["waypoint"][1];
-                    wp_states.push_back(wp_state_next);
-                    wp["states"] = wp_states;
-
-                    individual_suggestions[std::to_string(i)] = wp;
-                }
-
-            }
-        }
-        
-        nlohmann::ordered_json birdview_options;
-        if (!last_loc_req.is_null()) {
-            birdview_options["rendering_center"] = last_loc_req["rendering_center"];
-            birdview_options["renderingFOV"] = last_loc_req["renderingFOV"];
-        }
-        nlohmann::ordered_json light_recurrent_states = drive_responses.back()["light_recurrent_states"];
-
-        nlohmann::ordered_json scenario_log;
-        scenario_log["location"]["identifier"] = last_init_req["location"];
-        scenario_log["scenario_length"] = num_drive_responses;
-        scenario_log["num_agents"]["car"] = num_vehicles;
-        scenario_log["num_agents"]["pedestrian"] = num_pedestrians;
-        scenario_log["predetermined_agents"] = predetermined_agents;        
-        scenario_log["num_controls"] = num_controls;
-        scenario_log["predetermined_controls"] = predetermined_controls;
-        scenario_log["individual_suggestions"] = individual_suggestions;
-        if (!last_drive_req.is_null()) {
-            scenario_log["drive_random_seed"] = last_drive_req["random_seed"];
-            scenario_log["drive_model_version"] = last_drive_req["model_version"];
-        }
-        else {
-            scenario_log["drive_random_seed"] = NULL;
-            scenario_log["drive_model_version"] = NULL;
-        }
-        scenario_log["birdview_options"] = birdview_options;
-        scenario_log["light_recurrent_states"] = light_recurrent_states;
-
-
-        std::string file_path = "iai_scenario_log_" + this->get_current_time_UTC_() + ".json";
-        std::string full_path = dir_path + file_path;
-
-        std::cout << "INFO: IAI Scenario Log written to path: " << full_path << std::endl;
-
-        std::ofstream o(full_path);
-        o << std::setw(4) << scenario_log << std::endl;
-    };
     
-    void LogWriter::write_log_to_file(const std::string &dir_path, const bool &is_scenario_log = false){
-        if (is_scenario_log){
-            this->write_scenario_log(dir_path);
+    json ScenarioLogWriter::build_individual_suggestions_dict(const ScenarioLog& log) const {
+        json suggestions = json::object();
+        if (!log.waypoints.has_value()) {
+            for (size_t i = 0; i < log.agent_properties.size(); i++) {
+                const auto& prop = log.agent_properties[i];
+                if (prop.waypoint.has_value()) {
+                    const auto& wp = prop.waypoint.value();
+                    suggestions[std::to_string(i)] = {
+                        {"suggestion_strength", 0.8},
+                        {"states", json::array({
+                            {
+                                {"center", {
+                                    {"x", wp.x},
+                                    {"y", wp.y}
+                                }}
+                            }
+                        })}
+                    };
+                }
+            }
+        } else {
+            for (const auto& [agent_id, wps] : log.waypoints.value()) {
+                json states_array = json::array();
+                for (const auto& wp : wps) {
+                    states_array.push_back({
+                        {"center", {
+                            {"x", wp.x},
+                            {"y", wp.y}
+                        }}
+                    });
+                }
+                
+                suggestions[agent_id] = {
+                    {"suggestion_strength", 0.8},
+                    {"states", states_array}
+                };
+            }
         }
-        else {
-            json log;
-
-            log["location_requests"] = this->loc_requests_;
-            log["location_responses"] = this->loc_responses_;
-
-            log["location_request_timestamps"] = this->loc_request_timestamps_;
-            log["location_response_timestamps"] = this->loc_response_timestamps_;
-
-            log["initialize_requests"] = this->init_requests_;
-            log["initialize_responses"] = this->init_responses_;
-
-            log["initialize_request_timestamps"] = this->init_request_timestamps_;
-            log["initialize_response_timestamps"] = this->init_response_timestamps_;
-
-            log["drive_requests"] = this->drive_requests_;
-            log["drive_responses"] = this->drive_responses_;
-
-            log["drive_request_timestamps"] = this->drive_request_timestamps_;
-            log["drive_response_timestamps"] = this->drive_response_timestamps_;
-
-            std::string file_name = this->get_current_time_UTC_() + ".json";
-            std::string file_path = "iai_log_" + file_name;
-            std::string full_path = dir_path + file_path;
-
-            std::cout << "INFO: IAI Log written to path: " << full_path << std::endl;
-
-            std::ofstream o(full_path);
-            o << std::setw(4) << log << std::endl;
+        
+        return suggestions;
+    }
+    
+    json ScenarioLogWriter::build_predetermined_controls_dict(
+        const ScenarioLog& log,
+        const LocationInfoResponse& location_info_response
+    ) const {
+        json controls_dict = json::object();
+        
+        if (!log.traffic_lights_states.has_value()) {
+            return controls_dict;
         }
-    };
+        
+        auto static_actors = location_info_response.static_actors();
+        for (const auto& actor : static_actors) {
+            if (actor.agent_type == "traffic_light") {
+                json states_dict = json::object();
+                
+                for (size_t t = 0; t < log.traffic_lights_states.value().size(); t++) {
+                    const auto& tls = log.traffic_lights_states.value()[t];
+                    auto state_it = tls.find(std::to_string(actor.actor_id));
+                    
+                    if (state_it != tls.end()) {
+                        states_dict[std::to_string(t)] = {
+                            {"center", {
+                                {"x", actor.x},
+                                {"y", actor.y}
+                            }},
+                            {"orientation", actor.orientation},
+                            {"speed", 0},
+                            {"control_state", state_it->second}
+                        };
+                    }
+                }
+                
+                controls_dict[std::to_string(actor.actor_id)] = {
+                    {"entity_type", "traffic_light"},
+                    {"static_attributes", {
+                        {"length", actor.length.value_or(1.0)},
+                        {"width", actor.width.value_or(1.0)},
+                        {"rear_axis_offset", 0}
+                    }},
+                    {"states", states_dict}
+                };
+            }
+        }
+        return controls_dict;
+    }
+
+    json ScenarioLogWriter::build_predetermined_agents_dict(
+        const ScenarioLog& log
+    ) const {
+        json agents_dict = json::object();
+        
+        for (size_t i = 0; i < log.agent_properties.size(); i++) {
+            const auto& prop = log.agent_properties[i];
+            json states_dict = json::object();
+            
+            for (size_t t = 0; t < log.agent_states.size(); t++) {
+                const auto& present_idx = log.present_indexes[t];
+                
+                // Check if agent i is present at time t
+                auto it = std::find(present_idx.begin(), present_idx.end(), static_cast<int>(i));
+                if (it != present_idx.end()) {
+                    int idx = std::distance(present_idx.begin(), it);
+                    const auto& state = log.agent_states[t][idx];
+                    
+                    states_dict[std::to_string(t)] = {
+                        {"center", {
+                            {"x", state.x},
+                            {"y", state.y}
+                        }},
+                        {"orientation", state.orientation},
+                        {"speed", state.speed}
+                    };
+                }
+            }
+            std::string agent_type_str = prop.agent_type.has_value() 
+                ? prop.agent_type.value() 
+                : std::string("car");
+            agents_dict[std::to_string(i)] = json::object();
+            agents_dict[std::to_string(i)]["entity_type"] = agent_type_str;
+            agents_dict[std::to_string(i)]["static_attributes"] = {
+                {"length", prop.length.value_or(0.0)},
+                {"width", prop.width.value_or(0.0)},
+                {"rear_axis_offset", prop.rear_axis_offset.value_or(0.0)}
+            };
+            agents_dict[std::to_string(i)]["states"] = states_dict;
+        }
+        
+        return agents_dict;
+    }
+
+    void ScenarioLogWriter::export_to_file(
+        const std::string& log_path,
+        std::optional<ScenarioLog> scenario_log,
+        std::optional<LocationInfoResponse> location_info_response
+    ) {    
+        const ScenarioLog& log = scenario_log.has_value() ? scenario_log.value() : scenario_log_;    
+        auto [num_cars, num_pedestrians] = count_agent_types();
+        auto [num_lights, num_yield, num_stop, num_other] = count_control_types(location_info_response.value());
+    
+        json individual_suggestions = build_individual_suggestions_dict(log);
+    
+        json predetermined_agents = build_predetermined_agents_dict(log);
+    
+        json predetermined_controls = json::object();
+        if (location_info_response.has_value()) {
+            std::tie(num_lights, num_yield, num_stop, num_other) =
+                count_control_types(location_info_response.value());
+            predetermined_controls =
+                build_predetermined_controls_dict(log, location_info_response.value());
+        } else {
+        }
+
+        json light_recurrent_array = json::array();
+        if (log.light_recurrent_states.has_value()) {
+            for (const auto& lrs : log.light_recurrent_states.value()) {
+                // Each entry should be a two-element array: [state, time_remaining]
+                light_recurrent_array.push_back({lrs.state, lrs.time_remaining});
+            }
+        }
+    
+        json output_dict = {
+            {"location", {
+                {"identifier", log.location}
+            }},
+            {"scenario_length", log.agent_states.size()},
+            {"num_agents", {
+                {"car", num_cars},
+                {"pedestrian", num_pedestrians}
+            }},
+            {"predetermined_agents", predetermined_agents},
+            {"num_controls", {
+                {"traffic_light", num_lights},
+                {"yield_sign", num_yield},
+                {"stop_sign", num_stop},
+                {"other", num_other}
+            }},
+            {"predetermined_controls", predetermined_controls},
+            {"individual_suggestions", individual_suggestions},
+            {"initialize_random_seed", log.initialize_random_seed.value_or(0)},
+            {"lights_random_seed", log.lights_random_seed.value_or(0)},
+            {"drive_random_seed", log.drive_random_seed.value_or(0)},
+            {"drive_model_version", log.drive_model_version.value_or("best")},
+            {"initialize_model_version", log.initialize_model_version.value_or("best")},
+            {"light_recurrent_states", light_recurrent_array}
+        };
+    
+        if (log.rendering_center.has_value()) {
+            output_dict["birdview_options"] = {
+                {"rendering_center", {
+                    log.rendering_center->first,
+                    log.rendering_center->second
+                }},
+                {"renderingFOV", log.rendering_fov.value()}
+            };
+            output_dict["rendering_centers"] = {
+                log.rendering_center->first,
+                log.rendering_center->second
+            };
+        }
+    
+        std::ofstream outfile(log_path);
+        if (!outfile.is_open()) {
+            throw std::runtime_error("Failed to open file: " + log_path);
+        }
+    
+        std::string dump_str;
+        try {
+            dump_str = output_dict.dump(4);
+        } catch (const std::exception& e) {
+            throw;
+        }
+    
+        outfile << dump_str;
+        outfile.close();
+    }
+    
+
+
+    void ScenarioLogWriter::initialize(
+        std::optional<std::string> location,
+        std::optional<LocationInfoResponse> location_info_response,
+        std::optional<InitializeResponse> init_response,
+        std::optional<int> lights_random_seed,
+        std::optional<int> initialize_random_seed,
+        std::optional<int> drive_random_seed,
+        std::optional<std::string> drive_model_version,
+        std::optional<ScenarioLog> scenario_log
+    ) {
+        if (scenario_log.has_value()) {
+            // Using provided scenario log
+            scenario_log_ = scenario_log.value();
+            
+            if (scenario_log_.present_indexes.empty()) {
+                std::vector<int> initial_present(scenario_log_.agent_properties.size());
+                std::iota(initial_present.begin(), initial_present.end(), 0);
+                scenario_log_.present_indexes.push_back(initial_present);
+            }
+            
+            simulation_length = scenario_log_.agent_states.size();
+        } else {
+            if (!location.has_value()) {
+                throw std::invalid_argument("No scenario log given, must provide a location argument.");
+            }
+            if (!location_info_response.has_value()) {
+                throw std::invalid_argument("No scenario log given, must provide a location_info_response argument.");
+            }
+            if (!init_response.has_value()) {
+                throw std::invalid_argument("No scenario log given, must provide a init_response argument.");
+            }
+            
+            const auto& init_resp = init_response.value();
+            const auto& loc_resp = location_info_response.value();
+            
+            std::vector<std::vector<int>> present_indexes;
+            std::vector<int> initial_present(init_resp.agent_properties().size());
+            std::iota(initial_present.begin(), initial_present.end(), 0);
+            present_indexes.push_back(initial_present);
+            scenario_log_ = ScenarioLog(
+                location.value(),
+                {init_resp.agent_states()},
+                init_resp.agent_properties(),
+                std::optional<std::vector<std::map<std::string, std::string>>>(
+                    std::vector<std::map<std::string,std::string>>{ init_resp.traffic_lights_states().value() }
+                ),
+                std::optional<std::pair<double,double>>(std::make_pair(loc_resp.rendering_center().x,loc_resp.rendering_center().y)),
+                loc_resp.rendering_fov(),
+                lights_random_seed,
+                initialize_random_seed,
+                drive_random_seed,
+                init_resp.model_version(),
+                drive_model_version,
+                init_resp.light_recurrent_states(),
+                init_resp.recurrent_states(),
+                std::nullopt,
+                present_indexes
+            );
+            
+            simulation_length = 1;
+        }
+    }
+
+    void ScenarioLogWriter::drive(
+        const DriveResponse& drive_response,
+        std::optional<std::vector<int>> current_present_indexes,
+        std::optional<std::vector<AgentProperties>> new_agent_properties,
+        std::optional<std::map<int, std::optional<Point2d>>> waypoints
+    ) {
+        if (new_agent_properties.has_value()) {
+            scenario_log_.agent_properties.insert(
+                scenario_log_.agent_properties.end(),
+                new_agent_properties.value().begin(),
+                new_agent_properties.value().end()
+            );
+        }
+        
+        std::vector<int> present_idx;
+        if (!current_present_indexes.has_value()) {
+            present_idx = scenario_log_.present_indexes[simulation_length - 1];
+        } else {
+            present_idx = current_present_indexes.value();
+        }
+        
+        scenario_log_.add_time_step_data(
+            drive_response.agent_states(),
+            present_idx
+        );
+        
+        if (drive_response.traffic_lights_states().has_value()) {
+            if (!scenario_log_.traffic_lights_states.has_value()) {
+                scenario_log_.traffic_lights_states = std::vector<std::map<std::string, std::string>>();
+            }
+            scenario_log_.traffic_lights_states.value().push_back(
+                drive_response.traffic_lights_states().value()
+            );
+        }
+        
+        if (waypoints.has_value()) {
+            if (!scenario_log_.waypoints_per_frame.has_value()) {
+                scenario_log_.waypoints_per_frame = std::vector<std::map<int, Point2d>>();
+            }
+            
+            std::map<int, Point2d> cleaned_waypoints;
+            for (const auto& [aid, wp] : waypoints.value()) {
+                if (wp.has_value()) {
+                    cleaned_waypoints[aid] = wp.value();
+                }
+            }
+            
+            scenario_log_.waypoints_per_frame.value().push_back(cleaned_waypoints);
+        }
+        
+        scenario_log_.drive_model_version = drive_response.model_version();
+        scenario_log_.light_recurrent_states = drive_response.light_recurrent_states();
+        scenario_log_.recurrent_states = drive_response.recurrent_states();
+        
+        simulation_length++;
+    }
+
+    std::vector<int> ScenarioLogWriter::current_present_indexes() const {
+        return scenario_log_.present_indexes[simulation_length - 1];
+    }
+
+    std::vector<AgentProperties> ScenarioLogWriter::all_agent_properties() const {
+        return scenario_log_.agent_properties;
+    }
 }

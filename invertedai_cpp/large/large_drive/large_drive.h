@@ -36,7 +36,7 @@ struct LargeDriveConfig {
     /**
      * @brief Logger for optional API request/response tracking.
      */
-    LogWriter logger;
+    DebugLogger logger;
 
     /**
      * @brief Location name in IAI format (e.g., "carla:Town03").

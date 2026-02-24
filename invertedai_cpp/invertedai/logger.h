@@ -7,11 +7,8 @@
 #include "initialize_response.h"
 #include "location_info_request.h"
 #include "location_info_response.h"
+#include <iostream>
 
-#include <string>
-#include <memory>
-
-using json = nlohmann::json; // from <json.hpp>
 namespace invertedai {
 
     // a class to hold LogReader information
@@ -25,7 +22,7 @@ namespace invertedai {
             std::optional<std::vector<std::map<std::string, std::string>>> traffic_lights_states;
 
             std::optional<std::pair<double,double>> rendering_center;
-            std::optional<int> rendering_fov;
+            std::optional<float> rendering_fov;
 
             std::optional<int> lights_random_seed;
             std::optional<int> initialize_random_seed;
@@ -35,7 +32,7 @@ namespace invertedai {
             std::optional<std::string> drive_model_version = std::string("best");
 
             std::optional<std::vector<LightRecurrentState>>  light_recurrent_states;
-            std::optional<std::vector<RecurrentState>> recurrent_states;
+            std::optional<std::vector<std::vector<double>>> recurrent_states;
             std::optional<std::map<std::string, std::vector<Point2d>>> waypoints;
             std::optional<std::vector<std::map<int, Point2d>>> waypoints_per_frame;
             std::vector<std::vector<int>> present_indexes;
@@ -45,7 +42,7 @@ namespace invertedai {
                 std::vector<AgentProperties> agent_properties_,
                 std::optional<std::vector<std::map<std::string, std::string>>> traffic_states_,
                 std::optional<std::pair<double,double>> rendering_center_,
-                std::optional<int> rendering_fov_,
+                std::optional<float> rendering_fov_,
         
                 std::optional<int> lights_seed_,
                 std::optional<int> init_seed_,
@@ -55,7 +52,7 @@ namespace invertedai {
                 std::optional<std::string> drive_version_,
         
                 std::optional<std::vector<LightRecurrentState>> light_states_,
-                std::optional<std::vector<RecurrentState>> recurrent_states_,
+                std::optional<std::vector<std::vector<double>>> recurrent_states_,
                 std::optional<std::map<std::string, std::vector<Point2d>>> waypoints_,
                 std::vector<std::vector<int>> present_indexes_
             );
@@ -72,19 +69,19 @@ namespace invertedai {
             );
     };
 
-    class LogReader {
+    class ScenarioLogReader {
         private:
             ScenarioLog scenario_log_;
             int current_timestep = 0;
             int simulation_length;
         public:
-            explicit LogReader(const std::string &file_path);
+            explicit ScenarioLogReader(const std::string &file_path);
             const std::string& get_location() const;
             std::optional<std::map<std::string, std::string>> current_traffic_lights() const;
             std::vector<AgentState> current_agent_states() const;
             std::vector<AgentProperties> current_agent_properties() const;
             std::optional<std::vector<LightRecurrentState>> current_light_recurrent_state() const;
-            std::optional<std::vector<RecurrentState>> current_recurrent_states() const;
+            std::optional<std::vector<std::vector<double>>> current_recurrent_states() const;
             bool initialize(); 
             bool drive();
             void reset_log();
@@ -97,36 +94,52 @@ namespace invertedai {
             std::vector<AgentProperties> get_agent_properties();
             std::vector<std::vector<AgentState>> get_agent_states_over_time();
             std::optional<std::vector<std::map<std::string, std::string>>> get_traffic_lights_states_over_time();
-
     };
-    class LogWriter {
+
+    class ScenarioLogWriter {
         private:
-            std::vector<std::string> loc_requests_;
-            std::vector<std::string> loc_responses_;
-            std::vector<std::string> loc_request_timestamps_;
-            std::vector<std::string> loc_response_timestamps_;
-
-            std::vector<std::string> init_requests_;
-            std::vector<std::string> init_responses_;
-            std::vector<std::string> init_request_timestamps_;
-            std::vector<std::string> init_response_timestamps_;
-
-            std::vector<std::string> drive_requests_;
-            std::vector<std::string> drive_responses_;
-            std::vector<std::string> drive_request_timestamps_;
-            std::vector<std::string> drive_response_timestamps_;
-
-            std::string get_current_time_UTC_();
-
+            ScenarioLog scenario_log_;
+            nlohmann::json output_dict;
+            int simulation_length;
+            //count agent types
+            std::pair<int, int> count_agent_types() const;
+            // count control types from static actors
+            std::tuple<int, int, int, int> count_control_types(const LocationInfoResponse& location_info_response) const;
+            nlohmann::json build_individual_suggestions_dict(const ScenarioLog& log) const;
+            nlohmann::json build_predetermined_agents_dict(const ScenarioLog& log) const;
+            nlohmann::json build_predetermined_controls_dict(
+                const ScenarioLog& log,
+                const LocationInfoResponse& location_info_response
+            ) const;
         public:
-
-            void append_request(const std::string &req, const std::string &mode);
-
-            void append_response(const std::string &res, const std::string &mode);
-
-            void write_scenario_log(const std::string &dir_path,const std::string &log_path);
-
-            void write_log_to_file(const std::string &file_path, const bool &is_scenario_log);
+            //scenario_log Optional external scenario log to export (if null, uses internal log)
+            ScenarioLogWriter();
+            void export_to_file(
+                const std::string& log_path,
+                std::optional<ScenarioLog> scenario_log = std::nullopt,
+                std::optional<LocationInfoResponse> location_info_response = std::nullopt
+            );
+            //Initialize the log writer with initial simulation data
+            void initialize(
+                std::optional<std::string> location = std::nullopt,
+                std::optional<LocationInfoResponse> location_info_response = std::nullopt,
+                std::optional<InitializeResponse> init_response = std::nullopt,
+                std::optional<int> lights_random_seed = std::nullopt,
+                std::optional<int> initialize_random_seed = std::nullopt,
+                std::optional<int> drive_random_seed = std::nullopt,
+                std::optional<std::string> drive_model_version = std::nullopt,
+                std::optional<ScenarioLog> scenario_log = std::nullopt
+            );
+            //Add a drive response to the log
+            void drive(
+                const DriveResponse& drive_response,
+                std::optional<std::vector<int>> current_present_indexes = std::nullopt,
+                std::optional<std::vector<AgentProperties>> new_agent_properties = std::nullopt,
+                std::optional<std::map<int, std::optional<Point2d>>> waypoints = std::nullopt
+            );
+            //Get the indexes of agents currently present in the simulation
+            std::vector<int> current_present_indexes() const;
+            std::vector<AgentProperties> all_agent_properties() const;
     };
 }
 
