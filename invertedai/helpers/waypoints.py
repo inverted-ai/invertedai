@@ -50,6 +50,10 @@ class WaypointManagerLogState:
     flags: Optional[List[WaypointUpdateFlags]] = None
 
 class WaypointManager:
+    """
+    Helper class to manage waypoints statelessly for a simulation.
+    """
+    
     def __init__(
         self,
         lanelet_map: Optional[lanelet2.core.LaneletMapLayers] = None, # only OSM map 

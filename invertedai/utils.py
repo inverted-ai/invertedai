@@ -833,6 +833,7 @@ class ScenePlotter():
         
         self._open_drive = open_drive
         self._dpi = dpi
+        self._dpi_scale = 100/self._dpi
         self._resolution = resolution
         
         self.map_image = map_image
@@ -1279,7 +1280,7 @@ class ScenePlotter():
                     self.extent[2], 
                     str(frame_idx), 
                     c="r", 
-                    fontsize=18
+                    fontsize=18*self._dpi_scale 
                 )
             else:
                 self.frame_label.set_text(str(frame_idx))
@@ -1323,7 +1324,7 @@ class ScenePlotter():
                     x_data,
                     y_data,
                     marker=marker_data,
-                    markersize=agent_properties.width*400/self.fov, 
+                    markersize=agent_properties.width*(400/self.fov)*self._dpi_scale , 
                     linestyle='None',
                     c=self.dir_c
                 )
@@ -1357,7 +1358,7 @@ class ScenePlotter():
                     c="r",
                     ha='center',
                     va='center',
-                    fontsize=18
+                    fontsize=18*self._dpi_scale 
                 )
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
@@ -1420,7 +1421,7 @@ class ScenePlotter():
                     y_data,
                     marker=marker_data,
                     color='saddlebrown',
-                    markersize=17.0,
+                    markersize=17.0*self._dpi_scale ,
                     linestyle='None',
                     zorder=6
                 )[0]
@@ -1431,7 +1432,7 @@ class ScenePlotter():
                     c='w',
                     ha='center',
                     va='center',
-                    fontsize=18,
+                    fontsize=18*self._dpi_scale ,
                     zorder=6
                 )
                 self.waypoint_markers[agent_idx]["text"].set_clip_on(True)
