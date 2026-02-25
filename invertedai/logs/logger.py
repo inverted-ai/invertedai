@@ -336,7 +336,6 @@ class LogWriter(LogBase):
                     for agent_id, wp_list in frame_dict.items():
                         if wp_list: 
                             wp = wp_list[0]
-                            print("waypoint", wp)
                             individual_suggestions_dict[str(agent_id)] = {
                                 "suggestion_strength": 0.8,
                                 "states": [{
