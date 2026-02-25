@@ -48,8 +48,8 @@ def with_wp(location, sim_length, num_agents):
         random_seed=seed
     )
     wp_manager = iai.WaypointManager(
-        location_info_response = location_info_response,
         cfg = iai.WaypointManagerConfig(
+            lanelet_map = location_info_response.get_lanelet_map(),
             random_seed=seed,
             fail_soft=False
         )
