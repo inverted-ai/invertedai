@@ -30,12 +30,12 @@ class WaypointManagerConfig(BaseModel):
         arbitrary_types_allowed=True, # allow for non-pydantic types such as lanelet maps to be used in the config
         validate_assignment=True,
     )
+    lanelet_map: lanelet2.core.LaneletMapLayers
     waypoint_threshold: float = 10.0 #Distance in meters away from the waypoint to be considered reached
     waypoint_spacing: float = 30.0 #Distance in meters between waypoints along a path to an end goal
     random_seed: int = int(time.time()) #Pseudo-random seed for repeatability
     log_level: Optional[int] = logging.DEBUG #Configure the level of the logger for convenience 
     fail_soft: Optional[bool] = False #If an error is experienced, the manager will continue in a fail soft state instead of raising an Exception
-    lanelet_map: Optional[lanelet2.core.LaneletMapLayers] = None
 
 class WaypointUpdateFlags(Enum):
     UNINITIALIZE_WAYPOINTS = 0
@@ -56,8 +56,7 @@ class WaypointManager:
     
     def __init__(
         self,
-        lanelet_map: Optional[lanelet2.core.LaneletMapLayers] = None, # only OSM map 
-        cfg: Optional[WaypointManagerConfig] = None
+        cfg: WaypointManagerConfig
     ):
         if cfg is None:
             self.cfg = WaypointManagerConfig()
@@ -66,10 +65,8 @@ class WaypointManager:
         
         self.waypoint_threshold = self.cfg.waypoint_threshold
         self.waypoint_spacing = self.cfg.waypoint_spacing
-        if lanelet_map:
-            self.lanelet_map = lanelet_map
-        else:
-            self.lanelet_map = self.cfg.lanelet_map
+
+        self.lanelet_map = self.cfg.lanelet_map
         self.rng = np.random.default_rng(self.cfg.random_seed)
 
         if self.cfg.log_level is not None:
