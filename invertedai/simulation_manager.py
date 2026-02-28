@@ -7,6 +7,7 @@ from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
 from pydantic import BaseModel
 from invertedai.utils import get_default_agent_properties, ScenePlotterConfig, ScenePlotter, WaypointsDict
 from invertedai.logs.logger import LogWriterConfig, ScenarioLog, LogWriter
+from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
 import invertedai as iai
 import uuid
@@ -19,22 +20,45 @@ class AgentData(BaseModel):
     state: Optional[AgentState] = None
     properties: Optional[AgentProperties] = None
     recurrent: Optional[RecurrentState] = None
-    # waypoint: Optional[Point] = None
-    # waypoints: Optional[List[Point]] = None 
 
 AgentDict = Dict[AgentID, AgentData]
 
 class SimulationManager: 
     """
-    Class for managing keyed agents with an internal dictionary structure to manage AgentData by AgentID
+    Class for managing keyed agents with an internal dictionary structure to manage AgentData by AgentID 
+        and provides wrappers around the IAI large_initialize and large_drive APIs
+
+    Parameters:
+    scene_plotter_cfg : 
+        Configuration object used to initialize a ScenePlotter instance
+        Enables birdview visualization and animation of the simulation
+
+    agents_dict : 
+        A pre-existing dictionary mapping AgentID (str) to AgentData
+        Use this when restoring from logs or inserting externally managed agents
+
+    num_agents : 
+        Number of agents to initialize in the agent_dict
+        Each agent will be assigned:
+            - a UUID-based AgentID
+            - default car AgentProperties
+        Ignored if agents_dict is provided
+
+    waypoint_cfg : 
+        Configuration for initializing a WaypointManager
+        If provided waypoints will be dynamically updated during simulation
+
+    log_writer_cfg :
+        Configuration for enabling structured logging of the simulation
+        If provided all initialize and drive steps will be recorded to a JSON log
     """
     def __init__(
             self,
-            scene_plotter_cfg: Optional[ScenePlotterConfig] = None,
-            agents_dict: Optional[AgentDict] = None,
-            num_agents: int = 0,   
-            waypoint_cfg : Optional[WaypointManagerConfig] = None,
-            log_writer_cfg: Optional[LogWriterConfig] = None
+            scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # can optionally initialize a scene plotter for visualization
+            agents_dict: Optional[AgentDict] = None, # can pass in a pre-existing agent dict
+            num_agents: Optional[int] = 0, # can pass in number of agents to initialize if not passing in pre-existing agent_dict
+            waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
+            log_writer_cfg: Optional[LogWriterConfig] = None # can optionally initialize a log_writer_cfg to write a json file log of the simulation
         ):
             self.scene_plotter = None
             if scene_plotter_cfg:
@@ -61,7 +85,6 @@ class SimulationManager:
             if log_writer_cfg:
                 self.log_writer = LogWriter()    
 
-
     def add_agent(
         self,
         agent_id: str,
@@ -76,6 +99,81 @@ class SimulationManager:
             raise ValueError(f"Agent '{agent_id}' already exists")
         self.agents_dict[agent_id] = agent
 
+    def insert_agents(
+        self,
+        agents: List[AgentData],
+        overwrite: bool = False,
+    ) -> List[str]:
+        """
+        Insert one or more new agents into the SimulationManager
+        Extension of add_agent
+
+        Parameters:
+        agents : List[AgentData]
+            List of AgentData objects to insert
+            A single agent can be inserted by passing a list of length 1
+
+        overwrite : bool, default=False
+            If False, raises ValueError if a generated AgentID already exists 
+
+        Returns:
+        List[str]
+            List of generated AgentIDs corresponding to inserted agents
+
+        Raises:
+        ValueError
+            If overwrite=False and a generated AgentID already exists
+        """
+        if not agents:
+            return []
+
+        # Pre-generate UUIDs
+        new_ids = [str(uuid.uuid4()) for _ in agents]
+
+        # Atomic pre-validation
+        if not overwrite:
+            conflicts = [aid for aid in new_ids if aid in self.agents_dict]
+            if conflicts:
+                raise ValueError(f"Generated AgentIDs already exist: {conflicts}")
+
+        # Insert via primitive
+        for agent_id, agent in zip(new_ids, agents):
+            self.add_agent(
+                agent_id=agent_id,
+                agent=agent,
+                overwrite=overwrite,
+            )
+
+        return new_ids
+    
+    def insert_agents_from_lists(
+        self,
+        states: List[AgentState],
+        properties: List[AgentProperties],
+        recurrent_states: Optional[List[Optional[RecurrentState]]] = None,
+        overwrite: bool = False,
+    ) -> List[str]:
+        """
+        Insert multiple agents into the existing agents_dict using their list of states, agent_properties and recurrent_states
+        """
+        if len(states) != len(properties):
+            raise ValueError("Length of states and properties must match.")
+        if recurrent_states is not None and len(recurrent_states) != len(states):
+            raise ValueError("Length of recurrent_states must match states.")
+        
+        new_ids = []
+        for i, agent_id in enumerate(new_ids):
+            self.add_agent(
+                agent_id=agent_id,
+                agent=AgentData(
+                    state=states[i],
+                    properties=properties[i],
+                    recurrent=recurrent_states[i] if recurrent_states else None,
+                ),
+                overwrite=overwrite,
+            )
+        return new_ids
+        
     def remove_agent(self, agent_id: str) -> AgentData:
         """
         Remove an agent from the dictionary
@@ -84,8 +182,39 @@ class SimulationManager:
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
         return self.agents_dict.pop(agent_id)
+    def remove_agents(
+        self,
+        agent_ids: List[str],
+    ) -> Dict[str, AgentData]:
+        """
+        Removes multiple agents from the SimulationManager
+
+        Parameters:
+        agent_ids : List[str]
+            List of AgentIDs to remove
+
+        Returns:
+        Dict[str, AgentData]
+            Dictionary mapping removed AgentIDs to their AgentData
+
+        Raises:
+        KeyError
+            If any AgentID does not exist
+        """
+
+        # Atomic validation first
+        missing = [aid for aid in agent_ids if aid not in self.agents_dict]
+        if missing:
+            raise KeyError(f"Agents do not exist: {missing}")
+
+        removed = {}
+
+        for aid in agent_ids:
+            removed[aid] = self.remove_agent(aid)
+
+        return removed
     
-    def unpack(
+    def _unpack(
         self
     ) -> Tuple[
         List[str],
@@ -93,9 +222,6 @@ class SimulationManager:
         List[AgentProperties],
         List[RecurrentState],
     ]:
-        """
-        Convert AgentDict into List[AgentID] + 3 lists for API
-        """
         agent_ids: List[str] = []
         states: List[AgentState] = []
         properties: List[AgentProperties] = []
@@ -110,16 +236,13 @@ class SimulationManager:
                 recurrent_states.append(data.recurrent)
         return agent_ids, states, properties, recurrent_states
     
-    def pack(
+    def _pack(
         self,
         agent_ids: List[str],
         states: List[AgentState],
         properties: Optional[List[AgentProperties]],
         recurrent_states: Optional[List[RecurrentState]],
     ):
-        """"
-        Reconstruct AgentDict from API response
-        """
         self.agents_dict = {
             aid: AgentData(
                 state=states[i],
@@ -129,46 +252,71 @@ class SimulationManager:
             for i, aid in enumerate(agent_ids)
         }
     
-    def initialize(self, location: str, **kwargs)->InitializeResponse:
+    def initialize(
+            self, 
+            location: str, 
+            regions: Optional[List[Region]] =None, 
+            num_new_agents: Optional[int] = None,
+            **kwargs
+        )->InitializeResponse:
         """
         Wrapper around iai.large_initialize
-        """
-        agent_ids, states, properties, recurrent_states = self.unpack()
+        
+        Parameters:
 
-        regions = iai.get_regions_default(
-            location = location,
-            agent_count_dict = {AgentType.car: len(self.agents_dict)},
-        )
+        """
+        agent_ids, states, properties, recurrent_states = self._unpack()
+        if num_new_agents is not None and regions is None:
+            regions = iai.get_regions_default(
+                location = location,
+                agent_count_dict = {AgentType.car: num_new_agents},
+            )
+        if regions is None:
+            regions = iai.get_regions_default(
+                location = location,
+                agent_count_dict = {AgentType.car: len(self.agents_dict)},
+            )
+        num_existing = len(self.agents_dict)
+        print("num existing", num_existing)
         response = iai.large_initialize( 
             location=location,
             regions=regions,
             agent_properties=properties,
+            agent_states=states,
+            return_exact_agents=True,
             **kwargs
         )
+        
         num_returned = len(response.agent_states)
-        if num_returned > len(agent_ids):
-            # API returned more agents than we seeded 
-            agent_ids = agent_ids + [str(uuid.uuid4()) for _ in range(num_returned - len(agent_ids))]
-        elif num_returned < len(agent_ids):
-            agent_ids = agent_ids[:num_returned]
-        print("agent states", len(response.agent_states))
+        print("num_returned", num_returned)
+        num_new = num_returned - num_existing
+
+        # generate new ids for the new agents
+        print("num new", num_new)
+        if num_new > 0:
+            new_ids = [str(uuid.uuid4()) for _ in range(num_new)]
+            agent_ids = agent_ids + new_ids
         properties = response.agent_properties
         if self.waypoint_manager:
-            properties = self.waypoint_manager.update( # consider isolating the waypoints later
+            properties = self.waypoint_manager.update(
                 response = response,
                 agent_properties = response.agent_properties,
             )
+        print("agent ids", len(agent_ids))
+        print("agent_states", len(response.agent_states))
+        print("agent_properties", len(properties))
+        print("recurrent_states", len(response.recurrent_states))
+        self._pack(
+            agent_ids=agent_ids,
+            states=response.agent_states,
+            properties=properties,
+            recurrent_states=response.recurrent_states,
+        )
         if self.scene_plotter:
             self.scene_plotter.initialize_recording(
                 agent_states=response.agent_states,
                 agent_properties=response.agent_properties,
             )
-        self.pack(
-            agent_ids=agent_ids,
-            states=response.agent_states,
-            properties=properties, ## # consider isolating later
-            recurrent_states=response.recurrent_states,
-        )
         if self.log_writer is not None:
             if self.waypoint_manager is not None:
                 waypoints = {
@@ -185,11 +333,25 @@ class SimulationManager:
 
         return response
     
-    def drive(self, location: str, **kwargs)-> DriveResponse:
+    def drive(
+        self, 
+        location: str, 
+        # agents_mask: Optional[List[bool]] = None, # make it its separate thing later
+        **kwargs
+    )-> DriveResponse:
         """
-        Wrapper around iai.large_drive
+        Advance the simulation by one timestep using the current agents in self.agent_dict
+
+        This method:
+        - updated the self.agent_dict with results from DRIVE
+        - Applies waypoint-based modifications if configured
+        - Records visualization and logging outputs if configured
+
+        Returns:
+            DriveResponse
         """
-        agent_ids, states, properties, recurrent_states = self.unpack()
+        kwargs.pop("recurrent_states", None)
+        agent_ids, states, properties, recurrent_states = self._unpack()
         response = iai.large_drive(
             location=location,
             agent_states=states,
@@ -201,19 +363,20 @@ class SimulationManager:
             properties = self.waypoint_manager.update(
                 response = response,
                 agent_properties = properties, # consdier isolating later
+                # agents_mask=agents_mask 
             )
+        self._pack(
+            agent_ids=agent_ids,
+            states=response.agent_states,
+            properties=properties,
+            recurrent_states=response.recurrent_states,
+        )
         if self.scene_plotter:
             self.scene_plotter.record_step(
                 response.agent_states,
                 traffic_light_states=response.traffic_lights_states,
                 agent_properties=properties,
             )
-        self.pack(
-            agent_ids=agent_ids,
-            states=response.agent_states,
-            properties=properties,
-            recurrent_states=response.recurrent_states,
-        )
         if self.log_writer is not None:
             waypoints: Optional[WaypointsDict] = None
             if self.waypoint_manager is not None:
@@ -228,13 +391,39 @@ class SimulationManager:
             )
         return response
     
-    def animate_scene(self, **kwargs) -> FuncAnimation:
+    def visualize_data(self, **kwargs) -> FuncAnimation:
         """
-        wrapper around scenePlotter animate...
+        Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
+
+        Parameters:
+        output_name: 
+            File name of the gif to which the animation will be saved.
+        start_idx:
+            The index of the time step from which the animation will begin. By default it is assumed all recorded steps are desired to be animated.
+        end_idx:
+            The index of the time step from which the animation will end. By default it is assumed all recorded steps are desired to be animated.
+        ax: 
+            A matplotlib Axes object used to plot the animation. By default, an Axes object is created if a value of None is passed.
+        numbers: 
+            A list of agent ID's that should be plotted in the image. By default this value is set to None.
+        direction_vec: 
+            Flag to determine if a vector showing the vehicles direction should be plotted in the animation. By default this flag is set to True.
+        velocity_vec:
+            Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
+        plot_frame_number: 
+            Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
+        agent_face_colors:
+            An optional parameter containing a list of RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
+            of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent must 
+            be specified per time step.
+        agent_edge_colors:
+            An optional parameter containing a list of RGB tuples indicating the desired color of a border around the agent with the corresponding index 
+            ID. A value of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent 
+            must be specified per time step.
         """
         if self.scene_plotter is None:
             raise ValueError("ScenePlotter not initialized, failed to animate scene")
-        return self.scene_plotter.animate_scene(**kwargs)
+        self.scene_plotter.animate_scene(**kwargs)
     
     def export_log(self, path: Optional[str] = None):
         if self.log_writer is None:
@@ -290,3 +479,63 @@ class SimulationManager:
             raise ValueError(f"Expected {len(self.agents_dict)} recurrent states, got {len(recurrent_states)}")
         for i, agent_id in enumerate(self.agents_dict.keys()):
             self.agents_dict[agent_id].recurrent = recurrent_states[i]
+
+def build_agent_dict_from_lists(
+    states: List[AgentState],
+    properties: List[AgentProperties],
+    recurrent_states: Optional[List[Optional[RecurrentState]]] = None,
+    existing_agents_dict: Optional[AgentDict] = None,
+    overwrite: bool = False,
+) -> AgentDict:
+    """
+    Construct or extend an AgentDict from parallel lists of states, properties,
+    and recurrent states.
+
+    Parameters
+    states : List[AgentState]
+        List of agent states
+
+    properties : List[AgentProperties]
+        List of agent properties. Must match length of states
+
+    recurrent_states : Optional[List[Optional[RecurrentState]]]
+        List of recurrent states. If provided, must match length of states
+        If None, recurrent field will be set to None
+
+    existing_agents_dict : Optional[AgentDict]
+        If provided, new agents will be merged into this dictionary
+        If None, a new dictionary will be created
+
+    overwrite : bool, default=False
+        If False and an AgentID already exists in existing_agents_dict,
+        raises ValueError.
+        If True, existing entries will be replaced.
+
+    Returns
+    AgentDict
+        Newly constructed or merged dictionary of agents.
+
+    """
+
+    if len(states) != len(properties):
+        raise ValueError("Length of states and properties must match.")
+
+    if recurrent_states is not None and len(recurrent_states) != len(states):
+        raise ValueError("Length of recurrent_states must match states.")
+
+    agent_dict = existing_agents_dict.copy() if existing_agents_dict else {}
+    new_ids = [str(uuid.uuid4()) for _ in states]
+    if not overwrite:
+        conflicts = [aid for aid in new_ids if aid in agent_dict]
+        if conflicts:
+            raise ValueError(
+                f"Generated AgentIDs already exist and overwrite=False: {conflicts}"
+            )
+    for i, agent_id in enumerate(new_ids):
+        agent_dict[agent_id] = AgentData(
+            state=states[i],
+            properties=properties[i],
+            recurrent=recurrent_states[i] if recurrent_states else None,
+        )
+
+    return agent_dict

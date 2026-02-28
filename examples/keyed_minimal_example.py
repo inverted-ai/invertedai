@@ -32,7 +32,7 @@ for step in range(SIM_LENGTH):
 print("Simulation finished, save visualization.")
 
 fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
-agents.animate_scene(
+agents.visualize_data(
     output_name="keyed_minimal_example.gif",
     ax=ax,
     direction_vec=False,
