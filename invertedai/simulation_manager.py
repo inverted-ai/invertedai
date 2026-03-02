@@ -277,7 +277,6 @@ class SimulationManager:
                 agent_count_dict = {AgentType.car: len(self.agents_dict)},
             )
         num_existing = len(self.agents_dict)
-        print("num existing", num_existing)
         response = iai.large_initialize( 
             location=location,
             regions=regions,
@@ -288,11 +287,9 @@ class SimulationManager:
         )
         
         num_returned = len(response.agent_states)
-        print("num_returned", num_returned)
         num_new = num_returned - num_existing
 
         # generate new ids for the new agents
-        print("num new", num_new)
         if num_new > 0:
             new_ids = [str(uuid.uuid4()) for _ in range(num_new)]
             agent_ids = agent_ids + new_ids
@@ -302,10 +299,6 @@ class SimulationManager:
                 response = response,
                 agent_properties = response.agent_properties,
             )
-        print("agent ids", len(agent_ids))
-        print("agent_states", len(response.agent_states))
-        print("agent_properties", len(properties))
-        print("recurrent_states", len(response.recurrent_states))
         self._pack(
             agent_ids=agent_ids,
             states=response.agent_states,
