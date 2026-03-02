@@ -773,6 +773,10 @@ def rot(rot):
     return np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
 
 class ScenePlotterConfig(BaseModel):
+    """
+    Configure and initialize ScenePlotter in the SimulationManager
+    This class is used as the scene_plotter_cfg arg in the SimulationManager to be used for visualization
+    """
     location: str
     location_info_response: LocationResponse
     
@@ -1358,7 +1362,7 @@ class ScenePlotter():
                     c="r",
                     ha='center',
                     va='center',
-                    fontsize=18*self._dpi_scale 
+                    fontsize=18*self._dpi_scale* (110/self.fov),
                 )
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
@@ -1421,7 +1425,7 @@ class ScenePlotter():
                     y_data,
                     marker=marker_data,
                     color='saddlebrown',
-                    markersize=17.0*self._dpi_scale ,
+                    markersize=17.0*self._dpi_scale * (80/self.fov), # multiply by scaling factor relative to fov
                     linestyle='None',
                     zorder=6
                 )[0]
@@ -1432,7 +1436,7 @@ class ScenePlotter():
                     c='w',
                     ha='center',
                     va='center',
-                    fontsize=18*self._dpi_scale ,
+                    fontsize=18*self._dpi_scale * (80/self.fov), # multiply by scaling factor relative to fov
                     zorder=6
                 )
                 self.waypoint_markers[agent_idx]["text"].set_clip_on(True)
