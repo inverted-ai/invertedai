@@ -77,4 +77,4 @@ for f in FUNCTIONS_UNDER_TEST:
     with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_raw.csv"), "w+") as file:
         file.write(ret_raw)
     with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_reduced.csv"), "w+") as file:
-        file.write(ret_reduced)
+        file.write(ret_reduced) 
