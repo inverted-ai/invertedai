@@ -25,6 +25,7 @@ traffic_rules = lanelet2.traffic_rules.create(lanelet2.traffic_rules.Locations.G
 class WaypointManagerConfig(BaseModel):
     """
     Configuration class for the :class:`iai.WaypointManager` class.
+    Used to initialize WaypointManager with necessary lanelet map and other optional parameters
     """
     model_config = ConfigDict(
         arbitrary_types_allowed=True, # allow for non-pydantic types such as lanelet maps to be used in the config
