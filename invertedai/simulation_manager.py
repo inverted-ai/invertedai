@@ -6,14 +6,16 @@ from invertedai.api.location import LocationResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
 from pydantic import BaseModel
 from invertedai.utils import get_default_agent_properties, ScenePlotterConfig, ScenePlotter, WaypointsDict
+from dataclasses import dataclass
 from invertedai.logs.logger import LogWriterConfig, ScenarioLog, LogWriter
 from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
 import invertedai as iai
 import uuid
 
-AgentID = str                
-class AgentData(BaseModel):
+AgentID = str   
+@dataclass             
+class AgentData:
     """
     Container for all agent data
     """
@@ -100,7 +102,7 @@ class SimulationManager:
         if recurrent_states is not None and len(recurrent_states) != len(states):
             raise ValueError("Length of recurrent_states must match agent_states.")
         
-        new_ids = []
+        new_ids = [str(uuid.uuid4()) for _ in states]
         for i, agent_id in enumerate(new_ids):
             agent=AgentData(
                 state=states[i],
@@ -134,12 +136,9 @@ class SimulationManager:
         missing = [aid for aid in agent_ids if aid not in self.agents_dict]
         if missing:
             raise KeyError(f"Agents do not exist: {missing}. Cannot be removed.")
-
         removed = {}
         for aid in agent_ids:
-            if aid not in self.agents_dict:
-                raise KeyError(f"Agent '{aid}' does not exist. Cannot be removed.")
-            return self.agents_dict.pop(aid)
+            removed[aid] = self.agents_dict.pop(aid)
 
         return removed
     
@@ -187,11 +186,11 @@ class SimulationManager:
             regions: Optional[List[Region]] =None, 
             num_new_agents: Optional[int] = None,
             **kwargs
-        )->InitializeResponse:
+    ) -> InitializeResponse:
         """
         Wrapper around iai.large_initialize
         
-        Parameters:
+        Please see iai.large_initialize for documentation on kwargs
 
         """
         agent_ids, states, properties, recurrent_states = self._unpack()
@@ -258,7 +257,6 @@ class SimulationManager:
     def drive(
         self, 
         location: str, 
-        # agents_mask: Optional[List[bool]] = None, # make it its separate thing later
         **kwargs
     )-> DriveResponse:
         """
@@ -284,8 +282,7 @@ class SimulationManager:
         if self.waypoint_manager:
             properties = self.waypoint_manager.update(
                 response = response,
-                agent_properties = properties, # consdier isolating later
-                # agents_mask=agents_mask 
+                agent_properties = properties,
             )
         self._pack(
             agent_ids=agent_ids,
