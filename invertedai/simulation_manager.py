@@ -96,9 +96,9 @@ class SimulationManager:
         Insert multiple agents into the existing agents_dict using their list of agent_states, agent_properties and recurrent_states
         """
         if len(states) != len(properties):
-            raise ValueError("Length of states and properties must match.")
+            raise ValueError("Length of agent_states and agent_properties must match.")
         if recurrent_states is not None and len(recurrent_states) != len(states):
-            raise ValueError("Length of recurrent_states must match states.")
+            raise ValueError("Length of recurrent_states must match agent_states.")
         
         new_ids = []
         for i, agent_id in enumerate(new_ids):
@@ -108,7 +108,7 @@ class SimulationManager:
                 recurrent=recurrent_states[i] if recurrent_states else None,
             )
             if agent_id in self.agents_dict and not overwrite:
-                raise ValueError(f"Agent '{agent_id}' already exists")
+                raise ValueError(f"Agent '{agent_id}' already exists. Cannot be inserted again with overwrite=False.")
             self.agents_dict[agent_id] = agent
         return new_ids
         
@@ -133,12 +133,12 @@ class SimulationManager:
         """
         missing = [aid for aid in agent_ids if aid not in self.agents_dict]
         if missing:
-            raise KeyError(f"Agents do not exist: {missing}")
+            raise KeyError(f"Agents do not exist: {missing}. Cannot be removed.")
 
         removed = {}
         for aid in agent_ids:
             if aid not in self.agents_dict:
-                raise KeyError(f"Agent '{aid}' does not exist")
+                raise KeyError(f"Agent '{aid}' does not exist. Cannot be removed.")
             return self.agents_dict.pop(aid)
 
         return removed
