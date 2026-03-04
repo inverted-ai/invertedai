@@ -85,7 +85,7 @@ class SimulationManager:
             if log_writer_cfg:
                 self.log_writer = LogWriter()   
     
-    def insert_agents_from_lists(
+    def insert_agents(
         self,
         states: List[AgentState],
         properties: List[AgentProperties],
