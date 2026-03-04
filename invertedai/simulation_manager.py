@@ -83,68 +83,7 @@ class SimulationManager:
             self.log_writer = None
             self.log_writer_cfg = log_writer_cfg
             if log_writer_cfg:
-                self.log_writer = LogWriter()    
-
-    def add_agent(
-        self,
-        agent_id: str,
-        agent: AgentData,
-        overwrite: bool = False,
-    ):
-        """
-        Add one agent to the dictionary
-        Checks for overwriting 
-        """
-        if agent_id in self.agents_dict and not overwrite:
-            raise ValueError(f"Agent '{agent_id}' already exists")
-        self.agents_dict[agent_id] = agent
-
-    def insert_agents(
-        self,
-        agents: List[AgentData],
-        overwrite: bool = False,
-    ) -> List[str]:
-        """
-        Insert one or more new agents into the SimulationManager
-        Extension of add_agent
-
-        Parameters:
-        agents : List[AgentData]
-            List of AgentData objects to insert
-            A single agent can be inserted by passing a list of length 1
-
-        overwrite : bool, default=False
-            If False, raises ValueError if a generated AgentID already exists 
-
-        Returns:
-        List[str]
-            List of generated AgentIDs corresponding to inserted agents
-
-        Raises:
-        ValueError
-            If overwrite=False and a generated AgentID already exists
-        """
-        if not agents:
-            return []
-
-        # Pre-generate UUIDs
-        new_ids = [str(uuid.uuid4()) for _ in agents]
-
-        # Atomic pre-validation
-        if not overwrite:
-            conflicts = [aid for aid in new_ids if aid in self.agents_dict]
-            if conflicts:
-                raise ValueError(f"Generated AgentIDs already exist: {conflicts}")
-
-        # Insert via primitive
-        for agent_id, agent in zip(new_ids, agents):
-            self.add_agent(
-                agent_id=agent_id,
-                agent=agent,
-                overwrite=overwrite,
-            )
-
-        return new_ids
+                self.log_writer = LogWriter()   
     
     def insert_agents_from_lists(
         self,
@@ -154,7 +93,7 @@ class SimulationManager:
         overwrite: bool = False,
     ) -> List[str]:
         """
-        Insert multiple agents into the existing agents_dict using their list of states, agent_properties and recurrent_states
+        Insert multiple agents into the existing agents_dict using their list of agent_states, agent_properties and recurrent_states
         """
         if len(states) != len(properties):
             raise ValueError("Length of states and properties must match.")
@@ -163,31 +102,22 @@ class SimulationManager:
         
         new_ids = []
         for i, agent_id in enumerate(new_ids):
-            self.add_agent(
-                agent_id=agent_id,
-                agent=AgentData(
-                    state=states[i],
-                    properties=properties[i],
-                    recurrent=recurrent_states[i] if recurrent_states else None,
-                ),
-                overwrite=overwrite,
+            agent=AgentData(
+                state=states[i],
+                properties=properties[i],
+                recurrent=recurrent_states[i] if recurrent_states else None,
             )
+            if agent_id in self.agents_dict and not overwrite:
+                raise ValueError(f"Agent '{agent_id}' already exists")
+            self.agents_dict[agent_id] = agent
         return new_ids
         
-    def remove_agent(self, agent_id: str) -> AgentData:
-        """
-        Remove an agent from the dictionary
-        Returns the removed AgentData
-        """
-        if agent_id not in self.agents_dict:
-            raise KeyError(f"Agent '{agent_id}' does not exist")
-        return self.agents_dict.pop(agent_id)
     def remove_agents(
         self,
         agent_ids: List[str],
     ) -> Dict[str, AgentData]:
         """
-        Removes multiple agents from the SimulationManager
+        Removes multiple agents from the SimulationManager given their AgentIDs
 
         Parameters:
         agent_ids : List[str]
@@ -201,16 +131,15 @@ class SimulationManager:
         KeyError
             If any AgentID does not exist
         """
-
-        # Atomic validation first
         missing = [aid for aid in agent_ids if aid not in self.agents_dict]
         if missing:
             raise KeyError(f"Agents do not exist: {missing}")
 
         removed = {}
-
         for aid in agent_ids:
-            removed[aid] = self.remove_agent(aid)
+            if aid not in self.agents_dict:
+                raise KeyError(f"Agent '{aid}' does not exist")
+            return self.agents_dict.pop(aid)
 
         return removed
     
