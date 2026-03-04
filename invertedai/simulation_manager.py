@@ -388,31 +388,7 @@ class SimulationManager:
         """
         Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
 
-        Parameters:
-        output_name: 
-            File name of the gif to which the animation will be saved.
-        start_idx:
-            The index of the time step from which the animation will begin. By default it is assumed all recorded steps are desired to be animated.
-        end_idx:
-            The index of the time step from which the animation will end. By default it is assumed all recorded steps are desired to be animated.
-        ax: 
-            A matplotlib Axes object used to plot the animation. By default, an Axes object is created if a value of None is passed.
-        numbers: 
-            A list of agent ID's that should be plotted in the image. By default this value is set to None.
-        direction_vec: 
-            Flag to determine if a vector showing the vehicles direction should be plotted in the animation. By default this flag is set to True.
-        velocity_vec:
-            Flag to determine if the a vector showing the vehicles velocity should be plotted in the animation. By default this flag is set to False.
-        plot_frame_number: 
-            Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
-        agent_face_colors:
-            An optional parameter containing a list of RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
-            of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent must 
-            be specified per time step.
-        agent_edge_colors:
-            An optional parameter containing a list of RGB tuples indicating the desired color of a border around the agent with the corresponding index 
-            ID. A value of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent 
-            must be specified per time step.
+        For kwargs, please see documentation for ScenePlotter.animate_scene
         """
         if self.scene_plotter is None:
             raise ValueError("ScenePlotter not initialized, failed to animate scene")
