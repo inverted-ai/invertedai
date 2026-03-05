@@ -55,7 +55,10 @@ To set the API key in the C++ SDK, please review the executables in the examples
 
 ## Minimal example
 
-``` python
+.. literalinclude:: invertedai/examples/minimal_example.py
+    :language: python
+
+<!-- ``` python
 import invertedai as iai
 from invertedai.utils import get_default_agent_properties
 from invertedai.common import AgentType
@@ -121,14 +124,17 @@ scene_plotter.animate_scene(
 )
 print("Done")
 
-```
+``` -->
 
 
 ### Stateful Cosimulation
 Conceptually, the API is used to establish synchronous co-simulation between your own simulator running locally on
 your machine and the NPC engine running on Inverted AI servers. The basic integration in Python looks like this.
 
-```python
+.. literalinclude:: invertedai/examples/cosimulation_minimal_example.py
+    :language: python
+
+<!-- ```python
 import invertedai as iai
 from invertedai.common import AgentType
 from invertedai import get_regions_default
@@ -224,7 +230,7 @@ scene_plotter.animate_scene(
     plot_frame_number = True
 )
 print("Done")
-```
+``` -->
 To quickly check out how Inverted AI NPCs
 behave, try our
 [Colab](https://colab.research.google.com/github/inverted-ai/invertedai-drive/blob/develop/examples/IAI_full_demo.ipynb),

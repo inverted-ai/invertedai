@@ -19,7 +19,7 @@ sdk-simulation
 sdk-env-var
 sdk-logs.md
 sdk-utils.md
-sdk-waypoints.md
+sdk-behavior-control.md
 ```
 
 
