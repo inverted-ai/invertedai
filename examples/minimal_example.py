@@ -1,5 +1,6 @@
 import invertedai as iai
 from invertedai.simulation_manager import SimulationManager
+from invertedai.common import AgentType
 from invertedai.utils import ScenePlotterConfig
 from invertedai.helpers.waypoints import WaypointManagerConfig
 from invertedai.logs.logger import LogWriterConfig
@@ -20,9 +21,10 @@ location_info_response = iai.location_info(location=LOCATION, include_map_source
 scene_plotter_cfg = ScenePlotterConfig(location=LOCATION, location_info_response=location_info_response)
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(log_path="keyed_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
-simulation_manager = SimulationManager(num_agents=NUM_AGENTS, scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
+simulation_manager = SimulationManager(scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
+regions = iai.get_regions_default(location = LOCATION, agent_count_dict = {AgentType.car: NUM_AGENTS})
+response = simulation_manager.initialize(location=LOCATION, regions=regions)
 print("initialized agents with ids ", simulation_manager.get_agent_ids())
-response = simulation_manager.initialize(location=LOCATION, num_new_agents=10)
 rendered_static_map = location_info_response.birdview_image.decode()
 
 print("Begin stepping through simulation.")
