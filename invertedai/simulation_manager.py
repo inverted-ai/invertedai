@@ -28,7 +28,7 @@ SimulationAgentDict = DefaultDict[AgentID, AgentData]
 
 class SimulationManager: 
     """
-    Class for managing keyed agents with an internal dictionary structure to manage AgentData by AgentID 
+    Stateful class for managing keyed agents with an internal dictionary structure to manage AgentData by AgentID 
         and provides wrappers around the IAI large_initialize and large_drive APIs
 
     Parameters:
