@@ -128,6 +128,7 @@ print("Done")
 Conceptually, the API is used to establish synchronous co-simulation between your own simulator running locally on
 your machine and the NPC engine running on Inverted AI servers. The basic integration in Python looks like this.
 
+
 ```python
 import invertedai as iai
 from invertedai.common import AgentType
