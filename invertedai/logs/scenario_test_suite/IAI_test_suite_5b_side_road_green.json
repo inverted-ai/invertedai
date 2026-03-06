@@ -1,0 +1,373 @@
+{
+  "location": {
+    "identifier": "canada:drake_street_and_pacific_blvd"
+  },
+  "scenario_length": 1,
+  "num_agents": {
+    "car": 9,
+    "pedestrian": 0
+  },
+  "predetermined_agents": {
+    "1": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.585,
+        "width": 1.954,
+        "rear_axis_offset": 1.742
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 26.558448737965712,
+            "y": -19.495273363366838
+          },
+          "orientation": -4.21086737044116,
+          "speed": 0.39
+        }
+      }
+    },
+    "3": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.515,
+        "width": 1.923,
+        "rear_axis_offset": 1.716
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 12.832354940855629,
+            "y": 14.126814400329096
+          },
+          "orientation": -2.77,
+          "speed": 0.12
+        }
+      }
+    },
+    "4": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.724,
+        "width": 1.937,
+        "rear_axis_offset": 1.795
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -4.581,
+            "y": -17.654
+          },
+          "orientation": 0.38,
+          "speed": 1.091
+        }
+      }
+    },
+    "5": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.694,
+        "width": 1.922,
+        "rear_axis_offset": 1.784
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 30.64865604198842,
+            "y": -23.92355302901391
+          },
+          "orientation": -3.9302386986400886,
+          "speed": 0.639
+        }
+      }
+    },
+    "6": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.419,
+        "width": 1.915,
+        "rear_axis_offset": 1.679
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 16.855,
+            "y": 10.148
+          },
+          "orientation": -2.76,
+          "speed": 0.647
+        }
+      }
+    },
+    "7": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.576,
+        "width": 1.905,
+        "rear_axis_offset": 1.739
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -17.547,
+            "y": 15.032232736250078
+          },
+          "orientation": -0.8847678582731754,
+          "speed": 0.033
+        }
+      }
+    },
+    "8": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.599,
+        "width": 1.938,
+        "rear_axis_offset": 1.748
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -11.789749999999998,
+            "y": -13.615374999999997
+          },
+          "orientation": 0.35,
+          "speed": 0.31
+        }
+      }
+    },
+    "9": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.773,
+        "width": 1.948,
+        "rear_axis_offset": 1.814
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -27.0111875,
+            "y": 24.968437499999997
+          },
+          "orientation": -0.8357266150328828,
+          "speed": 0.06
+        }
+      }
+    },
+    "10": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.138,
+        "width": 2.088,
+        "rear_axis_offset": 1.952
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -21.964644650881155,
+            "y": 19.958394863436833
+          },
+          "orientation": -0.8610937548309556,
+          "speed": 0.098
+        }
+      }
+    }
+  },
+  "num_controls": {
+    "traffic_light": 9,
+    "yield_sign": 0,
+    "stop_sign": 0,
+    "other": 0
+  },
+  "predetermined_controls": {
+    "103760": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.3421,
+        "width": 3.7417,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 0.883,
+            "y": -15.8905
+          },
+          "orientation": 0.7876,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "103761": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.3423,
+        "width": 3.3199,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -1.682,
+            "y": -13.3246
+          },
+          "orientation": 0.7876,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "103762": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.3419,
+        "width": 3.8255,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -4.3522,
+            "y": -10.7222
+          },
+          "orientation": 0.7876,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "103763": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.3421,
+        "width": 5.5475,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -7.697,
+            "y": -7.3018
+          },
+          "orientation": 0.7772,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "103764": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.2903,
+        "width": 8.218,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 23.2852,
+            "y": -15.506
+          },
+          "orientation": 1.9221,
+          "speed": 0,
+          "control_state": "green"
+        }
+      }
+    },
+    "103765": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.3171,
+        "width": 3.2149,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 13.688,
+            "y": 6.3305
+          },
+          "orientation": -2.3732,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "103766": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.3177,
+        "width": 3.3191,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 11.3971,
+            "y": 8.6804
+          },
+          "orientation": -2.3487,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "103767": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.318,
+        "width": 3.8811,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 8.7903,
+            "y": 11.2687
+          },
+          "orientation": -2.3732,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "103768": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.2931,
+        "width": 7.5879,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -14.3179,
+            "y": 11.7758
+          },
+          "orientation": -1.2003,
+          "speed": 0,
+          "control_state": "green"
+        }
+      }
+    }
+  },
+  "individual_suggestions": {},
+  "initialize_random_seed": 70,
+  "lights_random_seed": 90,
+  "drive_random_seed": 582,
+  "drive_model_version": "Q23g",
+  "initialize_model_version": "6PZx",
+  "birdview_options": {
+    "rendering_center": [
+      0,
+      0
+    ],
+    "renderingFOV": "100"
+  },
+  "light_recurrent_states": [
+    [
+      1,
+      20
+    ]
+  ],
+  "rendering_centers": []
+}

@@ -28,6 +28,7 @@ private:
   void refresh_body_json_();
 
 public:
+  DriveResponse();  
   DriveResponse(const std::string &body_str);
   /**
    * Serialize all the fields into a string.

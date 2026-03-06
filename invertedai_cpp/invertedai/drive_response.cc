@@ -5,7 +5,8 @@ using json = nlohmann::json;
 namespace invertedai {
 
 DriveResponse::DriveResponse(const std::string &body_str) {
-  this->body_json_ = json::parse(body_str);
+
+  body_json_ = nlohmann::json::parse(body_str);
 
   this->agent_states_.clear();
   for (const auto &element : this->body_json_["agent_states"]) {
@@ -72,7 +73,22 @@ DriveResponse::DriveResponse(const std::string &body_str) {
     this->infraction_indicators_.push_back(infraction_indicator);
   }
   this->model_version_.clear();
-  this->model_version_ = body_json_["model_version"];
+  if (this->body_json_.contains("model_version") && !this->body_json_["model_version"].is_null()) {
+    this->model_version_ = this->body_json_["model_version"].get<std::string>();
+  } else {
+      this->model_version_.clear();
+  }
+}
+DriveResponse::DriveResponse() {
+  body_json_ = nlohmann::json::object();
+  agent_states_.clear();
+  is_inside_supported_area_.clear();
+  recurrent_states_.clear();
+  traffic_lights_states_ = std::nullopt;
+  light_recurrent_states_ = std::nullopt;
+  birdview_.clear();
+  infraction_indicators_.clear();
+  model_version_.clear();
 }
 
 void DriveResponse::refresh_body_json_() {
@@ -133,7 +149,11 @@ void DriveResponse::refresh_body_json_() {
     this->body_json_["infraction_indicators"].push_back(element);
   }
   this->model_version_.clear();
-  this->model_version_ = body_json_["model_version"];
+  if (!this->model_version_.empty()) {
+    this->body_json_["model_version"] = this->model_version_;
+  } else {
+      this->body_json_["model_version"] = nullptr;
+  }
 }
 
 std::string DriveResponse::body_str() {

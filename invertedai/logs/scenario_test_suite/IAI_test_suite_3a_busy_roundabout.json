@@ -1,0 +1,322 @@
+{
+  "location": {
+    "identifier": "canada:ubc_roundabout"
+  },
+  "scenario_length": 1,
+  "num_agents": {
+    "car": 16,
+    "pedestrian": 0
+  },
+  "predetermined_agents": {
+    "1": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.328,
+        "width": 2.233,
+        "rear_axis_offset": 2.025
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 40.54362149981169,
+            "y": 3.341266814722097
+          },
+          "orientation": -3.02,
+          "speed": 4.43
+        }
+      }
+    },
+    "2": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.995,
+        "width": 2.184,
+        "rear_axis_offset": 1.898
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 34.65560189452441,
+            "y": -12.761060675850999
+          },
+          "orientation": -4.5734690921738546,
+          "speed": 3.761
+        }
+      }
+    },
+    "3": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.332,
+        "width": 2.463,
+        "rear_axis_offset": 2.026
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -8.553149720551751,
+            "y": 21.717
+          },
+          "orientation": -1.1300000000000003,
+          "speed": 6.021
+        }
+      }
+    },
+    "4": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.501,
+        "width": 2.299,
+        "rear_axis_offset": 2.09
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 35.332941244208286,
+            "y": -26.922564004036175
+          },
+          "orientation": -4.66373537816816,
+          "speed": 6.036
+        }
+      }
+    },
+    "5": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.037,
+        "width": 2.168,
+        "rear_axis_offset": 1.914
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -9.96528125,
+            "y": -3.282515624999995
+          },
+          "orientation": -1.9930548993125832,
+          "speed": 4.426
+        }
+      }
+    },
+    "6": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.214,
+        "width": 2.199,
+        "rear_axis_offset": 1.981
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 49.651,
+            "y": 9.018
+          },
+          "orientation": -2.773,
+          "speed": 3.543
+        }
+      }
+    },
+    "7": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.643,
+        "width": 2.357,
+        "rear_axis_offset": 2.144
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 12.479,
+            "y": -34.039
+          },
+          "orientation": 0.031,
+          "speed": 7.706
+        }
+      }
+    },
+    "8": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.669,
+        "width": 2.321,
+        "rear_axis_offset": 2.154
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -16.558,
+            "y": -39.96
+          },
+          "orientation": 0.382,
+          "speed": 5.529
+        }
+      }
+    },
+    "9": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.002,
+        "width": 2.182,
+        "rear_axis_offset": 1.901
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 17.302866359424257,
+            "y": 10.350208525359829
+          },
+          "orientation": -3.245474546336618,
+          "speed": 5.963
+        }
+      }
+    },
+    "10": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.695,
+        "width": 2.369,
+        "rear_axis_offset": 2.164
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -6.176571077232968,
+            "y": -9.817574187207956
+          },
+          "orientation": -1.8296122179263288,
+          "speed": 8.678
+        }
+      }
+    },
+    "11": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.154,
+        "width": 2.172,
+        "rear_axis_offset": 1.958
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 19.627176780876063,
+            "y": -39.12360844325552
+          },
+          "orientation": 0.17679728092753366,
+          "speed": 6.237
+        }
+      }
+    },
+    "12": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.239,
+        "width": 2.33,
+        "rear_axis_offset": 1.991
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -5.892,
+            "y": -36.97
+          },
+          "orientation": 0.199,
+          "speed": 5.509
+        }
+      }
+    },
+    "13": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.518,
+        "width": 2.367,
+        "rear_axis_offset": 2.097
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -23.36977987972564,
+            "y": -39.148341896000595
+          },
+          "orientation": 0.492,
+          "speed": 9.049
+        }
+      }
+    },
+    "14": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 6.114,
+        "width": 2.491,
+        "rear_axis_offset": 2.323
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 19.3,
+            "y": 6.744
+          },
+          "orientation": 3.033,
+          "speed": 5.691
+        }
+      }
+    },
+    "15": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.297,
+        "width": 2.276,
+        "rear_axis_offset": 2.013
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -14.351250979201893,
+            "y": 24.1463058506175
+          },
+          "orientation": -1.0465893199217782,
+          "speed": 10.978
+        }
+      }
+    },
+    "16": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.918,
+        "width": 2.406,
+        "rear_axis_offset": 1.869
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 36.206,
+            "y": -39.579
+          },
+          "orientation": 1.658,
+          "speed": 4.493
+        }
+      }
+    }
+  },
+  "num_controls": {
+    "traffic_light": 0,
+    "yield_sign": 0,
+    "stop_sign": 0,
+    "other": 0
+  },
+  "predetermined_controls": {},
+  "individual_suggestions": {},
+  "initialize_random_seed": 420,
+  "lights_random_seed": 8,
+  "drive_random_seed": 368,
+  "drive_model_version": "Q23g",
+  "initialize_model_version": "6PZx",
+  "birdview_options": {
+    "rendering_center": [
+      12.079124450683594,
+      -15.375984191894531
+    ],
+    "renderingFOV": "147"
+  },
+  "light_recurrent_states": [],
+  "rendering_centers": []
+}

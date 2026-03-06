@@ -11,14 +11,15 @@ sdk-blame
 sdk-drive
 sdk-initialize
 sdk-light
-sdk-location-info
 sdk-large-drive
 sdk-large-initialize
+sdk-location-info
 sdk-common
 sdk-simulation
 sdk-env-var
-sdk-utils.md
 sdk-logs.md
+sdk-utils.md
+sdk-behavior-control.md
 ```
 
 

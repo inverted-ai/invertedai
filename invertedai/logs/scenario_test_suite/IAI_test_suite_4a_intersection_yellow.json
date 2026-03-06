@@ -1,0 +1,599 @@
+{
+  "location": {
+    "identifier": "carla_xodr:Town10HD"
+  },
+  "scenario_length": 1,
+  "num_agents": {
+    "car": 8,
+    "pedestrian": 0
+  },
+  "predetermined_agents": {
+    "1": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.313,
+        "width": 2.255,
+        "rear_axis_offset": 2.019
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -70.733,
+            "y": -23.538
+          },
+          "orientation": 0.026,
+          "speed": 1.084
+        }
+      }
+    },
+    "2": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.572,
+        "width": 1.999,
+        "rear_axis_offset": 1.737
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -48.95685731855938,
+            "y": 19.58599037506817
+          },
+          "orientation": -1.5505253913792372,
+          "speed": 3.102
+        }
+      }
+    },
+    "3": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.828,
+        "width": 2.001,
+        "rear_axis_offset": 1.835
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -25.257,
+            "y": -17.195
+          },
+          "orientation": 3.117,
+          "speed": 1.737
+        }
+      }
+    },
+    "4": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.762,
+        "width": 2.13,
+        "rear_axis_offset": 1.81
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -50.947,
+            "y": 7.01
+          },
+          "orientation": -1.531,
+          "speed": 3.126
+        }
+      }
+    },
+    "5": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.118,
+        "width": 2.156,
+        "rear_axis_offset": 1.945
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -45.333,
+            "y": -54.739
+          },
+          "orientation": 1.545,
+          "speed": 1.992
+        }
+      }
+    },
+    "6": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.221,
+        "width": 1.944,
+        "rear_axis_offset": 1.604
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -41.793,
+            "y": -50.834
+          },
+          "orientation": 1.561,
+          "speed": 1.162
+        }
+      }
+    },
+    "7": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.929,
+        "width": 2.008,
+        "rear_axis_offset": 1.873
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -11.707,
+            "y": -17.105
+          },
+          "orientation": 3.134,
+          "speed": 5.173
+        }
+      }
+    },
+    "8": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.922,
+        "width": 2.056,
+        "rear_axis_offset": 1.87
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -87.397125,
+            "y": -28.0379375
+          },
+          "orientation": -0.007528830164264214,
+          "speed": 9.592
+        }
+      }
+    }
+  },
+  "num_controls": {
+    "traffic_light": 58,
+    "yield_sign": 1,
+    "stop_sign": 3,
+    "other": 0
+  },
+  "predetermined_controls": {
+    "943": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.499999999999994,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -27.727424146615725,
+            "y": 68.28366563916941
+          },
+          "orientation": -3.152007648490298,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "944": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.499999999999999,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -45.14279968242071,
+            "y": 43.327574119984206
+          },
+          "orientation": 1.5632507774293778,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "945": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.500000000000001,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -67.15464707346447,
+            "y": 58.19374530863304
+          },
+          "orientation": -0.010414994900504126,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "949": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.5000000000000013,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -66.82614932043687,
+            "y": -24.498344260182805
+          },
+          "orientation": -0.0027785214063833497,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "950": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.499999999999999,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -41.68677414226677,
+            "y": -42.535580831249064
+          },
+          "orientation": -4.709574936226396,
+          "speed": 0,
+          "control_state": "yellow"
+        }
+      }
+    },
+    "951": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.499999999999999,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -52.311225717616225,
+            "y": 1.6746965793605013
+          },
+          "orientation": -1.567982282636603,
+          "speed": 0,
+          "control_state": "yellow"
+        }
+      }
+    },
+    "952": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.4999999999999996,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -28.684426586859118,
+            "y": -13.104277734812616
+          },
+          "orientation": -3.1443711749961776,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "953": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.499999999999999,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -51.98296764181973,
+            "y": -114.97493322609051
+          },
+          "orientation": -1.5679822826366012,
+          "speed": 0,
+          "control_state": "green"
+        }
+      }
+    },
+    "954": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.5000000000000004,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -28.51719984422177,
+            "y": -130.03573993532996
+          },
+          "orientation": -3.147738291948324,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "955": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.5000000000000093,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -72.82920401241262,
+            "y": -139.13896641471752
+          },
+          "orientation": -0.2246739746147799,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "956": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.5000000000000093,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -72.0494441131172,
+            "y": -135.72693263712227
+          },
+          "orientation": -0.2246739746147799,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "957": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.500000000000002,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 99.39664716479108,
+            "y": 4.497374998932907
+          },
+          "orientation": -1.5776161691162491,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "958": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.500000000000002,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 106.0784076235707,
+            "y": -42.18953928814595
+          },
+          "orientation": 1.5639764844735442,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "959": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.5000000000000013,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 83.04327216815666,
+            "y": -24.914760727555397
+          },
+          "orientation": -0.0027785214063833497,
+          "speed": 0,
+          "control_state": "green"
+        }
+      }
+    },
+    "960": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.4999999999999996,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -88.64379327112755,
+            "y": -12.937678922242558
+          },
+          "orientation": -3.1443711749961762,
+          "speed": 0,
+          "control_state": "yellow"
+        }
+      }
+    },
+    "961": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.500000000000002,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -107.23321391987449,
+            "y": -43.89921996623255
+          },
+          "orientation": 1.5595871923035705,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "962": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.500000000000002,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -110.21570243676771,
+            "y": 2.2871907379284737
+          },
+          "orientation": -1.5820054612862227,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "1062": {
+      "entity_type": "stop_sign",
+      "static_attributes": {
+        "length": 1,
+        "width": 2.295048590575675,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 40.54878070585233,
+            "y": -54.08445611424183
+          },
+          "orientation": 4.725498064491167,
+          "speed": 0,
+          "control_state": "none"
+        }
+      }
+    },
+    "1067": {
+      "entity_type": "stop_sign",
+      "static_attributes": {
+        "length": 1,
+        "width": 2.8553845907410533,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 27.90781906085751,
+            "y": -69.78424132459011
+          },
+          "orientation": 6.281906691131859,
+          "speed": 0,
+          "control_state": "none"
+        }
+      }
+    },
+    "1072": {
+      "entity_type": "stop_sign",
+      "static_attributes": {
+        "length": 1,
+        "width": 2.855384590741039,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 58.36226932381861,
+            "y": -66.32317902042152
+          },
+          "orientation": 3.140314037542065,
+          "speed": 0,
+          "control_state": "none"
+        }
+      }
+    },
+    "2626": {
+      "entity_type": "yield_sign",
+      "static_attributes": {
+        "length": 1,
+        "width": 3.4999237060546875,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": 43.8470344543457,
+            "y": -38.52619552612305
+          },
+          "orientation": -1.5707963267948966,
+          "speed": 0,
+          "control_state": "none"
+        }
+      }
+    }
+  },
+  "individual_suggestions": {},
+  "initialize_random_seed": 333,
+  "lights_random_seed": 112,
+  "drive_random_seed": 694,
+  "drive_model_version": "Q23g",
+  "initialize_model_version": "6PZx",
+  "birdview_options": {
+    "rendering_center": [
+      -46.01248550415039,
+      -19.430072784423828
+    ],
+    "renderingFOV": "100"
+  },
+  "light_recurrent_states": [
+    [
+      3,
+      3
+    ],
+    [
+      5,
+      4
+    ],
+    [
+      4,
+      18
+    ],
+    [
+      4,
+      22
+    ],
+    [
+      2,
+      4
+    ]
+  ],
+  "rendering_centers": []
+}

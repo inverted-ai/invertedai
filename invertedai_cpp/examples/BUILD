@@ -104,3 +104,40 @@ cc_binary(
         "@opencv",
     ],
 )
+
+cc_binary(
+    name = "large_example",
+    srcs = ["large_example.cc"],
+    deps = [
+        "//large/visualizer:visualizer_lib",
+        "//large/large_drive:large_drive_lib",
+        "//large/large_initialize:large_initialize_lib",
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:error",
+        "@boost//:asio",
+        "@opencv//:opencv",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "scenario_log_example",
+    srcs = ["scenario_log_example.cc"],
+    deps = [
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:logger",
+        "//invertedai:location_info_request",
+        "//invertedai:location_info_response",
+        "//invertedai:drive_request",
+        "//invertedai:drive_response",
+        "//invertedai:visualize",
+        "@boost//:asio",
+        "@opencv//:opencv",
+        "//invertedai/externals:json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+

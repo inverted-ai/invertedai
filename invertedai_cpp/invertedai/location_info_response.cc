@@ -5,6 +5,7 @@ using json = nlohmann::json;
 namespace invertedai {
 
 LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
+
   this->body_json_ = json::parse(body_str);
 
   this->version_ = this->body_json_["version"];
@@ -25,6 +26,11 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
     this->body_json_["map_origin"][0],
     this->body_json_["map_origin"][1]
   };
+  this->rendering_center_ = {
+    this->body_json_["map_center"][0],
+    this->body_json_["map_center"][1]
+  };
+  this->rendering_fov_ = this->body_json_["map_fov"].get<float>();
   this->static_actors_.clear();
   for (const auto &element : this->body_json_["static_actors"]) {
     std::optional<int> length = element["length"].is_number_float()
@@ -32,6 +38,9 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
       : std::nullopt;
     std::optional<int> width = element["width"].is_number_float()
       ? std::optional<int>{element["width"]}
+      : std::nullopt;
+    std::optional<std::vector<int>> dependant = element["dependant"].is_array()
+      ? std::optional<std::vector<int>>{element["dependant"]}
       : std::nullopt;
     StaticMapActor static_map_actor = {
       element["actor_id"],
@@ -41,7 +50,7 @@ LocationInfoResponse::LocationInfoResponse(const std::string &body_str) {
       element["orientation"],
       length,
       width,
-      element["dependant"]
+      dependant
     };
     this->static_actors_.push_back(static_map_actor);
   }
@@ -61,6 +70,8 @@ void LocationInfoResponse::refresh_body_json_() {
   }
   this->body_json_["osm_map"] = this->osm_map_;
   this->body_json_["map_origin"] = {this->map_origin_.x, this->map_origin_.y};
+  this->body_json_["map_center"] = {this->rendering_center_.x, this->rendering_center_.y};
+  this->body_json_["map_fov"] = this->rendering_fov_;
   this->body_json_["static_actors"].clear();
   for (const auto &static_map_actor : this->static_actors_) {
     json element;
@@ -79,7 +90,11 @@ void LocationInfoResponse::refresh_body_json_() {
     } else {
       element["width"] = nullptr;
     }
-    element["dependant"] = static_map_actor.dependant;
+    if (static_map_actor.dependant.has_value()) {
+      element["dependant"] = static_map_actor.dependant.value();
+    } else {
+      element["dependant"] = nullptr;
+    }
     this->body_json_["static_actors"].push_back(element);
   }
 }
@@ -111,6 +126,12 @@ std::string LocationInfoResponse::osm_map() const {
 
 Point2d LocationInfoResponse::map_origin() const { 
   return this->map_origin_; 
+}
+Point2d LocationInfoResponse::rendering_center() const { 
+  return this->rendering_center_; 
+}
+float LocationInfoResponse::rendering_fov() const { 
+  return this->rendering_fov_; 
 }
 
 std::vector<StaticMapActor> LocationInfoResponse::static_actors() const {

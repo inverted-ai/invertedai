@@ -3,7 +3,7 @@ dev/
 dev.py
 img/
 gifs/
-examples/output
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -189,3 +189,36 @@ examples/logs/
 examples/*.csv
 examples/*.json
 logs/*
+examples/iai-base.gitignore
+examples/iai-base.gitignore
+.vscode/settings.json
+
+# Ignore image and video outputs
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+
+# Ignore videos
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# Ignore debug or visualization outputs
+*.tga
+*.ppm
+*.pbm
+*.pgm
+*.pnm
+
+# Ignore other large binary artifacts
+*.zip
+*.tar
+*.gz
+*.bz2
+*.7z
+*.log

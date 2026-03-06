@@ -21,12 +21,12 @@ provisioned to accommodate a large number of agents, where the maximum allowed v
 ## Programming language support
 The core interface is a [REST API][rest-link], that can be called from any programming language. This is a low-level,
 bare-bones access mode that offers maximum flexibility to deploy in any environment.
-For convenience, we also provide a {ref}`Python SDK`, freely available on PyPI with minimal dependencies, which provides an abstraction layer on top of the REST API. Recently, we also released {ref}`C++ SDK` and in the future we intend to release similar libraries for other languages.
+For convenience, we also provide a {ref}`Python SDK`, freely available on PyPI with minimal dependencies, which provides an abstraction layer on top of the REST API. We've also released {ref}`C++ SDK` and in the future we intend to release similar libraries for other languages.
 
 ## Maps and geofencing
-The API operates on a pre-defined collection of maps and currently a programmatic way to add additional locations is in development.
+The API operates on a pre-defined collection of maps. There exists a service to upload custom maps in the [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format and currently a programmatic way to add additional locations is in development.
 For each location there is a map, represented internally in the
-[Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) format, which specifies
+Lanelet2 format, which specifies
 lanelets, traffic lights, and a selection of static traffic signs (along with their relationship to specific lanelets).
 Each map comes with a canonical Euclidean coordinate frame in meters, which for OSM files is obtained by applying a
 specific UTM projector defined by lat/lon, and everything sent across the API is always specified in terms of this
@@ -89,15 +89,16 @@ performance, and in order to obtain valid values for the initial recurrent state
 INITIALIZE. To initialize the simulation to a specific state, you can provide a sequence of historical states for all
 agents that will be used to construct the matching recurrent state. For best performance, at least 10 time steps should
 be provided.
-To simplify the process of passing the recurrent states around, we provide a stateful {ref}`Co-simulation` wrapper in the
+To simplify the process of passing the recurrent states and other agent data, we provide a suite of tools in the
 Python library that handles this internally.
 
 ## Entering and exiting simulation
 In the simple case there is a fixed number of agents present throughout the entire simulation. However, it is also
 possible to dynamically introduce and remove agents, which is typically done when they enter and exit the supported
 area. Removing agents is easy, all it takes is removing the information for a given agent from the lists of agent
-attributes, agent states, and recurrent states. For convenience, {ref}`DRIVE` returns a boolean vector indicating which agents
-are within the supported area after the predicted step.
+properties, agent states, and recurrent states. For convenience, {ref}`DRIVE` returns a boolean vector indicating which agents
+are within the supported area after the predicted step. Similarly, removing these agents from any simulation management tool that calls {ref}`DRIVE`
+under-the-hood will achieve the same result.
 Introducing agents into a running simulation is more complicated, due to the requirement to construct their recurrent
 state. When predictions for the new agents are not going to be consumed, its state can simply be appended to the
 relevant lists, with the recurrent state set to zeros. To obtain good predictions for such an agent, another call to
@@ -109,8 +110,12 @@ calling INITIALIZE.
 ## Reproducibility and control over predictions
 INITIALIZE and {ref}`DRIVE` optionally accept a random seed, which controls their stochastic behavior. With the same seed and
 the same inputs, the outputs will be approximately the same with high accuracy.
-Other than for the random seed, there is currently no mechanism to influence the behavior of predicted agents, such as
-by directing them to certain exits or setting their speed, but such mechanisms will be included in future releases.
+
+Otherwise, there is a growing list of features that allow for controllability of the agents predicted behavior. Some of these features include:
+
+Waypoints allow users to provide one or a series of navigational goals NPC agents will attempt to execute in the order provided. The waypoints must be reachable within the map - this means there is a path in the lanelets from the NPC's current position to the waypoint (the waypoint is not outside of the map, the lanes are connected, etc.). At this time, the waypoints are defined with respect to space only and not with respect to time.
+
+Aggressiveness is a parameter to can modify the behavior of particular agents. As the name suggests, this parameter varies how "aggressive" or "passive" an agent behaves as it navigates through a scene. Examples of aggressive behavior include, but are not limited to, higher general speed and a lower probability to yielding courteously to other agents.
 
 ## Validation and debugging
 To facilitate development of integration without incurring the costs of API calls, we provide a way to mock API calls that

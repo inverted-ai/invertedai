@@ -1,0 +1,231 @@
+#include <iostream>
+#include <opencv2/opencv.hpp>
+
+#include "invertedai/api.h"
+#include "invertedai/session.h"
+#include "invertedai/location_info_request.h"
+#include "invertedai/location_info_response.h"
+#include "invertedai/drive_request.h"
+#include "invertedai/drive_response.h"
+#include "invertedai/visualize.h"
+#include "invertedai/logger.h"
+
+using namespace invertedai;
+
+/*                                                                                 
+            HOW TO RUN EXECUTABLE:
+
+            1. cd into invertedai_cpp folder
+
+            2. Join docker:
+                docker compose build
+                docker compose run --rm dev 
+
+            3. Export your API key in the docker:
+                export IAI_API_KEY="your_key_here"
+            
+            4. Build:
+                bazel build //examples:scenario_log_example
+
+            5. To run:
+                ./bazel-bin/examples/scenario_log_example --location "carla:Town10HD" --init_sim_length 50 --sim_begin_new_rollout 10 --new_sim_length_extend 20 
+
+*/
+std::string LOCATION = ""; // location used to write the json log
+int INIT_SIMULATION_LENGTH = 50; // initial simulation length to write the json log
+int SIMULATION_BEGIN_NEW_ROLLOUT = 10; // timestep from which to branch off
+int NEW_SIMULATION_LENGTH_EXTEND = 20; // length of new rollout after branching from json log
+int main(int argc, char** argv) {
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--rollout_length") {
+            NEW_SIMULATION_LENGTH_EXTEND = std::stoi(argv[++i]);
+        } 
+        if(arg == "--location") {
+            LOCATION = argv[++i];
+        }
+        if(arg == "--init_sim_length") {
+            INIT_SIMULATION_LENGTH = std::stoi(argv[++i]);
+        }
+        if(arg == "--sim_begin_new_rollout") {
+            SIMULATION_BEGIN_NEW_ROLLOUT = std::stoi(argv[++i]);
+        }
+    }
+    if(LOCATION == "") {
+        std::cerr << "Please provide a location using --location flag\n";
+        return 1;
+    }
+    if(SIMULATION_BEGIN_NEW_ROLLOUT >= INIT_SIMULATION_LENGTH) {
+        std::cerr << "--sim_begin_new_rollout must be less than --init_sim_length\n";
+        return 1;
+    }
+    const std::string API_KEY = getenv("IAI_API_KEY"); 
+    boost::asio::io_context ioc;
+    ssl::context ctx(ssl::context::tlsv12_client);
+    invertedai::Session session(ioc, ctx);
+    session.set_api_key(API_KEY);
+    session.connect();
+
+    // write a json log for a given location and fov
+    LocationInfoRequest loc_req("{}");
+    loc_req.set_location(LOCATION);
+    loc_req.set_include_map_source(true);
+    LocationInfoResponse loc_res = location_info(loc_req, &session);
+    std::cout << "Initializing simulation..." << std::endl;
+    
+    InitializeRequest init_req("{}");
+    init_req.set_location(LOCATION);
+    init_req.set_num_agents_to_spawn(5);
+    InitializeResponse init_res = initialize(init_req, &session);
+    
+    // Create the log writer
+    ScenarioLogWriter log_writer;
+    log_writer.initialize(
+        LOCATION,
+        loc_res,
+        init_res,
+        std::nullopt,  // lights_random_seed
+        std::nullopt,  // initialize_random_seed
+        std::nullopt,  // drive_random_seed
+        std::nullopt,  // drive_model_version
+        std::nullopt   // scenario_log 
+    );
+    
+    std::vector<AgentState> as = init_res.agent_states();
+    std::vector<AgentProperties> ap = init_res.agent_properties();
+    std::vector<std::vector<double>> rec_states = init_res.recurrent_states();
+    std::optional<std::vector<LightRecurrentState>> l_rec_states = init_res.light_recurrent_states();
+
+    std::cout << "Running simulation for " << INIT_SIMULATION_LENGTH << " timesteps..." << std::endl;
+    
+    for (int ts = 0; ts < INIT_SIMULATION_LENGTH; ts++) {
+        DriveRequest drive_request("{}");
+        drive_request.set_location(LOCATION);
+        drive_request.set_agent_states(as);
+        drive_request.set_agent_properties(ap);
+        drive_request.set_recurrent_states(rec_states);
+        
+        if (l_rec_states.has_value()) {
+            drive_request.set_light_recurrent_states(l_rec_states.value());
+        }
+        
+        DriveResponse drive_result = drive(drive_request, &session);
+        
+        // Record the drive response to the log
+        log_writer.drive(drive_result);
+        
+        // Update state for next iteration
+        as = drive_result.agent_states();
+        rec_states = drive_result.recurrent_states();
+        l_rec_states = drive_result.light_recurrent_states();
+    }
+    
+    // Export the log to file
+    std::cout << "Exporting log to file..." << std::endl;
+    
+    std::string log_path = "scenario_log_example_cpp.json";
+    log_writer.export_to_file(log_path, std::nullopt, loc_res);
+    
+    std::cout << "Log saved to: " << log_path << std::endl;
+
+
+    // read a log generated by the scenario builder
+    ScenarioLogReader log_reader(log_path);
+    const std::string location = log_reader.get_location();
+    bool flip_x_for_carla = false; 
+    if (location.rfind("carla:", 0) == 0) {
+        flip_x_for_carla = true;
+    }
+    LocationInfoRequest li_req("{}");
+    li_req.set_location(location);
+    li_req.set_include_map_source(true);
+    li_req.set_rendering_center(log_reader.get_rendering_center());
+    LocationInfoResponse li_res = location_info(li_req, &session);
+    auto rc = log_reader.get_scenario_log().rendering_center;
+    if (!rc) {
+        std::cerr << "please provide a rendering center in JSON logs\n";
+        return 1;
+    }
+
+    ScenePlotter sceneplotter(li_res, flip_x_for_carla);
+    sceneplotter.initialize_video("scenario_log_replay.avi", 10); // initialize video to record visualization
+    log_reader.reset_log();
+    do {
+        std::vector<AgentState> states = log_reader.current_agent_states();
+        std::vector<AgentProperties>  props  = log_reader.current_agent_properties();
+        std::optional<std::map<std::string,std::string>> traffic_lights_states = log_reader.current_traffic_lights();
+        sceneplotter.render_step(states, props, traffic_lights_states); // render timestep to video
+    } while (log_reader.drive());
+    sceneplotter.close();
+
+    // Choose an earlier timestep from which to branch off
+    log_reader.reset_log();
+    log_reader.initialize();  
+    log_reader.return_state_at_timestep(SIMULATION_BEGIN_NEW_ROLLOUT);
+    std::vector<AgentState> agent_states = log_reader.current_agent_states();
+    std::vector<AgentProperties> agent_properties = log_reader.current_agent_properties();
+    std::optional<std::map<std::string,std::string>> tl_states = log_reader.current_traffic_lights();
+    std::optional<std::vector<LightRecurrentState>> light_rnn = log_reader.current_light_recurrent_state();
+    std::optional<std::vector<std::vector<double>>> rnn_opt = log_reader.current_recurrent_states();
+    std::vector<std::vector<double>> api_rnn;
+    ScenarioLogWriter log_writer_branched;
+    
+    ScenarioLog branched_log = log_reader.get_scenario_log();
+    branched_log.agent_states.resize(SIMULATION_BEGIN_NEW_ROLLOUT + 1);
+    branched_log.present_indexes.resize(SIMULATION_BEGIN_NEW_ROLLOUT + 1);
+    if (branched_log.traffic_lights_states.has_value()) {
+        branched_log.traffic_lights_states.value().resize(SIMULATION_BEGIN_NEW_ROLLOUT + 1);
+    }
+    
+    log_writer_branched.initialize(
+        std::nullopt,  // location
+        std::nullopt,  // location_info_response
+        std::nullopt,  // init_response
+        std::nullopt,  // lights_random_seed
+        std::nullopt,  // initialize_random_seed
+        std::nullopt,  // drive_random_seed
+        std::nullopt,  // drive_model_version
+        branched_log   // scenario_log 
+    );
+    
+    ScenePlotter sceneplotter_branched(li_res, flip_x_for_carla); // could remove fov from param list
+    sceneplotter_branched.initialize_video("scenario_log_branched.avi", 10);
+
+    for(int i = 0; i < NEW_SIMULATION_LENGTH_EXTEND; i++) {
+        DriveRequest drive_req("{}");
+        drive_req.set_location(log_reader.get_location());
+        drive_req.set_agent_states(agent_states);
+        drive_req.set_agent_properties(agent_properties);
+        drive_req.set_recurrent_states(api_rnn);
+        if (light_rnn.has_value())
+            drive_req.set_light_recurrent_states(*light_rnn);
+        if (!light_rnn.has_value()) {
+            std::cout << "No LightRecurrentStates found from json file" << std::endl;
+        }
+        drive_req.set_rendering_center(log_reader.get_rendering_center());
+
+        DriveResponse resp = drive(drive_req, &session);
+        log_writer_branched.drive(resp);
+        agent_states = resp.agent_states();
+        api_rnn    = resp.recurrent_states();
+        tl_states    = resp.traffic_lights_states();
+        light_rnn    = resp.light_recurrent_states();
+
+        sceneplotter_branched.render_step(
+            agent_states,
+            agent_properties,
+            tl_states
+        );
+    }
+    sceneplotter_branched.close();
+
+    std::string branched_log_path = "scenario_log_example_branched_cpp.json";
+    log_writer_branched.export_to_file(branched_log_path, std::nullopt, li_res);
+    std::cout << "Branched log saved to: " << branched_log_path << std::endl;
+    
+    std::cout << "\nDone. Created:" << std::endl;
+    std::cout << "  - " << log_path << std::endl;
+    std::cout << "  - scenario_log_replay.avi" << std::endl;
+    std::cout << "  - " << branched_log_path << std::endl;
+    std::cout << "  - scenario_log_branched.avi" << std::endl;
+}
