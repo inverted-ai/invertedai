@@ -7,6 +7,7 @@ The Inverted AI Python SDK provides several features for modifying and controlli
 ```{eval-rst}
 .. autoclass:: invertedai.common.AgentProperties
    :members:
+   :exclude-members: model_config, model_fields
 ```
 
 ## Aggressiveness
