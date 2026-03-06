@@ -22,7 +22,7 @@ scene_plotter_cfg = ScenePlotterConfig(location=LOCATION, location_info_response
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(log_path="keyed_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
 simulation_manager = SimulationManager(scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
-regions = iai.get_regions_default(location = LOCATION, agent_count_dict = {AgentType.car: NUM_AGENTS})
+regions = iai.get_regions_default(agent_count_dict = {AgentType.car: NUM_AGENTS}, location = LOCATION)
 response = simulation_manager.initialize(location=LOCATION, regions=regions)
 print("initialized agents with ids ", simulation_manager.get_agent_ids())
 rendered_static_map = location_info_response.birdview_image.decode()

@@ -171,16 +171,27 @@ class SimulationManager:
     
     def initialize(
         self, 
-        location: str, 
         regions: List[Region],
         external_agent_data: Optional[SimulationAgentDict] = None, # optional param for passing in external agent data in the form of a SimulationAgentDict. Overwrite = True 
         **kwargs
     ) -> InitializeResponse:
         """
         Wrapper around iai.large_initialize
+
+        Parameters:
+        regions : List[Region]
+            Regions with presampled agents. use iai.get_default_regions() to obtain list of Regions
+
+        external_agent_data : Optional[SimulationAgentDict]
+            Optional dictionary of externally created agents to merge into global self.agents_dict before initialization
         
         Please see iai.large_initialize for documentation on kwargs
-
+        Note:
+        - agent_states, agent_properties, and recurrent_states should not be
+          provided in kwargs. These values are automatically derived from the
+          internal agent dictionary and managed by this wrapper.
+        - For all other supported parameters, please refer to the documentation for
+          iai.large_initialize https://github.com/inverted-ai/invertedai/blob/e3a48b269a8fd3ff92465353dd35af517f4c0ce9/invertedai/large/initialize.py#L528
         """
         # must first merge external agents into global agents dictionary
         if external_agent_data:
@@ -190,7 +201,6 @@ class SimulationManager:
         original_agent_count=len(agent_ids)
 
         response = iai.large_initialize( 
-            location=location,
             regions=regions,
             agent_properties=properties,
             agent_states=states,
@@ -250,8 +260,15 @@ class SimulationManager:
 
         Returns:
             DriveResponse
+
+        Please see iai.large_drive() for information on kwargs
+        Note:
+        - agent_states, agent_properties, and recurrent_states should not be
+          provided in kwargs. These values are automatically derived from the
+          internal agent dictionary and managed by this wrapper.
+        - For all other supported parameters, please refer to the documentation for
+          iai.large_drive() https://github.com/inverted-ai/invertedai/blob/e3a48b269a8fd3ff92465353dd35af517f4c0ce9/invertedai/large/drive.py#L23 
         """
-        kwargs.pop("recurrent_states", None)
         agent_ids, states, properties, recurrent_states = self._unpack()
         response = iai.large_drive(
             location=location,
