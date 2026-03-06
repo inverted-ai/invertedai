@@ -185,14 +185,12 @@ class SimulationManager:
         external_agent_data : Optional[SimulationAgentDict]
             Optional dictionary of externally created agents to merge into global self.agents_dict before initialization
         
-        Please see iai.large_initialize for documentation on kwargs
+        Please see :func:`large_initialize` for documentation on kwargs
         Note:
         - agent_states, agent_properties, and recurrent_states should not be
           provided in kwargs. These values are automatically derived from the
           internal agent dictionary and managed by this wrapper.
-        - For all other supported parameters, please refer to the documentation for
-          iai.large_initialize https://github.com/inverted-ai/invertedai/blob/e3a48b269a8fd3ff92465353dd35af517f4c0ce9/invertedai/large/initialize.py#L528
-        """
+        - For all other supported parameters, please refer to the documentation for :func:`large_initialize`        """
         # must first merge external agents into global agents dictionary
         if external_agent_data:
             self.insert_agents(ids=external_agent_data.keys(), agent_data_list=external_agent_data.values(), overwrite=True)
@@ -261,13 +259,13 @@ class SimulationManager:
         Returns:
             DriveResponse
 
-        Please see iai.large_drive() for information on kwargs
+        Please see :func:`large_drive` for information on kwargs
         Note:
         - agent_states, agent_properties, and recurrent_states should not be
           provided in kwargs. These values are automatically derived from the
           internal agent dictionary and managed by this wrapper.
-        - For all other supported parameters, please refer to the documentation for
-          iai.large_drive() https://github.com/inverted-ai/invertedai/blob/e3a48b269a8fd3ff92465353dd35af517f4c0ce9/invertedai/large/drive.py#L23 
+        - For all other supported parameters, please refer to the documentation for :func:`large_drive`
+          
         """
         agent_ids, states, properties, recurrent_states = self._unpack()
         response = iai.large_drive(
