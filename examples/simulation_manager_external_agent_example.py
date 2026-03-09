@@ -57,4 +57,5 @@ simulation_manager.visualize_data(
     numbers = list(range(NUM_AGENTS))
 )
 print("Simulation finished, save to json log.")
-simulation_manager.export_log_to_json(log_path="simulation_manager_external_agent_example_log.json")
+simulation_manager.export_log()
+print("Done")
