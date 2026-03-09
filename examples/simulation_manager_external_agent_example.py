@@ -10,12 +10,12 @@ import os
 
 
 LOCATION = "carla:Town10HD"
-NUM_AGENTS = 1
+NUM_AGENTS = 5
  # number of agents initialized
 SIM_LENGTH=150 # number of timesteps
 
 log_path = "./assets/carla_Town10HD_example_emergency_scenario.json"
-log_reader = iai.LogReader(
+log_reader = iai.LogReader( # to add in external agent data we will use a previously initialized agent from a log file
     log_path = log_path
 )
 api_key = os.environ.get("IAI_API_KEY", None)
@@ -30,12 +30,11 @@ waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_la
 log_cfg = LogWriterConfig(log_path="keyed_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
 simulation_manager = SimulationManager(scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
 regions = iai.get_regions_default(agent_count_dict = {AgentType.car: NUM_AGENTS}, location = LOCATION, map_center=tuple([location_info_response.map_center.x, location_info_response.map_center.y]))
-print("HELLOO", location_info_response.map_center.x, location_info_response.map_center.y)
 external_agent_data = {
-    "blah": AgentData(
-        state=log_reader.agent_states[0],
-        properties=log_reader.agent_properties[0],
-        recurrent=None
+    "new_agent": AgentData(
+        state=log_reader.agent_states[0], # add in the state of the external agent
+        properties=log_reader.agent_properties[0], # add in the properties of the external agent
+        recurrent=None # no recurrent state necessary for initialization
     )
 }
 response = simulation_manager.initialize(location=LOCATION, regions=regions, external_agent_data=external_agent_data)
