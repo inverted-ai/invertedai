@@ -7,6 +7,7 @@ from invertedai.api.location import LocationResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
 from pydantic import BaseModel
 from invertedai.utils import get_default_agent_properties, ScenePlotterConfig, ScenePlotter, WaypointsDict
+from invertedai.large.initialize import _insert_agents_into_nearest_regions
 from dataclasses import dataclass
 from invertedai.logs.logger import LogWriterConfig, ScenarioLog, LogWriter
 from invertedai.large.common import Region
@@ -150,6 +151,8 @@ class SimulationManager:
             states.append(data.state)  # Can be None for agents_without_states
             properties.append(data.properties)
             recurrent_states.append(data.recurrent)  # Can be None
+        if states == [None] * len(states):
+            states = None
         
         return agent_ids, states, properties, recurrent_states
 
@@ -195,9 +198,16 @@ class SimulationManager:
         """
         # must first merge external agents into global agents dictionary
         if external_agent_data:
-            self.insert_agents(ids=external_agent_data.keys(), agent_data_list=external_agent_data.values(), overwrite=True)
+            self.insert_agents(
+                ids=list(external_agent_data.keys()),
+                agent_data_list=list(external_agent_data.values()),
+                overwrite=True
+            )
 
         agent_ids, states, properties, recurrent_states = self._unpack()
+        if (properties is not None and states is not None) or (properties is None and states is not None):
+            assert len(properties) == len(states), "Invalid parameters: number of agent properties must be equal number agent states."
+
         original_agent_count=len(agent_ids)
 
         response = iai.large_initialize( 
@@ -211,17 +221,23 @@ class SimulationManager:
         num_new_agents = len(response.agent_states) - original_agent_count
         new_ids = [str(uuid.uuid4()) for _ in range(num_new_agents)]
         all_agent_ids = agent_ids + new_ids
-        properties = response.agent_properties
+        new_properties = response.agent_properties
         
         if self.waypoint_manager:
-            properties = self.waypoint_manager.update(
+            new_properties = self.waypoint_manager.update(
                 response = response,
                 agent_properties = response.agent_properties,
             )
+        print(
+            all_agent_ids,
+            response.agent_states,
+            response.agent_properties,
+            response.recurrent_states,
+        )
         self._pack(
             agent_ids=all_agent_ids,
             states=response.agent_states,
-            properties=properties,
+            properties=new_properties,
             recurrent_states=response.recurrent_states,
         )
         if self.scene_plotter:
