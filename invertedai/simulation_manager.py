@@ -186,11 +186,13 @@ class SimulationManager:
             Optional dictionary of externally created agents to merge into global self.agents_dict before initialization
         
         Please see :func:`large_initialize` for documentation on kwargs
+
         Note:
         - agent_states, agent_properties, and recurrent_states should not be
           provided in kwargs. These values are automatically derived from the
-          internal agent dictionary and managed by this wrapper.
-        - For all other supported parameters, please refer to the documentation for :func:`large_initialize`        """
+          internal agent dictionary and managed by this wrapper
+        - For all other supported parameters, please refer to the documentation for :func:`large_initialize`        
+        """
         # must first merge external agents into global agents dictionary
         if external_agent_data:
             self.insert_agents(ids=external_agent_data.keys(), agent_data_list=external_agent_data.values(), overwrite=True)
@@ -260,12 +262,12 @@ class SimulationManager:
             DriveResponse
 
         Please see :func:`large_drive` for information on kwargs
+
         Note:
         - agent_states, agent_properties, and recurrent_states should not be
           provided in kwargs. These values are automatically derived from the
-          internal agent dictionary and managed by this wrapper.
+          internal agent dictionary and managed by this wrapper
         - For all other supported parameters, please refer to the documentation for :func:`large_drive`
-          
         """
         agent_ids, states, properties, recurrent_states = self._unpack()
         response = iai.large_drive(
@@ -310,7 +312,7 @@ class SimulationManager:
         """
         Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
 
-        For kwargs, please see documentation for ScenePlotter.animate_scene
+        For kwargs, please see documentation from :func:`animate_scene` in the ScenePlotter class
         """
         if self.scene_plotter is None:
             raise ValueError("ScenePlotter not initialized, failed to animate scene")
