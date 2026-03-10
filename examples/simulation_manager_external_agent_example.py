@@ -44,7 +44,7 @@ regions = iai.get_regions_default(
     map_center=tuple([location_info_response.map_center.x, location_info_response.map_center.y])
 )
 external_agent_data = {
-    # please use our Scenario Builder to generate state and properties for your external agents: http://dashboard.inverted.ai/sandbox
+    # please use the Scenario Builder tool to check the validity of the agent states
     "new": AgentData(
         state=AgentState(
             center=Point(x=-45.19154717515613, y=46.50373005906251),
