@@ -14,16 +14,11 @@ NUM_AGENTS = 5
  # number of agents initialized
 SIM_LENGTH=150 # number of timesteps
 
-log_path = "./assets/carla_Town10HD_example_emergency_scenario.json"
-log_reader = iai.LogReader( # to add in external agent data we will use a previously initialized agent from a log file
-    log_path = log_path
-)
 api_key = os.environ.get("IAI_API_KEY", None)
 if api_key is None:
     iai.add_apikey("<INSERT_KEY_HERE>")
 
 print("Begin initialization.")
-log_reader.initialize()
 location_info_response = iai.location_info(
     location=LOCATION, 
     include_map_source=True
