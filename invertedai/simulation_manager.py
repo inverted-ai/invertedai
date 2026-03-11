@@ -79,7 +79,7 @@ class SimulationManager:
         Insert multiple agents into the existing agents_dict using their AgentData
         """
         if ids is None:
-            new_ids = [str(uuid.uuid4()) for _ in agent_data_list]
+            new_ids = [str(uuid.uuid4())[:8] for _ in agent_data_list]
         else:
             new_ids = ids
         if len(new_ids) != len(agent_data_list):
@@ -116,7 +116,8 @@ class SimulationManager:
             self.agents_dict.pop(aid)
     
     def _unpack(
-        self
+        self,
+        agent_dict: Optional[SimulationAgentDict] = None
     ) -> Tuple[
         List[str],
         List[AgentState],
@@ -130,8 +131,9 @@ class SimulationManager:
         # Separate agents into two groups: with states/without states
         agents_with_states = []
         agents_without_states = []
-        
-        for aid, data in self.agents_dict.items():
+        if agent_dict is None:
+            agent_dict = self.agents_dict
+        for aid, data in agent_dict.items():
             if data.properties is not None:
                 if data.state is not None:
                     agents_with_states.append((aid, data)) # place as tuple along with aid
@@ -162,8 +164,8 @@ class SimulationManager:
         states: List[AgentState],
         properties: List[AgentProperties],
         recurrent_states: List[RecurrentState],
-    ):
-        self.agents_dict = {
+    ) -> SimulationAgentDict:
+        agents_dict = {
             aid: AgentData(
                 state=states[i],
                 properties=properties[i] if properties else None,
@@ -171,11 +173,12 @@ class SimulationManager:
             )
             for i, aid in enumerate(agent_ids)
         }
+        return agents_dict
     
     def initialize(
         self, 
         regions: List[Region],
-        external_agent_data: Optional[SimulationAgentDict] = None, # optional param for passing in external agent data in the form of a SimulationAgentDict. Overwrite = True 
+        external_agent_data: Optional[SimulationAgentDict] = None,
         **kwargs
     ) -> InitializeResponse:
         """
@@ -196,19 +199,13 @@ class SimulationManager:
           internal agent dictionary and managed by this wrapper
         - For all other supported parameters, please refer to the documentation for :func:`large_initialize`        
         """
-        # must first merge external agents into global agents dictionary
+        temp_dict = dict(self.agents_dict)
         if external_agent_data:
-            self.insert_agents(
-                ids=list(external_agent_data.keys()),
-                agent_data_list=list(external_agent_data.values()),
-                overwrite=True
-            )
+            temp_dict.update(external_agent_data)
+        agent_ids, states, properties, recurrent_states = self._unpack(temp_dict)
+        external_ids = set(external_agent_data.keys()) if external_agent_data else set()
 
-        agent_ids, states, properties, recurrent_states = self._unpack()
-        if (properties is not None and states is not None) or (properties is None and states is not None):
-            assert len(properties) == len(states), "Invalid parameters: number of agent properties must be equal number agent states."
-
-        original_agent_count=len(agent_ids)
+        original_agent_count = len(agent_ids)
 
         response = iai.large_initialize( 
             regions=regions,
@@ -219,40 +216,39 @@ class SimulationManager:
         )
 
         num_new_agents = len(response.agent_states) - original_agent_count
-        new_ids = [str(uuid.uuid4()) for _ in range(num_new_agents)]
+        new_ids = [str(uuid.uuid4())[:8] for _ in range(num_new_agents)]
         all_agent_ids = agent_ids + new_ids
+
         new_properties = response.agent_properties
-        
         if self.waypoint_manager:
             new_properties = self.waypoint_manager.update(
                 response = response,
                 agent_properties = response.agent_properties,
             )
-        print(
-            all_agent_ids,
-            response.agent_states,
-            response.agent_properties,
-            response.recurrent_states,
-        )
-        self._pack(
-            agent_ids=all_agent_ids,
-            states=response.agent_states,
-            properties=new_properties,
-            recurrent_states=response.recurrent_states,
+        internal_indices = []
+        for i, aid in enumerate(all_agent_ids):
+            if aid not in external_ids:
+                internal_indices.append(i)
+
+        self.agents_dict = self._pack(
+            agent_ids=[all_agent_ids[i] for i in internal_indices],
+            states=[response.agent_states[i] for i in internal_indices],
+            properties=[new_properties[i] for i in internal_indices],
+            recurrent_states=[response.recurrent_states[i] for i in internal_indices],
         )
         if self.scene_plotter:
-            self.scene_plotter.initialize_recording(
+            self.scene_plotter.initialize_recording( # external agents must be included if exist -> make strateless
                 agent_states=response.agent_states,
                 agent_properties=response.agent_properties,
             )
         if self.log_writer is not None:
             if self.waypoint_manager is not None:
                 waypoints = {
-                    aid: data.properties.waypoints
-                    for aid, data in self.agents_dict.items()
-                    if data.properties is not None and data.properties.waypoints is not None
+                    aid: new_properties[i].waypoints
+                    for i, aid in enumerate(all_agent_ids)
+                    if new_properties[i] is not None and new_properties[i].waypoints is not None
                 }
-            self.log_writer.initialize(
+            self.log_writer.initialize(  # external agents must be included if exist -> make stateless
                 location=self.log_writer_cfg.location,
                 location_info_response=self.log_writer_cfg.location_info_response,
                 init_response=response,
@@ -263,15 +259,15 @@ class SimulationManager:
     
     def drive(
         self, 
-        location: str, 
+        external_agent_data: Optional[SimulationAgentDict] = None, # stateless
         **kwargs
     )-> DriveResponse:
         """
         Advance the simulation by one timestep using the current agents in self.agent_dict
 
         This method:
-        - updated the self.agent_dict with results from DRIVE
-        - Applies waypoint-based modifications if configured
+        - updated the self.agent_dict with results from iai.Drive
+        - uses iai.WaypointManager to update waypoints if configured
         - Records visualization and logging outputs if configured
 
         Returns:
@@ -285,9 +281,27 @@ class SimulationManager:
           internal agent dictionary and managed by this wrapper
         - For all other supported parameters, please refer to the documentation for :func:`large_drive`
         """
-        agent_ids, states, properties, recurrent_states = self._unpack()
+        temp_dict = dict(self.agents_dict)
+        _, _, _, internal_recurrent_states = self._unpack(self.agents_dict)
+        internal_recur_size = None
+        for r in internal_recurrent_states:
+            internal_recur_size = len(r.packed)
+            break
+        if external_agent_data:
+            # recurrent state to zeros for all external agents, ignoring any pre-existing value
+            zeroed_external = {
+                aid: AgentData(
+                    state=data.state,
+                    properties=data.properties,
+                    recurrent=RecurrentState(packed=[0.0] * internal_recur_size),
+                )
+                for aid, data in external_agent_data.items()
+            }
+            temp_dict.update(zeroed_external)
+        external_ids = set(external_agent_data.keys()) if external_agent_data else set()
+
+        agent_ids, states, properties, recurrent_states = self._unpack(temp_dict)
         response = iai.large_drive(
-            location=location,
             agent_states=states,
             agent_properties=properties,
             recurrent_states=recurrent_states,
@@ -298,11 +312,15 @@ class SimulationManager:
                 response = response,
                 agent_properties = properties,
             )
-        self._pack(
-            agent_ids=agent_ids,
-            states=response.agent_states,
-            properties=properties,
-            recurrent_states=response.recurrent_states,
+        internal_indices = []
+        for i, aid in enumerate(agent_ids):
+            if aid not in external_ids:
+                internal_indices.append(i)
+        self.agents_dict = self._pack(
+            agent_ids=[agent_ids[i] for i in internal_indices],
+            states=[response.agent_states[i] for i in internal_indices],
+            properties=[properties[i] for i in internal_indices],
+            recurrent_states=[response.recurrent_states[i] for i in internal_indices],
         )
         if self.scene_plotter:
             self.scene_plotter.record_step(
@@ -314,13 +332,15 @@ class SimulationManager:
             waypoints: Optional[WaypointsDict] = None
             if self.waypoint_manager is not None:
                 waypoints = {
-                    aid: data.properties.waypoints
-                    for aid, data in self.agents_dict.items()
-                    if data.properties is not None and data.properties.waypoints is not None
+                    aid: properties[i].waypoints
+                    for i, aid in enumerate(agent_ids)
+                    if properties[i] is not None and properties[i].waypoints is not None
                 }
+            current_present_indexes = list(range(len(agent_ids)))
             self.log_writer.drive(
                 drive_response=response,
-                waypoints=waypoints 
+                current_present_indexes=current_present_indexes,
+                waypoints=waypoints
             )
         return response
     
