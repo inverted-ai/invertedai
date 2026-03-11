@@ -29,19 +29,19 @@ SimulationAgentDict = DefaultDict[AgentID, AgentData]
 
 class SimulationManager: 
     """
-    Stateful class for managing keyed agents with an internal dictionary structure to manage AgentData by AgentID 
+    Stateful class for managing keyed agents with an internal dictionary SimulationAgentDict to manage AgentData by AgentID 
         and provides wrappers around the IAI large_initialize and large_drive APIs
 
     Parameters:
-    scene_plotter_cfg : 
+    scene_plotter_cfg : Optional[ScenePlotterConfig]
         Configuration object used to initialize a ScenePlotter instance
         Enables birdview visualization and animation of the simulation
 
-    waypoint_cfg : 
+    waypoint_cfg : Optional[WaypointManagerConfig]
         Configuration for initializing a WaypointManager
         If provided waypoints will be dynamically updated during simulation
 
-    log_writer_cfg :
+    log_writer_cfg : Optional[LogWriterConfig]
         Configuration for enabling structured logging of the simulation
         If provided all initialize and drive steps will be recorded to a JSON log
     """
@@ -77,6 +77,15 @@ class SimulationManager:
     ):
         """
         Insert multiple agents into the existing agents_dict using their AgentData
+
+        Parameters:
+        agent_data_list : List[AgentData]
+            List of AgentData for each agent to be inserted
+        ids : Optional[List[str]]
+            Optional list of AgentIDs to use for the new agents. 
+            If None, random UUIDs will be generated for each new agent.
+        overwrite: bool
+            If True, allows new agents to overwrite existing agents with the same ID.
         """
         if ids is None:
             new_ids = [str(uuid.uuid4()) for _ in agent_data_list]
@@ -101,13 +110,9 @@ class SimulationManager:
         agent_ids : List[str]
             List of AgentIDs to remove
 
-        Returns:
-        Dict[str, AgentData]
-            Dictionary mapping removed AgentIDs to their AgentData
-
         Raises:
         KeyError
-            If any AgentID does not exist
+            If any AgentID does not exist in self.agents_dict
         """
         missing = [aid for aid in agent_ids if aid not in self.agents_dict]
         if missing:
@@ -124,11 +129,8 @@ class SimulationManager:
         List[AgentProperties],
         List[RecurrentState],
     ]:
-        """
-        Unpack agent data, ensuring agents with populated states/properties are processed first
-        This maintains proper index alignment with API responses
-        """
-        # Separate agents into two groups: with states/without states
+        # agents with both properties and states will be placed at the front of the list
+        # Separate agents into two groups: with states & without states
         agents_with_states = []
         agents_without_states = []
         if agent_dict is None:
@@ -140,7 +142,7 @@ class SimulationManager:
                 else:
                     agents_without_states.append((aid, data))
         
-        # agents_with_states in front of agents_without_states
+        # agents_with_states in front of agents_without_states for API alignment
         ordered_agents = agents_with_states + agents_without_states
         
         agent_ids: List[str] = []
@@ -182,20 +184,22 @@ class SimulationManager:
         **kwargs
     ) -> InitializeResponse:
         """
-        Wrapper around iai.large_initialize
+        Initialize simulation using :func:`large_initialize` with agents in self.agents_dict along with any optionally provided external_agent_data
 
         Parameters:
         regions : List[Region]
-            Regions with presampled agents. use iai.get_default_regions() to obtain list of Regions
+            Regions with presampled agents. use iai.get_regions_default() to obtain list of Regions
 
         external_agent_data : Optional[SimulationAgentDict]
-            Optional dictionary of externally created agents to merge into global self.agents_dict before initialization
+            Optional stateless dictionary of externally created agents to initialize alongside internal self.agents_dict
+            Requires valid properties and optional state to be provided for each agent in the dictionary
+            You can use the Scenario Builder tool available on the Inverted AI website to validate an agent's state and properties
         
-        Please see :func:`large_initialize` for documentation on kwargs
+        Please see :func:`large_initialize` for documentation on **kwargs
 
         Note:
         - agent_states, agent_properties, and recurrent_states should not be
-          provided in kwargs. These values are automatically derived from the
+          provided in **kwargs. These values are automatically derived from the
           internal agent dictionary and managed by this wrapper
         - For all other supported parameters, please refer to the documentation for :func:`large_initialize`        
         """
@@ -270,12 +274,20 @@ class SimulationManager:
         **kwargs
     )-> DriveResponse:
         """
-        Advance the simulation by one timestep using the current agents in self.agent_dict
+        Advance the simulation by one timestep with :func:`large_drive` using the data from agents 
+            in self.agents_dict and optionally provided external_agent_data
 
         This method:
-        - updated the self.agent_dict with results from iai.Drive
+        - updates self.agents_dict with results from iai.large_drive
         - uses iai.WaypointManager to update waypoints if configured
         - Records visualization and logging outputs if configured
+
+        Parameters:
+        external_agent_data : Optional[SimulationAgentDict]
+            Optional stateless dictionary of externally created agents to 
+                drive alongside internal self.agents_dict at this timestep
+            Requires both valid state and properties to be provided for each agent in the dictionary
+            You can use the Scenario Builder tool available on the Inverted AI website to validate an agent's state and properties
 
         Returns:
             DriveResponse
@@ -361,7 +373,10 @@ class SimulationManager:
     
     def visualize_data(self, **kwargs) -> FuncAnimation:
         """
-        Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
+        Produce an animation of sequentially recorded steps. If a ScenePlotter was configured during initialization, 
+            recorded steps from each drive will be visualized using the birdview map and static actors.
+        
+        A matplotlib animation object can be returned and/or a gif saved of the scene.
 
         For kwargs, please see documentation from :func:`animate_scene` in the ScenePlotter class
         """
@@ -370,6 +385,16 @@ class SimulationManager:
         self.scene_plotter.animate_scene(**kwargs)
     
     def export_log(self, path: Optional[str] = None):
+        """
+        Export the log of the simulation to a JSON file if logging was enabled with a 
+            LogWriterConfig during initialization of the SimulationManager
+        
+        Parameters:
+        path : Optional[str]
+            Optional path to specify where the log should be saved. If None, will default to the path provided in LogWriterConfig during initialization. 
+        
+        If no path is provided in either place, will raise an error.
+        """
         if self.log_writer is None:
             raise ValueError("Logging not enabled.")
         log_path = path or self.log_writer_cfg.log_path
@@ -377,47 +402,59 @@ class SimulationManager:
             raise ValueError("No export path specified.")
         self.log_writer.export_to_file(log_path=log_path)
 
-    #Getters
+    # Getters
     def get_scene_plotter(self) -> Optional[ScenePlotter]:
         return self.scene_plotter
+    
     def get_states(self) -> List[AgentState]:
         return [data.state for data in self.agents_dict.values()]
+    
     def get_agent_ids(self) -> List[str]:
         return list(self.agents_dict.keys())
+    
     def get_properties(self) -> List[AgentProperties]:
         return [data.properties for data in self.agents_dict.values()]
+    
     def get_recurrent_states(self) -> List[RecurrentState]:
         return [data.recurrent for data in self.agents_dict.values()]
+    
     def get_agent_data(self, agent_id:str) -> AgentData:
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
         return self.agents_dict[agent_id]
+    
     def get_agent_dict(self)-> SimulationAgentDict:
         return self.agents_dict
-    # Setters for individual agents
+    
+    # Setters for individual agents in self.agents_dict
     def set_state(self, agent_id: str, state: AgentState):
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
         self.agents_dict[agent_id].state = state
+
     def set_property(self, agent_id: str, properties: AgentProperties):
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
         self.agents_dict[agent_id].properties = properties
+
     def set_recurrent_state(self, agent_id: str, recurrent: RecurrentState):
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
         self.agents_dict[agent_id].recurrent = recurrent
-    #Setters for all agents
+
+    #Setters for all agents in self.agents_dict
     def set_states(self, states: List[AgentState]):
         if len(states) != len(self.agents_dict):
             raise ValueError(f"Expected {len(self.agents_dict)} states, got {len(states)}")
         for i, agent_id in enumerate(self.agents_dict.keys()):
             self.agents_dict[agent_id].state = states[i]
+
     def set_properties(self, properties: List[AgentProperties]):
         if len(properties) != len(self.agents_dict):
             raise ValueError(f"Expected {len(self.agents_dict)} properties, got {len(properties)}")
         for i, agent_id in enumerate(self.agents_dict.keys()):
             self.agents_dict[agent_id].properties = properties[i]
+
     def set_recurrent_states(self, recurrent_states: List[RecurrentState]):
         if len(recurrent_states) != len(self.agents_dict):
             raise ValueError(f"Expected {len(self.agents_dict)} recurrent states, got {len(recurrent_states)}")
