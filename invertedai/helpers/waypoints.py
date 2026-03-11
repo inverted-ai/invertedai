@@ -4,7 +4,7 @@ from typing import (
     Tuple, 
     Union
 )
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator, ConfigDict
 from dataclasses import dataclass
 from enum import Enum
 from math import sqrt, atan2, pi, hypot
@@ -22,11 +22,16 @@ from invertedai.api.drive import DriveResponse
 logger = logging.getLogger(__name__)
 traffic_rules = lanelet2.traffic_rules.create(lanelet2.traffic_rules.Locations.Germany, lanelet2.traffic_rules.Participants.Vehicle)
 
-class WaypointManagerConfig(BaseModel, validate_assignment=True):
+class WaypointManagerConfig(BaseModel):
     """
-    Configuration class for the :class:`iai.WaypointManager` class.
+    Configuration class for the :class:`iai.WaypointManager` class.'
+    Used to initialize WaypointManager with lanelet map from LocationResponse.get_lanelet_map()
     """
-    
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, # allow for non-pydantic types such as lanelet maps to be used in the config
+        validate_assignment=True,
+    )
+    lanelet_map: lanelet2.core.LaneletMapLayers
     waypoint_threshold: float = 10.0 #Distance in meters away from the waypoint to be considered reached
     waypoint_spacing: float = 30.0 #Distance in meters between waypoints along a path to an end goal
     random_seed: int = int(time.time()) #Pseudo-random seed for repeatability
@@ -52,8 +57,7 @@ class WaypointManager:
     
     def __init__(
         self,
-        location_info_response: LocationResponse,
-        cfg: Optional[WaypointManagerConfig] = None
+        cfg: WaypointManagerConfig
     ):
         if cfg is None:
             self.cfg = WaypointManagerConfig()
@@ -62,7 +66,8 @@ class WaypointManager:
         
         self.waypoint_threshold = self.cfg.waypoint_threshold
         self.waypoint_spacing = self.cfg.waypoint_spacing
-        self.lanelet_map = location_info_response.get_lanelet_map()
+
+        self.lanelet_map = self.cfg.lanelet_map
         self.rng = np.random.default_rng(self.cfg.random_seed)
 
         if self.cfg.log_level is not None:
