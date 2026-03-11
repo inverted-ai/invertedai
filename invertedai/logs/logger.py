@@ -275,6 +275,13 @@ class LogBase():
     def drive(self):
         pass
 
+class LogWriterConfig(BaseModel):
+    """
+    Configuration for logging + exporting simulation runs.
+    """
+    log_path: str
+    location: str
+    location_info_response: Optional[LocationResponse] = None
 
 class LogWriter(LogBase):
     """
@@ -312,10 +319,32 @@ class LogWriter(LogBase):
         if scenario_log is None:
             scenario_log = self._scenario_log
             for i, prop in enumerate(scenario_log.agent_properties):
-                wps = prop.waypoints
-                if wps is not None:
-                    if len(wps) > 0:
-                        individual_suggestions_dict[str(i)] = _format_waypoints_json(wps)
+                wp = prop.waypoint
+                if wp is not None:
+                    individual_suggestions_dict[str(i)] = {
+                        "suggestion_strength": 0.8, #Default value
+                        "states":[{
+                            "center": {
+                                "x": wp.x,
+                                "y": wp.y
+                            }
+                        }]
+                    }
+            if scenario_log.waypoints_per_frame is not None:
+                scenario_log = self._scenario_log
+                for i, frame_dict in enumerate(scenario_log.waypoints_per_frame):
+                    for agent_id, wp_list in frame_dict.items():
+                        if wp_list: 
+                            wp = wp_list[0]
+                            individual_suggestions_dict[str(agent_id)] = {
+                                "suggestion_strength": 0.8,
+                                "states": [{
+                                    "center": {
+                                        "x": wp.x,
+                                        "y": wp.y
+                                    }
+                                }]
+                            }
         else:
             if scenario_log.waypoints is not None:
                 for agent_id, wps in scenario_log.waypoints.items():
