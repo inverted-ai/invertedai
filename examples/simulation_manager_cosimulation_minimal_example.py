@@ -3,7 +3,7 @@ from invertedai.large.common import Region
 from invertedai.simulation_manager import AgentData, SimulationAgentDict, SimulationManager
 from invertedai.common import AgentProperties, AgentState, AgentType, Point, RecurrentState
 from invertedai.utils import ScenePlotterConfig, get_default_agent_properties
-from invertedai.helpers.waypoints import WaypointManagerConfig
+from invertedai.helpers.waypoints import WaypointManager, WaypointManagerConfig
 from invertedai.logs.logger import LogWriterConfig
 import matplotlib.pyplot as plt
 import os
@@ -18,14 +18,6 @@ NUM_EGO_AGENTS = 5
 api_key = os.environ.get("IAI_API_KEY", None)
 if api_key is None:
     iai.add_apikey("<INSERT_KEY_HERE>")
-##########################################################################################################
-# INSERT YOUR OWN EGO PREDICTIONS FOR THE INITIALIZATION
-ego_response = iai.initialize(
-    location = LOCATION,
-    agent_properties = get_default_agent_properties({AgentType.car:NUM_EGO_AGENTS}),
-)
-ego_props = ego_response.agent_properties
-##########################################################################################################
 print("Begin initialization.")
 location_info_response = iai.location_info(
     location=LOCATION, 
@@ -46,6 +38,19 @@ simulation_manager = SimulationManager(
     waypoint_cfg=waypoint_cfg, 
     log_writer_cfg=log_cfg
 )
+##########################################################################################################
+# INSERT YOUR OWN EGO PREDICTIONS FOR THE INITIALIZATION
+ego_waypoint_manager = WaypointManager(cfg=waypoint_cfg)
+ego_response = iai.initialize(
+    location = LOCATION,
+    agent_properties = get_default_agent_properties({AgentType.car:NUM_EGO_AGENTS}),
+)
+ego_props = ego_response.agent_properties
+ego_props = ego_waypoint_manager.update(
+    response=ego_response,
+    agent_properties=ego_props
+)
+##########################################################################################################
 regions = iai.get_regions_default(
     agent_count_dict = {AgentType.car: NUM_AGENTS}, 
     location = LOCATION, 
@@ -71,6 +76,10 @@ print("Begin stepping through simulation.")
 for step in range(SIM_LENGTH):
 ##########################################################################################################    
     # INSERT YOUR OWN EGO PREDICTIONS FOR THIS TIME STEP
+    ego_props = ego_waypoint_manager.update(
+        response=ego_response,
+        agent_properties=ego_props
+    )
     ego_response= iai.drive(
         location=LOCATION,
         agent_states=ego_response.agent_states,
@@ -78,13 +87,13 @@ for step in range(SIM_LENGTH):
         recurrent_states=ego_response.recurrent_states, 
     )
     external_agent_data = {
-            ego_agent_ids[i]: AgentData(
-                state=ego_response.agent_states[i],
-                properties=ego_props[i],
-                recurrent=None,  # recurrent is always zeroed for external agents in SimulationManager.drive()
-            )
-            for i in range(NUM_EGO_AGENTS)
-        }
+        ego_agent_ids[i]: AgentData(
+            state=ego_response.agent_states[i],
+            properties=ego_props[i],
+            recurrent=None,  # recurrent is always zeroed for external agents in SimulationManager.drive()
+        )
+        for i in range(NUM_EGO_AGENTS)
+    }
  ######################################################################################################
     response = simulation_manager.drive(
         external_agent_data=external_agent_data,
@@ -101,7 +110,7 @@ simulation_manager.visualize_data(
     direction_vec=False,
     velocity_vec=False,
     plot_frame_number=True,
-    numbers = list(range(NUM_AGENTS))
+    numbers = list(range(NUM_AGENTS + NUM_EGO_AGENTS))
 )
 print("Simulation finished, save to json log.")
 simulation_manager.export_log()

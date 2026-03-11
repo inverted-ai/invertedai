@@ -1,6 +1,6 @@
 from typing import DefaultDict, Dict, List, Optional, Tuple
 from collections import defaultdict
-from invertedai.common import AgentState, AgentProperties, RecurrentState, AgentType, Point
+from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentType, Point
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.api.location import LocationResponse
@@ -79,7 +79,7 @@ class SimulationManager:
         Insert multiple agents into the existing agents_dict using their AgentData
         """
         if ids is None:
-            new_ids = [str(uuid.uuid4())[:8] for _ in agent_data_list]
+            new_ids = [str(uuid.uuid4()) for _ in agent_data_list]
         else:
             new_ids = ids
         if len(new_ids) != len(agent_data_list):
@@ -136,7 +136,7 @@ class SimulationManager:
         for aid, data in agent_dict.items():
             if data.properties is not None:
                 if data.state is not None:
-                    agents_with_states.append((aid, data)) # place as tuple along with aid
+                    agents_with_states.append((aid, data))
                 else:
                     agents_without_states.append((aid, data))
         
@@ -150,9 +150,9 @@ class SimulationManager:
         
         for aid, data in ordered_agents:
             agent_ids.append(aid)
-            states.append(data.state)  # Can be None for agents_without_states
+            states.append(data.state)  
             properties.append(data.properties)
-            recurrent_states.append(data.recurrent)  # Can be None
+            recurrent_states.append(data.recurrent)  
         if states == [None] * len(states):
             states = None
         
@@ -165,14 +165,14 @@ class SimulationManager:
         properties: List[AgentProperties],
         recurrent_states: List[RecurrentState],
     ) -> SimulationAgentDict:
-        agents_dict = {
-            aid: AgentData(
-                state=states[i],
-                properties=properties[i] if properties else None,
-                recurrent=recurrent_states[i] if recurrent_states else None,
-            )
-            for i, aid in enumerate(agent_ids)
-        }
+        for i, aid in enumerate(agent_ids):
+            agents_dict = {
+                aid: AgentData(
+                    state=states[i],
+                    properties=properties[i] if properties else None,
+                    recurrent=recurrent_states[i] if recurrent_states else None,
+                )
+            }
         return agents_dict
     
     def initialize(
@@ -199,11 +199,18 @@ class SimulationManager:
           internal agent dictionary and managed by this wrapper
         - For all other supported parameters, please refer to the documentation for :func:`large_initialize`        
         """
-        temp_dict = dict(self.agents_dict)
         if external_agent_data:
-            temp_dict.update(external_agent_data)
-        agent_ids, states, properties, recurrent_states = self._unpack(temp_dict)
+            overlap = set(self.agents_dict.keys()) & set(external_agent_data.keys())
+            if overlap:
+                raise ValueError(f"External agent IDs conflict with internal agents: {overlap}")
+            
+        agent_ids, states, properties, recurrent_states = self._unpack(
+            {**self.agents_dict, **external_agent_data} if external_agent_data else self.agents_dict
+        )
         external_ids = set(external_agent_data.keys()) if external_agent_data else set()
+
+        if any(p is None for p in properties):
+            raise ValueError("All agents must have non-None properties before initialization.")
 
         original_agent_count = len(agent_ids)
 
@@ -216,7 +223,7 @@ class SimulationManager:
         )
 
         num_new_agents = len(response.agent_states) - original_agent_count
-        new_ids = [str(uuid.uuid4())[:8] for _ in range(num_new_agents)]
+        new_ids = [str(uuid.uuid4()) for _ in range(num_new_agents)]
         all_agent_ids = agent_ids + new_ids
 
         new_properties = response.agent_properties
@@ -237,7 +244,7 @@ class SimulationManager:
             recurrent_states=[response.recurrent_states[i] for i in internal_indices],
         )
         if self.scene_plotter:
-            self.scene_plotter.initialize_recording( # external agents must be included if exist -> make strateless
+            self.scene_plotter.initialize_recording(
                 agent_states=response.agent_states,
                 agent_properties=response.agent_properties,
             )
@@ -248,7 +255,7 @@ class SimulationManager:
                     for i, aid in enumerate(all_agent_ids)
                     if new_properties[i] is not None and new_properties[i].waypoints is not None
                 }
-            self.log_writer.initialize(  # external agents must be included if exist -> make stateless
+            self.log_writer.initialize(  
                 location=self.log_writer_cfg.location,
                 location_info_response=self.log_writer_cfg.location_info_response,
                 init_response=response,
@@ -259,7 +266,7 @@ class SimulationManager:
     
     def drive(
         self, 
-        external_agent_data: Optional[SimulationAgentDict] = None, # stateless
+        external_agent_data: Optional[SimulationAgentDict] = None,
         **kwargs
     )-> DriveResponse:
         """
@@ -281,26 +288,34 @@ class SimulationManager:
           internal agent dictionary and managed by this wrapper
         - For all other supported parameters, please refer to the documentation for :func:`large_drive`
         """
-        temp_dict = dict(self.agents_dict)
-        _, _, _, internal_recurrent_states = self._unpack(self.agents_dict)
-        internal_recur_size = None
-        for r in internal_recurrent_states:
-            internal_recur_size = len(r.packed)
-            break
         if external_agent_data:
-            # recurrent state to zeros for all external agents, ignoring any pre-existing value
-            zeroed_external = {
-                aid: AgentData(
-                    state=data.state,
-                    properties=data.properties,
-                    recurrent=RecurrentState(packed=[0.0] * internal_recur_size),
-                )
-                for aid, data in external_agent_data.items()
-            }
-            temp_dict.update(zeroed_external)
-        external_ids = set(external_agent_data.keys()) if external_agent_data else set()
+            overlap = set(self.agents_dict.keys()) & set(external_agent_data.keys())
+            if overlap:
+                raise ValueError(f"External agent IDs conflict with internal agents: {overlap}")
+            
+        agent_ids, states, properties, recurrent_states = self._unpack(self.agents_dict)
+        if len(recurrent_states) > 0: 
+             internal_recur_size = len(recurrent_states[0].packed)
+        else: 
+            internal_recur_size = RECURRENT_SIZE
+        if external_agent_data:
+            # external data validation
+            missing_states = [aid for aid, data in external_agent_data.items() if data.state is None]
+            if missing_states:
+                raise ValueError(f"External agents must have a state for drive: {missing_states}")
+            missing_props = [aid for aid, data in external_agent_data.items() if data.properties is None]
+            if missing_props:
+                raise ValueError(f"External agents must have properties for drive: {missing_props}")
+            ext_ids, ext_states, ext_props, _ = self._unpack(external_agent_data)
+            ext_recurrent_states = [RecurrentState(packed=[0.0] * internal_recur_size) for _ in ext_ids]
 
-        agent_ids, states, properties, recurrent_states = self._unpack(temp_dict)
+            agent_ids = agent_ids + ext_ids
+            states = states + ext_states
+            properties = properties + ext_props
+            recurrent_states = recurrent_states + ext_recurrent_states
+
+        external_ids = set(ext_ids) if external_agent_data else set()
+
         response = iai.large_drive(
             agent_states=states,
             agent_properties=properties,
