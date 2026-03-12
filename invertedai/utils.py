@@ -92,7 +92,7 @@ class Session:
         self._backoff_factor = 2
         self._jitter_factor = 0.5
         self._current_backoff = self._base_backoff
-        self._max_backoff = None
+        self._max_backoff = 90  # Cap backoff at 90 seconds to prevent hangs in CI
 
         self._debug_logger = debug_logger
 
