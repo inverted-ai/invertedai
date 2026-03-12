@@ -48,8 +48,8 @@ def with_wp(location, sim_length, num_agents):
         random_seed=seed
     )
     wp_manager = iai.WaypointManager(
-        location_info_response = location_info_response,
         cfg = iai.WaypointManagerConfig(
+            lanelet_map=location_info_response.get_lanelet_map(),
             random_seed=seed,
             fail_soft=False
         )
@@ -94,25 +94,26 @@ def without_wp(location, sim_length, num_agents):
 
 FUNCTIONS_UNDER_TEST = [with_wp, without_wp]
 
-for f in FUNCTIONS_UNDER_TEST:
-    ret_raw = ""
-    ret_reduced = ""
-    for location, sim_length, num_agents in tqdm.tqdm(configurations):
-        for _ in range(API_WARMUP): # Run warmup rounds per configuration...
-            f(location, sim_length, num_agents)
-        elapsed_times = []
-        for _ in range(REPETITIONS):
-            elapsed = f(location, sim_length, num_agents)
-            ret_raw += f"{location},{sim_length},{num_agents},{elapsed}\n"
-            elapsed_times.append(elapsed)
-        if REDUCTION == "mean":
-            elapsed = np.mean(elapsed_times)
-        elif REDUCTION == "sum":
-            elapsed = np.sum(elapsed_times)
-        else:
-            raise NotImplementedError("Reduction method not implemented")
-        ret_reduced += f"{location},{sim_length},{num_agents},{elapsed}\n"
-    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_raw.csv"), "w+") as file:
-        file.write(ret_raw)
-    with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_reduced.csv"), "w+") as file:
-        file.write(ret_reduced)
+if __name__ == "__main__":
+    for f in FUNCTIONS_UNDER_TEST:
+        ret_raw = ""
+        ret_reduced = ""
+        for location, sim_length, num_agents in tqdm.tqdm(configurations):
+            for _ in range(API_WARMUP): # Run warmup rounds per configuration...
+                f(location, sim_length, num_agents)
+            elapsed_times = []
+            for _ in range(REPETITIONS):
+                elapsed = f(location, sim_length, num_agents)
+                ret_raw += f"{location},{sim_length},{num_agents},{elapsed}\n"
+                elapsed_times.append(elapsed)
+            if REDUCTION == "mean":
+                elapsed = np.mean(elapsed_times)
+            elif REDUCTION == "sum":
+                elapsed = np.sum(elapsed_times)
+            else:
+                raise NotImplementedError("Reduction method not implemented")
+            ret_reduced += f"{location},{sim_length},{num_agents},{elapsed}\n"
+        with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_raw.csv"), "w+") as file:
+            file.write(ret_raw)
+        with open(os.path.join(SAVE_CSV_PATH, f"{f.__name__}_reduced.csv"), "w+") as file:
+            file.write(ret_reduced)
