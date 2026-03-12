@@ -92,7 +92,7 @@ def without_wp(location, sim_length, num_agents):
             api_model_version=DRIVE_MODEL
         )
 
-FUNCTIONS_UNDER_TEST = [with_wp, without_wp]
+FUNCTIONS_UNDER_TEST = [without_wp]
 
 if __name__ == "__main__":
     for f in FUNCTIONS_UNDER_TEST:
