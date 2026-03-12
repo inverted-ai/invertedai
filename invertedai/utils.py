@@ -87,7 +87,7 @@ class Session:
             }
         )
         self._base_url = self._get_base_url()
-        self._max_retries = float("inf")
+        self._max_retries = MAX_RETRIES
         self._status_force_list = [403, 408, 429, 500, 502, 503, 504]
         self._base_backoff = 1  # Base backoff time in seconds
         self._backoff_factor = 2
