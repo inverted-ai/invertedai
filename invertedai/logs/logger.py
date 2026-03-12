@@ -145,7 +145,7 @@ class LogBase():
             drive_model_version=all_drive_responses[-1]["model_version"],
             light_recurrent_states=all_drive_responses[-1]["light_recurrent_states"],
             recurrent_states=[RecurrentState.fromval(rec_state) for rec_state in all_drive_responses[-1]["recurrent_states"]],
-            waypoints={str(i):prop.waypoints for i, prop in enumerate(agent_properties)},
+            waypoints_per_frame=[{str(i): prop.waypoints for i, prop in enumerate(agent_properties) if prop.waypoints is not None}],
             present_indexes=[list(range(len(agent_properties)))]*len(all_agent_states)
         )
 

@@ -1,7 +1,7 @@
 from typing import (
-    List, 
-    Optional, 
-    Tuple, 
+    List,
+    Optional,
+    Tuple,
     Union
 )
 from pydantic import BaseModel, field_validator, model_validator, ConfigDict
@@ -18,6 +18,9 @@ from invertedai.common import AgentState, Point, AgentProperties
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
+
+# Type alias so callers don't need to import lanelet2 directly
+LaneletMap = lanelet2.core.LaneletMapLayers
 
 logger = logging.getLogger(__name__)
 traffic_rules = lanelet2.traffic_rules.create(lanelet2.traffic_rules.Locations.Germany, lanelet2.traffic_rules.Participants.Vehicle)
