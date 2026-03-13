@@ -67,8 +67,8 @@ def main(args):
     LOG_LENGTH = log_reader.log_length
 
     wp_manager = iai.WaypointManager(
-        location_info_response = location_info_response,
         cfg = iai.WaypointManagerConfig(
+            lanelet_map=location_info_response.get_lanelet_map(),
             random_seed=random_seed,
             fail_soft=True
         )
