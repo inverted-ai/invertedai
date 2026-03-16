@@ -1,5 +1,6 @@
 from pydantic import BaseModel, validate_arguments, model_validator
 from typing import List, Optional, Dict, Tuple, Any
+from collections import defaultdict
 from copy import deepcopy
 
 import matplotlib.pyplot as plt
@@ -10,15 +11,18 @@ from invertedai.utils import ScenePlotter, WaypointsDict
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
-from invertedai.common import ( 
-    AgentAttributes, 
+from invertedai.common import (
+    AgentAttributes,
     AgentProperties,
-    AgentState, 
+    AgentState,
+    AgentData,
+    AgentID,
+    SimulationAgentDict,
     LightRecurrentState,
     LightRecurrentStates,
     Point,
     RecurrentState,
-    TrafficLightStatesDict 
+    TrafficLightStatesDict
 )
 
 class ScenarioLog(BaseModel):
@@ -48,6 +52,7 @@ class ScenarioLog(BaseModel):
 
     waypoints_per_frame: Optional[List[WaypointsDict]] = None # As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
     present_indexes: List[List[int]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
+    agent_ids: Optional[List[AgentID]] = None #: Ordered list of string agent IDs corresponding to entries in agent_properties. Preserves agent identity across log write/read cycles when using SimulationManager.
 
     @model_validator(mode='after')
     def validate_states_and_present_indexes_init(self):
@@ -283,6 +288,12 @@ class LogWriterConfig(BaseModel):
     location: str
     location_info_response: Optional[LocationResponse] = None
 
+class LogReaderConfig(BaseModel):
+    """
+    Configuration for seeding a simulation from a previously saved log file.
+    """
+    log_path: str
+
 class LogWriter(LogBase):
     """
     A class for conveniently writing a log to a JSON log format. 
@@ -508,8 +519,9 @@ class LogWriter(LogBase):
         drive_random_seed: Optional[int] = None,
         drive_model_version: Optional[str] = None,
         scenario_log: Optional[ScenarioLog] = None,
-        waypoints: Optional[WaypointsDict] = None
-    ): 
+        waypoints: Optional[WaypointsDict] = None,
+        agent_ids: Optional[List[AgentID]] = None
+    ):
         """
         Consume and store all initial information within a ScenarioLog data object. If random seed information is desired to be stored, it 
         must be given separately but is not mandatory.
@@ -549,7 +561,8 @@ class LogWriter(LogBase):
                 light_recurrent_states=init_response.light_recurrent_states,
                 recurrent_states=init_response.recurrent_states,
                 waypoints_per_frame=[waypoints],
-                present_indexes=[present_indexes]
+                present_indexes=[present_indexes],
+                agent_ids=agent_ids 
             )
             self.simulation_length = 1
 
@@ -567,7 +580,8 @@ class LogWriter(LogBase):
         current_present_indexes: Optional[List[int]] = None,
         new_agent_properties: Optional[List[AgentProperties]] = None,
         waypoints: Optional[WaypointsDict] = None,
-        agent_properties: Optional[List[AgentProperties]] = None
+        agent_properties: Optional[List[AgentProperties]] = None,
+        agents_dict = Optional[SimulationAgentDict] = None
     ): 
         """
         Consume and store driving response information from a single timestep and append it to the end of the log. If the number of agents
@@ -575,7 +589,12 @@ class LogWriter(LogBase):
         added, their AgentProperties must be given as well and will be added in the given order. If no present indexes list is given, it is assumed
         which agents are present has not changed since the previous time step.
         """
-
+        if agents_dict is not None:
+            self._drive_from_dict(
+                agents_dict=agents_dict,
+                drive_response=drive_response,
+                waypoints=waypoints
+            )
         if new_agent_properties is not None:
             self._scenario_log.agent_properties.extend(new_agent_properties)
 

@@ -1,4 +1,5 @@
 import time
+import os
 from pydantic import BaseModel, validate_call
 from typing import Optional, List, Tuple
 import tempfile
@@ -32,15 +33,19 @@ class LocationResponse(BaseModel):
             raise ValueError("osm_map was none or empty, please ensure this response was obtained with `include_map_source` set to true.")
         import lanelet2
 
-        with tempfile.NamedTemporaryFile(suffix=".osm", delete=True) as tmp:
-            self.osm_map.save_osm_file(tmp.name)
-            tmp.flush()
-            origin_x = origin.x if origin else self.osm_map.origin.x
-            origin_y = origin.y if origin else self.osm_map.origin.y
-            projector = lanelet2.projection.UtmProjector(
-                lanelet2.io.Origin(origin_x, origin_y)
-            )
-            return lanelet2.io.load(tmp.name, projector)
+        origin_x = origin.x if origin else self.osm_map.origin.x
+        origin_y = origin.y if origin else self.osm_map.origin.y
+        projector = lanelet2.projection.UtmProjector(
+            lanelet2.io.Origin(origin_x, origin_y)
+        )
+        fd, tmp_path = tempfile.mkstemp(suffix=".osm")
+        try:
+            with os.fdopen(fd, 'w') as f:
+                f.write(self.osm_map.encoded_map)
+            return lanelet2.io.load(tmp_path, projector)
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
 @validate_call
 def location_info(

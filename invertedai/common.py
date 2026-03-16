@@ -1,6 +1,8 @@
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, DefaultDict
 from enum import Enum
 from pydantic import BaseModel, model_validator
+from dataclasses import dataclass
+from collections import defaultdict
 import math
 from PIL import Image as PImage
 import numpy as np
@@ -347,3 +349,16 @@ class StaticMapActor(BaseModel):
 
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
 LightRecurrentStates = List[LightRecurrentState]
+
+AgentID = str
+
+@dataclass
+class AgentData:
+    """
+    Container for all data associated with a single agent.
+    """
+    state: Optional[AgentState] = None
+    properties: Optional[AgentProperties] = None
+    recurrent: Optional[RecurrentState] = None
+
+SimulationAgentDict = DefaultDict[AgentID, AgentData]
