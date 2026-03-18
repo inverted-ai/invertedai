@@ -92,11 +92,11 @@ class Image(BaseModel):
         return cls(encoded_image=val)
 
     @classmethod
-    def from_tensor(cls, tensor):
+    def from_tensor(cls, tensor, encode_format="PNG"):
         arr = (tensor.permute(1, 2, 0) * 255.0).cpu().numpy().clip(0, 255).astype(np.uint8)
         img = PImage.fromarray(arr)
         buf = io.BytesIO()
-        img.save(buf, format="PNG")
+        img.save(buf, format=encode_format)
         return Image.fromval(list(buf.getvalue()))
 
     def decode_and_save(self, path):
