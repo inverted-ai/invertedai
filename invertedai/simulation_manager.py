@@ -1,6 +1,6 @@
-from typing import DefaultDict, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from collections import defaultdict
-from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentType, Point
+from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentID, SimulationAgentDict, AgentData
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.api.location import LocationResponse
@@ -9,23 +9,11 @@ from pydantic import BaseModel
 from invertedai.utils import get_default_agent_properties, ScenePlotterConfig, ScenePlotter, WaypointsDict
 from invertedai.large.initialize import _insert_agents_into_nearest_regions
 from dataclasses import dataclass
-from invertedai.logs.logger import LogWriterConfig, ScenarioLog, LogWriter
+from invertedai.logs.logger import LogWriterConfig, LogReaderConfig, ScenarioLog, LogWriter, LogReader
 from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
 import invertedai as iai
 import uuid
-
-AgentID = str   
-@dataclass             
-class AgentData:
-    """
-    Container for all agent data
-    """
-    state: Optional[AgentState] = None
-    properties: Optional[AgentProperties] = None
-    recurrent: Optional[RecurrentState] = None
-
-SimulationAgentDict = DefaultDict[AgentID, AgentData]
 
 class SimulationManager: 
     """
@@ -49,7 +37,8 @@ class SimulationManager:
             self,
             scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # can optionally initialize a scene plotter for visualization
             waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
-            log_writer_cfg: Optional[LogWriterConfig] = None # can optionally initialize a log_writer_cfg to write a json file log of the simulation
+            log_writer_cfg: Optional[LogWriterConfig] = None, # can optionally initialize a log_writer_cfg to write a json file log of the simulation
+            log_reader_cfg: Optional[LogReaderConfig] = None, # can optionally initialize a log_reader_cfg to seed the simulation from a log file
         ):
             self.scene_plotter = None
             if scene_plotter_cfg:
@@ -68,6 +57,10 @@ class SimulationManager:
             self.log_writer_cfg = log_writer_cfg
             if log_writer_cfg:
                 self.log_writer = LogWriter()   
+            self.log_reader = None
+            self.log_reader_cfg = log_reader_cfg
+            if log_reader_cfg:
+                self.log_reader = LogReader(log_path=log_reader_cfg.log_path)
     
     def insert_agents(
         self,
@@ -167,14 +160,13 @@ class SimulationManager:
         properties: List[AgentProperties],
         recurrent_states: List[RecurrentState],
     ) -> SimulationAgentDict:
+        agents_dict = defaultdict(AgentData)
         for i, aid in enumerate(agent_ids):
-            agents_dict = {
-                aid: AgentData(
-                    state=states[i],
-                    properties=properties[i] if properties else None,
-                    recurrent=recurrent_states[i] if recurrent_states else None,
-                )
-            }
+            agents_dict[aid] = AgentData(
+                state=states[i],
+                properties=properties[i] if properties else None,
+                recurrent=recurrent_states[i] if recurrent_states else None,
+            )
         return agents_dict
     
     def initialize(
@@ -203,6 +195,29 @@ class SimulationManager:
           internal agent dictionary and managed by this wrapper
         - For all other supported parameters, please refer to the documentation for :func:`large_initialize`        
         """
+        # log reader path, initialize from log
+        if self.log_reader is not None:
+            self.log_reader.initialize()
+            self.agents_dict = self._pack_from_log_reader()
+
+            # Optionally record visualization
+            if self.scene_plotter:
+                self.scene_plotter.initialize_recording(
+                    agent_states=self.log_reader.agent_states,
+                    agent_properties=self.log_reader.agent_properties,
+                )
+
+            return InitializeResponse(
+                agent_states=self.log_reader.agent_states,
+                agent_properties=self.log_reader.agent_properties,
+                recurrent_states=[None] * len(self.log_reader.agent_states),
+                agent_attributes=[None] * len(self.log_reader.agent_states),
+                birdview=None,
+                infractions=None,
+                traffic_lights_states=self.log_reader.traffic_lights_states,
+                light_recurrent_states=self.log_reader.light_recurrent_states,
+                api_model_version="log_replay",
+            )
         if external_agent_data:
             overlap = set(self.agents_dict.keys()) & set(external_agent_data.keys())
             if overlap:
