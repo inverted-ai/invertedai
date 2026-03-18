@@ -1,14 +1,11 @@
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict
 from enum import Enum
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 import math
 from PIL import Image as PImage
 import numpy as np
 import io
-import json
 
-import invertedai as iai
-from invertedai.error import InvalidInputType, InvalidInput
 
 RECURRENT_SIZE = 152
 TrafficLightId = int
@@ -93,6 +90,14 @@ class Image(BaseModel):
     @classmethod
     def fromval(cls, val):
         return cls(encoded_image=val)
+
+    @classmethod
+    def from_tensor(cls, tensor):
+        arr = (tensor.permute(1, 2, 0) * 255.0).cpu().numpy().clip(0, 255).astype(np.uint8)
+        img = PImage.fromarray(arr)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return Image.fromval(list(buf.getvalue()))
 
     def decode_and_save(self, path):
         """
