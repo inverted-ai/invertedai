@@ -358,4 +358,4 @@ class AgentData:
     state: Optional[AgentState] = None
     properties: Optional[AgentProperties] = None
     recurrent: Optional[RecurrentState] = None
-SimulationAgentDict = DefaultDict[AgentID, AgentData] 
+SimulationAgentDict = Dict[AgentID, AgentData] # defaultdict causes pydantic errors because AgentData is not supported by DefaultDict
