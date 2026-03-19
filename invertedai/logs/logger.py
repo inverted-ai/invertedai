@@ -593,16 +593,38 @@ class LogWriter(LogBase):
         agents_dict: Optional[SimulationAgentDict] = None,
         agent_ids: Optional[List[str]] = None,
         agent_properties: Optional[List[AgentProperties]] = None,
+        current_present_indexes: Optional[List[int]] = None,
+        new_agent_properties: Optional[List[AgentProperties]] = None,
     ):
         """
         Consume and store driving response information from a single timestep and append it to the end of the log.
 
         Preferred: pass agents_dict (SimulationAgentDict) with all agents for this timestep.
         Fallback:  pass drive_response with optional agent_ids and agent_properties to build the dict.
+        Legacy:    pass current_present_indexes and new_agent_properties for index-based tracking.
         """
 
         if agents_dict is not None:
             self._scenario_log.add_time_step_data(agents_dict)
+        elif current_present_indexes is not None:
+            # Backwards compatibility: index-based agent tracking
+            all_props_map = dict(self._scenario_log.all_agent_properties_map)
+
+            if new_agent_properties is not None:
+                next_idx = len(all_props_map)
+                for j, prop in enumerate(new_agent_properties):
+                    all_props_map[str(next_idx + j)] = prop
+
+            recurrent_states = drive_response.recurrent_states or [None] * len(current_present_indexes)
+            agent_dict: SimulationAgentDict = {}
+            for state_idx, prop_idx in enumerate(current_present_indexes):
+                key = str(prop_idx)
+                agent_dict[key] = AgentData(
+                    state=drive_response.agent_states[state_idx],
+                    properties=all_props_map[key],
+                    recurrent=recurrent_states[state_idx],
+                )
+            self._scenario_log.add_time_step_data(agent_dict)
         else:
             keys = agent_ids or list(self._scenario_log.agents.keys())
             assert len(keys) == len(drive_response.agent_states), (
@@ -611,7 +633,7 @@ class LogWriter(LogBase):
             properties = agent_properties or [self._scenario_log.agents[k].properties for k in keys]
             recurrent_states = drive_response.recurrent_states or [None] * len(keys)
 
-            agent_dict: SimulationAgentDict = defaultdict(AgentData)
+            agent_dict: SimulationAgentDict = {}
             for key, state, prop, rec in zip(keys, drive_response.agent_states, properties, recurrent_states):
                 agent_dict[key] = AgentData(state=state, properties=prop, recurrent=rec)
             self._scenario_log.add_time_step_data(agent_dict)
