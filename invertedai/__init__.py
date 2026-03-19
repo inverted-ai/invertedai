@@ -33,7 +33,7 @@ from invertedai.api.blame import blame, async_blame
 from invertedai.cosimulation import BasicCosimulation
 
 # --- Session and utilities ---
-from invertedai.utils import Jupyter_Render, IAILogger, Session, ScenePlotter, get_default_agent_properties
+from invertedai.utils import Jupyter_Render, IAILogger, Session, ScenePlotter, ScenePlotterConfig, get_default_agent_properties
 
 # --- Large-scale simulation ---
 from invertedai.large.initialize import (
@@ -45,7 +45,7 @@ from invertedai.large.initialize import (
 from invertedai.large.drive import large_drive
 
 # --- Logging and diagnostics ---
-from invertedai.logs.logger import LogWriter, LogReader
+from invertedai.logs.logger import LogWriter, LogReader, LogWriterConfig
 from invertedai.logs.diagnostics import DiagnosticTool
 from invertedai.logs.debug_logger import DebugLogger
 
@@ -169,11 +169,13 @@ __all__ = [
     "IAILogger",
     "Session",
     "ScenePlotter",
+    "ScenePlotterConfig",
     "get_default_agent_properties",
     "logger",
     # Logging and diagnostics
     "LogWriter",
     "LogReader",
+    "LogWriterConfig",
     "DiagnosticTool",
     "DebugLogger",
     # Common data types

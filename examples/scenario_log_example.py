@@ -1,6 +1,5 @@
 import invertedai as iai
-from invertedai.utils import get_default_agent_properties
-from invertedai.common import AgentType
+from invertedai import get_default_agent_properties, AgentType
 
 import os
 import matplotlib.pyplot as plt

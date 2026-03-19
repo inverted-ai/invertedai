@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai.common import AgentType
+from invertedai import AgentType
 
 import argparse
 import random
