@@ -1,28 +1,18 @@
 from typing import DefaultDict, List, Optional, Tuple
 from collections import defaultdict
-from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState
+from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentData
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
 from invertedai.utils import ScenePlotterConfig, ScenePlotter, WaypointsDict
 from invertedai.large.initialize import large_initialize
 from invertedai.large.drive import large_drive
-from dataclasses import dataclass
 from invertedai.logs.logger import LogWriterConfig, LogWriter
 from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
 import uuid
 
-AgentID = str   
-@dataclass             
-class AgentData:
-    """
-    Container for all agent data
-    """
-    state: Optional[AgentState] = None
-    properties: Optional[AgentProperties] = None
-    recurrent: Optional[RecurrentState] = None
-
+AgentID = str
 SimulationAgentDict = DefaultDict[AgentID, AgentData]
 
 class SimulationManager: 

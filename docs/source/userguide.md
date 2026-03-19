@@ -1,4 +1,4 @@
-[examples-link]: https://github.com/inverted-ai/invertedai/tree/master/examples
+[examples-link]: https://github.com/inverted-ai/invertedai/tree/develop/examples
 [rest-link]: https://app.swaggerhub.com/apis/swaggerhub59/Inverted-AI
 # User Guide
 

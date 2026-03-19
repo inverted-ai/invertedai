@@ -1,4 +1,4 @@
-[waypoint-manager-example-link]: https://github.com/inverted-ai/invertedai/blob/develop/examples/waypoint_example.py
+[waypoint-manager-example-link]: https://github.com/inverted-ai/invertedai/blob/develop/examples/core_examples/waypoint_example.py
 
 # Waypoint Management
 

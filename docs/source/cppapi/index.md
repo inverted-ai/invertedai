@@ -17,7 +17,7 @@ cpp-common
 
 ## Quick Start with C++ SDK
 ### Docker
-Clone the [Inverted AI repository](https://github.com/inverted-ai/invertedai.git), or just download the [CPP Library](https://download-directory.github.io/?url=https://github.com/inverted-ai/invertedai/tree/master/invertedai_cpp). \n
+Clone the [Inverted AI repository](https://github.com/inverted-ai/invertedai.git), or just download the [CPP Library](https://download-directory.github.io/?url=https://github.com/inverted-ai/invertedai/tree/develop/invertedai_cpp). \n
 Make sure Docker is installed and running.
 This can be done by running `docker info` in the terminal. \n
 Navigate to the library directory (`cd invertedai_cppA`) and run the following commands in the terminal:

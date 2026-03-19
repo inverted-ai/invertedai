@@ -346,3 +346,16 @@ class StaticMapActor(BaseModel):
 
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
 LightRecurrentStates = List[LightRecurrentState]
+
+
+class AgentData(BaseModel):
+    """
+    Contains all necessary data to describe a single agent fully at a single timestep.
+
+    See Also
+    --------
+    AgentState, AgentProperties, RecurrentState
+    """
+    state: Optional[AgentState] = None
+    properties: Optional[AgentProperties] = None
+    recurrent: Optional[RecurrentState] = None
