@@ -18,6 +18,8 @@ import os
 import warnings
 import importlib.metadata
 
+import invertedai._state as _state
+
 __version__ = importlib.metadata.version("invertedai")
 
 # --- Core API functions ---
@@ -79,10 +81,12 @@ def strtobool(value: str) -> bool:
 
 
 dev = strtobool(os.environ.get("IAI_DEV", "false"))
+_state.dev = dev
 if dev:
     dev_url = os.environ.get("IAI_DEV_URL", "http://localhost:8000")
-commercial_url = "https://api.inverted.ai/v0/aws/m1"
-academic_url = "https://api.inverted.ai/v0/academic/m1"
+    _state.dev_url = dev_url
+commercial_url = _state.commercial_url
+academic_url = _state.academic_url
 
 log_level = os.environ.get("IAI_LOG_LEVEL", "WARNING")
 log_console = strtobool(os.environ.get("IAI_LOG_CONSOLE", "true"))
@@ -101,17 +105,14 @@ if api_key:
 add_apikey = session.add_apikey
 use_mock_api = session.use_mock_api
 
+_state.session = session
+_state.logger = logger
+_state.debug_logger = debug_logger
+
 if strtobool(os.environ.get("IAI_MOCK_API", "false")):
     use_mock_api()
 
-model_resources = {
-    "initialize": ("post", "/initialize"),
-    "blame": ("post", "/blame"),
-    "drive": ("post", "/drive"),
-    "location_info": ("get", "/location_info"),
-    "light": ("get", "/light"),
-    "test": ("get", "/test"),
-}
+model_resources = _state.model_resources
 
 # Deprecated name aliases. When an existing public name is renamed or moved,
 # add an entry here instead of breaking users' existing scripts:

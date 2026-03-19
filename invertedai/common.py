@@ -7,7 +7,6 @@ import numpy as np
 import io
 import json
 
-import invertedai as iai
 from invertedai.error import InvalidInputType, InvalidInput
 
 RECURRENT_SIZE = 152

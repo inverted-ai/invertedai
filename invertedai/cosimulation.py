@@ -1,7 +1,6 @@
 from typing import List, Optional, Union
 from copy import deepcopy
 
-import invertedai as iai
 from invertedai.common import (
     AgentProperties,
     AgentState, 

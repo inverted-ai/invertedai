@@ -2,7 +2,7 @@ import time
 from typing import List, Optional, Tuple, Dict
 from pydantic import BaseModel, validate_call
 
-import invertedai as iai
+import invertedai._state as _state
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.api.mock import (
     get_mock_birdview,
@@ -134,7 +134,7 @@ def blame(
 
     while True:
         try:
-            response = iai.session.request(model="blame", data=model_inputs)
+            response = _state.session.request(model="blame", data=model_inputs)
 
             response = BlameResponse(
                 agents_at_fault=response["agents_at_fault"],
@@ -145,7 +145,7 @@ def blame(
 
             return response
         except APIConnectionError as e:
-            iai.logger.warning("Retrying")
+            _state.logger.warning("Retrying")
             if (
                 timeout is not None and time.time() > start + timeout
             ) or not e.should_retry:
@@ -179,7 +179,7 @@ async def async_blame(
         get_birdviews=get_birdviews
     )
 
-    response = await iai.session.async_request(model="blame", data=model_inputs)
+    response = await _state.session.async_request(model="blame", data=model_inputs)
 
     response = BlameResponse(
         agents_at_fault=response["agents_at_fault"],

@@ -4,7 +4,7 @@ import warnings
 from typing import List, Optional, Tuple
 from pydantic import BaseModel, validate_call
 
-import invertedai as iai
+import invertedai._state as _state
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import APIConnectionError, InvalidInput
 from invertedai.api.mock import (
@@ -224,7 +224,7 @@ def drive(
 
     while True:
         try:
-            response = iai.session.request(model="drive", data=model_inputs)
+            response = _state.session.request(model="drive", data=model_inputs)
 
             response = DriveResponse(
                 agent_states=[
@@ -258,7 +258,7 @@ def drive(
             return response
 
         except APIConnectionError as e:
-            iai.logger.warning("Retrying")
+            _state.logger.warning("Retrying")
             if (timeout is not None and time.time() > start + timeout) or not e.should_retry:
                 raise e
 
@@ -305,7 +305,7 @@ async def async_drive(
         random_seed=random_seed,
         api_model_version=api_model_version
     )
-    response = await iai.session.async_request(model="drive", data=model_inputs)
+    response = await _state.session.async_request(model="drive", data=model_inputs)
 
     response = DriveResponse(
         agent_states=[
