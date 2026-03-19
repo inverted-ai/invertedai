@@ -1,16 +1,14 @@
-from typing import DefaultDict, Dict, List, Optional, Tuple
+from typing import DefaultDict, List, Optional, Tuple
 from collections import defaultdict
-from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentType, Point
+from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
-from invertedai.api.location import LocationResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
-from pydantic import BaseModel
-from invertedai.utils import get_default_agent_properties, ScenePlotterConfig, ScenePlotter, WaypointsDict
-from invertedai.large.initialize import _insert_agents_into_nearest_regions, large_initialize
+from invertedai.utils import ScenePlotterConfig, ScenePlotter, WaypointsDict
+from invertedai.large.initialize import large_initialize
 from invertedai.large.drive import large_drive
 from dataclasses import dataclass
-from invertedai.logs.logger import LogWriterConfig, ScenarioLog, LogWriter
+from invertedai.logs.logger import LogWriterConfig, LogWriter
 from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
 import uuid
