@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from pydantic import BaseModel, validate_arguments, model_validator
-from typing import List, Optional, Dict, Tuple, Any
+from typing import List, Optional, Dict, Tuple, Any, Union
 from copy import deepcopy
 
 import matplotlib.pyplot as plt
@@ -24,8 +24,67 @@ from invertedai.common import (
     SimulationAgentDict,
     TrafficLightStatesDict 
 )
-
 class ScenarioLog(BaseModel):
+    """
+    A log containing simulation information for storage, replay, or an initial state from which a simulation 
+    can be continued. Some data fields contain data for all historic time steps while others contain information
+    for the most recent time step to be used to continue a simulation.
+    """
+
+    agent_states: List[List[AgentState]] #: Historic data for all agents states up until the most recent time step.
+    agent_properties: List[AgentProperties] #: Agent properties data for all agents in this scenario/log.
+    traffic_lights_states: Optional[List[TrafficLightStatesDict]] = None #: Historic data for all TrafficLightStatesDict up until the most recent time step.
+
+    location: str #: Location name in IAI format.
+    rendering_center: Optional[Tuple[float, float]] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
+    rendering_fov: Optional[int] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
+
+    lights_random_seed: Optional[int] = None #: Controls the stochastic aspects of the the traffic lights states.
+    initialize_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`initialize` for information on the random_seed parameter.
+    drive_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`drive` for information on the random_seed parameter.
+
+    initialize_model_version: Optional[str] = "best" #: Please refer to the documentation of :func:`initialize` for information on the api_model_version parameter.
+    drive_model_version: Optional[str] = "best" #: Please refer to the documentation of :func:`drive` for information on the api_model_version parameter.
+    
+    light_recurrent_states: Optional[LightRecurrentStates] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
+    recurrent_states: Optional[List[RecurrentState]] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
+
+    waypoints_per_frame: Optional[List[WaypointsDict]] = None # As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
+    present_indexes: List[List[int]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
+
+    @model_validator(mode='after')
+    def validate_states_and_present_indexes_init(self):
+        if self.present_indexes is not None:
+            assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
+
+            for states, pres_ids in zip(self.agent_states,self.present_indexes):
+                self.validate_states_and_present_indexes_time_step(
+                    current_agent_states=states,
+                    current_present_indexes=pres_ids
+                )
+        return self
+
+    def validate_states_and_present_indexes_time_step(
+        self,
+        current_agent_states: List[AgentState],
+        current_present_indexes: List[int]
+    ):
+        assert min(current_present_indexes) >= 0, "Invalid agent ID's in given list of present indexes."
+        assert len(current_present_indexes) == len(current_agent_states), "Given number of agent states does not match number of present agents."
+
+    def add_time_step_data(
+        self,
+        current_agent_states: List[AgentState],
+        current_present_indexes: List[int]
+    ):
+        self.validate_states_and_present_indexes_time_step(
+            current_agent_states=current_agent_states,
+            current_present_indexes=current_present_indexes
+        )
+        self.present_indexes.append(current_present_indexes)
+        self.agent_states.append(current_agent_states)   
+
+class ScenarioLogV2(BaseModel):
     """
     A log containing simulation information for storage, replay, or an initial state from which a simulation 
     can be continued. Some data fields contain data for all historic time steps while others contain information
@@ -48,39 +107,32 @@ class ScenarioLog(BaseModel):
     light_recurrent_states: Optional[LightRecurrentStates] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
     recurrent_states: Optional[List[RecurrentState]] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
 
-    @property
-    def agent_properties(self) -> List[AgentProperties]:
-        """Agent properties from the latest snapshot."""
-        return [data.properties for data in self.agents.values()]
+    def get_agent_properties_current(self) -> List[AgentProperties]:
+        """Agent properties from the latest entry of agents in agent_history"""
+        return [data.properties for data in self.get_agents_current().values()]
 
-    @property
-    def agent_ids(self) -> List[str]:
-        return list(self.agents.keys())
+    def get_agent_ids_current(self) -> List[str]:
+        """Agent IDs from the latest entry in agent_history"""
+        return list(self.get_agents_current().keys())
 
-    def agent_states_at(self, timestep: int) -> List[AgentState]:
+    def get_agent_states_at(self, timestep: int) -> List[AgentState]:
+        """Agent states at a specific timestep"""
         return [data.state for data in self.agent_history[timestep].values()]
 
-    def agent_properties_at(self, timestep: int) -> List[AgentProperties]:
+    def get_agent_properties_at(self, timestep: int) -> List[AgentProperties]:
+        """Agent properties at a specific timestep"""
         return [data.properties for data in self.agent_history[timestep].values()]
 
-    def agents_at(self, timestep: int) -> SimulationAgentDict:
+    def get_agents_at(self, timestep: int) -> SimulationAgentDict:
+        """ agent dict at a specific timestep"""
         return self.agent_history[timestep]
 
-    @property
-    def agents(self) -> SimulationAgentDict:
-        """
-        Latest agent information for current time step
-        """
+    def get_agents_current(self) -> SimulationAgentDict:
+        """agent dict from the latest timestep in agent_history"""
         return self.agent_history[-1]
-        
-    @property
-    def agent_states(self) -> List[List[AgentState]]:
-        """Historic agent states as a nested list, matches old ScenarioLog interface."""
-        return [self.agent_states_at(t) for t in range(len(self.agent_history))]
 
-    @property
-    def all_agent_keys(self) -> List[str]:
-        """All unique agent keys across all timesteps, in order of first appearance"""
+    def get_agent_ids_all(self) -> List[str]:
+        """All unique agent IDs across all timesteps, in order of first appearance."""
         keys = []
         seen = set()
         for snap in self.agent_history:
@@ -90,21 +142,17 @@ class ScenarioLog(BaseModel):
                     seen.add(k)
         return keys
 
-    @property
-    def all_agent_properties_map(self) -> Dict[str, AgentProperties]:
-        """Map of agent key -> latest properties for all agents that ever appeared"""
+    def get_agent_properties_all(self) -> Dict[str, AgentProperties]:
+        """Map of agent ID -> latest properties for all agents that ever appeared."""
         props = {}
         for snap in self.agent_history:
             for key, data in snap.items():
                 props[key] = data.properties
         return props
 
-    @property
-    def present_indexes(self) -> List[List[int]]:
-        """
-        Per timestep list of integer indexes into agent_ids for present agents
-        """
-        all_ids = self.all_agent_keys
+    def get_present_indexes_all(self) -> List[List[int]]:
+        """Per-timestep list of integer indexes into get_agent_ids_all() for present agents."""
+        all_ids = self.get_agent_ids_all()
         id_to_idx = {aid: i for i, aid in enumerate(all_ids)}
         return [
             [id_to_idx[k] for k in snap.keys() if k in id_to_idx]
@@ -113,29 +161,107 @@ class ScenarioLog(BaseModel):
     
     @model_validator(mode='after')
     def validate_states_and_present_indexes_init(self):
-        if self.present_indexes is not None:
-            assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
-
-            for states, pres_ids in zip(self.agent_states,self.present_indexes):
-                self.validate_states_and_present_indexes_time_step(
-                    current_agent_states=states,
-                    current_present_indexes=pres_ids
+        present_indexes = self.get_present_indexes_all()
+        if present_indexes is not None:
+            for t in range(len(self.agent_history)):
+                self._validate_timestep(
+                    current_agent_states=self.get_agent_states_at(t),
+                    current_present_indexes=present_indexes[t]
                 )
         return self
 
-    def validate_states_and_present_indexes_time_step(
+    def _validate_timestep(
         self,
         current_agent_states: List[AgentState],
         current_present_indexes: List[int]
     ):
         assert min(current_present_indexes) >= 0, "Invalid agent ID's in given list of present indexes."
         assert len(current_present_indexes) == len(current_agent_states), "Given number of agent states does not match number of present agents."     
-    def add_time_step_data(self, snapshot: SimulationAgentDict):
-        """Append a deep-copied snapshot so future waypoint mutations don't corrupt history."""
-        self.agent_history.append(deepcopy(snapshot))
-        self.validate_states_and_present_indexes_time_step(
-            current_agent_states=self.agent_states_at(-1),
-            current_present_indexes=self.present_indexes[-1]
+
+    def add_time_step_data(self, agent_dict: SimulationAgentDict):
+        """Append a deep-copied agent_dict entry"""
+        self.agent_history.append(deepcopy(agent_dict))
+        self._validate_timestep(
+            current_agent_states=self.get_agent_states_at(-1),
+            current_present_indexes=self.get_present_indexes_all()[-1]
+        )
+
+    def to_legacy_scenario_log(self) -> ScenarioLog:
+        """Convert to the legacy ScenarioLog format for backwards compatibility"""
+        all_keys = self.get_agent_ids_all()
+        id_to_idx = {aid: i for i, aid in enumerate(all_keys)}
+        props_map = self.get_agent_properties_all()
+
+        agent_properties_list = [props_map[k] for k in all_keys]
+        agent_states_list = []
+        present_indexes_list = []
+        waypoints_per_frame_list = []
+
+        for agent_dict in self.agent_history:
+            states = []
+            present = []
+            wp_dict = {}
+            for aid, data in agent_dict.items():
+                idx = id_to_idx[aid]
+                present.append(idx)
+                states.append(data.state)
+                if data.properties and data.properties.waypoints:
+                    wp_dict[str(idx)] = data.properties.waypoints
+            present_indexes_list.append(present)
+            agent_states_list.append(states)
+            waypoints_per_frame_list.append(wp_dict)
+
+        return ScenarioLog(
+            agent_states=agent_states_list,
+            agent_properties=agent_properties_list,
+            traffic_lights_states=self.traffic_lights_states,
+            location=self.location,
+            rendering_center=self.rendering_center,
+            rendering_fov=self.rendering_fov,
+            lights_random_seed=self.lights_random_seed,
+            initialize_random_seed=self.initialize_random_seed,
+            drive_random_seed=self.drive_random_seed,
+            initialize_model_version=self.initialize_model_version,
+            drive_model_version=self.drive_model_version,
+            light_recurrent_states=self.light_recurrent_states,
+            recurrent_states=self.recurrent_states,
+            waypoints_per_frame=waypoints_per_frame_list if any(wp_dict for wp_dict in waypoints_per_frame_list) else None,
+            present_indexes=present_indexes_list,
+        )
+
+    @classmethod
+    def from_legacy_scenario_log(cls, legacy: ScenarioLog):
+        """Convert a legacy ScenarioLog into a ScenarioLogV2"""
+        agent_history = []
+        for t, (states, present) in enumerate(zip(legacy.agent_states, legacy.present_indexes)):
+            agent_dict: SimulationAgentDict = {}
+            for pos, idx in enumerate(present):
+                props = legacy.agent_properties[idx]
+                if legacy.waypoints_per_frame is not None and t < len(legacy.waypoints_per_frame):
+                    frame_wp = legacy.waypoints_per_frame[t]
+                    if frame_wp and str(idx) in frame_wp:
+                        props = deepcopy(props)
+                        props.waypoints = frame_wp[str(idx)]
+                agent_dict[str(idx)] = AgentData(
+                    state=states[pos],
+                    properties=props,
+                    recurrent=None,
+                )
+            agent_history.append(agent_dict)
+
+        return cls(
+            agent_history=agent_history,
+            traffic_lights_states=legacy.traffic_lights_states,
+            location=legacy.location,
+            rendering_center=legacy.rendering_center,
+            rendering_fov=legacy.rendering_fov,
+            lights_random_seed=legacy.lights_random_seed,
+            initialize_random_seed=legacy.initialize_random_seed,
+            drive_random_seed=legacy.drive_random_seed,
+            initialize_model_version=legacy.initialize_model_version,
+            drive_model_version=legacy.drive_model_version,
+            light_recurrent_states=legacy.light_recurrent_states,
+            recurrent_states=legacy.recurrent_states,
         )
     
 class LogBase():
@@ -191,16 +317,16 @@ class LogBase():
         # Build agent_history from parsed data
         agent_history = []
         for t, states_list in enumerate(all_agent_states):
-            snapshot: SimulationAgentDict = defaultdict(AgentData)
+            agent_dict: SimulationAgentDict = defaultdict(AgentData)
             for i, state in enumerate(states_list):
-                snapshot[str(i)] = AgentData(
+                agent_dict[str(i)] = AgentData(
                     state=state,
                     properties=agent_properties[i],
                     recurrent=None,
                 )
-            agent_history.append(snapshot)
+            agent_history.append(agent_dict)
 
-        scenario_log = ScenarioLog(
+        scenario_log = ScenarioLogV2(
             agent_history=agent_history,
             traffic_lights_states=all_traffic_lights_states, 
             location=log_location,
@@ -248,7 +374,7 @@ class LogBase():
         )
         rendered_static_map = location_info_response.birdview_image.decode()
         map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
-        traffic_lights_states = [None]*len(self._scenario_log.agent_states) if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states
+        traffic_lights_states = [None]*len(self._scenario_log.agent_history) if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states
         first_agent_dict = self._scenario_log.agent_history[0]
         scene_plotter = ScenePlotter(
             map_image=rendered_static_map,
@@ -353,7 +479,7 @@ class LogWriter(LogBase):
     def export_to_file(
         self,
         log_path: str,
-        scenario_log: Optional[ScenarioLog] = None
+        scenario_log: Optional[ScenarioLogV2] = None
     ):  
         """
         Convert the data currently contained within the log into a JSON format and export it to a given file. This function can furthermore be 
@@ -376,8 +502,8 @@ class LogWriter(LogBase):
         if scenario_log is None:
             scenario_log = self._scenario_log
 
-        all_keys = scenario_log.all_agent_keys
-        agent_properties = scenario_log.all_agent_properties_map
+        all_keys = scenario_log.get_agent_ids_all()
+        agent_properties = scenario_log.get_agent_properties_all()
 
         # Build waypoints from agent properties map
         individual_suggestions_dict = {}
@@ -385,15 +511,7 @@ class LogWriter(LogBase):
             if prop.waypoints:
                 individual_suggestions_dict[key] = _format_waypoints_json(prop.waypoints)
             elif prop.waypoint:
-                individual_suggestions_dict[key] = {
-                    "suggestion_strength": 0.8,
-                    "states": [{
-                        "center": {
-                            "x": prop.waypoint.x,
-                            "y": prop.waypoint.y
-                        }
-                    }]
-                }
+                individual_suggestions_dict[key] = _format_waypoints_json([prop.waypoint])
 
         num_cars, num_pedestrians = 0, 0
         for prop in agent_properties.values():
@@ -509,7 +627,7 @@ class LogWriter(LogBase):
     def export_log_to_file(
         cls, 
         log_path: str,
-        scenario_log: ScenarioLog
+        scenario_log: ScenarioLogV2
     ):
         """
         Class function to convert a given log data type into a JSON format and export it to a given file.
@@ -523,26 +641,31 @@ class LogWriter(LogBase):
         self,
         location: Optional[str] = None,
         location_info_response: Optional[LocationResponse] = None,
-        agents_dict: Optional[SimulationAgentDict] = None,
-        agent_ids: Optional[List[str]] = None,
         init_response: Optional[InitializeResponse] = None,
         lights_random_seed: Optional[int] = None,
         initialize_random_seed: Optional[int] = None,
         drive_random_seed: Optional[int] = None,
         drive_model_version: Optional[str] = None,
-        scenario_log: Optional[ScenarioLog] = None,
-    ): 
+        scenario_log: Optional[Union[ScenarioLog, ScenarioLogV2]] = None,
+        waypoints: Optional[WaypointsDict] = None,
+        agents_dict: Optional[SimulationAgentDict] = None,
+        agent_ids: Optional[List[str]] = None,
+    ):
         """
-        Consume and store all initial information within a ScenarioLog data object. If random seed information is desired to be stored, it 
+        Consume and store all initial information within a ScenarioLogV2 data object. If random seed information is desired to be stored, it
         must be given separately but is not mandatory.
 
         Preferred: pass agents_dict (SimulationAgentDict) so UUID keys are preserved.
         Fallback:  pass init_response for backwards compatibility — integer string keys
                    ("0", "1", ...) will be assigned automatically.
+        Legacy:    pass scenario_log (ScenarioLog) to initialize from an existing log.
         """
 
         if scenario_log is not None:
-            self._scenario_log = scenario_log
+            if isinstance(scenario_log, ScenarioLogV2):
+                self._scenario_log = scenario_log
+            else:
+                self._scenario_log = ScenarioLogV2.from_legacy_scenario_log(scenario_log)
             self.simulation_length = len(self._scenario_log.agent_history)
             return
 
@@ -563,11 +686,14 @@ class LogWriter(LogBase):
             assert len(keys) == len(init_response.agent_states), (
                 f"agent_ids length ({len(keys)}) must match number of agents in init_response ({len(init_response.agent_states)})."
             )
-            agent_dict: SimulationAgentDict = defaultdict(AgentData)
+            agent_dict: SimulationAgentDict = {}
             for key, state, prop, rec in zip(keys, init_response.agent_states, agent_properties, init_response.recurrent_states):
+                if waypoints is not None and key in waypoints:
+                    prop = deepcopy(prop)
+                    prop.waypoints = waypoints[key]
                 agent_dict[key] = AgentData(state=state, properties=prop, recurrent=rec)
 
-        self._scenario_log = ScenarioLog(
+        self._scenario_log = ScenarioLogV2(
             agent_history=[deepcopy(agent_dict)],
             traffic_lights_states=[init_response.traffic_lights_states] if init_response.traffic_lights_states is not None else None,
             location=location,
@@ -590,11 +716,12 @@ class LogWriter(LogBase):
     def drive(
         self,
         drive_response: DriveResponse,
-        agents_dict: Optional[SimulationAgentDict] = None,
-        agent_ids: Optional[List[str]] = None,
-        agent_properties: Optional[List[AgentProperties]] = None,
         current_present_indexes: Optional[List[int]] = None,
         new_agent_properties: Optional[List[AgentProperties]] = None,
+        waypoints: Optional[WaypointsDict] = None, #unused, only for backwards compatibility with older logs that may have waypoints stored separately from agent properties
+        agent_properties: Optional[List[AgentProperties]] = None,
+        agents_dict: Optional[SimulationAgentDict] = None,
+        agent_ids: Optional[List[str]] = None,
     ):
         """
         Consume and store driving response information from a single timestep and append it to the end of the log.
@@ -608,7 +735,7 @@ class LogWriter(LogBase):
             self._scenario_log.add_time_step_data(agents_dict)
         elif current_present_indexes is not None:
             # Backwards compatibility: index-based agent tracking
-            all_props_map = dict(self._scenario_log.all_agent_properties_map)
+            all_props_map = dict(self._scenario_log.get_agent_properties_all())
 
             if new_agent_properties is not None:
                 next_idx = len(all_props_map)
@@ -626,11 +753,11 @@ class LogWriter(LogBase):
                 )
             self._scenario_log.add_time_step_data(agent_dict)
         else:
-            keys = agent_ids or list(self._scenario_log.agents.keys())
+            keys = agent_ids or list(self._scenario_log.get_agents_current().keys())
             assert len(keys) == len(drive_response.agent_states), (
                 f"agent_ids length ({len(keys)}) must match number of agents in drive_response ({len(drive_response.agent_states)})."
             )
-            properties = agent_properties or [self._scenario_log.agents[k].properties for k in keys]
+            properties = agent_properties or [self._scenario_log.get_agents_current()[k].properties for k in keys]
             recurrent_states = drive_response.recurrent_states or [None] * len(keys)
 
             agent_dict: SimulationAgentDict = {}
@@ -653,7 +780,7 @@ class LogWriter(LogBase):
         Returns the indexes of the agents that are currently present within the simulation.
         """
 
-        return self._scenario_log.present_indexes[self.simulation_length-1]
+        return self._scenario_log.get_present_indexes_all()[self.simulation_length-1]
 
     @property
     def all_agent_properties(self):
@@ -661,7 +788,7 @@ class LogWriter(LogBase):
         Returns all agent properties that have been present in the simulation this log is capturing.
         """
 
-        return list(self._scenario_log.all_agent_properties_map.values())
+        return list(self._scenario_log.get_agent_properties_all().values())
 
 
 class LogReader(LogBase):
@@ -756,7 +883,7 @@ class LogReader(LogBase):
         if "light_recurrent_states" in LOG_DATA:
             light_recurrent_states = None if (LOG_DATA["light_recurrent_states"] == [] or LOG_DATA["light_recurrent_states"] is None) else [LightRecurrentState(state=state[0],time_remaining=state[1]) for state in LOG_DATA["light_recurrent_states"]]
 
-        self._scenario_log = ScenarioLog(
+        self._scenario_log = ScenarioLogV2(
             agent_history=agent_history,
             traffic_lights_states=all_traffic_light_states, 
             location=location, 
@@ -784,12 +911,11 @@ class LogReader(LogBase):
             rendering_fov=self._scenario_log.rendering_fov,
             rendering_center=self._scenario_log.rendering_center,
         )
-
     @validate_arguments
-    def return_scenario_log(
+    def return_scenario_logV2(
         self,
         timestep_range: Optional[Tuple[int,int]] = None
-    ):
+    ) -> ScenarioLogV2:
         """
         Return the original scenario log. Optionally choose a time range within the log of interest.
         """
@@ -808,6 +934,29 @@ class LogReader(LogBase):
                 returned_log.traffic_lights_states = returned_log.traffic_lights_states[i:j]
 
             return returned_log
+        
+    @validate_arguments
+    def return_scenario_log(
+        self,
+        timestep_range: Optional[Tuple[int,int]] = None
+    ) -> ScenarioLog:
+        """
+        Return the original scenario log as a legacy ScenarioLog. Optionally choose a time range within the log of interest.
+        """
+
+        log_to_convert = self._scenario_log_original
+        if timestep_range is not None:
+            for timestep in timestep_range:
+                assert timestep >= 0 or timestep <= (self.simulation_length - 1), "Visualization time range valid."
+            assert timestep_range[1] >= timestep_range[0], "Visualization time range valid."
+
+            i, j = timestep_range[0], timestep_range[1]
+            log_to_convert = deepcopy(self._scenario_log_original)
+            log_to_convert.agent_history = log_to_convert.agent_history[i:j]
+            if log_to_convert.traffic_lights_states is not None:
+                log_to_convert.traffic_lights_states = log_to_convert.traffic_lights_states[i:j]
+
+        return log_to_convert.to_legacy_scenario_log()
 
     @validate_arguments
     def _return_state_at_timestep(
@@ -886,7 +1035,7 @@ class LogReader(LogBase):
         Return a list of agent properties of all agents present in the simulation.
         """
 
-        return self._scenario_log.agent_properties
+        return self._scenario_log.get_agent_properties_current()
 
     
     @property
