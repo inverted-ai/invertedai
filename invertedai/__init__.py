@@ -43,9 +43,10 @@ from invertedai.large.initialize import (
     large_initialize,
 )
 from invertedai.large.drive import large_drive
+from invertedai.large.common import Region
 
 # --- Logging and diagnostics ---
-from invertedai.logs.logger import LogWriter, LogReader, LogWriterConfig
+from invertedai.logs.logger import LogWriter, LogReader, LogWriterConfig, ScenarioLog
 from invertedai.logs.diagnostics import DiagnosticTool
 from invertedai.logs.debug_logger import DebugLogger
 
@@ -156,6 +157,7 @@ __all__ = [
     "get_regions_default",
     "get_regions_in_grid",
     "get_number_of_agents_per_region_by_drivable_area",
+    "Region",
     # Helpers
     "WaypointManager",
     "WaypointManagerConfig",
@@ -176,6 +178,7 @@ __all__ = [
     "LogWriter",
     "LogReader",
     "LogWriterConfig",
+    "ScenarioLog",
     "DiagnosticTool",
     "DebugLogger",
     # Common data types

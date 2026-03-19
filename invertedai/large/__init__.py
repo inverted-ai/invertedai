@@ -5,6 +5,7 @@ from invertedai.large.initialize import (
     get_regions_in_grid,
     get_number_of_agents_per_region_by_drivable_area,
 )
+from invertedai.large.common import Region
 
 __all__ = [
     "large_drive",
@@ -12,4 +13,5 @@ __all__ = [
     "get_regions_default",
     "get_regions_in_grid",
     "get_number_of_agents_per_region_by_drivable_area",
+    "Region",
 ]

@@ -1,5 +1,18 @@
 import invertedai as iai
-from invertedai import AgentData, SimulationManager, AgentType, ScenePlotterConfig, get_default_agent_properties, WaypointManager, WaypointManagerConfig, LogWriterConfig
+from invertedai import (
+    AgentType,
+    AgentData,
+)
+from invertedai import (
+    WaypointManager,
+    WaypointManagerConfig,
+)
+from invertedai import SimulationManager
+from invertedai import (
+    ScenePlotterConfig,
+    get_default_agent_properties,
+)
+from invertedai import LogWriterConfig
 import matplotlib.pyplot as plt
 import os
 import uuid
