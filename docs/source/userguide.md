@@ -127,3 +127,15 @@ To enable the mock API, just set the environment variable `IAI_MOCK_API` to true
 For further debugging and visualization, both INITIALIZE and {ref}`DRIVE` optionally return a rendered birdview image showing
 the simulation state after the call to them. This significantly increases the payload size and latency, so it should not
 be done in real integrations.
+
+## Importing from the package
+All public symbols are available directly from the top-level `invertedai` package.
+Always import from there, not from internal submodules:
+```python
+# Correct
+import invertedai as iai
+from invertedai import WaypointManager
+
+# Avoid — internal paths may change between versions without notice
+from invertedai.helpers.waypoints import WaypointManager
+```

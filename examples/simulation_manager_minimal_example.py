@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai.simulation_manager import SimulationManager
+from invertedai import SimulationManager
 from invertedai.common import AgentType
 from invertedai.utils import ScenePlotterConfig
 from invertedai.helpers.waypoints import WaypointManagerConfig
