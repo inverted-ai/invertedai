@@ -2,6 +2,7 @@ from typing import List, Optional, Dict
 from enum import Enum
 from pydantic import BaseModel
 import math
+import torch
 from PIL import Image as PImage
 import numpy as np
 import io
@@ -92,7 +93,21 @@ class Image(BaseModel):
         return cls(encoded_image=val)
 
     @classmethod
-    def from_tensor(cls, tensor, encode_format="PNG"):
+    def from_tensor(
+        cls, 
+        tensor: torch.Tensor, 
+        encode_format: str = "PNG",
+    ):
+        """
+        Convert tensor into Image object.
+
+        Args:
+            tensor (torch.Tensor): Tensor to convert. Expected to be normalized from 0.0 to 1.0 in (C, H, W) format.
+            encode_format (str, optional): Encoding format to use. Defaults to "PNG".
+
+        Returns:
+            _type_: _description_
+        """
         arr = (tensor.permute(1, 2, 0) * 255.0).cpu().numpy().clip(0, 255).astype(np.uint8)
         img = PImage.fromarray(arr)
         buf = io.BytesIO()
