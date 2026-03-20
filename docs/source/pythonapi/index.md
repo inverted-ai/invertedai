@@ -14,6 +14,7 @@ sdk-light
 sdk-large-drive
 sdk-large-initialize
 sdk-location-info
+sdk-simulation_manager.md
 sdk-common
 sdk-simulation
 sdk-env-var

@@ -2,7 +2,6 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-import invertedai as iai
 from invertedai.large.common import Region
 from invertedai.common import Point, AgentState, AgentProperties, RecurrentState
 

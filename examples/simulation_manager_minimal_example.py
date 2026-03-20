@@ -1,9 +1,9 @@
 import invertedai as iai
-from invertedai.simulation_manager import SimulationManager
-from invertedai.common import AgentType
-from invertedai.utils import ScenePlotterConfig
-from invertedai.helpers.waypoints import WaypointManagerConfig
-from invertedai.logs.logger import LogWriterConfig
+from invertedai import AgentType
+from invertedai import WaypointManagerConfig
+from invertedai import SimulationManager
+from invertedai import ScenePlotterConfig
+from invertedai import LogWriterConfig
 import matplotlib.pyplot as plt
 import os
 

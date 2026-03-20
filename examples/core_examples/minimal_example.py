@@ -1,6 +1,5 @@
 import invertedai as iai
-from invertedai.utils import get_default_agent_properties
-from invertedai.common import AgentType
+from invertedai import get_default_agent_properties, AgentType
 
 import matplotlib.pyplot as plt
 import os
@@ -24,7 +23,7 @@ response = iai.initialize(
 agent_properties = response.agent_properties  # get dimension and other attributes of NPCs
 
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(
+scene_plotter = iai.ScenePlotter(
     rendered_static_map,
     location_info_response.map_fov,
     (location_info_response.map_center.x, location_info_response.map_center.y),

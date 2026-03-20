@@ -5,7 +5,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import json
 
-from invertedai import location_info
+from invertedai.api.location import location_info
 from invertedai.utils import ScenePlotter, WaypointsDict
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse

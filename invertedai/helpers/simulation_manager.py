@@ -1,30 +1,18 @@
-from typing import DefaultDict, Dict, List, Optional, Tuple
+from typing import DefaultDict, List, Optional, Tuple
 from collections import defaultdict
-from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentType, Point
+from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentData
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
-from invertedai.api.location import LocationResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
-from pydantic import BaseModel
-from invertedai.utils import get_default_agent_properties, ScenePlotterConfig, ScenePlotter, WaypointsDict
-from invertedai.large.initialize import _insert_agents_into_nearest_regions
-from dataclasses import dataclass
-from invertedai.logs.logger import LogWriterConfig, ScenarioLog, LogWriter
+from invertedai.utils import ScenePlotterConfig, ScenePlotter, WaypointsDict
+from invertedai.large.initialize import large_initialize
+from invertedai.large.drive import large_drive
+from invertedai.logs.logger import LogWriterConfig, LogWriter
 from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
-import invertedai as iai
 import uuid
 
-AgentID = str   
-@dataclass             
-class AgentData:
-    """
-    Container for all agent data
-    """
-    state: Optional[AgentState] = None
-    properties: Optional[AgentProperties] = None
-    recurrent: Optional[RecurrentState] = None
-
+AgentID = str
 SimulationAgentDict = DefaultDict[AgentID, AgentData]
 
 class SimulationManager: 
@@ -218,7 +206,7 @@ class SimulationManager:
 
         original_agent_count = len(agent_ids)
 
-        response = iai.large_initialize( 
+        response = large_initialize( 
             regions=regions,
             agent_properties=properties,
             agent_states=states,
@@ -278,7 +266,7 @@ class SimulationManager:
             in self.agents_dict and optionally provided external_agent_data
 
         This method:
-        - updates self.agents_dict with results from iai.large_drive
+        - updates self.agents_dict with results from large_drive
         - uses iai.WaypointManager to update waypoints if configured
         - Records visualization and logging outputs if configured
 
@@ -328,7 +316,7 @@ class SimulationManager:
 
         external_ids = set(ext_ids) if external_agent_data else set()
 
-        response = iai.large_drive(
+        response = large_drive(
             agent_states=states,
             agent_properties=properties,
             recurrent_states=recurrent_states,

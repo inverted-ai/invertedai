@@ -2,9 +2,9 @@ import logging
 import json
 import os
 
-import invertedai as iai
 from invertedai.common import AgentState, AgentProperties, TrafficLightState, RecurrentState, LightRecurrentState, Image, StaticMapActor, Point
 from invertedai.api.location import LocationResponse
+from invertedai.utils import ScenePlotter
 
 from collections import defaultdict
 from typing import List, Optional, Dict, Tuple
@@ -175,7 +175,7 @@ class DebugLogger:
             "light_recurrent_states": light_recurrent_states
         }
 
-        scene_plotter = iai.utils.ScenePlotter(
+        scene_plotter = ScenePlotter(
             map_image=rendered_static_map,
             fov=fov,
             xy_offset=map_center,

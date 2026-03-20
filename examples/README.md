@@ -1,8 +1,8 @@
 # Examples
 
 This folder contains examples demonstrating how to use the Inverted AI API in Python. 
-<!-- start exampels -->
-[Click here](https://download-directory.github.io/?url=https://github.com/inverted-ai/invertedai/tree/master/examples) to download the folder as a zip-file.
+<!-- start examples -->
+[Click here](https://download-directory.github.io/?url=https://github.com/inverted-ai/invertedai/tree/develop/examples) to download the folder as a zip-file.
 To run the examples locally, first build the virtual environment.
 ```bash
 python -m venv .venv
@@ -12,7 +12,7 @@ pip install --upgrade -r requirements.txt
 ```
 Then, once you obtain an API key, you can run the examples.
 ```bash
-python minimal_example.py --api_key $IAI_API_KEY
+python core_examples/minimal_example.py --api_key $IAI_API_KEY
 ```
 ## Minimal Example
 
@@ -59,4 +59,4 @@ initialize a different simulation.
 
 Please go to the following link to see an example of how the Inverted AI API can integrate with the Carla SDK: [Carla Python SDK Github](https://github.com/carla-simulator/carla/blob/ue5-dev/PythonAPI/examples/invertedai_traffic.py)
 
-<!-- end exampels -->
+<!-- end examples -->

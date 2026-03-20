@@ -1,7 +1,5 @@
 import invertedai as iai
-from invertedai.common import AgentType
-from invertedai import get_regions_default
-from invertedai.utils import get_default_agent_properties
+from invertedai import AgentType, get_regions_default, get_default_agent_properties
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -46,7 +44,7 @@ iai_simulation = iai.BasicCosimulation(
 # Initialize the ScenePlotter for scene visualization
 location_info_response = iai.location_info(location=LOCATION)
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(
+scene_plotter = iai.ScenePlotter(
     rendered_static_map,
     location_info_response.map_fov,
     (location_info_response.map_center.x, location_info_response.map_center.y),

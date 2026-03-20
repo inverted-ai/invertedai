@@ -9,9 +9,10 @@ from typing import Union, List, Optional, Tuple, Dict
 from itertools import product
 from tqdm.contrib import tenumerate
 
-import invertedai as iai
+import invertedai._state as _state
 from invertedai.large.common import Region, REGION_MAX_SIZE
-from invertedai.api.initialize import InitializeResponse, serialize_initialize_request_parameters
+from invertedai.api.initialize import InitializeResponse, initialize, serialize_initialize_request_parameters
+from invertedai.api.location import location_info
 from invertedai.utils import get_default_agent_properties
 from invertedai.error import InvertedAIError
 from invertedai.logs.debug_logger import DebugLogger
@@ -80,13 +81,13 @@ def get_regions_default(
     if area_shape is None:
         area_shape = (100/2,100/2)
 
-    regions = iai.get_regions_in_grid(
+    regions = get_regions_in_grid(
         width = area_shape[0], 
         height = area_shape[1],
         map_center = map_center
     )
 
-    new_regions = iai.get_number_of_agents_per_region_by_drivable_area(
+    new_regions = get_number_of_agents_per_region_by_drivable_area(
         location = location,
         regions = regions,
         agent_count_dict = agent_count_dict,
@@ -222,7 +223,7 @@ def get_number_of_agents_per_region_by_drivable_area(
 
     for i, region in iterable_regions:
         center_tuple = (region.center.x, region.center.y)
-        birdview = iai.location_info(
+        birdview = location_info(
             location=location,
             rendering_fov=int(region.size),
             rendering_center=center_tuple
@@ -355,7 +356,7 @@ def _consolidate_all_responses(
                 except IndexError as e: 
                     exception_message = f"Warning: Unable to fetch specified agent ID {agent_id} in region {region_id}."
                     if not return_exact_agents: 
-                        iai.logger.debug(exception_message)
+                        _state.logger.debug(exception_message)
                     else:
                         raise InvertedAIError(message=exception_message)
         
@@ -456,7 +457,7 @@ def _initialize_regions(
         if len(all_agent_properties) > 0:
             for attempt in range(num_attempts):
                 try:
-                    response = iai.initialize(
+                    response = initialize(
                         location=location,
                         states_history=None if len(all_agent_states) == 0 else [all_agent_states],
                         agent_properties=all_agent_properties,
@@ -469,7 +470,7 @@ def _initialize_regions(
 
                 except InvertedAIError as e:
                     # If error has occurred, display the warning and retry
-                    iai.logger.debug(f"Region initialize attempt {attempt} error: {e}")
+                    _state.logger.debug(f"Region initialize attempt {attempt} error: {e}")
                     continue
 
                 # Initialization of this region was successful, break the loop and proceed to the next region
@@ -480,10 +481,10 @@ def _initialize_regions(
                 if return_exact_agents: 
                     raise InvertedAIError(message=exception_string)
                 else:
-                    iai.logger.debug(exception_string)
+                    _state.logger.debug(exception_string)
                     if num_region_conditional_agents > 0:
                     # Get the recurrent states for all predefined agents within the region
-                        response = iai.initialize(
+                        response = initialize(
                             location=location,
                             states_history=[all_agent_states],
                             agent_properties=all_agent_properties[:num_out_of_region_conditional_agents+num_region_conditional_agents],
@@ -605,7 +606,7 @@ def large_initialize(
     if (agent_properties is not None and agent_states is not None) or (agent_properties is None and agent_states is not None):
         assert len(agent_properties) >= len(agent_states), "Invalid parameters: number of agent properties must be larger than number agent states."
 
-    is_debug_logging = iai.debug_logger is not None
+    is_debug_logging = _state.debug_logger is not None
     if is_debug_logging:
         agent_props = agent_properties if agent_properties is not None else []
         agent_sts = agent_states if agent_states is not None else []
@@ -622,7 +623,7 @@ def large_initialize(
             random_seed = random_seed,
             api_model_version = api_model_version
         )
-        iai.debug_logger.append_request(
+        _state.debug_logger.append_request(
             model = "large_initialize",
             data_dict = debug_large_initialize_parameters
         )
@@ -654,7 +655,7 @@ def large_initialize(
     )
 
     if is_debug_logging:
-        iai.debug_logger.append_response(
+        _state.debug_logger.append_response(
             model = "large_initialize",
             data_dict = response.serialize_initialize_response_parameters()
         )

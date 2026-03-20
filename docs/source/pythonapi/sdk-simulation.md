@@ -2,7 +2,7 @@
 
 
 ```{eval-rst}
-.. autoclass:: invertedai.cosimulation.BasicCosimulation
+.. autoclass:: invertedai.BasicCosimulation
     :members: 
 ```
  
