@@ -62,9 +62,9 @@ class SimulationManager:
         regions_config: RegionsConfig,
     ) -> List[Region]:
         """
-        Generate default regions from a :class:`RegionsConfig`.
+        Uses :func:`get_regions_default` to generate regions based on the configuration provided from dataclass :class:`RegionsConfig`
 
-        The returned list can be passed directly to :func:`initialize`
+        The returned list of regions can be passed directly to :func:`initialize`
 
         Parameters:
         regions_config : RegionsConfig
