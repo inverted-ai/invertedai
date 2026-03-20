@@ -7,6 +7,7 @@ from copy import deepcopy
 from pydantic import BaseModel, validate_call
 from typing import Union, List, Optional, Tuple, Dict
 from itertools import product
+from pydantic.dataclasses import dataclass
 from tqdm.contrib import tenumerate
 
 import invertedai._state as _state
@@ -27,7 +28,35 @@ from invertedai.common import (
 
 AGENT_SCOPE_FOV_BUFFER = 60
 ATTEMPT_PER_NUM_REGIONS = 15
+@dataclass
+class RegionsConfig:
+    """
+    Configuration for generating default regions :func:`get_regions_default`.
 
+    Parameters:
+    location : str
+        Location name in IAI format.
+    agent_count_dict : Optional[Dict[AgentType, int]]
+        The number of agents to place within the regions per specified agent type.
+    total_num_agents : Optional[int]
+        Deprecated. The total number of agents to initialize across all regions.
+    area_shape : Optional[Tuple[float, float]]
+        Contains the [width, height] to either side of the center of the rectangular area.
+        If not provided, a bounding box around the location polygon will be used.
+    map_center : Optional[Tuple[float, float]]
+        The coordinates of the center of the rectangular area. Defaults to (0, 0).
+    random_seed : Optional[int]
+        Controls stochastic aspects of assigning agents to regions for reproducibility.
+    display_progress_bar : Optional[bool]
+        Whether to display a command line progress bar.
+    """
+    location: str
+    agent_count_dict: Optional[Dict[AgentType, int]] = None
+    total_num_agents: Optional[int] = None
+    area_shape: Optional[Tuple[float, float]] = None
+    map_center: Optional[Tuple[float, float]] = (0.0, 0.0)
+    random_seed: Optional[int] = None
+    display_progress_bar: Optional[bool] = False
 
 @validate_call
 def get_regions_default(
