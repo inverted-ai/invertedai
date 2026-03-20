@@ -159,6 +159,7 @@ def run_initialize_drive_flow(
             get_birdview=False,
             location=location,
             get_infractions=get_infractions,
+            api_model_version="Q23g",
         )
         assert isinstance(updated_state,DriveResponse) and updated_state.agent_states is not None and updated_state.recurrent_states is not None
         if scene_has_lights:
@@ -174,7 +175,8 @@ def run_direct_drive(location, agent_states, agent_attributes, agent_properties,
         traffic_lights_states=None,
         get_birdview=False,
         location=location,
-        get_infractions=get_infractions
+        get_infractions=get_infractions,
+        api_model_version="Q23g",
     )
     assert isinstance(drive_response,DriveResponse) and drive_response.agent_states is not None and drive_response.recurrent_states is not None
 
