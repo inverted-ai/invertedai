@@ -4,10 +4,10 @@ from typing import Tuple, Optional, List, Union
 from pydantic import BaseModel, validate_call
 from math import ceil
 
-import invertedai as iai
+import invertedai._state as _state
 from invertedai.large.common import Region
 from invertedai.common import Point, AgentState, AgentAttributes, AgentProperties, RecurrentState, TrafficLightStatesDict, LightRecurrentState, LightRecurrentStates
-from invertedai.api.drive import DriveResponse, serialize_drive_request_parameters
+from invertedai.api.drive import DriveResponse, serialize_drive_request_parameters, drive, async_drive
 from invertedai.utils import convert_attributes_to_properties
 from invertedai.error import InvertedAIError, InvalidRequestError
 from invertedai.logs.debug_logger import DebugLogger
@@ -16,7 +16,7 @@ from ._quadtree import QuadTreeAgentInfo, QuadTree, _flatten_and_sort, QUADTREE_
 DRIVE_MAXIMUM_NUM_AGENTS = 100
 
 async def async_drive_all(async_input_params):
-    all_responses = await asyncio.gather(*[iai.async_drive(**input_params) for input_params in async_input_params])
+    all_responses = await asyncio.gather(*[async_drive(**input_params) for input_params in async_input_params])
     return all_responses
 
 @validate_call
@@ -88,7 +88,7 @@ def large_drive(
         single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS
     if single_call_agent_limit > DRIVE_MAXIMUM_NUM_AGENTS:
         single_call_agent_limit = DRIVE_MAXIMUM_NUM_AGENTS
-        iai.logger.warning(f"Single Call Agent Limit cannot be more than {DRIVE_MAXIMUM_NUM_AGENTS}, limiting this value to {DRIVE_MAXIMUM_NUM_AGENTS} and proceeding.")
+        _state.logger.warning(f"Single Call Agent Limit cannot be more than {DRIVE_MAXIMUM_NUM_AGENTS}, limiting this value to {DRIVE_MAXIMUM_NUM_AGENTS} and proceeding.")
     num_agents = len(agent_states)
     if not (num_agents == len(agent_properties)):
         if recurrent_states is not None and not (num_agents == len(recurrent_states)):
@@ -110,7 +110,7 @@ def large_drive(
     if is_using_attributes:
         warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
-    is_debug_logging = iai.debug_logger is not None
+    is_debug_logging = _state.debug_logger is not None
     if is_debug_logging:
         debug_large_drive_parameters = serialize_drive_request_parameters(
             location = location,
@@ -127,7 +127,7 @@ def large_drive(
             random_seed = random_seed,
             api_model_version = api_model_version
         )
-        iai.debug_logger.append_request(
+        _state.debug_logger.append_request(
             model = "large_drive",
             data_dict = debug_large_drive_parameters
         )
@@ -189,7 +189,7 @@ def large_drive(
                     "api_model_version":api_model_version
                 }
                 if not async_api_calls:
-                    all_responses.append(iai.drive(**input_params))
+                    all_responses.append(drive(**input_params))
                 else:
                     async_input_params.append(input_params)
 
@@ -209,7 +209,7 @@ def large_drive(
 
     else:
         # Quadtree capacity has not been surpassed therefore can just call regular drive()
-        response = iai.drive(
+        response = drive(
             location = location,
             agent_states = agent_states,
             agent_properties = agent_properties,
@@ -225,7 +225,7 @@ def large_drive(
         )
 
     if is_debug_logging:
-        iai.debug_logger.append_response(
+        _state.debug_logger.append_response(
             model = "large_drive",
             data_dict = response.serialize_drive_response_parameters()
         )

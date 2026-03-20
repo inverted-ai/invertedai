@@ -1,11 +1,11 @@
-[waypoint-manager-example-link]: https://github.com/inverted-ai/invertedai/blob/develop/examples/waypoint_example.py
+[waypoint-manager-example-link]: https://github.com/inverted-ai/invertedai/blob/develop/examples/core_examples/waypoint_example.py
 
 # Waypoint Management
 
 Inverted AI DRIVE API provides an option to direct the NPC behavior by setting their target waypoints. This is in particular useful when instructing the NPCs to follow a specific route, but also helps maintain global coherence of paths taken by free roaming agents. While low level access to target waypoints allows the user finer control over the NPC behavior, "prompting" NPCs with waypoints takes some practice and for convenience we provide a helper that abstracts low-level waypoint generation in the typical use case of having the NPCs follow a specific route. This computation is performed and cached client side, in order to allow the API to be stateless, and encapsulated inside the Waypoint Manager. Check out the [Waypoint Manager example script][waypoint-manager-example-link] for how to integrate this feature into your code. In short, it translates high-level waypoints placed along a user-defined reachable path into low-level waypoints that can be inserted into DRIVE calls with desired effects.
 
 ```{eval-rst}
-.. autoclass:: invertedai.helpers.waypoints.WaypointManager
+.. autoclass:: invertedai.helpers.WaypointManager
    :members:
 ```
 

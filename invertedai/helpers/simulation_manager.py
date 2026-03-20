@@ -4,7 +4,6 @@ from copy import deepcopy
 from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentID, SimulationAgentDict, AgentData
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
-from invertedai.api.location import LocationResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
 from pydantic import BaseModel
 from invertedai.utils import get_default_agent_properties, ScenePlotterConfig, ScenePlotter, WaypointsDict
@@ -13,7 +12,6 @@ from dataclasses import dataclass
 from invertedai.logs.logger import LogWriterConfig, LogReaderConfig, ScenarioLog, LogWriter, LogReader
 from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
-import invertedai as iai
 import uuid
 
 class SimulationManager: 
@@ -238,7 +236,7 @@ class SimulationManager:
 
         original_agent_count = len(agent_ids)
 
-        response = iai.large_initialize( 
+        response = large_initialize( 
             regions=regions,
             agent_properties=properties,
             agent_states=states,
@@ -298,7 +296,7 @@ class SimulationManager:
             in self.agents_dict and optionally provided external_agent_data
 
         This method:
-        - updates self.agents_dict with results from iai.large_drive
+        - updates self.agents_dict with results from large_drive
         - uses iai.WaypointManager to update waypoints if configured
         - Records visualization and logging outputs if configured
 
@@ -348,7 +346,7 @@ class SimulationManager:
 
         external_ids = set(ext_ids) if external_agent_data else set()
 
-        response = iai.large_drive(
+        response = large_drive(
             agent_states=states,
             agent_properties=properties,
             recurrent_states=recurrent_states,

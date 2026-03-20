@@ -4,7 +4,7 @@ import warnings
 from pydantic import BaseModel, validate_call
 from typing import List, Optional, Dict, Tuple
 
-import invertedai as iai
+import invertedai._state as _state
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import TryAgain, InvalidInputType, InvalidInput
 from invertedai.api.mock import (
@@ -214,7 +214,7 @@ def initialize(
     timeout = TIMEOUT
     while True:
         try:
-            response = iai.session.request(model="initialize", data=model_inputs)
+            response = _state.session.request(model="initialize", data=model_inputs)
             response = InitializeResponse(
                 agent_states=[
                     AgentState.fromlist(state) for state in response["agent_states"]
@@ -252,7 +252,7 @@ def initialize(
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
                 raise e
-            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
+            _state.logger.info(_state.logger.logfmt("Waiting for model to warm up", error=e))
 
 
 @validate_call
@@ -292,10 +292,10 @@ async def async_initialize(
         model_version=api_model_version
     )
 
-    response = await iai.session.async_request(model="initialize", data=model_inputs)
+    response = await _state.session.async_request(model="initialize", data=model_inputs)
     agents_spawned = len(response["agent_states"])
     if agents_spawned != agent_count:
-        iai.logger.warning(
+        _state.logger.warning(
             f"Unable to spawn a scenario for {agent_count} agents,  {agents_spawned} spawned instead."
         )
     response = InitializeResponse(

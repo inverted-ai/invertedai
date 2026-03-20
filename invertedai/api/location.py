@@ -3,7 +3,7 @@ from pydantic import BaseModel, validate_call
 from typing import Optional, List, Tuple
 import tempfile
 
-import invertedai as iai
+import invertedai._state as _state
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import TryAgain
 from invertedai.api.mock import get_mock_birdview
@@ -95,7 +95,7 @@ def location_info(
               "rendering_center": ",".join([str(rendering_center[0]), str(rendering_center[1])]) if rendering_center else rendering_center}
     while True:
         try:
-            response = iai.session.request(model="location_info", params=params)
+            response = _state.session.request(model="location_info", params=params)
             if response['bounding_polygon'] is not None:
                 response['bounding_polygon'] = [Point(x=x, y=y) for (x, y) in response['bounding_polygon']]
             if response["static_actors"] is not None:
@@ -114,4 +114,4 @@ def location_info(
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
                 raise e
-            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
+            _state.logger.info(_state.logger.logfmt("Waiting for model to warm up", error=e))

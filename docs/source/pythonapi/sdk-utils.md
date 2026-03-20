@@ -2,7 +2,7 @@
 
 
 ```{eval-rst}
-.. autoclass:: invertedai.utils.ScenePlotter
+.. autoclass:: invertedai.ScenePlotter
    :members:
    :undoc-members:
 ```
