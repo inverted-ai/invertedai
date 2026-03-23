@@ -174,7 +174,7 @@ class ScenarioLog(BaseModel):
     can be continued. Some data fields contain data for all historic time steps while others contain information
     for the most recent time step to be used to continue a simulation.
     """
-    agent_data: List[SimulationAgentDict]
+    agent_data: List[SimulationAgentDict] #: Historic data for all SimulationAgentDict up until the most recent time step.
     traffic_lights_states: Optional[List[TrafficLightStatesDict]] = None #: Historic data for all TrafficLightStatesDict up until the most recent time step.
 
     location: str #: Location name in IAI format.
@@ -242,11 +242,10 @@ class ScenarioLog(BaseModel):
 
     @staticmethod
     def _validate_agent_dict(agent_dict: SimulationAgentDict, timestep: Optional[int] = None):
-        """Validate that every agent in the dict has a non-None state and properties."""
+        """Validate that every agent in the dict has a non-None state."""
         ts_label = f" at timestep {timestep}" if timestep is not None else ""
         for aid, data in agent_dict.items():
             assert data.state is not None, f"Agent '{aid}'{ts_label} has no state."
-            assert data.properties is not None, f"Agent '{aid}'{ts_label} has no properties."
 
     def add_time_step_data(self, agent_dict: SimulationAgentDict):
         """Append a deep-copied agent_dict entry"""
