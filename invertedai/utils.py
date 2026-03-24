@@ -11,7 +11,7 @@ import warnings
 
 from typing import Dict, Optional, List, Tuple, Union, Any
 from copy import deepcopy
-from pydantic import validate_call, validate_arguments
+from pydantic import validate_call, validate_arguments, BaseModel
 
 import requests
 from requests import Response
@@ -25,9 +25,10 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.axes import Axes
 from matplotlib import transforms
 
-import invertedai as iai
-import invertedai.api
-import invertedai.api.config
+import invertedai._state as _state
+import invertedai.api.config as api_config
+from invertedai.api.location import LocationResponse
+from invertedai.api.initialize import initialize
 from invertedai import error
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
@@ -82,7 +83,7 @@ class Session:
                 "Content-Type": "application/json",
                 "Accept-Encoding": "gzip, deflate, br",
                 "Connection": "keep-alive",
-                "x-client-version": iai.__version__,
+                "x-client-version": _state.__version__,
             }
         )
         self._base_url = self._get_base_url()
@@ -188,12 +189,12 @@ class Session:
         """
         self.session.auth = APITokenAuth(api_token)
         response = self.session.request(method="get", url=verifying_url)
-        if verifying_url == iai.commercial_url and response.status_code != 200:
+        if verifying_url == _state.commercial_url and response.status_code != 200:
             # Check for academic access in case the previous call to the commercial server fails.
             logger.warning(
                 "Commercial access denied and fallback to check for academic access."
             )
-            verifying_url = iai.academic_url
+            verifying_url = _state.academic_url
             response_acd = self.session.request(method="get", url=verifying_url)
             if response_acd.status_code == 200:
                 self.base_url = verifying_url
@@ -227,16 +228,16 @@ class Session:
             AuthenticationError: If access is denied due to an invalid API key.
             APIError: If the server encounters an error or is unable to perform the requested method.
         """
-        if not iai.dev and not api_token:
+        if not _state.dev and not api_token:
             raise error.InvalidAPIKeyError("Empty API key received.")
         if url is None:
             request_url = self._get_base_url()
         if key_type is not None and key_type not in ["commercial", "academic"]:
             raise error.InvalidAPIKeyError(f"Invalid API key type: {key_type}.")
         if key_type == "academic":
-            request_url = iai.academic_url
+            request_url = _state.academic_url
         elif key_type == "commercial":
-            request_url = iai.commercial_url
+            request_url = _state.commercial_url
         if url is not None:
             request_url = url
         self.base_url = self._verify_api_key(api_token, request_url)
@@ -245,9 +246,9 @@ class Session:
         self, 
         use_mock: bool = True
     ) -> None:
-        invertedai.api.config.mock_api = use_mock
+        api_config.mock_api = use_mock
         if use_mock:
-            iai.logger.warning(
+            _state.logger.warning(
                 "Using mock Inverted AI API - predictions will be trivial"
             )
 
@@ -264,7 +265,7 @@ class Session:
         params: Optional[dict] = None, 
         data: Optional[dict] = None
     ):
-        method, relative_path = iai.model_resources[model]
+        method, relative_path = _state.model_resources[model]
         
         if self._debug_logger is not None:
             request_data = data
@@ -370,8 +371,8 @@ class Session:
                 raise error.APIError(e.response.text) from None
             else:
                 raise error.APIError(STATUS_MESSAGE[500]) from None
-        iai.logger.info(
-            iai.logger.logfmt(
+        _state.logger.info(
+            _state.logger.logfmt(
                 "IAI API response",
                 path=self.base_url,
                 response_code=response.status_code,
@@ -394,10 +395,10 @@ class Session:
         version and other endpoint specifications.
         The method path should be appended to the base_url
         """
-        if not iai.dev:
-            base_url = iai.commercial_url  # Default to commercial when initializing.
+        if not _state.dev:
+            base_url = _state.commercial_url  # Default to commercial when initializing.
         else:
-            base_url = iai.dev_url
+            base_url = _state.dev_url
         # TODO: Add endpoint option and versioning to base_url
         return base_url
 
@@ -423,8 +424,8 @@ class Session:
         if "internal_message" in error_data:
             error_data["message"] += "\n\n" + error_data["internal_message"]
 
-        iai.logger.info(
-            iai.logger.logfmt(
+        _state.logger.info(
+            _state.logger.logfmt(
                 "IAI API error received",
                 error_code=error_data.get("code"),
                 error_type=error_data.get("type"),
@@ -606,7 +607,7 @@ def iai_conditional_initialize(
             outside_recurrent_states.append(recurrent_states[i])
 
     if not conditional_agent_type_count: #The dictionary is empty.
-        iai.logger.warning("Agent count requirement already satisfied, no new agents initialized.")
+        _state.logger.warning("Agent count requirement already satisfied, no new agents initialized.")
 
     padded_agent_properties = get_default_agent_properties(conditional_agent_type_count)
     conditional_agent_properties.extend(padded_agent_properties)
@@ -616,7 +617,7 @@ def iai_conditional_initialize(
         for agent_index in conditional_agent_states_indexes:
             conditional_agent_states[ts].append(states_history[ts][agent_index])
 
-    response = invertedai.api.initialize(
+    response = initialize(
         location = location,
         agent_properties = conditional_agent_properties,
         states_history = conditional_agent_states,
@@ -771,6 +772,10 @@ def rot(rot):
     """Rotate in 2d"""
     return np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
 
+class ScenePlotterConfig(BaseModel):
+    location: str
+    location_info_response: LocationResponse
+    
 
 class ScenePlotter():
     """

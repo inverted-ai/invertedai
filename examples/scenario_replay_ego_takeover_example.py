@@ -1,5 +1,6 @@
 import invertedai as iai
-from invertedai.common import AgentType
+from invertedai import AgentType
+from invertedai import Region, Point
 
 import argparse
 import random
@@ -45,8 +46,8 @@ def main(args):
         )
     else:
         regions = [
-            iai.large.common.Region.create_square_region(
-                center = iai.common.Point(
+            Region.create_square_region(
+                center = Point(
                     x = scenario_center[0],
                     y = scenario_center[1]
                 ),
@@ -67,8 +68,8 @@ def main(args):
     LOG_LENGTH = log_reader.log_length
 
     wp_manager = iai.WaypointManager(
-        location_info_response = location_info_response,
         cfg = iai.WaypointManagerConfig(
+            lanelet_map=location_info_response.get_lanelet_map(),
             random_seed=random_seed,
             fail_soft=True
         )

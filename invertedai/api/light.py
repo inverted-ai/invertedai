@@ -1,8 +1,7 @@
 import time
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field, validate_call
-import invertedai as iai
-
+import invertedai._state as _state
 from invertedai.api.config import TIMEOUT, should_use_mock_api
 from invertedai.error import TryAgain
 
@@ -66,9 +65,9 @@ def light(
     params = {"location": location, "recurrent_states": recurrent_states, "random_seed": random_seed}
     while True:
         try:
-            response = iai.session.request(model="light", params=params)
+            response = _state.session.request(model="light", params=params)
             return LightResponse(**response)
         except TryAgain as e:
             if timeout is not None and time.time() > start + timeout:
                 raise e
-            iai.logger.info(iai.logger.logfmt("Waiting for model to warm up", error=e))
+            _state.logger.info(_state.logger.logfmt("Waiting for model to warm up", error=e))

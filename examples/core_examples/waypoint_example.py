@@ -1,6 +1,5 @@
 import invertedai as iai
-from invertedai.utils import get_default_agent_properties
-from invertedai.common import AgentType
+from invertedai import get_default_agent_properties, AgentType
 
 import matplotlib.pyplot as plt
 import os
@@ -43,8 +42,8 @@ response = iai.initialize(
 #   the WaypointManager will ignore this exception and leave the agents waypoint list unchanged.
 #NOTE: WaypointManager functions best on closed maps where all lanes are reachable. On other maps, this may impact computational performance.
 wp_manager = iai.WaypointManager(
-    location_info_response = location_info_response,
     cfg = iai.WaypointManagerConfig(
+        lanelet_map = location_info_response.get_lanelet_map(),
         random_seed=seed,
         fail_soft=False
     )
@@ -68,7 +67,7 @@ agent_properties = wp_manager.update(
 )
 
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(
+scene_plotter = iai.ScenePlotter(
     map_image = rendered_static_map,
     fov = fov,
     xy_offset = (location_info_response.map_center.x, location_info_response.map_center.y),

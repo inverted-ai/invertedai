@@ -57,68 +57,51 @@ To set the API key in the C++ SDK, please review the executables in the examples
 
 ``` python
 import invertedai as iai
-from invertedai.utils import get_default_agent_properties
-from invertedai.common import AgentType
-
+from invertedai import AgentType
+from invertedai import WaypointManagerConfig
+from invertedai import SimulationManager
+from invertedai import ScenePlotterConfig
+from invertedai import LogWriterConfig
 import matplotlib.pyplot as plt
 import os
 
-location = "canada:drake_street_and_pacific_blvd"  # select one of available locations
+
+LOCATION = "carla:Town10HD"
+NUM_AGENTS = 4 # number of agents initialized
+SIM_LENGTH=150 # number of timesteps
 
 api_key = os.environ.get("IAI_API_KEY", None)
 if api_key is None:
-    iai.add_apikey('<INSERT_KEY_HERE>')  # specify your key here or through the IAI_API_KEY variable
+    iai.add_apikey("<INSERT_KEY_HERE>")
 
 print("Begin initialization.")
-# get static information about a given location including map in osm
-# format and list traffic lights with their IDs and locations.
-location_info_response = iai.location_info(location=location)
-
-# initialize the simulation by spawning NPCs
-response = iai.initialize(
-    location=location,  # select one of available locations
-    agent_properties=get_default_agent_properties({AgentType.car:10}),  # number of NPCs to spawn
-)
-agent_properties = response.agent_properties  # get dimension and other attributes of NPCs
-
+location_info_response = iai.location_info(location=LOCATION, include_map_source=True)
+scene_plotter_cfg = ScenePlotterConfig(location=LOCATION, location_info_response=location_info_response)
+waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
+log_cfg = LogWriterConfig(log_path="keyed_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
+simulation_manager = SimulationManager(scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
+regions = iai.get_regions_default(agent_count_dict = {AgentType.car: NUM_AGENTS}, location = LOCATION)
+response = simulation_manager.initialize(location=LOCATION, regions=regions)
+print("initialized agents with ids ", simulation_manager.get_agent_ids())
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(
-    rendered_static_map,
-    location_info_response.map_fov,
-    (location_info_response.map_center.x, location_info_response.map_center.y),
-    location_info_response.static_actors
-)
-scene_plotter.initialize_recording(
-    agent_states=response.agent_states,
-    agent_properties=agent_properties,
-)
 
 print("Begin stepping through simulation.")
-for _ in range(100):  # how many simulation steps to execute (10 steps is 1 second)
-
-    # query the API for subsequent NPC predictions
-    response = iai.drive(
-        location=location,
-        agent_properties=agent_properties,
-        agent_states=response.agent_states,
-        recurrent_states=response.recurrent_states,
-        light_recurrent_states=response.light_recurrent_states,
-    )
-
-    # save the visualization
-    scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
+for step in range(SIM_LENGTH):
+    response = simulation_manager.drive(location=LOCATION, light_recurrent_states=response.light_recurrent_states)
 
 print("Simulation finished, save visualization.")
-# save the visualization to disk
-fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-gif_name = 'minimal_example.gif'
-scene_plotter.animate_scene(
-    output_name=gif_name,
+
+fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
+simulation_manager.visualize_data(
+    output_name="keyed_minimal_example.gif",
     ax=ax,
     direction_vec=False,
     velocity_vec=False,
-    plot_frame_number=True
+    plot_frame_number=True,
+    numbers = list(range(NUM_AGENTS))
 )
+print("Simulation finished, save to json log.")
+simulation_manager.export_log()
 print("Done")
 
 ```
@@ -131,99 +114,129 @@ your machine and the NPC engine running on Inverted AI servers. The basic integr
 
 ```python
 import invertedai as iai
-from invertedai.common import AgentType
-from invertedai import get_regions_default
-from invertedai.utils import get_default_agent_properties
-
-import numpy as np
+from invertedai import (
+    AgentType,
+    AgentData,
+)
+from invertedai import (
+    WaypointManager,
+    WaypointManagerConfig,
+)
+from invertedai import SimulationManager
+from invertedai import (
+    ScenePlotterConfig,
+    get_default_agent_properties,
+)
+from invertedai import LogWriterConfig
 import matplotlib.pyplot as plt
+import os
+import uuid
 
-from typing import List
 
-iai.add_apikey('')  # Specify your key here or through the IAI_API_KEY variable
+LOCATION = "carla:Town10HD"
+NUM_AGENTS = 5
+SIM_LENGTH=150 # number of timesteps
+NUM_EGO_AGENTS = 5
 
+api_key = os.environ.get("IAI_API_KEY", None)
+if api_key is None:
+    iai.add_apikey("<INSERT_KEY_HERE>")
 print("Begin initialization.")
-LOCATION = "canada:drake_street_and_pacific_blvd"
-
-NUM_EGO_AGENTS = 1
-NUM_NPC_AGENTS = 10
-NUM_TIME_STEPS = 100
-
+location_info_response = iai.location_info(
+    location=LOCATION, 
+    include_map_source=True
+)
+scene_plotter_cfg = ScenePlotterConfig(
+    location=LOCATION, 
+    location_info_response=location_info_response
+)
+waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
+log_cfg = LogWriterConfig(
+    log_path="keyed_minimal_example_log.json",
+    location=LOCATION, 
+    location_info_response=location_info_response
+)
+simulation_manager = SimulationManager(
+    scene_plotter_cfg=scene_plotter_cfg, 
+    waypoint_cfg=waypoint_cfg, 
+    log_writer_cfg=log_cfg
+)
 ##########################################################################################################
 # INSERT YOUR OWN EGO PREDICTIONS FOR THE INITIALIZATION
+ego_waypoint_manager = WaypointManager(cfg=waypoint_cfg)
 ego_response = iai.initialize(
     location = LOCATION,
     agent_properties = get_default_agent_properties({AgentType.car:NUM_EGO_AGENTS}),
 )
-ego_agent_properties = ego_response.agent_properties  # get dimension and other attributes of NPCs
+ego_props = ego_response.agent_properties
+ego_props = ego_waypoint_manager.update(
+    response=ego_response,
+    agent_properties=ego_props
+)
 ##########################################################################################################
-
-# Generate the region objects for large_initialization
-regions = get_regions_default(
-    location = LOCATION,
-    agent_count_dict = {AgentType.car: NUM_NPC_AGENTS}
+regions = iai.get_regions_default(
+    agent_count_dict = {AgentType.car: NUM_AGENTS}, 
+    location = LOCATION, 
+    map_center=tuple([location_info_response.map_center.x, location_info_response.map_center.y])
 )
-# Instantiate a stateful wrapper for Inverted AI API
-iai_simulation = iai.BasicCosimulation(  
-    location = LOCATION,
-    ego_agent_properties = ego_agent_properties,
-    ego_agent_agent_states = ego_response.agent_states,
-    regions = regions,
-    traffic_light_state_history = [ego_response.traffic_lights_states]
-)
-
-# Initialize the ScenePlotter for scene visualization
-location_info_response = iai.location_info(location=LOCATION)
-rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.utils.ScenePlotter(
-    rendered_static_map,
-    location_info_response.map_fov,
-    (location_info_response.map_center.x, location_info_response.map_center.y),
-    location_info_response.static_actors
-)
-scene_plotter.initialize_recording(
-    agent_states = iai_simulation.agent_states,
-    agent_properties = iai_simulation.agent_properties,
-    conditional_agents = list(range(NUM_EGO_AGENTS)),
-    traffic_light_states = ego_response.traffic_lights_states
+ego_agent_ids = [f"ego_agent_{i}_{str(uuid.uuid4())[:8]}" for i in range(NUM_EGO_AGENTS)]
+external_agent_data = {
+    ego_agent_ids[i]: AgentData(
+        state=ego_response.agent_states[i],
+        properties=ego_props[i],
+        recurrent=None, 
+    )
+    for i in range(NUM_EGO_AGENTS)
+}
+response = simulation_manager.initialize(
+    location=LOCATION, 
+    regions=regions, 
+    external_agent_data=external_agent_data
 )
 
+print("initialized agents with ids ", simulation_manager.get_agent_ids())
 print("Begin stepping through simulation.")
-for _ in range(NUM_TIME_STEPS):  # How many simulation time steps to execute (10 steps is 1 second)
+for step in range(SIM_LENGTH):
 ##########################################################################################################    
     # INSERT YOUR OWN EGO PREDICTIONS FOR THIS TIME STEP
-    ego_response = iai.drive(
-        location = LOCATION,
-        agent_properties = ego_agent_properties+iai_simulation.npc_properties,
-        agent_states = ego_response.agent_states+iai_simulation.npc_states,
-        recurrent_states = ego_response.recurrent_states+iai_simulation.npc_recurrent_states,
-        light_recurrent_states = ego_response.light_recurrent_states,
+    ego_props = ego_waypoint_manager.update(
+        response=ego_response,
+        agent_properties=ego_props
     )
-    ego_response.agent_states = ego_response.agent_states[:NUM_EGO_AGENTS]
-    ego_response.recurrent_states = ego_response.recurrent_states[:NUM_EGO_AGENTS]
-##########################################################################################################
-
-    # Query the API for subsequent NPC predictions, informing it how the ego vehicle acted
-    iai_simulation.step(
-        current_ego_agent_states = ego_response.agent_states,
-        traffic_lights_states = ego_response.traffic_lights_states
+    ego_response= iai.drive(
+        location=LOCATION,
+        agent_states=ego_response.agent_states,
+        agent_properties=ego_props,
+        recurrent_states=ego_response.recurrent_states, 
+    )
+    external_agent_data = {
+        ego_agent_ids[i]: AgentData(
+            state=ego_response.agent_states[i],
+            properties=ego_props[i],
+            recurrent=None,  # recurrent is always zeroed for external agents in SimulationManager.drive()
+        )
+        for i in range(NUM_EGO_AGENTS)
+    }
+ ######################################################################################################
+    response = simulation_manager.drive(
+        external_agent_data=external_agent_data,
+        location=LOCATION, 
+        light_recurrent_states=response.light_recurrent_states
     )
 
-    # Save the visualization with ScenePlotter
-    scene_plotter.record_step(iai_simulation.agent_states,iai_simulation.light_states)
-
-# Save the visualization to disk
 print("Simulation finished, save visualization.")
-fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-plt.axis('off')
-gif_name = 'cosimulation_minimal_example.gif'
-scene_plotter.animate_scene(
-    output_name = gif_name,
-    ax = ax,
-    direction_vec = False,
-    velocity_vec = False,
-    plot_frame_number = True
+
+fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
+simulation_manager.visualize_data(
+    output_name="simulation_manager_cosimulation_example.gif",
+    ax=ax,
+    direction_vec=False,
+    velocity_vec=False,
+    plot_frame_number=True,
+    numbers = list(range(NUM_AGENTS + NUM_EGO_AGENTS))
 )
+print("Simulation finished, save to json log.")
+simulation_manager.export_log()
 print("Done")
 ```
 To quickly check out how Inverted AI NPCs

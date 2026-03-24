@@ -1,4 +1,3 @@
-import invertedai as iai
 """
 Inspired by OpenAI python-API error handling
 """

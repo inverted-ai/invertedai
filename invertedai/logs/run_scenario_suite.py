@@ -40,7 +40,7 @@ class ScenarioTool:
 
         num_agents = len(self.log_reader.agent_properties)
 
-        self.cosimulation = iai.cosimulation.BasicCosimulation(
+        self.cosimulation = iai.BasicCosimulation(
             location=self.log_reader.location,
             conditional_agent_properties=[self.log_reader.agent_properties[i] for i in range(num_agents) if i in self.ego_indexes] +\
                 [self.log_reader.agent_properties[i] for i in range(num_agents) if i not in self.ego_indexes],
@@ -86,7 +86,7 @@ def _run_simulation(
 
     if is_visualize:
         rendered_static_map = scenario_tool.log_reader.location_info_response.birdview_image.decode()
-        scene_plotter = iai.utils.ScenePlotter(
+        scene_plotter = iai.ScenePlotter(
             map_image=rendered_static_map,
             fov=scenario_tool.scenario_log.rendering_fov,
             xy_offset=scenario_tool.scenario_log.rendering_center,
