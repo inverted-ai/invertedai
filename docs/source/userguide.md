@@ -1,5 +1,5 @@
 [examples-link]: https://github.com/inverted-ai/invertedai/tree/develop/examples
-[rest-link]: https://app.swaggerhub.com/apis/swaggerhub59/InvertedAI
+[rest-link]: https://app.swaggerhub.com/apis/InvertedAI/InvertedAI/
 
 # User Guide
 
