@@ -1,0 +1,57 @@
+{
+  "location": {
+    "identifier": "pt:avenida_general_norton_de_matos_and_rua_mateus_vicente_portugal"
+  },
+  "scenario_length": 1,
+  "num_agents": {
+    "car": 1,
+    "pedestrian": 0
+  },
+  "predetermined_agents": {
+    "0": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.646,
+        "width": 2.086,
+        "rear_axis_offset": 1.765
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -64.553375,
+            "y": -60.68062500000001
+          },
+          "orientation": 1.2763346227930248,
+          "speed": 9.914
+        }
+      }
+    }
+  },
+  "num_controls": {
+    "traffic_light": 0,
+    "yield_sign": 0,
+    "stop_sign": 0,
+    "other": 0
+  },
+  "predetermined_controls": {},
+  "individual_suggestions": {},
+  "initialize_random_seed": 930,
+  "lights_random_seed": 0,
+  "drive_random_seed": "155",
+  "drive_model_version": "2Oe9",
+  "initialize_model_version": "6PZx",
+  "birdview_options": {
+    "rendering_center": [
+      -71.09375,
+      -57.03125
+    ],
+    "renderingFOV": 195
+  },
+  "light_recurrent_states": [
+    [
+      3,
+      2
+    ]
+  ],
+  "rendering_centers": []
+}

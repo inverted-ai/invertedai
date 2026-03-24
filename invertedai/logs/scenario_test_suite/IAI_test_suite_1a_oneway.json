@@ -1,0 +1,188 @@
+{
+  "location": {
+    "identifier": "usa:s_belmont_ave_and_w_cary_street_united_states"
+  },
+  "scenario_length": 1,
+  "num_agents": {
+    "car": 4,
+    "pedestrian": 0
+  },
+  "predetermined_agents": {
+    "1": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.724,
+        "width": 2.061,
+        "rear_axis_offset": 1.795
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -5.05854143793295,
+            "y": 20.58482538006582
+          },
+          "orientation": -2,
+          "speed": 0
+        }
+      }
+    },
+    "2": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.796,
+        "width": 2.036,
+        "rear_axis_offset": 1.823
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -8.62566347378938,
+            "y": 19.13809813541206
+          },
+          "orientation": -2.03,
+          "speed": 0
+        }
+      }
+    },
+    "3": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.381,
+        "width": 2.026,
+        "rear_axis_offset": 1.665
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -43.67518138724806,
+            "y": -8.869523108870126
+          },
+          "orientation": 1.11,
+          "speed": 0
+        }
+      }
+    },
+    "4": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.941,
+        "width": 2.075,
+        "rear_axis_offset": 1.877
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -40.425309080583524,
+            "y": -8.446034144883185
+          },
+          "orientation": 1.11,
+          "speed": 0
+        }
+      }
+    }
+  },
+  "num_controls": {
+    "traffic_light": 4,
+    "yield_sign": 0,
+    "stop_sign": 0,
+    "other": 0
+  },
+  "predetermined_controls": {
+    "0": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.679195191187867,
+        "width": 4.534580034619029,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -9.26844386237213,
+            "y": 15.191551266421982
+          },
+          "orientation": -2.005136728286743,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    },
+    "1": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.679195191187867,
+        "width": 3.5973804995848,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -43.9623867510893,
+            "y": 15.37080513255249
+          },
+          "orientation": -0.45004820823669434,
+          "speed": 0,
+          "control_state": "yellow"
+        }
+      }
+    },
+    "2": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.6791951911878552,
+        "width": 4.804576729194785,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -45.66480941533581,
+            "y": 11.511444777214933
+          },
+          "orientation": -0.434340238571167,
+          "speed": 0,
+          "control_state": "yellow"
+        }
+      }
+    },
+    "3": {
+      "entity_type": "traffic_light",
+      "static_attributes": {
+        "length": 0.6791951911878552,
+        "width": 4.498881345450652,
+        "rear_axis_offset": 0
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -39.040144490595814,
+            "y": -4.487237660111269
+          },
+          "orientation": 1.139946699142456,
+          "speed": 0,
+          "control_state": "red"
+        }
+      }
+    }
+  },
+  "individual_suggestions": {},
+  "initialize_random_seed": 90,
+  "lights_random_seed": 223,
+  "drive_random_seed": 246,
+  "drive_model_version": "best",
+  "initialize_model_version": "6PZx",
+  "birdview_options": {
+    "rendering_center": [
+      0,
+      0
+    ],
+    "renderingFOV": 200
+  },
+  "light_recurrent_states": [
+    [
+      2,
+      4
+    ]
+  ],
+  "rendering_centers": []
+}

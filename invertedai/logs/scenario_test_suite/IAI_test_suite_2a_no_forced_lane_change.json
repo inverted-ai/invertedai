@@ -1,0 +1,511 @@
+{
+  "location": {
+    "identifier": "usa:sanjose_highway_nosign"
+  },
+  "scenario_length": 1,
+  "num_agents": {
+    "car": 26,
+    "pedestrian": 0
+  },
+  "predetermined_agents": {
+    "1": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.024,
+        "width": 2.054,
+        "rear_axis_offset": 1.909
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20080.943,
+            "y": 9411.635
+          },
+          "orientation": 2.286,
+          "speed": 14.402
+        }
+      }
+    },
+    "2": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.893,
+        "width": 2.064,
+        "rear_axis_offset": 1.859
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20072.98,
+            "y": 9425.071
+          },
+          "orientation": 2.371,
+          "speed": 12.951
+        }
+      }
+    },
+    "3": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.099,
+        "width": 2.128,
+        "rear_axis_offset": 1.938
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20096.75,
+            "y": 9439.275
+          },
+          "orientation": 2.315,
+          "speed": 14.873
+        }
+      }
+    },
+    "4": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.779,
+        "width": 2.104,
+        "rear_axis_offset": 1.816
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20126.861,
+            "y": 9478.085
+          },
+          "orientation": 2.351,
+          "speed": 11.723
+        }
+      }
+    },
+    "5": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.853,
+        "width": 2.11,
+        "rear_axis_offset": 1.844
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20066.016,
+            "y": 9404.192
+          },
+          "orientation": 2.308,
+          "speed": 14.551
+        }
+      }
+    },
+    "6": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.124,
+        "width": 2.229,
+        "rear_axis_offset": 1.947
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20119.625,
+            "y": 9469.916
+          },
+          "orientation": 2.343,
+          "speed": 11.781
+        }
+      }
+    },
+    "7": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.561,
+        "width": 2.032,
+        "rear_axis_offset": 1.733
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20130.342,
+            "y": 9468.357
+          },
+          "orientation": 2.329,
+          "speed": 14.811
+        }
+      }
+    },
+    "8": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.865,
+        "width": 2.068,
+        "rear_axis_offset": 1.849
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20106.09,
+            "y": 9458.336
+          },
+          "orientation": 2.348,
+          "speed": 11.826
+        }
+      }
+    },
+    "9": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.999,
+        "width": 2.103,
+        "rear_axis_offset": 1.899
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20110.502,
+            "y": 9442.79
+          },
+          "orientation": 2.293,
+          "speed": 13.048
+        }
+      }
+    },
+    "10": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.935,
+        "width": 2.091,
+        "rear_axis_offset": 1.875
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20093.457,
+            "y": 9446.738
+          },
+          "orientation": 2.337,
+          "speed": 12.056
+        }
+      }
+    },
+    "11": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.911,
+        "width": 2.091,
+        "rear_axis_offset": 1.866
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20079.305,
+            "y": 9404.462
+          },
+          "orientation": 2.304,
+          "speed": 16.767
+        }
+      }
+    },
+    "12": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.05,
+        "width": 2.079,
+        "rear_axis_offset": 1.919
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20103.268,
+            "y": 9437.035
+          },
+          "orientation": 2.3,
+          "speed": 13.872
+        }
+      }
+    },
+    "13": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.953,
+        "width": 2.073,
+        "rear_axis_offset": 1.882
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20084.596,
+            "y": 9434.912
+          },
+          "orientation": 2.346,
+          "speed": 12.645
+        }
+      }
+    },
+    "14": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.022,
+        "width": 2.017,
+        "rear_axis_offset": 1.908
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20025.092,
+            "y": 9322.438
+          },
+          "orientation": -0.855,
+          "speed": 28.351
+        }
+      }
+    },
+    "15": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.886,
+        "width": 2.022,
+        "rear_axis_offset": 1.856
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -19989.568,
+            "y": 9314.233
+          },
+          "orientation": 2.304,
+          "speed": 18.09
+        }
+      }
+    },
+    "16": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.743,
+        "width": 2.165,
+        "rear_axis_offset": 1.802
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -19952.652,
+            "y": 9364.185
+          },
+          "orientation": -3.105,
+          "speed": 11.444
+        }
+      }
+    },
+    "17": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.069,
+        "width": 2.046,
+        "rear_axis_offset": 1.926
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -19985.99,
+            "y": 9301.668
+          },
+          "orientation": 2.283,
+          "speed": 21.066
+        }
+      }
+    },
+    "18": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.781,
+        "width": 2.047,
+        "rear_axis_offset": 1.817
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20032.635,
+            "y": 9387.678
+          },
+          "orientation": 2.429,
+          "speed": 14.767
+        }
+      }
+    },
+    "19": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.379,
+        "width": 1.919,
+        "rear_axis_offset": 1.664
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20022.354,
+            "y": 9353.679
+          },
+          "orientation": 2.285,
+          "speed": 16.18
+        }
+      }
+    },
+    "20": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.973,
+        "width": 2.091,
+        "rear_axis_offset": 1.89
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -19978.283,
+            "y": 9295.831
+          },
+          "orientation": 2.303,
+          "speed": 20.367
+        }
+      }
+    },
+    "21": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.451,
+        "width": 2.203,
+        "rear_axis_offset": 2.071
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20030.844,
+            "y": 9361.586
+          },
+          "orientation": 2.299,
+          "speed": 16.299
+        }
+      }
+    },
+    "22": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.11,
+        "width": 2.145,
+        "rear_axis_offset": 1.942
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20034.312,
+            "y": 9322.049
+          },
+          "orientation": -0.867,
+          "speed": 19.57
+        }
+      }
+    },
+    "23": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.167,
+        "width": 2.069,
+        "rear_axis_offset": 1.963
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20020.893,
+            "y": 9343.253
+          },
+          "orientation": 2.28,
+          "speed": 18.104
+        }
+      }
+    },
+    "24": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.802,
+        "width": 2.232,
+        "rear_axis_offset": 2.205
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20033.117,
+            "y": 9357.809
+          },
+          "orientation": 2.294,
+          "speed": 18.788
+        }
+      }
+    },
+    "25": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 4.885,
+        "width": 2.006,
+        "rear_axis_offset": 1.856
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -20000.803,
+            "y": 9327.372
+          },
+          "orientation": 2.295,
+          "speed": 18.154
+        }
+      }
+    },
+    "26": {
+      "entity_type": "car",
+      "static_attributes": {
+        "length": 5.105,
+        "width": 2.168,
+        "rear_axis_offset": 1.94
+      },
+      "states": {
+        "0": {
+          "center": {
+            "x": -19972.646,
+            "y": 9294.745
+          },
+          "orientation": 2.299,
+          "speed": 18.072
+        }
+      }
+    }
+  },
+  "num_controls": {
+    "traffic_light": 0,
+    "yield_sign": 0,
+    "stop_sign": 0,
+    "other": 0
+  },
+  "predetermined_controls": {},
+  "individual_suggestions": {},
+  "initialize_random_seed": 787,
+  "lights_random_seed": 9,
+  "drive_random_seed": 209,
+  "drive_model_version": "eL9h",
+  "initialize_model_version": "6PZx",
+  "birdview_options": {
+    "rendering_center": [
+      -20162.939453125,
+      9510.185546875
+    ],
+    "renderingFOV": "100"
+  },
+  "light_recurrent_states": [],
+  "rendering_centers": [
+    [
+      -20069.29296875,
+      9458.46875
+    ],
+    [
+      -19983.068359375,
+      9356.447265625
+    ]
+  ]
+}
