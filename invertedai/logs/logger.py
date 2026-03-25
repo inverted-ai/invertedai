@@ -656,10 +656,7 @@ class LogWriter(LogBase):
         assert location_info_response is not None, "No scenario log given, must provide a location_info_response argument."
         assert init_response is not None, "No scenario log given, must provide a init_response argument."
 
-        if agents_dict is not None:
-            # Use the provided keyed dictionary
-            agent_dict = agents_dict
-        else:
+        if agents_dict is None:
             # Build from init_response (backwards compatibility)
             agent_properties = init_response.agent_properties
             if type(agent_properties[0]) == AgentAttributes:
