@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import json
 
 from invertedai.api.location import location_info
-from invertedai.utils import ScenePlotter, WaypointsDict
+from invertedai.utils import ScenePlotter, agents_from_lists, WaypointsDict
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
@@ -164,7 +164,7 @@ class LogBase():
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
         left_hand_coordinates: bool = False,
-        agent_ids: Optional[List[int]] = None
+        agent_ids: Optional[List[str]] = None
     ):
         """
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
@@ -193,8 +193,16 @@ class LogBase():
         )
         rendered_static_map = location_info_response.birdview_image.decode()
         map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
-        traffic_lights_states = [None]*len(self._scenario_log.agent_states) if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states
-        
+        n_frames = len(self._scenario_log.agent_states)
+        traffic_lights_states = [None] * n_frames if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states
+
+        def _build_agents_dict(ts):
+            """Build a keyed agent dict from the ScenarioLog's parallel lists at a given timestep."""
+            states = self._scenario_log.agent_states[ts]
+            present = self._scenario_log.present_indexes[ts] if self._scenario_log.present_indexes is not None else list(range(len(states)))
+            props = [format_agent_properties(ts, i) for i in present]
+            return agents_from_lists(states, props, agent_ids=[str(i) for i in present])
+
         scene_plotter = ScenePlotter(
             map_image=rendered_static_map,
             fov=fov,
@@ -205,33 +213,28 @@ class LogBase():
             left_hand_coordinates=left_hand_coordinates
         )
         scene_plotter.initialize_recording(
-            agent_states=self._scenario_log.agent_states[0],
-            agent_properties=[format_agent_properties(self,ts=0,agent_id=i) for i in self._scenario_log.present_indexes[0]],
+            agents=_build_agents_dict(0),
             traffic_light_states=traffic_lights_states[timestep_range[0]],
         )
 
-        for ts, (states, lights, present) in enumerate(zip(
-            self._scenario_log.agent_states[0:],
-            traffic_lights_states[0:],
-            self._scenario_log.present_indexes[0:]
-        )):
+        for ts in range(n_frames):
+            lights = traffic_lights_states[ts] if ts < len(traffic_lights_states) else None
             scene_plotter.record_step(
-                agent_states=states, 
+                agents=_build_agents_dict(ts),
                 traffic_light_states=lights,
-                agent_properties=[format_agent_properties(self,ts=ts,agent_id=i) for i in present]
             )
 
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
         plt.axis('off')
         scene_plotter.animate_scene(
             output_name=gif_path,
-            start_idx=timestep_range[0], 
+            start_idx=timestep_range[0],
             end_idx=timestep_range[1],
             ax=ax,
             direction_vec=direction_vec,
             velocity_vec=velocity_vec,
             plot_frame_number=plot_frame_number,
-            numbers=agent_ids
+            agent_ids=agent_ids
         )
 
         plt.close(fig)
@@ -594,7 +597,10 @@ class LogWriter(LogBase):
             agent_properties = agent_properties,
             waypoints = waypoints
         )
-        self._scenario_log.waypoints_per_frame.append(waypoints)
+        if self._scenario_log.waypoints_per_frame is not None:
+            self._scenario_log.waypoints_per_frame.append(waypoints)
+        elif waypoints:
+            self._scenario_log.waypoints_per_frame = [waypoints]
 
         self._scenario_log.drive_model_version = drive_response.api_model_version
         self._scenario_log.light_recurrent_states = drive_response.light_recurrent_states

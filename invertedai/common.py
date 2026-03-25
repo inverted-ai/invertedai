@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, DefaultDict, Tuple
 from enum import Enum
 from pydantic import BaseModel, model_validator
 import math
@@ -359,3 +359,7 @@ class AgentData(BaseModel):
     state: Optional[AgentState] = None
     properties: Optional[AgentProperties] = None
     recurrent: Optional[RecurrentState] = None
+
+
+AgentID = str
+SimulationAgentDict = DefaultDict[AgentID, AgentData]

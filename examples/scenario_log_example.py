@@ -86,7 +86,7 @@ for ts in range(SIMULATION_LENGTH):
 
 log_path = os.path.join(os.getcwd(),f"scenario_log_example.json")
 log_writer.export_to_file(log_path=log_path)
-gif_path_original = os.path.join(os.getcwd(),f"scenario_log_example_original.gif")
+gif_path_original = os.path.join(os.getcwd(),f"scenario_log_example_original.mp4")
 log_writer.visualize(
     gif_path=gif_path_original,
     fov = 200,
@@ -103,7 +103,7 @@ log_writer.visualize(
 print("Reading log...")
 
 log_reader = iai.LogReader(log_path)
-gif_path_replay = os.path.join(os.getcwd(),f"scenario_log_example_replay.gif")
+gif_path_replay = os.path.join(os.getcwd(),f"scenario_log_example_replay.mp4")
 log_reader.visualize(
     gif_path=gif_path_replay,
     fov = 200,
@@ -129,8 +129,7 @@ scene_plotter_new = iai.utils.ScenePlotter(
     location_info_response_replay.static_actors
 )
 scene_plotter_new.initialize_recording(
-    agent_states=log_reader.agent_states,
-    agent_properties=agent_properties
+    agents=iai.agents_from_lists(log_reader.agent_states, agent_properties)
 )
 
 print("Stepping through simulation...")
@@ -140,9 +139,8 @@ while True: # Log reader will return False when it has run out of simulation dat
         break
     agent_properties = log_reader.agent_properties
     scene_plotter_new.record_step(
-        agent_states=log_reader.agent_states,
+        agents=iai.agents_from_lists(log_reader.agent_states, agent_properties),
         traffic_light_states=log_reader.traffic_lights_states,
-        agent_properties=agent_properties
     )
 
 agent_states = log_reader.agent_states
@@ -164,11 +162,11 @@ for _ in range(SIMULATION_LENGTH_EXTEND):
     light_recurrent_states = response.light_recurrent_states
 
     scene_plotter_new.record_step(
-        agent_states=agent_states,
+        agents=iai.agents_from_lists(agent_states, agent_properties),
         traffic_light_states=traffic_lights_states
     )
 
-gif_path_extended = os.path.join(os.getcwd(),f"scenario_log_example_extended.gif")
+gif_path_extended = os.path.join(os.getcwd(),f"scenario_log_example_extended.mp4")
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
 plt.axis('off')
 scene_plotter_new.animate_scene(
@@ -197,8 +195,7 @@ scene_plotter_branch = iai.utils.ScenePlotter(
     location_info_response_replay.static_actors
 )
 scene_plotter_branch.initialize_recording(
-    agent_states=log_reader.agent_states,
-    agent_properties=agent_properties
+    agents=iai.agents_from_lists(log_reader.agent_states, agent_properties)
 )
 log_writer_branched.initialize(
     scenario_log=log_reader.return_scenario_log(
@@ -211,9 +208,8 @@ for _ in range(SIMULATION_BEGIN_NEW_ROLLOUT):
     log_reader.drive()
     agent_properties = log_reader.agent_properties
     scene_plotter_branch.record_step(
-        agent_states=log_reader.agent_states,
+        agents=iai.agents_from_lists(log_reader.agent_states, agent_properties),
         traffic_light_states=log_reader.traffic_lights_states,
-        agent_properties=agent_properties
     )
 
 agent_states = log_reader.agent_states
@@ -236,13 +232,13 @@ for _ in range(SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT):
     light_recurrent_states = response.light_recurrent_states
 
     scene_plotter_branch.record_step(
-        agent_states=agent_states,
+        agents=iai.agents_from_lists(agent_states, agent_properties),
         traffic_light_states=response.traffic_lights_states,
     )
 
 log_path_branched = os.path.join(os.getcwd(),f"scenario_log_example_branched.json")
 log_writer_branched.export_to_file(log_path=log_path_branched)
-gif_path_branched = os.path.join(os.getcwd(),f"scenario_log_example_branched.gif")
+gif_path_branched = os.path.join(os.getcwd(),f"scenario_log_example_branched.mp4")
 log_writer_branched.visualize(
     gif_path=gif_path_branched,
     fov = 200,

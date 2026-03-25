@@ -53,7 +53,6 @@ scene_plotter = iai.ScenePlotter(
 scene_plotter.initialize_recording(
     agent_states = iai_simulation.agent_states,
     agent_properties = iai_simulation.agent_properties,
-    conditional_agents = list(range(NUM_EGO_AGENTS)),
     traffic_light_states = ego_response.traffic_lights_states
 )
 

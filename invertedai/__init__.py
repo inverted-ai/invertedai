@@ -33,7 +33,7 @@ from invertedai.api.blame import blame, async_blame
 from invertedai.cosimulation import BasicCosimulation
 
 # --- Session and utilities ---
-from invertedai.utils import Jupyter_Render, IAILogger, Session, ScenePlotter, ScenePlotterConfig, get_default_agent_properties
+from invertedai.utils import Jupyter_Render, IAILogger, Session, ScenePlotter, ScenePlotterConfig, get_default_agent_properties, FrameData, agents_from_lists
 
 # --- Large-scale simulation ---
 from invertedai.large.initialize import (
@@ -52,7 +52,7 @@ from invertedai.logs.debug_logger import DebugLogger
 
 # --- Helpers ---
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
-from invertedai.helpers.simulation_manager import SimulationAgentDict, SimulationManager
+from invertedai.helpers.simulation_manager import SimulationManager
 
 # --- Common data types ---
 from invertedai.common import (
@@ -61,6 +61,8 @@ from invertedai.common import (
     AgentState,
     AgentAttributes,
     AgentData,
+    AgentID,
+    SimulationAgentDict,
     RecurrentState,
     Point,
     Origin,
@@ -161,6 +163,7 @@ __all__ = [
     # Helpers
     "WaypointManager",
     "WaypointManagerConfig",
+    "AgentID",
     "SimulationAgentDict",
     "SimulationManager",
     # Session and utilities
@@ -172,6 +175,8 @@ __all__ = [
     "Session",
     "ScenePlotter",
     "ScenePlotterConfig",
+    "FrameData",
+    "agents_from_lists",
     "get_default_agent_properties",
     "logger",
     # Logging and diagnostics

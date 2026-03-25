@@ -1,6 +1,6 @@
-from typing import DefaultDict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from collections import defaultdict
-from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentData
+from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentData, SimulationAgentDict
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
@@ -11,9 +11,6 @@ from invertedai.logs.logger import LogWriterConfig, LogWriter
 from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
 import uuid
-
-AgentID = str
-SimulationAgentDict = DefaultDict[AgentID, AgentData]
 
 class SimulationManager: 
     """
@@ -238,7 +235,7 @@ class SimulationManager:
         if self.scene_plotter:
             self.scene_plotter.initialize_recording(
                 agent_states=response.agent_states,
-                agent_properties=response.agent_properties,
+                agent_properties=new_properties,
             )
         if self.log_writer is not None:
             if self.waypoint_manager is not None:
@@ -339,9 +336,9 @@ class SimulationManager:
         )
         if self.scene_plotter:
             self.scene_plotter.record_step(
-                response.agent_states,
-                traffic_light_states=response.traffic_lights_states,
+                agent_states=response.agent_states,
                 agent_properties=properties,
+                traffic_light_states=response.traffic_lights_states,
             )
         if self.log_writer is not None:
             waypoints: Optional[WaypointsDict] = None

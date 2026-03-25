@@ -4,7 +4,7 @@ import os
 
 from invertedai.common import AgentState, AgentProperties, TrafficLightState, RecurrentState, LightRecurrentState, Image, StaticMapActor, Point
 from invertedai.api.location import LocationResponse
-from invertedai.utils import ScenePlotter
+from invertedai.utils import ScenePlotter, agents_from_lists
 
 from collections import defaultdict
 from typing import List, Optional, Dict, Tuple
@@ -224,7 +224,10 @@ class DebugLogger:
 
         for response_json in log_data["drive_responses"]:
             response = json.loads(response_json)
-            scene_plotter.record_step([AgentState.fromlist(s) for s in response["agent_states"]],response["traffic_lights_states"])
+            scene_plotter.record_step(
+                agent_states=[AgentState.fromlist(s) for s in response["agent_states"]],
+                traffic_light_states=response["traffic_lights_states"]
+            )
 
         # save the visualization to disk
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
@@ -295,7 +298,10 @@ class DebugLogger:
             traffic_lights_states = response.traffic_lights_states
             light_recurrent_states = response.light_recurrent_states
             
-            scene_plotter.record_step(agent_states,traffic_lights_states)
+            scene_plotter.record_step(
+                agent_states=agent_states,
+                traffic_light_states=traffic_lights_states
+            )
 
         # save the visualization to disk
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))

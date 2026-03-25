@@ -95,8 +95,10 @@ def _run_simulation(
             dpi=300
         )
         scene_plotter.initialize_recording(
-            agent_states=scenario_tool.cosimulation.agent_states,
-            agent_properties=scenario_tool.cosimulation.agent_properties,
+            agents=iai.agents_from_lists(
+                scenario_tool.cosimulation.agent_states,
+                scenario_tool.cosimulation.agent_properties,
+            ),
             traffic_light_states=scenario_tool.cosimulation.light_states
         )
 
@@ -129,14 +131,21 @@ def _run_simulation(
             get_infractions = args.get_infractions
         )
 
-        if is_visualize: scene_plotter.record_step(scenario_tool.cosimulation.agent_states,scenario_tool.cosimulation.light_states)
+        if is_visualize:
+            scene_plotter.record_step(
+                agents=iai.agents_from_lists(
+                    scenario_tool.cosimulation.agent_states,
+                    scenario_tool.cosimulation.agent_properties,
+                ),
+                traffic_light_states=scenario_tool.cosimulation.light_states
+            )
 
     if is_visualize:
         logger.info(f"Simulation {scenario_name} finished, saving visualization.")
         # save the visualization to disk
-        colour_list = None
+        colour_dict = None
         if ego_indexes is not None:
-            colour_list = [(0.78, 0.0, 0.0) if i in ego_indexes else None for i in range(len(scenario_tool.cosimulation.agent_properties))]
+            colour_dict = {str(i): (0.78, 0.0, 0.0) for i in ego_indexes}
 
         fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
         plt.axis('off')
@@ -148,8 +157,8 @@ def _run_simulation(
             direction_vec=True,
             velocity_vec=False,
             plot_frame_number=True,
-            agent_face_colors=colour_list,
-            agent_edge_colors=colour_list
+            agent_face_colors=colour_dict,
+            agent_edge_colors=colour_dict
         )
         plt.close(fig)
 
