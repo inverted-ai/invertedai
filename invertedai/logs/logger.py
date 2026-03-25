@@ -274,17 +274,18 @@ class LogBase():
         last_drive_req = json.loads(DEBUG_LOG_DATA["drive_requests"][-1])
         all_drive_responses = []
         all_agent_states = []
+        all_agent_properties = []
         all_traffic_lights_states = []
-        for res_ in DEBUG_LOG_DATA["drive_responses"]:
+        for res_, req_ in zip(DEBUG_LOG_DATA["drive_responses"], DEBUG_LOG_DATA["drive_requests"]):
             res = json.loads(res_)
+            req = json.loads(req_)
             all_drive_responses.append(res)
             all_agent_states.append([AgentState.fromlist(state) for state in res["agent_states"]])
+            all_agent_properties.append([AgentProperties.deserialize(prop) for prop in req["agent_properties"]])
             if res["traffic_lights_states"] is not None:
                 all_traffic_lights_states.append(res["traffic_lights_states"])
             else:
                 all_traffic_lights_states = None
-
-        agent_properties = [AgentProperties.deserialize(prop) for prop in last_init_res["agent_properties"]]
 
         log_location = last_init_req["location"]
 
@@ -302,14 +303,13 @@ class LogBase():
             ]
             rendering_fov=location_info_response.map_fov
 
-        # Build agent_data from parsed data
         agent_data = []
-        for t, states_list in enumerate(all_agent_states):
+        for t, (states_list, props_list) in enumerate(zip(all_agent_states, all_agent_properties)):
             agent_dict: SimulationAgentDict = defaultdict(AgentData)
-            for i, state in enumerate(states_list):
+            for i, (state, props) in enumerate(zip(states_list, props_list)):
                 agent_dict[str(i)] = AgentData(
                     state=state,
-                    properties=agent_properties[i],
+                    properties=props,
                     recurrent=None,
                 )
             agent_data.append(agent_dict)
@@ -733,9 +733,15 @@ class LogWriter(LogBase):
                 )
             self._scenario_log.add_time_step_data(agent_dict)
         else:
-            keys = agent_ids or list(self._scenario_log.get_agents().keys())
+            # No agents_dict and no current_present_indexes provided:
+            # assume agent keys have not changed from the previous timestep.
+
+            # if agent_ids is provided use them, otherwise assume ids are the same from previous timestep
+            keys = agent_ids if agent_ids is not None else list(self._scenario_log.get_agents().keys())
             assert len(keys) == len(drive_response.agent_states), (
-                f"agent_ids length ({len(keys)}) must match number of agents in drive_response ({len(drive_response.agent_states)})."
+                f"Number of agent_ids ({len(keys)}) does not match number of agents "
+                f"in drive_response ({len(drive_response.agent_states)}). "
+                f"If agents were added or removed, provide agents_dict or current_present_indexes."
             )
             properties = agent_properties or [self._scenario_log.get_agents()[k].properties for k in keys]
             recurrent_states = drive_response.recurrent_states or [None] * len(keys)
