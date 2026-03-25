@@ -38,8 +38,6 @@ class RegionsConfig:
         Location name in IAI format.
     agent_count_dict : Optional[Dict[AgentType, int]]
         The number of agents to place within the regions per specified agent type.
-    total_num_agents : Optional[int]
-        Deprecated. The total number of agents to initialize across all regions.
     area_shape : Optional[Tuple[float, float]]
         Contains the [width, height] to either side of the center of the rectangular area.
         If not provided, a bounding box around the location polygon will be used.
