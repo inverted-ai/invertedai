@@ -13,6 +13,7 @@ from invertedai import (
     get_default_agent_properties,
 )
 from invertedai import LogWriterConfig
+from invertedai import RegionsConfig
 import matplotlib.pyplot as plt
 import os
 import uuid
@@ -59,11 +60,12 @@ ego_props = ego_waypoint_manager.update(
     agent_properties=ego_props
 )
 ##########################################################################################################
-regions = iai.get_regions_default(
-    agent_count_dict = {AgentType.car: NUM_AGENTS}, 
-    location = LOCATION, 
-    map_center=tuple([location_info_response.map_center.x, location_info_response.map_center.y])
+regions_config = RegionsConfig(
+    location=LOCATION,
+    agent_count_dict={AgentType.car: NUM_AGENTS},
+    map_center=(location_info_response.map_center.x, location_info_response.map_center.y),
 )
+regions = simulation_manager.form_regions(regions_config)
 ego_agent_ids = [f"ego_agent_{i}_{str(uuid.uuid4())[:8]}" for i in range(NUM_EGO_AGENTS)]
 external_agent_data = {
     ego_agent_ids[i]: AgentData(

@@ -5,7 +5,7 @@ from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
 from invertedai.utils import ScenePlotterConfig, ScenePlotter, WaypointsDict
-from invertedai.large.initialize import large_initialize
+from invertedai.large.initialize import large_initialize, get_regions_default, RegionsConfig
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriterConfig, LogWriter
 from invertedai.large.common import Region
@@ -54,6 +54,29 @@ class SimulationManager:
             if log_writer_cfg:
                 self.log_writer = LogWriter()   
     
+    def form_regions(
+        self,
+        regions_config: RegionsConfig,
+    ) -> List[Region]:
+        """
+        Uses :func:`get_regions_default` to generate regions based on the configuration provided from dataclass :class:`RegionsConfig`
+
+        The returned list of regions can be passed directly to :func:`initialize`
+
+        Parameters:
+        regions_config : RegionsConfig
+            Configuration specifying location, agent counts, area shape, etc.
+        """
+        return get_regions_default(
+            location=regions_config.location,
+            agent_count_dict=regions_config.agent_count_dict,
+            total_num_agents=regions_config.total_num_agents,
+            area_shape=regions_config.area_shape,
+            map_center=regions_config.map_center,
+            random_seed=regions_config.random_seed,
+            display_progress_bar=regions_config.display_progress_bar,
+        )
+
     def insert_agents(
         self,
         agent_data_list: List[AgentData],
