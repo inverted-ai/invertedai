@@ -4,6 +4,7 @@ from invertedai import WaypointManagerConfig
 from invertedai import SimulationManager
 from invertedai import ScenePlotterConfig
 from invertedai import LogWriterConfig
+from invertedai import RegionsConfig
 import matplotlib.pyplot as plt
 import os
 
@@ -22,7 +23,8 @@ scene_plotter_cfg = ScenePlotterConfig(location=LOCATION, location_info_response
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(log_path="keyed_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
 simulation_manager = SimulationManager(scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
-regions = iai.get_regions_default(agent_count_dict = {AgentType.car: NUM_AGENTS}, location = LOCATION)
+regions_config = RegionsConfig(location=LOCATION, agent_count_dict={AgentType.car: NUM_AGENTS})
+regions = simulation_manager.form_regions(regions_config)
 response = simulation_manager.initialize(location=LOCATION, regions=regions)
 print("initialized agents with ids ", simulation_manager.get_agent_ids())
 rendered_static_map = location_info_response.birdview_image.decode()
