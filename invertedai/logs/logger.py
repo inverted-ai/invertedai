@@ -642,10 +642,6 @@ class LogWriter(LogBase):
         Fallback:  pass init_response for backwards compatibility — integer string keys
                    ("0", "1", ...) will be assigned automatically.
         Legacy:    pass scenario_log (ScenarioLog) to initialize from an existing log.
-
-        Deprecated parameters (kept for backwards compatibility, use agents_dict instead):
-            waypoints: Waypoints are now stored directly in AgentProperties within the agents_dict.
-            agent_ids: Agent IDs are now the keys of agents_dict.
         """
 
         if scenario_log is not None:
@@ -666,7 +662,7 @@ class LogWriter(LogBase):
             if type(agent_properties[0]) == AgentAttributes:
                 agent_properties = [convert_attributes_to_properties(attr) for attr in agent_properties]
 
-            keys = agent_ids if agent_ids is not None else list(self._scenario_log.get_agents().keys())
+            keys = agent_ids if agent_ids is not None else [str(i) for i in range(len(init_response.agent_states))]
             assert len(keys) == len(init_response.agent_states), (
                 f"agent_ids length ({len(keys)}) must match number of agents in init_response ({len(init_response.agent_states)})."
             )
@@ -713,10 +709,6 @@ class LogWriter(LogBase):
         Preferred: pass agents_dict (SimulationAgentDict) with all agents for this timestep.
         Fallback:  pass drive_response with optional agent_ids and agent_properties to build the dict.
         Legacy:    pass current_present_indexes and new_agent_properties for index-based tracking.
-
-        Deprecated parameters (kept for backwards compatibility, use agents_dict instead):
-            waypoints: Waypoints are now stored directly in AgentProperties within the agents_dict.
-            agent_ids: Agent IDs are now the keys of agents_dict.
         """
 
         if agents_dict is not None:
