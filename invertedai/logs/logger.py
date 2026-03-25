@@ -24,149 +24,6 @@ from invertedai.common import (
     SimulationAgentDict,
     TrafficLightStatesDict 
 )
-class ScenarioLogLegacy(BaseModel):
-    """
-    Deprecated, do not use. Please use ScenarioLog instead.
-
-    A log containing simulation information for storage, replay, or an initial state from which a simulation 
-    can be continued. Some data fields contain data for all historic time steps while others contain information
-    for the most recent time step to be used to continue a simulation.
-    """
-
-    agent_states: List[List[AgentState]] #: Historic data for all agents states up until the most recent time step.
-    agent_properties: List[AgentProperties] #: Agent properties data for all agents in this scenario/log.
-    traffic_lights_states: Optional[List[TrafficLightStatesDict]] = None #: Historic data for all TrafficLightStatesDict up until the most recent time step.
-
-    location: str #: Location name in IAI format.
-    rendering_center: Optional[Tuple[float, float]] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
-    rendering_fov: Optional[int] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
-
-    lights_random_seed: Optional[int] = None #: Controls the stochastic aspects of the the traffic lights states.
-    initialize_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`initialize` for information on the random_seed parameter.
-    drive_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`drive` for information on the random_seed parameter.
-
-    initialize_model_version: Optional[str] = "best" #: Please refer to the documentation of :func:`initialize` for information on the api_model_version parameter.
-    drive_model_version: Optional[str] = "best" #: Please refer to the documentation of :func:`drive` for information on the api_model_version parameter.
-    
-    light_recurrent_states: Optional[LightRecurrentStates] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
-    recurrent_states: Optional[List[RecurrentState]] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
-
-    waypoints_per_frame: Optional[List[WaypointsDict]] = None # As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
-    present_indexes: List[List[int]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
-
-    @model_validator(mode='after')
-    def validate_states_and_present_indexes_init(self):
-        if self.present_indexes is not None:
-            assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
-
-            for states, pres_ids in zip(self.agent_states,self.present_indexes):
-                self.validate_states_and_present_indexes_time_step(
-                    current_agent_states=states,
-                    current_present_indexes=pres_ids
-                )
-        return self
-
-    def validate_states_and_present_indexes_time_step(
-        self,
-        current_agent_states: List[AgentState],
-        current_present_indexes: List[int]
-    ):
-        assert min(current_present_indexes) >= 0, "Invalid agent ID's in given list of present indexes."
-        assert len(current_present_indexes) == len(current_agent_states), "Given number of agent states does not match number of present agents."
-
-    def add_time_step_data(
-        self,
-        current_agent_states: List[AgentState],
-        current_present_indexes: List[int]
-    ):
-        self.validate_states_and_present_indexes_time_step(
-            current_agent_states=current_agent_states,
-            current_present_indexes=current_present_indexes
-        )
-        self.present_indexes.append(current_present_indexes)
-        self.agent_states.append(current_agent_states)
-
-    def to_scenario_log(self) -> "ScenarioLog":
-        """Convert this deprecated ScenarioLogLegacy into a ScenarioLog"""
-        agent_data = []
-        for t, (states, present) in enumerate(zip(self.agent_states, self.present_indexes)):
-            agent_dict: SimulationAgentDict = {}
-            for pos, idx in enumerate(present):
-                props = self.agent_properties[idx]
-                if self.waypoints_per_frame is not None and t < len(self.waypoints_per_frame):
-                    frame_wp = self.waypoints_per_frame[t]
-                    if frame_wp and str(idx) in frame_wp:
-                        props = deepcopy(props)
-                        props.waypoints = frame_wp[str(idx)]
-                agent_dict[str(idx)] = AgentData(
-                    state=states[pos],
-                    properties=props,
-                    recurrent=None,
-                )
-            agent_data.append(agent_dict)
-
-        from invertedai.logs.logger import ScenarioLog as _ScenarioLog
-        return _ScenarioLog(
-            agent_data=agent_data,
-            traffic_lights_states=self.traffic_lights_states,
-            location=self.location,
-            rendering_center=self.rendering_center,
-            rendering_fov=self.rendering_fov,
-            lights_random_seed=self.lights_random_seed,
-            initialize_random_seed=self.initialize_random_seed,
-            drive_random_seed=self.drive_random_seed,
-            initialize_model_version=self.initialize_model_version,
-            drive_model_version=self.drive_model_version,
-            light_recurrent_states=self.light_recurrent_states,
-            recurrent_states=self.recurrent_states,
-        )
-
-    @classmethod
-    def from_scenario_log(
-        cls, 
-        scenario_log
-    ):
-        """Convert a ScenarioLog into the deprecated ScenarioLogLegacy format"""
-        all_keys = scenario_log.get_agent_ids_all()
-        id_to_idx = {aid: i for i, aid in enumerate(all_keys)}
-        props_map = scenario_log.get_agent_properties_all()
-
-        agent_properties_list = [props_map[k] for k in all_keys]
-        agent_states_list = []
-        present_indexes_list = []
-        waypoints_per_frame_list = []
-
-        for agent_dict in scenario_log.agent_data:
-            states = []
-            present = []
-            wp_dict = {}
-            for aid, data in agent_dict.items():
-                idx = id_to_idx[aid]
-                present.append(idx)
-                states.append(data.state)
-                if data.properties and data.properties.waypoints:
-                    wp_dict[str(idx)] = data.properties.waypoints
-            present_indexes_list.append(present)
-            agent_states_list.append(states)
-            waypoints_per_frame_list.append(wp_dict)
-
-        return cls(
-            agent_states=agent_states_list,
-            agent_properties=agent_properties_list,
-            traffic_lights_states=scenario_log.traffic_lights_states,
-            location=scenario_log.location,
-            rendering_center=scenario_log.rendering_center,
-            rendering_fov=scenario_log.rendering_fov,
-            lights_random_seed=scenario_log.lights_random_seed,
-            initialize_random_seed=scenario_log.initialize_random_seed,
-            drive_random_seed=scenario_log.drive_random_seed,
-            initialize_model_version=scenario_log.initialize_model_version,
-            drive_model_version=scenario_log.drive_model_version,
-            light_recurrent_states=scenario_log.light_recurrent_states,
-            recurrent_states=scenario_log.recurrent_states,
-            waypoints_per_frame=waypoints_per_frame_list if any(wp_dict for wp_dict in waypoints_per_frame_list) else None,
-            present_indexes=present_indexes_list,
-        )
 
 class ScenarioLog(BaseModel):
     """
@@ -251,6 +108,149 @@ class ScenarioLog(BaseModel):
         """Append a deep-copied agent_dict entry"""
         self._validate_agent_dict(agent_dict)
         self.agent_data.append(deepcopy(agent_dict))
+        
+class ScenarioLogLegacy(BaseModel):
+    """
+    Deprecated, do not use. Please use ScenarioLog instead.
+
+    A log containing simulation information for storage, replay, or an initial state from which a simulation 
+    can be continued. Some data fields contain data for all historic time steps while others contain information
+    for the most recent time step to be used to continue a simulation.
+    """
+
+    agent_states: List[List[AgentState]] #: Historic data for all agents states up until the most recent time step.
+    agent_properties: List[AgentProperties] #: Agent properties data for all agents in this scenario/log.
+    traffic_lights_states: Optional[List[TrafficLightStatesDict]] = None #: Historic data for all TrafficLightStatesDict up until the most recent time step.
+
+    location: str #: Location name in IAI format.
+    rendering_center: Optional[Tuple[float, float]] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
+    rendering_fov: Optional[int] = None #: Please refer to the documentation of :func:`location_info` for information on this parameter.
+
+    lights_random_seed: Optional[int] = None #: Controls the stochastic aspects of the the traffic lights states.
+    initialize_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`initialize` for information on the random_seed parameter.
+    drive_random_seed: Optional[int] = None #: Please refer to the documentation of :func:`drive` for information on the random_seed parameter.
+
+    initialize_model_version: Optional[str] = "best" #: Please refer to the documentation of :func:`initialize` for information on the api_model_version parameter.
+    drive_model_version: Optional[str] = "best" #: Please refer to the documentation of :func:`drive` for information on the api_model_version parameter.
+    
+    light_recurrent_states: Optional[LightRecurrentStates] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
+    recurrent_states: Optional[List[RecurrentState]] = None #: As of the most recent time step. Please refer to the documentation of :func:`drive` for further information on this parameter.
+
+    waypoints_per_frame: Optional[List[WaypointsDict]] = None # As of the most recent time step. A list of waypoints keyed to agent ID's not including waypoints already passed. These waypoints are not automatically populated into the agent properties.
+    present_indexes: List[List[int]] = None #: List of indexes corresponding to agent_properties for which agents are present at each time step. If None, all agents are present at every time step.
+
+    @model_validator(mode='after')
+    def validate_states_and_present_indexes_init(self):
+        if self.present_indexes is not None:
+            assert len(self.agent_states) == len(self.present_indexes), "Given different number of time steps for agent states and present indexes."
+
+            for states, pres_ids in zip(self.agent_states,self.present_indexes):
+                self.validate_states_and_present_indexes_time_step(
+                    current_agent_states=states,
+                    current_present_indexes=pres_ids
+                )
+        return self
+
+    def validate_states_and_present_indexes_time_step(
+        self,
+        current_agent_states: List[AgentState],
+        current_present_indexes: List[int]
+    ):
+        assert min(current_present_indexes) >= 0, "Invalid agent ID's in given list of present indexes."
+        assert len(current_present_indexes) == len(current_agent_states), "Given number of agent states does not match number of present agents."
+
+    def add_time_step_data(
+        self,
+        current_agent_states: List[AgentState],
+        current_present_indexes: List[int]
+    ):
+        self.validate_states_and_present_indexes_time_step(
+            current_agent_states=current_agent_states,
+            current_present_indexes=current_present_indexes
+        )
+        self.present_indexes.append(current_present_indexes)
+        self.agent_states.append(current_agent_states)
+
+    def to_scenario_log(self):
+        """Convert this deprecated ScenarioLogLegacy into a ScenarioLog"""
+        agent_data = []
+        for t, (states, present) in enumerate(zip(self.agent_states, self.present_indexes)):
+            agent_dict: SimulationAgentDict = {}
+            for pos, idx in enumerate(present):
+                props = self.agent_properties[idx]
+                if self.waypoints_per_frame is not None and t < len(self.waypoints_per_frame):
+                    frame_wp = self.waypoints_per_frame[t]
+                    if frame_wp and str(idx) in frame_wp:
+                        props = deepcopy(props)
+                        props.waypoints = frame_wp[str(idx)]
+                agent_dict[str(idx)] = AgentData(
+                    state=states[pos],
+                    properties=props,
+                    recurrent=None,
+                )
+            agent_data.append(agent_dict)
+
+        return ScenarioLog(
+            agent_data=agent_data,
+            traffic_lights_states=self.traffic_lights_states,
+            location=self.location,
+            rendering_center=self.rendering_center,
+            rendering_fov=self.rendering_fov,
+            lights_random_seed=self.lights_random_seed,
+            initialize_random_seed=self.initialize_random_seed,
+            drive_random_seed=self.drive_random_seed,
+            initialize_model_version=self.initialize_model_version,
+            drive_model_version=self.drive_model_version,
+            light_recurrent_states=self.light_recurrent_states,
+            recurrent_states=self.recurrent_states,
+        )
+
+    @classmethod
+    def from_scenario_log(
+        cls, 
+        scenario_log: ScenarioLog
+    ):
+        """Convert a ScenarioLog into the deprecated ScenarioLogLegacy format"""
+        all_keys = scenario_log.get_agent_ids_all()
+        id_to_idx = {aid: i for i, aid in enumerate(all_keys)}
+        props_map = scenario_log.get_agent_properties_all()
+
+        agent_properties_list = [props_map[k] for k in all_keys]
+        agent_states_list = []
+        present_indexes_list = []
+        waypoints_per_frame_list = []
+
+        for agent_dict in scenario_log.agent_data:
+            states = []
+            present = []
+            wp_dict = {}
+            for aid, data in agent_dict.items():
+                idx = id_to_idx[aid]
+                present.append(idx)
+                states.append(data.state)
+                if data.properties and data.properties.waypoints:
+                    wp_dict[str(idx)] = data.properties.waypoints
+            present_indexes_list.append(present)
+            agent_states_list.append(states)
+            waypoints_per_frame_list.append(wp_dict)
+
+        return cls(
+            agent_states=agent_states_list,
+            agent_properties=agent_properties_list,
+            traffic_lights_states=scenario_log.traffic_lights_states,
+            location=scenario_log.location,
+            rendering_center=scenario_log.rendering_center,
+            rendering_fov=scenario_log.rendering_fov,
+            lights_random_seed=scenario_log.lights_random_seed,
+            initialize_random_seed=scenario_log.initialize_random_seed,
+            drive_random_seed=scenario_log.drive_random_seed,
+            initialize_model_version=scenario_log.initialize_model_version,
+            drive_model_version=scenario_log.drive_model_version,
+            light_recurrent_states=scenario_log.light_recurrent_states,
+            recurrent_states=scenario_log.recurrent_states,
+            waypoints_per_frame=waypoints_per_frame_list if any(wp_dict for wp_dict in waypoints_per_frame_list) else None,
+            present_indexes=present_indexes_list,
+        )
 
 class LogBase():
     """
