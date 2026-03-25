@@ -52,7 +52,6 @@ class RegionsConfig:
     """
     location: str
     agent_count_dict: Optional[Dict[AgentType, int]] = None
-    total_num_agents: Optional[int] = None
     area_shape: Optional[Tuple[float, float]] = None
     map_center: Optional[Tuple[float, float]] = (0.0, 0.0)
     random_seed: Optional[int] = None
