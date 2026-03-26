@@ -183,11 +183,11 @@ bazel-*
 # Demos
 *.avi
 *.gif
-examples/*.png
+examples/**/*.png
 examples/output/
 examples/logs/
-examples/*.csv
-examples/*.json
+examples/**/*.csv
+examples/**/*.json
 logs/*
 examples/iai-base.gitignore
 examples/iai-base.gitignore
