@@ -1,4 +1,5 @@
-from typing import List, Optional, Dict, Tuple
+from dataclasses import dataclass
+from typing import DefaultDict, List, Optional, Dict, Tuple
 from enum import Enum
 from pydantic import BaseModel, model_validator
 import math
@@ -347,15 +348,13 @@ class StaticMapActor(BaseModel):
 TrafficLightStatesDict = Dict[TrafficLightId, TrafficLightState]
 LightRecurrentStates = List[LightRecurrentState]
 
-
-class AgentData(BaseModel):
+AgentID = str
+@dataclass
+class AgentData:
     """
-    Contains all necessary data to describe a single agent fully at a single timestep.
-
-    See Also
-    --------
-    AgentState, AgentProperties, RecurrentState
+    Container for all data associated with a single agent.
     """
     state: Optional[AgentState] = None
     properties: Optional[AgentProperties] = None
     recurrent: Optional[RecurrentState] = None
+SimulationAgentDict = Dict[AgentID, AgentData] # defaultdict causes pydantic errors because AgentData is not supported by DefaultDict

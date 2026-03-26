@@ -1,9 +1,11 @@
-from typing import DefaultDict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from collections import defaultdict
-from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, AgentType, RecurrentState, AgentData
+from copy import deepcopy
+from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, SimulationAgentDict, AgentData
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
+from pydantic import BaseModel
 from invertedai.utils import ScenePlotterConfig, ScenePlotter, WaypointsDict
 from invertedai.large.initialize import large_initialize, get_regions_default, RegionsConfig
 from invertedai.large.drive import large_drive
@@ -11,9 +13,6 @@ from invertedai.logs.logger import LogWriterConfig, LogWriter
 from invertedai.large.common import Region
 from matplotlib.animation import FuncAnimation
 import uuid
-
-AgentID = str
-SimulationAgentDict = DefaultDict[AgentID, AgentData]
 
 class SimulationManager: 
     """
@@ -37,7 +36,7 @@ class SimulationManager:
             self,
             scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # can optionally initialize a scene plotter for visualization
             waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
-            log_writer_cfg: Optional[LogWriterConfig] = None # can optionally initialize a log_writer_cfg to write a json file log of the simulation
+            log_writer_cfg: Optional[LogWriterConfig] = None, # can optionally initialize a log_writer_cfg to write a json file log of the simulation
         ):
             self.scene_plotter = None
             if scene_plotter_cfg:
@@ -178,16 +177,15 @@ class SimulationManager:
         properties: List[AgentProperties],
         recurrent_states: List[RecurrentState],
     ) -> SimulationAgentDict:
+        agents_dict = defaultdict(AgentData)
         for i, aid in enumerate(agent_ids):
-            agents_dict = {
-                aid: AgentData(
-                    state=states[i],
-                    properties=properties[i] if properties else None,
-                    recurrent=recurrent_states[i] if recurrent_states else None,
-                )
-            }
+            agents_dict[aid] = AgentData(
+                state=states[i],
+                properties=properties[i] if properties else None,
+                recurrent=recurrent_states[i] if recurrent_states else None,
+            )
         return agents_dict
-    
+
     def initialize(
         self, 
         regions: List[Region],
@@ -264,17 +262,17 @@ class SimulationManager:
                 agent_properties=response.agent_properties,
             )
         if self.log_writer is not None:
-            if self.waypoint_manager is not None:
-                waypoints = {
-                    aid: new_properties[i].waypoints
-                    for i, aid in enumerate(all_agent_ids)
-                    if new_properties[i] is not None and new_properties[i].waypoints is not None
-                }
+            all_agents_dict = self._pack( # both internal+external agents
+                agent_ids=all_agent_ids,
+                states=response.agent_states,
+                properties=new_properties,
+                recurrent_states=response.recurrent_states,
+            )
             self.log_writer.initialize(  
                 location=self.log_writer_cfg.location,
                 location_info_response=self.log_writer_cfg.location_info_response,
+                agents_dict=all_agents_dict,
                 init_response=response,
-                waypoints=waypoints 
             )
 
         return response
@@ -367,18 +365,15 @@ class SimulationManager:
                 agent_properties=properties,
             )
         if self.log_writer is not None:
-            waypoints: Optional[WaypointsDict] = None
-            if self.waypoint_manager is not None:
-                waypoints = {
-                    aid: properties[i].waypoints
-                    for i, aid in enumerate(agent_ids)
-                    if properties[i] is not None and properties[i].waypoints is not None
-                }
-            current_present_indexes = list(range(len(agent_ids)))
+            all_agents_dict = self._pack(
+                agent_ids=agent_ids,
+                states=response.agent_states,
+                properties=properties,
+                recurrent_states=response.recurrent_states,
+            )
             self.log_writer.drive(
                 drive_response=response,
-                current_present_indexes=current_present_indexes,
-                waypoints=waypoints
+                agents_dict=all_agents_dict,
             )
         return response
     
