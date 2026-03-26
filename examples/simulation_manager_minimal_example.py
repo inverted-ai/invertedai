@@ -37,7 +37,7 @@ print("Simulation finished, save visualization.")
 
 fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
 simulation_manager.visualize_data(
-    output_name="keyed_minimal_example.gif",
+    output_name="Simulation_manager_minimal_example.gif",
     ax=ax,
     direction_vec=False,
     velocity_vec=False,
