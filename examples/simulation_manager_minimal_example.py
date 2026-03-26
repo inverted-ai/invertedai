@@ -8,9 +8,9 @@ from invertedai import RegionsConfig
 import matplotlib.pyplot as plt
 import os
 
-
+# tested with various number of agents, 0(fail), 1, 10, 20, 50, 100(fail)
 LOCATION = "carla:Town10HD"
-NUM_AGENTS = 4 # number of agents initialized
+NUM_AGENTS = 100 # number of agents initialized
 SIM_LENGTH=150 # number of timesteps
 
 api_key = os.environ.get("IAI_API_KEY", None)
