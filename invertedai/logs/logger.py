@@ -343,13 +343,15 @@ class LogBase():
         direction_vec: bool = False,
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
-        left_hand_coordinates: bool = False,
+        left_hand_coordinates: Optional[bool] = None,
         agent_ids: Optional[List[int]] = None
     ):
         """
         Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
         an invalid time step range is given, the function will fail. Please refer to ScenePlotter for details on the visualization tool.
         """
+        if left_hand_coordinates is None:
+            left_hand_coordinates = self._scenario_log.location.split(":")[0] == "carla"
 
         for timestep in timestep_range:
             assert timestep >= 0 or timestep <= (self.simulation_length - 1), "Visualization time range valid."
@@ -413,7 +415,7 @@ class LogBase():
         direction_vec: bool = False,
         velocity_vec: bool = False,
         plot_frame_number: bool = True,
-        left_hand_coordinates: bool = False,
+        left_hand_coordinates: Optional[bool] = None,
         agent_ids: Optional[List[int]] = None
     ):
         """
@@ -676,6 +678,8 @@ class LogWriter(LogBase):
                     prop = deepcopy(prop)
                     prop.waypoints = waypoints[key]
                 agent_dict[key] = AgentData(state=state, properties=prop, recurrent=rec)
+        else:
+            agent_dict = agents_dict
 
         self._scenario_log = ScenarioLog(
             agent_data=[deepcopy(agent_dict)],

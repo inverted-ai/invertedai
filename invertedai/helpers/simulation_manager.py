@@ -72,7 +72,6 @@ class SimulationManager:
         return get_regions_default(
             location=regions_config.location,
             agent_count_dict=regions_config.agent_count_dict,
-            total_num_agents=regions_config.total_num_agents,
             area_shape=regions_config.area_shape,
             map_center=regions_config.map_center,
             random_seed=regions_config.random_seed,
@@ -160,11 +159,18 @@ class SimulationManager:
         properties: List[AgentProperties] = []
         recurrent_states: List[RecurrentState] = []
         
+        # Determine actual recurrent size from existing agents
+        recurrent_size = RECURRENT_SIZE
+        for _, data in ordered_agents:
+            if data.recurrent is not None:
+                recurrent_size = len(data.recurrent.packed)
+                break
+
         for aid, data in ordered_agents:
             agent_ids.append(aid)
             states.append(data.state)  
             properties.append(data.properties)
-            recurrent_states.append(data.recurrent)  
+            recurrent_states.append(data.recurrent if data.recurrent is not None else RecurrentState(packed=[0.0] * recurrent_size))
         if states == [None] * len(states):
             states = None
         
@@ -424,6 +430,21 @@ class SimulationManager:
     def get_recurrent_states(self) -> List[RecurrentState]:
         return [data.recurrent for data in self.agents_dict.values()]
     
+    def get_state(self, agent_id: str) -> AgentState:
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        return self.agents_dict[agent_id].state
+
+    def get_property(self, agent_id: str) -> AgentProperties:
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        return self.agents_dict[agent_id].properties
+
+    def get_recurrent_state(self, agent_id: str) -> RecurrentState:
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        return self.agents_dict[agent_id].recurrent
+
     def get_agent_data(self, agent_id:str) -> AgentData:
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
