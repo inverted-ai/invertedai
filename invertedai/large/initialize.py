@@ -190,7 +190,7 @@ def get_number_of_agents_per_region_by_drivable_area(
     total_num_agents: Optional[int] = None,
     agent_count_dict: Optional[Dict[AgentType,int]] = None,
     random_seed: Optional[int] = None,
-    display_progress_bar: Optional[bool] = True
+    display_progress_bar: Optional[bool] = False
 ) -> List[Region]:
     """
     Takes a list of regions, calculates the driveable area for each of them using output from
@@ -431,7 +431,7 @@ def _initialize_regions(
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
-    display_progress_bar: bool = True,
+    display_progress_bar: bool = False,
     return_exact_agents: bool = False
 ) -> Tuple[List[Region],List[InitializeResponse]]:
     
@@ -561,7 +561,7 @@ def large_initialize(
     get_infractions: bool = False,
     random_seed: Optional[int] = None,
     api_model_version: Optional[str] = None,
-    display_progress_bar: bool = True,
+    display_progress_bar: bool = False,
     return_exact_agents: bool = False
 ) -> InitializeResponse:
     """
