@@ -11,6 +11,7 @@ from invertedai.large.initialize import large_initialize, get_regions_default, R
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriterConfig, LogWriter
 from invertedai.large.common import Region
+from invertedai.api.location import location_info
 from matplotlib.animation import FuncAnimation
 import uuid
 
@@ -39,11 +40,14 @@ class SimulationManager:
             log_writer_cfg: Optional[LogWriterConfig] = None, # can optionally initialize a log_writer_cfg to write a json file log of the simulation
         ):
             self.scene_plotter = None
+            self.scene_plotter_cfg = scene_plotter_cfg
             if scene_plotter_cfg:
+                map_center = scene_plotter_cfg.map_center if scene_plotter_cfg.map_center is not None else \
+                    (scene_plotter_cfg.location_info_response.map_center.x, scene_plotter_cfg.location_info_response.map_center.y)
                 self.scene_plotter = ScenePlotter(
                     scene_plotter_cfg.location_info_response.birdview_image.decode(),
                     scene_plotter_cfg.location_info_response.map_fov,
-                    (scene_plotter_cfg.location_info_response.map_center.x, scene_plotter_cfg.location_info_response.map_center.y),
+                    map_center,
                     scene_plotter_cfg.location_info_response.static_actors,
                     left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla"
                 )
@@ -385,15 +389,27 @@ class SimulationManager:
     
     def visualize_data(self, **kwargs) -> FuncAnimation:
         """
-        Produce an animation of sequentially recorded steps. If a ScenePlotter was configured during initialization, 
+        Produce an animation of sequentially recorded steps. If a ScenePlotter was configured during initialization,
             recorded steps from each drive will be visualized using the birdview map and static actors.
-        
+
         A matplotlib animation object can be returned and/or a gif saved of the scene.
+
+        If fov or xy_offset are provided, a new birdview image will be fetched from location_info
+        to match the updated view.
 
         For kwargs, please see documentation from :func:`animate_scene` in the ScenePlotter class
         """
         if self.scene_plotter is None:
             raise ValueError("ScenePlotter not initialized, failed to animate scene")
+        if self.scene_plotter_cfg and ('fov' in kwargs or 'xy_offset' in kwargs):
+            new_fov = kwargs.get('fov', self.scene_plotter.fov)
+            new_center = kwargs.get('xy_offset', self.scene_plotter.xy_offset)
+            location_info_response = location_info(
+                location=self.scene_plotter_cfg.location,
+                rendering_fov=new_fov,
+                rendering_center=new_center,
+            )
+            self.scene_plotter.map_image = location_info_response.birdview_image.decode()
         self.scene_plotter.animate_scene(**kwargs)
     
     def export_log(self, path: Optional[str] = None):

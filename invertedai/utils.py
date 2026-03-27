@@ -773,8 +773,23 @@ def rot(rot):
     return np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
 
 class ScenePlotterConfig(BaseModel):
+    """
+    Configuration for initializing a ScenePlotter instance.
+
+    Parameters:
+    location:
+        Location name in IAI format
+    location_info_response:
+        Response from :func:`location_info` containing the birdview image, map FOV, map center, and static actors
+    map_center:
+        The (x, y) coordinates of the center of the birdview image in meters.
+        If not provided, defaults to the map_center from location_info_response.
+        Use this to specify the actual rendering center if a custom rendering_center
+        was passed to :func:`location_info`.
+    """
     location: str
     location_info_response: LocationResponse
+    map_center: Optional[Tuple[float, float]] = None
     
 
 class ScenePlotter():
