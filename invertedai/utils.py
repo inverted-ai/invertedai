@@ -786,10 +786,16 @@ class ScenePlotterConfig(BaseModel):
         If not provided, defaults to the map_center from location_info_response.
         Use this to specify the actual rendering center if a custom rendering_center
         was passed to :func:`location_info`.
+    fov:
+        The field of view in meters of the birdview image.
+        If not provided, defaults to map_fov from location_info_response.
+        Use this to specify the actual rendering FOV if a custom rendering_fov
+        was passed to :func:`location_info`.
     """
     location: str
     location_info_response: LocationResponse
     map_center: Optional[Tuple[float, float]] = None
+    fov: Optional[float] = None
     
 
 class ScenePlotter():

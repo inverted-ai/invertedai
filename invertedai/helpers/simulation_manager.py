@@ -44,9 +44,19 @@ class SimulationManager:
             if scene_plotter_cfg:
                 map_center = scene_plotter_cfg.map_center if scene_plotter_cfg.map_center is not None else \
                     (scene_plotter_cfg.location_info_response.map_center.x, scene_plotter_cfg.location_info_response.map_center.y)
+                fov = scene_plotter_cfg.fov if scene_plotter_cfg.fov is not None else \
+                    scene_plotter_cfg.location_info_response.map_fov
+                birdview_image = scene_plotter_cfg.location_info_response.birdview_image.decode()
+                if scene_plotter_cfg.fov is not None or scene_plotter_cfg.map_center is not None:
+                    correct_li = location_info(
+                        location=scene_plotter_cfg.location,
+                        rendering_fov=fov,
+                        rendering_center=map_center,
+                    )
+                    birdview_image = correct_li.birdview_image.decode()
                 self.scene_plotter = ScenePlotter(
-                    scene_plotter_cfg.location_info_response.birdview_image.decode(),
-                    scene_plotter_cfg.location_info_response.map_fov,
+                    birdview_image,
+                    fov,
                     map_center,
                     scene_plotter_cfg.location_info_response.static_actors,
                     left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla"
