@@ -60,6 +60,7 @@ class SimulationManager:
                     map_center,
                     scene_plotter_cfg.location_info_response.static_actors,
                     left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla"
+                    resolution=(2048,2048)
                 )
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
             self.waypoint_manager: Optional[WaypointManager] = None
