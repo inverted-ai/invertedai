@@ -208,9 +208,10 @@ class SimulationManager:
         return agents_dict
 
     def initialize(
-        self, 
+        self,
         regions: List[Region],
         external_agent_data: Optional[SimulationAgentDict] = None,
+        return_external_dict: bool = False,
         **kwargs
     ) -> InitializeResponse:
         """
@@ -282,25 +283,29 @@ class SimulationManager:
                 agent_states=response.agent_states,
                 agent_properties=response.agent_properties,
             )
-        if self.log_writer is not None:
+        if self.log_writer is not None or return_external_dict:
             all_agents_dict = self._pack( # both internal+external agents
                 agent_ids=all_agent_ids,
                 states=response.agent_states,
                 properties=new_properties,
                 recurrent_states=response.recurrent_states,
             )
-            self.log_writer.initialize(  
-                location=self.log_writer_cfg.location,
-                location_info_response=self.log_writer_cfg.location_info_response,
-                agents_dict=all_agents_dict,
-                init_response=response,
-            )
-
+            if self.log_writer is not None:
+                self.log_writer.initialize(
+                    location=self.log_writer_cfg.location,
+                    location_info_response=self.log_writer_cfg.location_info_response,
+                    agents_dict=all_agents_dict,
+                    init_response=response,
+                )
+        if return_external_dict:
+            external_dict = {aid: all_agents_dict[aid] for aid in external_ids}
+            return response, external_dict
         return response
     
     def drive(
         self, 
         external_agent_data: Optional[SimulationAgentDict] = None,
+        return_external_dict: bool = False,
         **kwargs
     )-> DriveResponse:
         """
@@ -385,17 +390,21 @@ class SimulationManager:
                 traffic_light_states=response.traffic_lights_states,
                 agent_properties=properties,
             )
-        if self.log_writer is not None:
+        if self.log_writer is not None or return_external_dict is not None:
             all_agents_dict = self._pack(
                 agent_ids=agent_ids,
                 states=response.agent_states,
                 properties=properties,
                 recurrent_states=response.recurrent_states,
             )
-            self.log_writer.drive(
-                drive_response=response,
-                agents_dict=all_agents_dict,
-            )
+            if self.log_writer is not None:
+                self.log_writer.drive(
+                    drive_response=response,
+                    agents_dict=all_agents_dict,
+                )
+        if return_external_dict:
+            external_dict = {aid: all_agents_dict[aid] for aid in external_ids}
+            return response, external_dict
         return response
     
     def visualize_data(self, **kwargs) -> FuncAnimation:
