@@ -1380,7 +1380,7 @@ class ScenePlotter():
                     c="r",
                     ha='center',
                     va='center',
-                    fontsize=18*self._dpi_scale* (110/self.fov),
+                    fontsize=18*self._dpi_scale* (250/self.fov),
                 )
                 self.box_labels[agent_idx].set_clip_on(True)
             else:
@@ -1443,7 +1443,7 @@ class ScenePlotter():
                     y_data,
                     marker=marker_data,
                     color='saddlebrown',
-                    markersize=17.0*self._dpi_scale * (80/self.fov), # multiply by scaling factor relative to fov
+                    markersize=17.0*self._dpi_scale * (250/self.fov), # multiply by scaling factor relative to fov
                     linestyle='None',
                     zorder=6
                 )[0]
@@ -1454,7 +1454,7 @@ class ScenePlotter():
                     c='w',
                     ha='center',
                     va='center',
-                    fontsize=18*self._dpi_scale * (80/self.fov), # multiply by scaling factor relative to fov
+                    fontsize=18*self._dpi_scale * (250/self.fov), # multiply by scaling factor relative to fov
                     zorder=6
                 )
                 self.waypoint_markers[agent_idx]["text"].set_clip_on(True)
