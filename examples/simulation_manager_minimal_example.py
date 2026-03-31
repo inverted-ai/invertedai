@@ -19,18 +19,6 @@ if api_key is None:
 
 print("Begin initialization.")
 location_info_response = iai.location_info(location=LOCATION, include_map_source=True)
-# ScenePlotterConfig accepts optional fov and map_center overrides.
-# By default, fov and map_center are taken from location_info_response (map_fov and map_center).
-# If you passed a custom rendering_fov or rendering_center to location_info(), set them here
-# so the birdview image is re-fetched to match. Example:
-#   scene_plotter_cfg = ScenePlotterConfig(
-#       location=LOCATION,
-#       location_info_response=location_info_response,
-#       fov=150,
-#       map_center=(100.0, 50.0),
-#   )
-# fov and map_center can also be overridden at visualization time via visualize_data(fov=..., xy_offset=...),
-# which will call location_info again to refetch the birdview to match.
 scene_plotter_cfg = ScenePlotterConfig(location=LOCATION, location_info_response=location_info_response)
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(log_path="keyed_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)

@@ -411,15 +411,6 @@ class SimulationManager:
         """
         if self.scene_plotter is None:
             raise ValueError("ScenePlotter not initialized, failed to animate scene")
-        if self.scene_plotter_cfg and ('fov' in kwargs or 'xy_offset' in kwargs):
-            new_fov = kwargs.get('fov', self.scene_plotter.fov)
-            new_center = kwargs.get('xy_offset', self.scene_plotter.xy_offset)
-            location_info_response = location_info(
-                location=self.scene_plotter_cfg.location,
-                rendering_fov=new_fov,
-                rendering_center=new_center,
-            )
-            self.scene_plotter.map_image = location_info_response.birdview_image.decode()
         self.scene_plotter.animate_scene(**kwargs)
     
     def export_log(self, path: Optional[str] = None):

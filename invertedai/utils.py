@@ -794,9 +794,6 @@ class ScenePlotterConfig(BaseModel):
     """
     location: str
     location_info_response: LocationResponse
-    map_center: Optional[Tuple[float, float]] = None
-    fov: Optional[float] = None
-    
 
 class ScenePlotter():
     """
@@ -1079,8 +1076,6 @@ class ScenePlotter():
         plot_frame_number: bool = False, 
         agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
         agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None,
-        fov: Optional[float] = None,
-        xy_offset: Optional[Tuple[float,float]] = None
     ) -> FuncAnimation:
         """
         Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
@@ -1116,14 +1111,6 @@ class ScenePlotter():
         xy_offset:
             Optional override for the map center coordinates (x, y) in meters. If not provided, the value from initialization is used.
         """
-
-        if fov is not None:
-            self.fov = fov # reset the fov globally
-        if xy_offset is not None:
-            self.xy_offset = xy_offset
-        if fov is not None or xy_offset is not None:
-            self.extent = (- self.fov / 2 + self.xy_offset[0], self.fov / 2 + self.xy_offset[0]) + \
-                (- self.fov / 2 + self.xy_offset[1], self.fov / 2 + self.xy_offset[1])
 
         self._validate_agent_style_data(
             agent_face_colors=agent_face_colors,
