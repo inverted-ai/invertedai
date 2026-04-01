@@ -1273,11 +1273,15 @@ class ScenePlotter():
         fig = self.current_ax.figure
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
 
+        def init_func():
+            return []
+
         def animate(i):
-            self._update_frame_to(i)
+            return self._update_frame_to(i)
 
         ani = FuncAnimation(
-            fig, animate, np.arange(start_idx, end_idx), interval=100)
+            fig, animate, np.arange(start_idx, end_idx),
+            init_func=init_func, interval=100, blit=True)
         if output_name is not None:
             ext = os.path.splitext(output_name)[1].lower()
             writer = 'ffmpeg' if ext == '.mp4' else 'pillow' #
@@ -1371,8 +1375,11 @@ class ScenePlotter():
         if ax is None:
             plt.clf()
             ax = plt.gca()
+
         if self._open_drive is None:
             ax.imshow(self.map_image, extent=self.extent)
+            ax.set_xlim(*self.extent[0:2])
+            ax.set_ylim(*self.extent[2:4])
         else:
             self._draw_xodr_map(ax)
             self.extent = (self.xy_offset[0] - self.fov / 2, self.xy_offset[0] + self.fov / 2) +\
@@ -1395,8 +1402,6 @@ class ScenePlotter():
         self.velocity_vec = velocity_vec
         self.plot_frame_number = plot_frame_number
 
-        self._update_frame_to(0)
-
     def _get_color(
         self,
         agent_id: str,
@@ -1413,6 +1418,8 @@ class ScenePlotter():
         return c
 
     def _update_frame_to(self, frame_idx):
+        frame = self.frames[frame_idx]
+
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
         for marker in self.waypoint_markers.values():
@@ -1436,8 +1443,9 @@ class ScenePlotter():
                 lines.set_visible(False)
         for label in self.box_labels.values():
             label.set_visible(False)
+        for rect in self.traffic_light_boxes.values():
+            rect.set_visible(False)
 
-        frame = self.frames[frame_idx]
         for agent_id, agent_data in frame.agents.items():
             self._update_agent(
                 agent_idx=agent_id,
@@ -1466,10 +1474,31 @@ class ScenePlotter():
                 )
             else:
                 self.frame_label.set_text(str(frame_idx))
-
-        if self._open_drive is None:
-            self.current_ax.set_xlim(*self.extent[0:2])
-            self.current_ax.set_ylim(*self.extent[2:4])
+        
+        # cache everything for blitting
+        artists = list(self.actor_boxes.values())
+        artists.extend(self.traffic_light_boxes.values())
+        for lines in self.dir_lines.values():
+            if isinstance(lines, list):
+                artists.extend(lines)
+            else:
+                artists.append(lines)
+        for lines in self.v_lines.values():
+            if isinstance(lines, list):
+                artists.extend(lines)
+            else:
+                artists.append(lines)
+        artists.extend(self.box_labels.values())
+        for m in self.waypoint_markers.values():
+            elem = m["marker"]
+            if isinstance(elem, list):
+                artists.extend(elem)
+            else:
+                artists.append(elem)
+            artists.append(m["text"])
+        if self.frame_label is not None:
+            artists.append(self.frame_label)
+        return artists
 
     def _resolve_tag_style(
         self,
@@ -1504,12 +1533,13 @@ class ScenePlotter():
         if self._left_hand_coordinates:
             x, psi = self._transform_point_to_left_hand_coordinate_frame(x,psi)
 
-        box = np.array([
-            [0, 0], [l * 0.5, 0],  # direction vector
-            [0, 0], [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
-        ])
+        if self.velocity_vec:
+            box = np.array([
+                [0, 0], [l * 0.5, 0],  # direction vector
+                [0, 0], [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
+            ])
+            box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
 
-        box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
         if self.direction_vec:
             marker_offset = agent_properties.length/4
             x_data = x + marker_offset*math.cos(psi)
@@ -1551,8 +1581,8 @@ class ScenePlotter():
                 self.box_labels[agent_idx] = self.current_ax.text(
                     x, 
                     y, 
-                    agent_idx, 
-                    c="r",
+                    agent_idx,
+                    c="w",
                     ha='center',
                     va='center',
                     fontsize=18*self._dpi_scale* (110/self.fov),
@@ -1676,19 +1706,22 @@ class ScenePlotter():
         if self._left_hand_coordinates:
             x, psi = self._transform_point_to_left_hand_coordinate_frame(x,psi)
 
-        rect = Rectangle(
-            (x - l / 2, y - w / 2),
-            l,
-            w,
-            angle=psi * 180 / np.pi,
-            rotation_point="center",
-            fc=self.traffic_light_colors[light_state],
-            lw=0,
-        )
+        color = self.traffic_light_colors[light_state]
         if light_id in self.traffic_light_boxes:
-            self.traffic_light_boxes[light_id].remove()
-        self.current_ax.add_patch(rect)
-        self.traffic_light_boxes[light_id] = rect
+            self.traffic_light_boxes[light_id].set_facecolor(color)
+            self.traffic_light_boxes[light_id].set_visible(True)
+        else:
+            rect = Rectangle(
+                (x - l / 2, y - w / 2),
+                l,
+                w,
+                angle=psi * 180 / np.pi,
+                rotation_point="center",
+                fc=color,
+                lw=0,
+            )
+            self.current_ax.add_patch(rect)
+            self.traffic_light_boxes[light_id] = rect
 
     def _draw_xodr_map(self, ax, extras=False):
         """
