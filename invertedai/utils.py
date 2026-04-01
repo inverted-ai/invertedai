@@ -804,8 +804,22 @@ def agents_from_lists(
 
 
 class ScenePlotterConfig(BaseModel):
+    """
+    Configuration for initializing a :class:`ScenePlotter` from a location string.
+
+    location:
+        IAI formatted map location string
+    location_info_response:
+        :class:`LocationResponse` from :func:`location_info`
+    fov:
+        Field of view in metres. Used to override the fov from `location_info_response` if provided.
+    xy_offset:
+        Coordinates of the map center in metres. Used to override the xy_offset from `location_info_response` if provided.
+    """
     location: str
-    location_info_response: LocationResponse
+    location_info_response: Optional[LocationResponse] = None
+    fov: Optional[float] = None
+    xy_offset: Optional[Tuple[float,float]] = None
 
 
 class ScenePlotter():

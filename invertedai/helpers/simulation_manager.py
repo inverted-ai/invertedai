@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple
 from collections import defaultdict
+from invertedai.api.location import location_info
 from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentData, SimulationAgentDict
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
@@ -38,11 +39,21 @@ class SimulationManager:
         ):
             self.scene_plotter = None
             if scene_plotter_cfg:
+                if scene_plotter_cfg.fov or scene_plotter_cfg.xy_offset or scene_plotter_cfg.location_info_response is None:
+                    location_info_response = location_info(
+                        location=scene_plotter_cfg.location,
+                        rendering_fov=scene_plotter_cfg.fov,
+                        rendering_center=scene_plotter_cfg.xy_offset   
+                    )
+                else:
+                    location_info_response = scene_plotter_cfg.location_info_response
+                xy_offset = scene_plotter_cfg.xy_offset if scene_plotter_cfg.xy_offset else (location_info_response.map_center.x, location_info_response.map_center.y)
+                fov = scene_plotter_cfg.fov if scene_plotter_cfg.fov else location_info_response.map_fov
                 self.scene_plotter = ScenePlotter(
-                    scene_plotter_cfg.location_info_response.birdview_image.decode(),
-                    scene_plotter_cfg.location_info_response.map_fov,
-                    (scene_plotter_cfg.location_info_response.map_center.x, scene_plotter_cfg.location_info_response.map_center.y),
-                    scene_plotter_cfg.location_info_response.static_actors,
+                    location_info_response.birdview_image.decode(),
+                    fov,
+                    xy_offset,
+                    location_info_response.static_actors,
                     left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla"
                 )
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
@@ -70,7 +81,6 @@ class SimulationManager:
         return get_regions_default(
             location=regions_config.location,
             agent_count_dict=regions_config.agent_count_dict,
-            total_num_agents=regions_config.total_num_agents,
             area_shape=regions_config.area_shape,
             map_center=regions_config.map_center,
             random_seed=regions_config.random_seed,
