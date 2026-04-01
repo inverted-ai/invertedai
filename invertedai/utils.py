@@ -773,9 +773,27 @@ def rot(rot):
     return np.array([[np.cos(rot), -np.sin(rot)], [np.sin(rot), np.cos(rot)]])
 
 class ScenePlotterConfig(BaseModel):
+    """
+    Configuration for initializing a ScenePlotter instance.
+
+    Parameters:
+    location:
+        Location name in IAI format
+    location_info_response:
+        Response from :func:`location_info` containing the birdview image, map FOV, map center, and static actors
+    map_center:
+        The (x, y) coordinates of the center of the birdview image in meters.
+        If not provided, defaults to the map_center from location_info_response.
+        Use this to specify the actual rendering center if a custom rendering_center
+        was passed to :func:`location_info`.
+    fov:
+        The field of view in meters of the birdview image.
+        If not provided, defaults to map_fov from location_info_response.
+        Use this to specify the actual rendering FOV if a custom rendering_fov
+        was passed to :func:`location_info`.
+    """
     location: str
     location_info_response: LocationResponse
-    
 
 class ScenePlotter():
     """
@@ -1057,7 +1075,7 @@ class ScenePlotter():
         velocity_vec: bool = False,
         plot_frame_number: bool = False, 
         agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
-        agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None
+        agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None,
     ) -> FuncAnimation:
         """
         Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
@@ -1085,9 +1103,13 @@ class ScenePlotter():
             of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent must 
             be specified per time step.
         agent_edge_colors:
-            An optional parameter containing a list of RGB tuples indicating the desired color of a border around the agent with the corresponding index 
-            ID. A value of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent 
+            An optional parameter containing a list of RGB tuples indicating the desired color of a border around the agent with the corresponding index
+            ID. A value of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent
             must be specified per time step.
+        fov:
+            Optional override for the field of view in meters. If not provided, the value from initialization is used.
+        xy_offset:
+            Optional override for the map center coordinates (x, y) in meters. If not provided, the value from initialization is used.
         """
 
         self._validate_agent_style_data(
@@ -1421,7 +1443,7 @@ class ScenePlotter():
                     y_data,
                     marker=marker_data,
                     color='saddlebrown',
-                    markersize=17.0*self._dpi_scale * (80/self.fov), # multiply by scaling factor relative to fov
+                    markersize=17.0*self._dpi_scale * (100/self.fov), # multiply by scaling factor relative to fov
                     linestyle='None',
                     zorder=6
                 )[0]
@@ -1432,7 +1454,7 @@ class ScenePlotter():
                     c='w',
                     ha='center',
                     va='center',
-                    fontsize=18*self._dpi_scale * (80/self.fov), # multiply by scaling factor relative to fov
+                    fontsize=18*self._dpi_scale * (100/self.fov), # multiply by scaling factor relative to fov
                     zorder=6
                 )
                 self.waypoint_markers[agent_idx]["text"].set_clip_on(True)
