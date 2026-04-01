@@ -5,7 +5,7 @@ from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, Recur
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
-from invertedai.utils import ScenePlotterConfig, ScenePlotter, WaypointsDict
+from invertedai.utils import ScenePlotterConfig, ScenePlotter, WaypointsDict, AgentTag
 from invertedai.large.initialize import large_initialize, get_regions_default, RegionsConfig
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriterConfig, LogWriter
@@ -54,9 +54,12 @@ class SimulationManager:
                     fov,
                     xy_offset,
                     location_info_response.static_actors,
-                    left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla"
+                    left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla",
+                    tag_styles=scene_plotter_cfg.tag_styles,
                 )
+            self._scene_plotter_cfg = scene_plotter_cfg
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
+            self.agent_tags: Optional[dict] = None  # Dict[AgentID, AgentTag] — applied to every recorded frame
             self.waypoint_manager: Optional[WaypointManager] = None
             if waypoint_cfg:
                 self.waypoint_manager = WaypointManager(cfg=waypoint_cfg)
@@ -185,14 +188,13 @@ class SimulationManager:
         properties: List[AgentProperties],
         recurrent_states: List[RecurrentState],
     ) -> SimulationAgentDict:
+        agents_dict = {}
         for i, aid in enumerate(agent_ids):
-            agents_dict = {
-                aid: AgentData(
-                    state=states[i],
-                    properties=properties[i] if properties else None,
-                    recurrent=recurrent_states[i] if recurrent_states else None,
-                )
-            }
+            agents_dict[aid] = AgentData(
+                state=states[i],
+                properties=properties[i] if properties else None,
+                recurrent=recurrent_states[i] if recurrent_states else None,
+            )
         return agents_dict
     
     def initialize(
@@ -267,8 +269,11 @@ class SimulationManager:
         )
         if self.scene_plotter:
             self.scene_plotter.initialize_recording(
-                agent_states=response.agent_states,
-                agent_properties=new_properties,
+                agents={
+                    aid: AgentData(state=s, properties=p)
+                    for aid, s, p in zip(all_agent_ids, response.agent_states, new_properties)
+                },
+                agent_tags=self.agent_tags,
             )
         if self.log_writer is not None:
             if self.waypoint_manager is not None:
@@ -369,9 +374,12 @@ class SimulationManager:
         )
         if self.scene_plotter:
             self.scene_plotter.record_step(
-                agent_states=response.agent_states,
-                agent_properties=properties,
+                agents={
+                    aid: AgentData(state=s, properties=p)
+                    for aid, s, p in zip(agent_ids, response.agent_states, properties)
+                },
                 traffic_light_states=response.traffic_lights_states,
+                agent_tags=self.agent_tags,
             )
         if self.log_writer is not None:
             waypoints: Optional[WaypointsDict] = None
@@ -400,6 +408,11 @@ class SimulationManager:
         """
         if self.scene_plotter is None:
             raise ValueError("ScenePlotter not initialized, failed to animate scene")
+        if self._scene_plotter_cfg is not None:
+            cfg = self._scene_plotter_cfg
+            kwargs.setdefault("direction_vec", cfg.direction_vec)
+            kwargs.setdefault("velocity_vec", cfg.velocity_vec)
+            kwargs.setdefault("agent_ids", cfg.display_agent_ids)
         self.scene_plotter.animate_scene(**kwargs)
     
     def export_log(self, path: Optional[str] = None):

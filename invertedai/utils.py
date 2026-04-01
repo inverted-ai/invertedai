@@ -11,7 +11,8 @@ import warnings
 
 from typing import Dict, Optional, List, Tuple, Union, Any
 from copy import deepcopy
-from pydantic import validate_call, validate_arguments, BaseModel
+from enum import Enum
+from pydantic import validate_call, validate_arguments, BaseModel, Field
 
 import requests
 from requests import Response
@@ -72,6 +73,77 @@ STATUS_MESSAGE = {
 Color = Tuple[float,float,float]
 ColorList = List[Optional[Color]]
 ColorDict = Dict[str, Color]  # agent_id -> RGB color
+
+
+class AgentTag(str, Enum):
+    """
+    Visual tag that can be attached to an agent to control its rendering style.
+
+    Tags take precedence over agent-type-based colours (car/pedestrian defaults)
+    Agents whose ID is absent from :attr:`FrameData.agent_tags` are treated as
+    `default
+
+    Values:
+    ego:
+        The primary agent of interest (e.g. the AV). Rendered with a distinct
+        colour defined in :class:`TagStyleConfig`.
+    scenario:
+        An agent that is part of a scenario.  Uses the
+        scenario colour from :class:`TagStyleConfig`.
+    default:
+        Falls through to agent-type-based colouring
+        (car/pedestrian defaults)
+    """
+    ego = "ego"
+    scenario = "scenario"
+    default = "default"
+
+
+class AgentTagStyle(BaseModel):
+    """
+    Face and optional edge colour for :class:`AgentTag`.
+
+    Attributes:
+    face_color:
+        RGB tuple with values in `[0, 1]` used to fill the agent rectangle.
+    edge_color:
+        RGB tuple for the rectangle border.  `None` means no border (`lw=0`).
+    """
+    face_color: Color
+    edge_color: Optional[Color] = None
+
+
+class TagStyleConfig(BaseModel):
+    """
+    Per-tag colour configuration used by :class:`ScenePlotter`.
+
+    Pass a custom instance to :class:`ScenePlotterConfig` (or directly to
+    :class:`ScenePlotter`) to override any of the three default palettes.
+
+    Attributes:
+    ego:
+        Style for agents tagged :attr:`AgentTag.ego, red
+    scenario:
+        Style for agents tagged :attr:`AgentTag.scenario`, blue
+    default:
+        Style for agents explicitly tagged :attr:`AgentTag.default', uses blue
+    """
+    ego: AgentTagStyle = Field(
+        default_factory=lambda: AgentTagStyle(
+            face_color=(0.78, 0.0, 0.0), #red
+            edge_color=(0.78, 0.0, 0.0), 
+        )
+    )
+    scenario: AgentTagStyle = Field(
+        default_factory=lambda: AgentTagStyle(face_color=(0.125, 0.29, 0.529))
+    )
+    default: AgentTagStyle = Field(
+        default_factory=lambda: AgentTagStyle(face_color=(0.125, 0.29, 0.529))
+    )
+
+    def get(self, tag: AgentTag) -> AgentTagStyle:
+        """Return the :class:`AgentTagStyle` for *tag*."""
+        return getattr(self, tag.value)
 
 class Session:
     def __init__(self,debug_logger=None):
@@ -783,7 +855,7 @@ class FrameData:
     """Data for a single animation frame"""
     agents: Dict[AgentID, AgentData]
     traffic_lights: Optional[Dict[int, TrafficLightState]] = None
-    # agentTags
+    agent_tags: Optional[Dict[AgentID, AgentTag]] = None
 
 
 def agents_from_lists(
@@ -815,11 +887,25 @@ class ScenePlotterConfig(BaseModel):
         Field of view in metres. Used to override the fov from `location_info_response` if provided.
     xy_offset:
         Coordinates of the map center in metres. Used to override the xy_offset from `location_info_response` if provided.
+    display_agent_ids:
+        Agent IDs whose label (ID string) should be rendered on the plot. `None`
+        means no labels are drawn.
+    direction_vec:
+        Whether to draw a directional arrow on each agent. Default `True`.
+    velocity_vec:
+        Whether to draw a velocity arrow on each agent. Default `False`.
+    tag_styles:
+        Colour configuration for each :class:`AgentTag`.  The defaults match
+        the colours built into :class:`ScenePlotter`.
     """
     location: str
     location_info_response: Optional[LocationResponse] = None
     fov: Optional[float] = None
     xy_offset: Optional[Tuple[float,float]] = None
+    display_agent_ids: Optional[List[str]] = None
+    direction_vec: bool = True
+    velocity_vec: bool = False
+    tag_styles: TagStyleConfig = Field(default_factory=TagStyleConfig)
 
 
 class ScenePlotter():
@@ -871,10 +957,18 @@ class ScenePlotter():
         resolution: Tuple[int,int] = (640, 480), 
         dpi: float = 100,
         left_hand_coordinates: bool = False,
+        tag_styles: Optional[TagStyleConfig] = None,
+        default_direction_vec: bool = False,
+        default_velocity_vec: bool = False,
+        default_display_agent_ids: Optional[List[str]] = None,
         **kwargs
     ):
 
         self._left_hand_coordinates = left_hand_coordinates
+        self.tag_styles = tag_styles if tag_styles is not None else TagStyleConfig()
+        self._default_direction_vec = default_direction_vec
+        self._default_velocity_vec = default_velocity_vec
+        self._default_display_agent_ids = default_display_agent_ids
         
         self._open_drive = open_drive
         self._dpi = dpi
@@ -928,6 +1022,7 @@ class ScenePlotter():
         self,
         agents: Optional[Dict[str, AgentData]] = None,
         traffic_light_states: Optional[Dict[int, TrafficLightState]] = None,
+        agent_tags: Optional[Dict[str, AgentTag]] = None,
         # Legacy parameters for backwards compatibility
         agent_states: Optional[List[AgentState]] = None,
         agent_attributes: Optional[List[AgentAttributes]] = None, 
@@ -973,7 +1068,7 @@ class ScenePlotter():
                 raise ValueError("Either agents parameter or both agent_states and agent_properties parameter lists must be provided.")
             agents = agents_from_lists(agent_states, agent_properties)
 
-        self.frames = [FrameData(agents=dict(agents), traffic_lights=traffic_light_states)]
+        self.frames = [FrameData(agents=dict(agents), traffic_lights=traffic_light_states, agent_tags=agent_tags)]
         self.agent_face_colors = None
         self.agent_edge_colors = None
 
@@ -981,6 +1076,7 @@ class ScenePlotter():
         self,
         agents: Optional[Dict[str, AgentData]] = None,
         traffic_light_states: Optional[Dict[int, TrafficLightState]] = None,
+        agent_tags: Optional[Dict[str, AgentTag]] = None,
         # Legacy parameters for backward compatibility
         agent_states: Optional[List[AgentState]] = None,
         agent_properties: Optional[List[AgentProperties]] = None,
@@ -1022,7 +1118,7 @@ class ScenePlotter():
                 agent_properties = prev_props
             agents = agents_from_lists(agent_states, agent_properties)
 
-        self.frames.append(FrameData(agents=dict(agents), traffic_lights=traffic_light_states))
+        self.frames.append(FrameData(agents=dict(agents), traffic_lights=traffic_light_states, agent_tags=agent_tags))
 
     def plot_scene(
         self,
@@ -1346,7 +1442,8 @@ class ScenePlotter():
             self._update_agent(
                 agent_idx=agent_id,
                 agent_data=agent_data,
-                frame_idx=frame_idx
+                frame_idx=frame_idx,
+                agent_tags=frame.agent_tags,
             )
             if self.display_agent_ids is not None and agent_id in self.display_agent_ids:
                 self._plot_waypoint(
@@ -1374,11 +1471,25 @@ class ScenePlotter():
             self.current_ax.set_xlim(*self.extent[0:2])
             self.current_ax.set_ylim(*self.extent[2:4])
 
+    def _resolve_tag_style(
+        self,
+        agent_id: str,
+        agent_tags: Optional[Dict[str, AgentTag]],
+    ) -> Optional[AgentTagStyle]:
+        """Return the :class:`AgentTagStyle` for agent_id or `None` if untagged"""
+        if agent_tags is None:
+            return None
+        tag = agent_tags.get(agent_id)
+        if tag is None:
+            return None
+        return self.tag_styles.get(tag)
+
     def _update_agent(
         self, 
         agent_idx: str,
         agent_data: AgentData,
-        frame_idx: int
+        frame_idx: int,
+        agent_tags: Optional[Dict[str, AgentTag]] = None,
     ):
         agent = agent_data.state
         agent_properties = agent_data.properties
@@ -1454,13 +1565,24 @@ class ScenePlotter():
             self.box_labels[agent_idx].set_visible(True)
 
         lw = 1
-        fc = self._get_color(agent_idx,self.agent_face_colors[frame_idx])
-        if fc is None:
-            fc = self.agent_c
-        ec = self._get_color(agent_idx,self.agent_edge_colors[frame_idx])
-        if ec is None:
-            lw = 0
-            ec = fc
+        fc = self._get_color(agent_idx, self.agent_face_colors[frame_idx])
+        ec = self._get_color(agent_idx, self.agent_edge_colors[frame_idx])
+        # Priority: per-agent color > tag style > agent type > default
+        if fc is None or ec is None:
+            tag_style = self._resolve_tag_style(agent_idx, agent_tags)
+            if fc is None:
+                if tag_style is not None:
+                    fc = tag_style.face_color
+                elif agent_properties.agent_type == "pedestrian":
+                    fc = self.agent_ped_c
+                else:
+                    fc = self.agent_c
+            if ec is None:
+                if tag_style is not None and tag_style.edge_color is not None:
+                    ec = tag_style.edge_color
+                else:
+                    lw = 0
+                    ec = fc
 
         if agent_idx in self.actor_boxes:
             rect = self.actor_boxes[agent_idx]
