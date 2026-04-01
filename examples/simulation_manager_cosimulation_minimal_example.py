@@ -33,7 +33,7 @@ location_info_response = iai.location_info(
     location=LOCATION, 
     include_map_source=True
 )
-ego_agent_ids = [f"ego_agent_{i}_{str(uuid.uuid4())[:8]}" for i in range(NUM_EGO_AGENTS)]
+ego_agent_ids = [f"ego_{i}" for i in range(NUM_EGO_AGENTS)]
 scene_plotter_cfg = ScenePlotterConfig(
     location=LOCATION,
     location_info_response=location_info_response,
@@ -43,7 +43,7 @@ scene_plotter_cfg = ScenePlotterConfig(
 )
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(
-    log_path="keyed_minimal_example_log.json",
+    log_path="simulation_manager_cosimulation_example.json",
     location=LOCATION, 
     location_info_response=location_info_response
 )
