@@ -19,7 +19,7 @@ if api_key is None:
 
 print("Begin initialization.")
 location_info_response = iai.location_info(location=LOCATION, include_map_source=True)
-scene_plotter_cfg = ScenePlotterConfig(location=LOCATION, fov=150, xy_offset=(location_info_response.map_center.x, location_info_response.map_center.y))
+scene_plotter_cfg = ScenePlotterConfig(location=LOCATION, fov=250, xy_offset=(location_info_response.map_center.x, location_info_response.map_center.y))
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(log_path="simulation_manager_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
 simulation_manager = SimulationManager(scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
