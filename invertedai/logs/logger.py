@@ -171,7 +171,7 @@ class LogBase():
         an invalid time step range is given, the function will fail. Please refer to ScenePlotter for details on the visualization tool.
         """
 
-        def format_agent_properties(self,ts,agent_id):
+        def format_agent_properties(ts, agent_id):
             agent_properties = deepcopy(self._scenario_log.agent_properties[agent_id])
             if self._scenario_log.waypoints_per_frame is not None:
                 if self._scenario_log.waypoints_per_frame[ts] is not None:
