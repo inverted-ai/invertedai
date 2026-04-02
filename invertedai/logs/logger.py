@@ -819,6 +819,7 @@ class LogReader(LogBase):
         self.recurrent_states = None
         self.traffic_lights_states = None if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states[timestep]
         self.light_recurrent_states = self._scenario_log.light_recurrent_states if timestep == (self.simulation_length - 1) else None
+        self.present_agent_ids = [str(i) for i in self._scenario_log.present_indexes[timestep]]
         self.agent_properties = [self._scenario_log.agent_properties[i] for i in self._scenario_log.present_indexes[timestep]]
 
         return True
@@ -871,6 +872,7 @@ class LogReader(LogBase):
         self.recurrent_states = None
         self.traffic_lights_states = None
         self.light_recurrent_states = None
+        self.present_agent_ids = None
         self.current_timestep = 1
 
     @property
