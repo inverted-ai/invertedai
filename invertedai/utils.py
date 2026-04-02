@@ -863,7 +863,8 @@ def agents_from_lists(
     agent_properties: List[AgentProperties],
     agent_ids: Optional[List[str]] = None,
 ) -> SimulationAgentDict:
-    """Convert parallel lists to a keyed SimulationAgentDict.
+    """
+    Convert parallel lists to a keyed SimulationAgentDict.
 
     Useful for callers that still receive parallel lists from API responses.
     If agent_ids is None, string indices ("0", "1", ...) are used as keys since that was our legacy json format
@@ -1005,6 +1006,7 @@ class ScenePlotter():
         self.box_labels = {}
         self.frame_label = None
         self.current_ax = None
+        self.default_agent_tags: Optional[Dict[str, AgentTag]] = None
 
         self.display_agent_ids = None
 
@@ -1068,7 +1070,8 @@ class ScenePlotter():
                 raise ValueError("Either agents parameter or both agent_states and agent_properties parameter lists must be provided.")
             agents = agents_from_lists(agent_states, agent_properties)
 
-        self.frames = [FrameData(agents=dict(agents), traffic_lights=traffic_light_states, agent_tags=agent_tags)]
+        self.default_agent_tags = agent_tags
+        self.frames = [FrameData(agents=dict(agents), traffic_lights=traffic_light_states, agent_tags=None)]
         self.agent_face_colors = None
         self.agent_edge_colors = None
 
@@ -1505,10 +1508,13 @@ class ScenePlotter():
         agent_id: str,
         agent_tags: Optional[Dict[str, AgentTag]],
     ) -> Optional[AgentTagStyle]:
-        """Return the :class:`AgentTagStyle` for agent_id or `None` if untagged"""
-        if agent_tags is None:
-            return None
-        tag = agent_tags.get(agent_id)
+        """Return the :class:`AgentTagStyle` for agent_id or `None` if untagged.
+        Per-frame agent_tags take priority over default_agent_tags set at initialize_recording."""
+        tag = None
+        if agent_tags is not None:
+            tag = agent_tags.get(agent_id)
+        if tag is None and self.default_agent_tags is not None:
+            tag = self.default_agent_tags.get(agent_id)
         if tag is None:
             return None
         return self.tag_styles.get(tag)
