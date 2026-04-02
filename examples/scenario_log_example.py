@@ -129,7 +129,7 @@ scene_plotter_new = iai.utils.ScenePlotter(
     location_info_response_replay.static_actors
 )
 scene_plotter_new.initialize_recording(
-    agents=iai.agents_from_lists(log_reader.agent_states, agent_properties)
+    agents=iai.agents_from_lists(log_reader.agent_states, agent_properties, agent_ids=log_reader.present_agent_ids)
 )
 
 print("Stepping through simulation...")
@@ -139,11 +139,12 @@ while True: # Log reader will return False when it has run out of simulation dat
         break
     agent_properties = log_reader.agent_properties
     scene_plotter_new.record_step(
-        agents=iai.agents_from_lists(log_reader.agent_states, agent_properties),
+        agents=iai.agents_from_lists(log_reader.agent_states, agent_properties, agent_ids=log_reader.present_agent_ids),
         traffic_light_states=log_reader.traffic_lights_states,
     )
 
 agent_states = log_reader.agent_states
+agent_ids = log_reader.present_agent_ids
 recurrent_states = log_reader.recurrent_states
 traffic_lights_states = log_reader.traffic_lights_states
 light_recurrent_states = log_reader.light_recurrent_states
@@ -162,7 +163,7 @@ for _ in range(SIMULATION_LENGTH_EXTEND):
     light_recurrent_states = response.light_recurrent_states
 
     scene_plotter_new.record_step(
-        agents=iai.agents_from_lists(agent_states, agent_properties),
+        agents=iai.agents_from_lists(agent_states, agent_properties, agent_ids=agent_ids),
         traffic_light_states=traffic_lights_states
     )
 
