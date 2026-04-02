@@ -71,6 +71,7 @@ regions_config = RegionsConfig(
     map_center=(location_info_response.map_center.x, location_info_response.map_center.y),
 )
 regions = simulation_manager.form_regions(regions_config)
+# set the AgentTag for agents using their ids
 simulation_manager.agent_tags = {
     agent_id: AgentTag.ego for agent_id in ego_agent_ids
 }
