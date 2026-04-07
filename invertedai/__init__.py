@@ -52,7 +52,7 @@ from invertedai.logs.diagnostics import DiagnosticTool
 from invertedai.logs.debug_logger import DebugLogger
 
 # --- Helpers ---
-from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
+from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager, EndOfMapException
 from invertedai.helpers.simulation_manager import SimulationAgentDict, SimulationManager
 
 # --- Common data types ---
@@ -163,6 +163,7 @@ __all__ = [
     # Helpers
     "WaypointManager",
     "WaypointManagerConfig",
+    "EndOfMapException",
     "SimulationAgentDict",
     "SimulationManager",
     # Session and utilities

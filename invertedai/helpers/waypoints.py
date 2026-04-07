@@ -38,6 +38,13 @@ class WaypointManagerConfig(BaseModel):
     log_level: Optional[int] = logging.DEBUG #Configure the level of the logger for convenience 
     fail_soft: Optional[bool] = False #If an error is experienced, the manager will continue in a fail soft state instead of raising an Exception
 
+class EndOfMapException(Exception):
+    """
+    Raised when an agent has reached the end of the map and no further waypoints
+    can be generated. The routing graph has no successor lanes from the agent's current position.
+    """
+    pass
+
 class WaypointUpdateFlags(Enum):
     UNINITIALIZE_WAYPOINTS = 0
     WAYPOINT_REACHED = 1
@@ -166,6 +173,11 @@ class WaypointManager:
                             agent_properties = props
                         )
 
+                except EndOfMapException as e:
+                    if self.logger is not None:
+                        self.logger.debug(msg=str(e))
+                    props.waypoints = []
+
                 except ValueError as e:
                     err_msg = str(e)
                     if self.cfg.fail_soft:
@@ -269,19 +281,22 @@ class WaypointManager:
         ):
             props = AgentProperties.deserialize(agent_properties.serialize())
             props.waypoints = None
-            wps = self.generate_waypoints(
-                state = state,
-                target_path = [wp],
-                agent_properties = props,
-                waypoint_spacing = 1.0
-            )
-            
+            try:
+                wps = self.generate_waypoints(
+                    state = state,
+                    target_path = [wp],
+                    agent_properties = props,
+                    waypoint_spacing = 1.0
+                )
+            except (ValueError, EndOfMapException):
+                return True
+
             dist_sum = 0.0
             for i in range(len(wps)-1):
                 dist_sum += self._get_L2_distance(wps[i],wps[i+1])
                 if dist_sum > self.waypoint_spacing:
                     return True
-            
+
         return False
     
     def get_debug_data(self):
@@ -415,7 +430,7 @@ def generate_waypoints_from_lane_ids(
         del lane1_centerline[start_idx:]
         del lane2_centerline[:end_idx]
         lane1_centerline.extend([np.array([points[0][t_idx], points[1][t_idx]]) for t_idx in range(t_sample.shape[0])])
-    if destination_waypoint:
+    if destination_waypoint and lanelets[-1]:
         dist, idx = _find_min_distance_from_point_to_line(
             np.array([destination_waypoint.x, destination_waypoint.y]),
             [point for point in lanelets[-1][-1]]
@@ -500,20 +515,13 @@ def generate_lane_ids_from_lanelet_map(
         if len(filtered_lanelets) > 0:
             break
     if len(starting_lanelets) == 0:
-        msg = f"Warning: Could not find any lanes in the starting position."
-        if logger is not None: logger.log(
-            level=logger.getEffectiveLevel(),
-            msg=msg
+        raise EndOfMapException(
+            f"Agent has reached the end of the map - no lanes found at current position: {start_state}"
         )
-        return []
     if len(filtered_lanelets) == 0:
-        if logger is not None: 
-            msg = f"Warning: Could not find any lanes aligned with the agent's orientation."
-            logger.log(
-                level=logger.getEffectiveLevel(),
-                msg=msg
-            )
-        return []
+        raise EndOfMapException(
+            f"Agent has reached the end of the map - no lanes aligned with agent's orientation at current position: {start_state}"
+        )
     if destination_waypoint is not None:
         ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
         possible_routes = []
@@ -529,7 +537,9 @@ def generate_lane_ids_from_lanelet_map(
                     level=logger.getEffectiveLevel(),
                     msg=msg
                 )
-            return []
+            raise EndOfMapException(
+                f"Agent has reached the end of the map - no reachable lanes from current position to destination waypoint: {start_state} to {destination_waypoint}"
+            )
         return [lanelet.id for lanelet in rng.choice(possible_routes).shortestPath()]
     else:
         maxRoutingCost = min_distance if min_distance is not None else 1000.0
@@ -538,12 +548,9 @@ def generate_lane_ids_from_lanelet_map(
             if ending_lanelets:
                 break
         if not ending_lanelets:
-            if logger is not None:
-                logger.log(
-                    level=logger.getEffectiveLevel(),
-                    msg="Warning: Could not find any possible routes from the starting position."
-                )
-            return []
+            raise EndOfMapException(
+                f"Agent has reached the end of the map - no reachable lanes from current position: {start_state}"
+            )
         route_lane_ids = [starting_lanelet.id]
         total_distance = 0
         while ending_lanelets and total_distance <= (min_distance if min_distance is not None else 0):
@@ -555,7 +562,9 @@ def generate_lane_ids_from_lanelet_map(
                         level=logger.getEffectiveLevel(),
                         msg="Warning: Could not find any possible routes from the starting position."
                     )
-                return []
+                raise EndOfMapException(
+                    f"Agent has reached the end of the map - no reachable lanes from current position: {start_state}"
+                )
             p = np.array([1 / np.e ** (beta * _find_max_num_lane_change(routing_graph, route.shortestPath())) for route, _ in routes])
             route, ending_lanelet = rng.choice(routes, p=p/p.sum())
             starting_lanelet = ending_lanelet
