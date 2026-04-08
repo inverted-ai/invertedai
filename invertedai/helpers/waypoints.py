@@ -316,7 +316,7 @@ def generate_waypoints_from_lane_ids(
     lane_ids: List[int], 
     waypoint_spacing: float = 15.0,
     destination_waypoint: Optional[Point] = None,
-    transition_distance: int = 3,
+    transition_distance: int = 6,
     logger: Optional[logging.Logger] = None
 ) -> List[Point]:
     """
@@ -328,7 +328,7 @@ def generate_waypoints_from_lane_ids(
         lane_ids (List[int]): Sequence of lane ids to follow.
         waypoint_spacing (float): Spacing between the waypoints in meters. Defaults to 15.
         destination_waypoint (Optional[Point], optional): Desired final waypoint. Defaults to None.
-        transition_distance (int): Distance over which to perform lane change transitions. Defaults to 3.
+        transition_distance (int): Distance over which to perform lane change transitions. Defaults to 6.
 
     Returns:
         List[Point]: List of waypoints for the agent to follow.
@@ -416,20 +416,23 @@ def generate_waypoints_from_lane_ids(
         del lane2_centerline[:end_idx]
         lane1_centerline.extend([np.array([points[0][t_idx], points[1][t_idx]]) for t_idx in range(t_sample.shape[0])])
     if destination_waypoint:
-        dist, idx = _find_min_distance_from_point_to_line(
-            np.array([destination_waypoint.x, destination_waypoint.y]),
-            [point for point in lanelets[-1][-1]]
-        )
-        if dist < 5.0:
-            del lanelets[-1][-1][idx:]
-            lanelets[-1][-1].append(np.array([destination_waypoint.x, destination_waypoint.y]))
+        if len(lanelets[-1]) == 0:
+            del lanelets[-1]
         else:
-            if logger is not None: 
-                msg = f"Could not find the given waypoint on the last lane within 5 meters, ignoring the given waypoint. Try adjusting the transition distance or waypoint position."
-                logger.log(
-                    level=logger.getEffectiveLevel(),
-                    msg=msg
-                )
+            dist, idx = _find_min_distance_from_point_to_line(
+                np.array([destination_waypoint.x, destination_waypoint.y]),
+                [point for point in lanelets[-1][-1]]
+            )
+            if dist < 5.0:
+                del lanelets[-1][-1][idx:]
+                lanelets[-1][-1].append(np.array([destination_waypoint.x, destination_waypoint.y]))
+            else:
+                if logger is not None: 
+                    msg = f"Could not find the given waypoint on the last lane within 5 meters, ignoring the given waypoint. Try adjusting the transition distance or waypoint position."
+                    logger.log(
+                        level=logger.getEffectiveLevel(),
+                        msg=msg
+                    )
     all_centerline_points = np.array([point for lanes in lanelets for lane in lanes for point in lane])
     if all_centerline_points.shape[0] < 2:
         if logger is not None: 
@@ -488,7 +491,7 @@ def generate_lane_ids_from_lanelet_map(
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     filtered_lanelets = []
     radius_to_check = [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]
-    beta = 1.0 # parameter for lane change probability
+    beta = 5.0 # parameter for lane change probability
     for radius in radius_to_check:
         starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), radius)
         for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
