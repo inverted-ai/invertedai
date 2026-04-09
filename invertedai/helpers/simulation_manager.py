@@ -1,11 +1,13 @@
 from typing import List, Optional, Tuple
 from collections import defaultdict
-from invertedai.api.location import location_info
+import warnings
+from invertedai.api.location import location_info, LocationResponse
 from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, RecurrentState, AgentData, SimulationAgentDict
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
-from invertedai.utils import ScenePlotterConfig, ScenePlotter, WaypointsDict, AgentTag
+from invertedai.utils import ScenePlotterConfig, WaypointsDict, AgentTag, FrameData
+from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
 from invertedai.large.initialize import large_initialize, get_regions_default, RegionsConfig
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriterConfig, LogWriter
@@ -33,31 +35,60 @@ class SimulationManager:
     """
     def __init__(
             self,
-            scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # can optionally initialize a scene plotter for visualization
+            location_info_response: Optional[LocationResponse] = None, # location info response used to initialize the SceneVisualizer
+            scene_visualizer_cfg: Optional[SceneVisualizerConfig] = None, # can optionally initialize a SceneVisualizer for visualization
+            scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # deprecated: use location_info_response + scene_visualizer_cfg instead
             waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
             log_writer_cfg: Optional[LogWriterConfig] = None # can optionally initialize a log_writer_cfg to write a json file log of the simulation
         ):
-            self.scene_plotter = None
-            if scene_plotter_cfg:
-                if scene_plotter_cfg.fov or scene_plotter_cfg.xy_offset or scene_plotter_cfg.location_info_response is None:
-                    location_info_response = location_info(
-                        location=scene_plotter_cfg.location,
-                        rendering_fov=scene_plotter_cfg.fov,
-                        rendering_center=scene_plotter_cfg.xy_offset   
+            if scene_plotter_cfg is not None:
+                warnings.warn('scene_plotter_cfg is deprecated. Pass location_info_response and scene_visualizer_cfg instead.', category=DeprecationWarning)
+            self.scene_visualizer = None
+            self._frames: List[FrameData] = []
+            if location_info_response is not None and scene_visualizer_cfg is not None:
+                if scene_visualizer_cfg.fov or scene_visualizer_cfg.xy_offset:
+                    _loc_info = location_info(
+                        location=scene_visualizer_cfg.location,
+                        rendering_fov=scene_visualizer_cfg.fov,
+                        rendering_center=scene_visualizer_cfg.xy_offset
                     )
                 else:
-                    location_info_response = scene_plotter_cfg.location_info_response
-                xy_offset = scene_plotter_cfg.xy_offset if scene_plotter_cfg.xy_offset else (location_info_response.map_center.x, location_info_response.map_center.y)
-                fov = scene_plotter_cfg.fov if scene_plotter_cfg.fov else location_info_response.map_fov
-                self.scene_plotter = ScenePlotter(
-                    location_info_response.birdview_image.decode(),
-                    fov,
-                    xy_offset,
-                    location_info_response.static_actors,
-                    left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla",
+                    _loc_info = location_info_response
+                _fov = scene_visualizer_cfg.fov if scene_visualizer_cfg.fov is not None else _loc_info.map_fov
+                _xy_offset = scene_visualizer_cfg.xy_offset if scene_visualizer_cfg.xy_offset is not None else (_loc_info.map_center.x, _loc_info.map_center.y)
+                self.scene_visualizer = SceneVisualizer(
+                    map_image=_loc_info.birdview_image.decode(),
+                    fov=_fov,
+                    xy_offset=_xy_offset,
+                    static_actors=_loc_info.static_actors,
+                    cfg=scene_visualizer_cfg,
+                )
+            elif scene_plotter_cfg is not None:
+                if scene_plotter_cfg.fov or scene_plotter_cfg.xy_offset or scene_plotter_cfg.location_info_response is None:
+                    _loc_info = location_info(
+                        location=scene_plotter_cfg.location,
+                        rendering_fov=scene_plotter_cfg.fov,
+                        rendering_center=scene_plotter_cfg.xy_offset
+                    )
+                else:
+                    _loc_info = scene_plotter_cfg.location_info_response
+                _xy_offset = scene_plotter_cfg.xy_offset if scene_plotter_cfg.xy_offset else (_loc_info.map_center.x, _loc_info.map_center.y)
+                _fov = scene_plotter_cfg.fov if scene_plotter_cfg.fov else _loc_info.map_fov
+                _left_hand = scene_plotter_cfg.location.split(":")[0] == "carla"
+                _viz_cfg = SceneVisualizerConfig(
+                    left_hand_coordinates=_left_hand,
+                    direction_vec=scene_plotter_cfg.direction_vec,
+                    velocity_vec=scene_plotter_cfg.velocity_vec,
+                    display_agent_ids=scene_plotter_cfg.display_agent_ids,
                     tag_styles=scene_plotter_cfg.tag_styles,
                 )
-            self._scene_plotter_cfg = scene_plotter_cfg
+                self.scene_visualizer = SceneVisualizer(
+                    map_image=_loc_info.birdview_image.decode(),
+                    fov=_fov,
+                    xy_offset=_xy_offset,
+                    static_actors=_loc_info.static_actors,
+                    cfg=_viz_cfg,
+                )
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
             self.agent_tags: Optional[dict] = None  # Dict[AgentID, AgentTag] — applied to every recorded frame
             self.waypoint_manager: Optional[WaypointManager] = None
@@ -267,14 +298,14 @@ class SimulationManager:
             properties=[new_properties[i] for i in internal_indices],
             recurrent_states=[response.recurrent_states[i] for i in internal_indices],
         )
-        if self.scene_plotter:
-            self.scene_plotter.initialize_recording(
+        if self.scene_visualizer is not None:
+            self._frames.append(FrameData(
                 agents={
                     aid: AgentData(state=s, properties=p)
                     for aid, s, p in zip(all_agent_ids, response.agent_states, new_properties)
                 },
                 agent_tags=self.agent_tags,
-            )
+            ))
         if self.log_writer is not None:
             if self.waypoint_manager is not None:
                 waypoints = {
@@ -372,15 +403,15 @@ class SimulationManager:
             properties=[properties[i] for i in internal_indices],
             recurrent_states=[response.recurrent_states[i] for i in internal_indices],
         )
-        if self.scene_plotter:
-            self.scene_plotter.record_step(
+        if self.scene_visualizer is not None:
+            self._frames.append(FrameData(
                 agents={
                     aid: AgentData(state=s, properties=p)
                     for aid, s, p in zip(agent_ids, response.agent_states, properties)
                 },
-                traffic_light_states=response.traffic_lights_states,
+                traffic_lights=response.traffic_lights_states,
                 agent_tags=self.agent_tags,
-            )
+            ))
         if self.log_writer is not None:
             waypoints: Optional[WaypointsDict] = None
             if self.waypoint_manager is not None:
@@ -399,21 +430,16 @@ class SimulationManager:
     
     def visualize_data(self, **kwargs) -> FuncAnimation:
         """
-        Produce an animation of sequentially recorded steps. If a ScenePlotter was configured during initialization, 
+        Produce an animation of sequentially recorded steps. If a SceneVisualizer was configured during initialization,
             recorded steps from each drive will be visualized using the birdview map and static actors.
-        
+
         A matplotlib animation object can be returned and/or a gif saved of the scene.
 
-        For kwargs, please see documentation from :func:`animate_scene` in the ScenePlotter class
+        For kwargs, please see documentation from :func:`animate` in the SceneVisualizer class
         """
-        if self.scene_plotter is None:
-            raise ValueError("ScenePlotter not initialized, failed to animate scene")
-        if self._scene_plotter_cfg is not None:
-            cfg = self._scene_plotter_cfg
-            kwargs.setdefault("direction_vec", cfg.direction_vec)
-            kwargs.setdefault("velocity_vec", cfg.velocity_vec)
-            kwargs.setdefault("agent_ids", cfg.display_agent_ids)
-        self.scene_plotter.animate_scene(**kwargs)
+        if self.scene_visualizer is None:
+            raise ValueError("SceneVisualizer not initialized, failed to animate scene")
+        return self.scene_visualizer.animate(self._frames, **kwargs)
     
     def export_log(self, path: Optional[str] = None):
         """
@@ -434,8 +460,8 @@ class SimulationManager:
         self.log_writer.export_to_file(log_path=log_path)
 
     # Getters
-    def get_scene_plotter(self) -> Optional[ScenePlotter]:
-        return self.scene_plotter
+    def get_scene_visualizer(self) -> Optional[SceneVisualizer]:
+        return self.scene_visualizer
     
     def get_states(self) -> List[AgentState]:
         return [data.state for data in self.agents_dict.values()]

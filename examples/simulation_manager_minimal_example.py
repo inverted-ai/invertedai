@@ -2,7 +2,7 @@ import invertedai as iai
 from invertedai import AgentType
 from invertedai import WaypointManagerConfig
 from invertedai import SimulationManager
-from invertedai import ScenePlotterConfig
+from invertedai import SceneVisualizerConfig
 from invertedai import LogWriterConfig
 from invertedai import RegionsConfig
 import matplotlib.pyplot as plt
@@ -19,10 +19,14 @@ if api_key is None:
 
 print("Begin initialization.")
 location_info_response = iai.location_info(location=LOCATION, include_map_source=True)
-scene_plotter_cfg = ScenePlotterConfig(location=LOCATION, fov=250, xy_offset=(location_info_response.map_center.x, location_info_response.map_center.y))
+scene_viz_cfg = SceneVisualizerConfig(
+    resolution=(640, 640),
+    left_hand_coordinates=LOCATION.split(":")[0] == "carla",
+    plot_frame_number=True,
+)
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(log_path="simulation_manager_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
-simulation_manager = SimulationManager(scene_plotter_cfg=scene_plotter_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
+simulation_manager = SimulationManager(location_info_response=location_info_response, scene_visualizer_cfg=scene_viz_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
 regions_config = RegionsConfig(location=LOCATION, agent_count_dict={AgentType.car: NUM_AGENTS})
 regions = simulation_manager.form_regions(regions_config)
 response = simulation_manager.initialize(location=LOCATION, regions=regions)
@@ -39,10 +43,7 @@ fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
 simulation_manager.visualize_data(
     output_name="simulation_manager_minimal_example.mp4",
     ax=ax,
-    direction_vec=False,
-    velocity_vec=False,
-    plot_frame_number=True,
-    numbers = simulation_manager.get_agent_ids()
+    agent_ids=simulation_manager.get_agent_ids(),
 )
 print("Simulation finished, save to json log.")
 simulation_manager.export_log()

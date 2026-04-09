@@ -911,6 +911,9 @@ class ScenePlotterConfig(BaseModel):
 
 class ScenePlotter():
     """
+    deprecated::
+        Use :class:`invertedai.SceneVisualizer` instead
+
     A class providing features for handling the data visualization of a scene involving IAI data.
 
     Arguments

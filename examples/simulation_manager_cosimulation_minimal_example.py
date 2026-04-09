@@ -9,7 +9,7 @@ from invertedai import (
 )
 from invertedai import SimulationManager
 from invertedai import (
-    ScenePlotterConfig,
+    SceneVisualizerConfig,
     get_default_agent_properties,
 )
 from invertedai import LogWriterConfig
@@ -30,13 +30,12 @@ if api_key is None:
     iai.add_apikey("<INSERT_KEY_HERE>")
 print("Begin initialization.")
 location_info_response = iai.location_info(
-    location=LOCATION, 
+    location=LOCATION,
     include_map_source=True
 )
 ego_agent_ids = [f"ego_{i}" for i in range(NUM_EGO_AGENTS)]
-scene_plotter_cfg = ScenePlotterConfig(
-    location=LOCATION,
-    location_info_response=location_info_response,
+scene_viz_cfg = SceneVisualizerConfig(
+    left_hand_coordinates=LOCATION.split(":")[0] == "carla",
     direction_vec=False,
     velocity_vec=False,
     display_agent_ids=ego_agent_ids,
@@ -48,7 +47,8 @@ log_cfg = LogWriterConfig(
     location_info_response=location_info_response
 )
 simulation_manager = SimulationManager(
-    scene_plotter_cfg=scene_plotter_cfg, 
+    location_info_response=location_info_response,
+    scene_visualizer_cfg=scene_viz_cfg, 
     waypoint_cfg=waypoint_cfg, 
     log_writer_cfg=log_cfg
 )
@@ -79,13 +79,13 @@ external_agent_data = {
     ego_agent_ids[i]: AgentData(
         state=ego_response.agent_states[i],
         properties=ego_props[i],
-        recurrent=None, 
+        recurrent=None,
     )
     for i in range(NUM_EGO_AGENTS)
 }
 response = simulation_manager.initialize(
-    location=LOCATION, 
-    regions=regions, 
+    location=LOCATION,
+    regions=regions,
     external_agent_data=external_agent_data
 )
 
@@ -125,7 +125,7 @@ fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
 simulation_manager.visualize_data(
     output_name="simulation_manager_cosimulation_example.mp4",
     ax=ax,
-    plot_frame_number=True,
+    agent_ids=simulation_manager.get_agent_ids(),
 )
 print("Simulation finished, save to json log.")
 simulation_manager.export_log()
