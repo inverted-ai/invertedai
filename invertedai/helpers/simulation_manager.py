@@ -38,6 +38,7 @@ class SimulationManager:
             scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # can optionally initialize a scene plotter for visualization
             waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
             log_writer_cfg: Optional[LogWriterConfig] = None, # can optionally initialize a log_writer_cfg to write a json file log of the simulation
+            remove_offroad_agents: bool = False, # if True, agents whose waypoints are empty after update (off-road/end-of-map) will be removed
         ):
             self.scene_plotter = None
             self.scene_plotter_cfg = scene_plotter_cfg
@@ -49,6 +50,7 @@ class SimulationManager:
                     scene_plotter_cfg.location_info_response.static_actors,
                     left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla"
                 )
+            self.remove_offroad_agents = remove_offroad_agents
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
             self.waypoint_manager: Optional[WaypointManager] = None
             if waypoint_cfg:
@@ -327,6 +329,9 @@ class SimulationManager:
             if overlap:
                 raise ValueError(f"External agent IDs conflict with internal agents: {overlap}")
             
+        if not self.agents_dict and not external_agent_data:
+            raise ValueError("No agents remaining in simulation. All agents have been removed.")
+
         agent_ids, states, properties, recurrent_states = self._unpack(self.agents_dict)
         if len(recurrent_states) > 0: 
              internal_recur_size = len(recurrent_states[0].packed)
@@ -356,14 +361,19 @@ class SimulationManager:
             recurrent_states=recurrent_states,
             **kwargs
         )
+        offroad_ids = set()
         if self.waypoint_manager:
             properties = self.waypoint_manager.update(
                 response = response,
                 agent_properties = properties,
             )
+            if self.remove_offroad_agents:
+                for i, aid in enumerate(agent_ids):
+                    if aid not in external_ids and properties[i].waypoints == []:
+                        offroad_ids.add(aid)
         internal_indices = []
         for i, aid in enumerate(agent_ids):
-            if aid not in external_ids:
+            if aid not in external_ids and aid not in offroad_ids:
                 internal_indices.append(i)
         self.agents_dict = self._pack(
             agent_ids=[agent_ids[i] for i in internal_indices],
