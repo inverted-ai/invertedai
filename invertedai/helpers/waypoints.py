@@ -135,10 +135,6 @@ class WaypointManager:
             state = agent_states[i]
 
             if mask or target_paths[i] is not None:
-                if agent_properties[i].waypoints is not None and len(agent_properties[i].waypoints) == 0:
-                    props.waypoints = []
-                    _agent_properties[i] = props
-                    continue
                 try:
                     waypoint_flags = []
                     if props.waypoints is None:
