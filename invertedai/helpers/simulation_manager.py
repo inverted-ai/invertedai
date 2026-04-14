@@ -51,6 +51,7 @@ class SimulationManager:
                     left_hand_coordinates = scene_plotter_cfg.location.split(":")[0] == "carla"
                 )
             self.remove_offroad_agents = remove_offroad_agents
+            self._offroad_agent_ids: set = set()
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
             self.waypoint_manager: Optional[WaypointManager] = None
             if waypoint_cfg:
@@ -132,6 +133,8 @@ class SimulationManager:
             raise KeyError(f"Agents do not exist: {missing}. Cannot be removed.")
         for aid in agent_ids:
             self.agents_dict.pop(aid)
+            if aid in self._offroad_agent_ids:
+                self._offroad_agent_ids.remove(aid)
     
     def _unpack(
         self,
@@ -143,7 +146,7 @@ class SimulationManager:
         List[RecurrentState],
     ]:
         # agents with both properties and states will be placed at the front of the list
-        # Separate agents into two groups: with states & without states
+        # separate agents into two groups: with states & without states
         agents_with_states = []
         agents_without_states = []
         if agent_dict is None:
@@ -361,19 +364,21 @@ class SimulationManager:
             recurrent_states=recurrent_states,
             **kwargs
         )
-        offroad_ids = set()
         if self.waypoint_manager:
+            #Skip waypoint update for off-road agents
+            agents_mask = [aid not in self._offroad_agent_ids for aid in agent_ids]
             properties = self.waypoint_manager.update(
-                response = response,
-                agent_properties = properties,
+                response=response,
+                agent_properties=properties,
+                agents_mask=agents_mask,
             )
-            if self.remove_offroad_agents:
-                for i, aid in enumerate(agent_ids):
-                    if aid not in external_ids and properties[i].waypoints == []:
-                        offroad_ids.add(aid)
+            #Detect off-road agents (EndOfMapException sets waypoints=[])
+            for i, aid in enumerate(agent_ids):
+                if aid not in external_ids and properties[i].waypoints is not None and len(properties[i].waypoints) == 0:
+                    self._offroad_agent_ids.add(aid)
         internal_indices = []
         for i, aid in enumerate(agent_ids):
-            if aid not in external_ids and aid not in offroad_ids:
+            if aid not in external_ids and (not self.remove_offroad_agents or aid not in self._offroad_agent_ids):
                 internal_indices.append(i)
         self.agents_dict = self._pack(
             agent_ids=[agent_ids[i] for i in internal_indices],
