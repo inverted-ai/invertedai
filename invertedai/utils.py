@@ -1250,9 +1250,13 @@ class ScenePlotter():
             Optional dict mapping agent IDs to RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
             of None in this list will use the default color, or a list of such dicts (one per frame).
         agent_edge_colors:
-            An optional parameter containing a list of RGB tuples indicating the desired color of a border around the agent with the corresponding index 
-            ID. A value of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent 
+            An optional parameter containing a list of RGB tuples indicating the desired color of a border around the agent with the corresponding index
+            ID. A value of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent
             must be specified per time step.
+        fov:
+            Optional override for the field of view in meters. If not provided, the value from initialization is used.
+        xy_offset:
+            Optional override for the map center coordinates (x, y) in meters. If not provided, the value from initialization is used.
         """
 
         # Backward compat: convert legacy 'numbers'
@@ -1675,7 +1679,7 @@ class ScenePlotter():
                     y_data,
                     marker=marker_data,
                     color='saddlebrown',
-                    markersize=17.0 * self._dpi_scale * (80 / self.fov),
+                    markersize=17.0*self._dpi_scale * (100/self.fov), # multiply by scaling factor relative to fov
                     linestyle='None',
                     zorder=6
                 )[0]
@@ -1686,7 +1690,7 @@ class ScenePlotter():
                     c='w',
                     ha='center',
                     va='center',
-                    fontsize=18*self._dpi_scale * (80/self.fov), # multiply by scaling factor relative to fov
+                    fontsize=18*self._dpi_scale * (100/self.fov), # multiply by scaling factor relative to fov
                     zorder=6
                 )
                 self.waypoint_markers[agent_idx]["text"].set_clip_on(True)

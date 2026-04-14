@@ -12,6 +12,7 @@ from invertedai.large.initialize import large_initialize, get_regions_default, R
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriterConfig, LogWriter
 from invertedai.large.common import Region
+from invertedai.api.location import location_info
 from matplotlib.animation import FuncAnimation
 import uuid
 
@@ -39,7 +40,7 @@ class SimulationManager:
             scene_visualizer_cfg: Optional[SceneVisualizerConfig] = None, # can optionally initialize a SceneVisualizer for visualization
             scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # deprecated: use location_info_response + scene_visualizer_cfg instead
             waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
-            log_writer_cfg: Optional[LogWriterConfig] = None # can optionally initialize a log_writer_cfg to write a json file log of the simulation
+            log_writer_cfg: Optional[LogWriterConfig] = None, # can optionally initialize a log_writer_cfg to write a json file log of the simulation
         ):
             if scene_plotter_cfg is not None:
                 warnings.warn('scene_plotter_cfg is deprecated. Pass location_info_response and scene_visualizer_cfg instead.', category=DeprecationWarning)
@@ -202,11 +203,18 @@ class SimulationManager:
         properties: List[AgentProperties] = []
         recurrent_states: List[RecurrentState] = []
         
+        # Determine actual recurrent size from existing agents
+        recurrent_size = RECURRENT_SIZE
+        for _, data in ordered_agents:
+            if data.recurrent is not None:
+                recurrent_size = len(data.recurrent.packed)
+                break
+
         for aid, data in ordered_agents:
             agent_ids.append(aid)
             states.append(data.state)  
             properties.append(data.properties)
-            recurrent_states.append(data.recurrent)  
+            recurrent_states.append(data.recurrent if data.recurrent is not None else RecurrentState(packed=[0.0] * recurrent_size))
         if states == [None] * len(states):
             states = None
         
@@ -227,11 +235,12 @@ class SimulationManager:
                 recurrent=recurrent_states[i] if recurrent_states else None,
             )
         return agents_dict
-    
+
     def initialize(
-        self, 
+        self,
         regions: List[Region],
         external_agent_data: Optional[SimulationAgentDict] = None,
+        return_external_dict: bool = False,
         **kwargs
     ) -> InitializeResponse:
         """
@@ -319,12 +328,22 @@ class SimulationManager:
                 init_response=response,
                 waypoints=waypoints 
             )
-
+            if self.log_writer is not None:
+                self.log_writer.initialize(
+                    location=self.log_writer_cfg.location,
+                    location_info_response=self.log_writer_cfg.location_info_response,
+                    agents_dict=all_agents_dict,
+                    init_response=response,
+                )
+        if return_external_dict:
+            external_dict = {aid: all_agents_dict[aid] for aid in external_ids}
+            return response, external_dict
         return response
     
     def drive(
         self, 
         external_agent_data: Optional[SimulationAgentDict] = None,
+        return_external_dict: bool = False,
         **kwargs
     )-> DriveResponse:
         """
@@ -426,6 +445,14 @@ class SimulationManager:
                 current_present_indexes=current_present_indexes,
                 waypoints=waypoints
             )
+            if self.log_writer is not None:
+                self.log_writer.drive(
+                    drive_response=response,
+                    agents_dict=all_agents_dict,
+                )
+        if return_external_dict:
+            external_dict = {aid: all_agents_dict[aid] for aid in external_ids}
+            return response, external_dict
         return response
     
     def visualize_data(self, **kwargs) -> FuncAnimation:
@@ -436,6 +463,8 @@ class SimulationManager:
         A matplotlib animation object can be returned and/or a gif saved of the scene.
 
         For kwargs, please see documentation from :func:`animate` in the SceneVisualizer class
+        If fov or xy_offset are provided, a new birdview image will be fetched from location_info
+        to match the updated view.
         """
         if self.scene_visualizer is None:
             raise ValueError("SceneVisualizer not initialized, failed to animate scene")
@@ -475,6 +504,21 @@ class SimulationManager:
     def get_recurrent_states(self) -> List[RecurrentState]:
         return [data.recurrent for data in self.agents_dict.values()]
     
+    def get_state(self, agent_id: str) -> AgentState:
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        return self.agents_dict[agent_id].state
+
+    def get_property(self, agent_id: str) -> AgentProperties:
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        return self.agents_dict[agent_id].properties
+
+    def get_recurrent_state(self, agent_id: str) -> RecurrentState:
+        if agent_id not in self.agents_dict:
+            raise KeyError(f"Agent '{agent_id}' does not exist")
+        return self.agents_dict[agent_id].recurrent
+
     def get_agent_data(self, agent_id:str) -> AgentData:
         if agent_id not in self.agents_dict:
             raise KeyError(f"Agent '{agent_id}' does not exist")
