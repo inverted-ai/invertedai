@@ -2,14 +2,14 @@ import logging
 import json
 import os
 
-from invertedai.common import AgentState, AgentProperties, TrafficLightState, RecurrentState, LightRecurrentState, Image, StaticMapActor, Point
+import invertedai as iai
+from invertedai.common import AgentState, AgentProperties, RecurrentState, LightRecurrentState, Image, StaticMapActor, Point
 from invertedai.api.location import LocationResponse
-from invertedai.utils import ScenePlotter, agents_from_lists
+from invertedai.utils import FrameData, agents_from_lists
 
 from collections import defaultdict
-from typing import List, Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple
 from datetime import datetime, timezone
-import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ class DebugLogger:
         with open(self.debug_log_path, "w") as outfile:
             json.dump(self.data, outfile)
 
-    def _get_scene_plotter(
+    def _get_scene_visualizer(
         self,
         log_data: Dict,
         fov: int = 100,
@@ -142,12 +142,15 @@ class DebugLogger:
                         rendering_fov = fov,
                         rendering_center = map_center
                     )
-                    map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
 
         if location_info_response is None:
             raise Exception("No location data in the log to be able to visualize the data.")
         if len(log_data["initialize_responses"]) <= 0:
             raise Exception("No initialize responses to visualize.")
+
+        if map_center is None:
+            map_center = (location_info_response.map_center.x, location_info_response.map_center.y)
+
         rendered_static_map = location_info_response.birdview_image.decode()
 
         all_properties = [AgentProperties(
@@ -166,6 +169,32 @@ class DebugLogger:
             state=s[0], 
             time_remaining=s[1]) for s in lrs
         ] if lrs is not None else lrs
+
+        from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig # avoid circular imports
+        cfg = SceneVisualizerConfig(
+            fov=fov,
+            resolution=(2048, 2048),
+            dpi=300,
+            direction_vec=False,
+            velocity_vec=False,
+            plot_frame_number=True,
+        )
+        scene_visualizer = SceneVisualizer(
+            map_image=rendered_static_map,
+            xy_offset=map_center,
+            static_actors=location_info_response.static_actors,
+            fov=fov,
+            cfg=cfg,
+        )
+
+        initial_frame = FrameData(
+            agents=agents_from_lists(
+                agent_states=agent_states,
+                agent_properties=all_properties,
+            ),
+            traffic_lights=traffic_light_states,
+        )
+
         response_data = {
             "location": location,
             "agent_properties": all_properties,
@@ -175,21 +204,7 @@ class DebugLogger:
             "light_recurrent_states": light_recurrent_states
         }
 
-        scene_plotter = ScenePlotter(
-            map_image=rendered_static_map,
-            fov=fov,
-            xy_offset=map_center,
-            static_actors=location_info_response.static_actors,
-            resolution=(2048,2048),
-            dpi=300
-        )
-        scene_plotter.initialize_recording(
-            agent_states=agent_states,
-            agent_properties=all_properties,
-            traffic_light_states=traffic_light_states
-        )
-
-        return scene_plotter, response_data
+        return scene_visualizer, initial_frame, response_data
 
     @classmethod
     def visualize_log(
@@ -215,31 +230,30 @@ class DebugLogger:
             The coordinates within the map on which to centre the visualization which is especially useful for large maps.
         """
 
-        scene_plotter, _ = cls._get_scene_plotter(
+        scene_visualizer, initial_frame, response_data = cls._get_scene_visualizer(
             cls,
             log_data=log_data,
             fov=fov,
-            map_center=map_center
+            map_center=map_center,
         )
+        all_properties = response_data["agent_properties"]
 
+        frames = [initial_frame]
         for response_json in log_data["drive_responses"]:
             response = json.loads(response_json)
-            scene_plotter.record_step(
-                agent_states=[AgentState.fromlist(s) for s in response["agent_states"]],
-                traffic_light_states=response["traffic_lights_states"]
-            )
+            agent_states = [AgentState.fromlist(s) for s in response["agent_states"]]
+            frames.append(FrameData(
+                agents=agents_from_lists(
+                    agent_states=agent_states,
+                    agent_properties=all_properties,
+                ),
+                traffic_lights=response["traffic_lights_states"],
+            ))
 
-        # save the visualization to disk
-        fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-        plt.axis('off')
-        scene_plotter.animate_scene(
+        scene_visualizer.visualize(
+            frames=frames,
             output_name=gif_name,
-            ax=ax,
-            direction_vec=False,
-            velocity_vec=False,
-            plot_frame_number=True,
         )
-        plt.close(fig)
 
     @classmethod
     def reproduce_log(
@@ -269,7 +283,7 @@ class DebugLogger:
             A flag for whether to use the random seed in the debug log or input a value of None to DRIVE.
         """
 
-        scene_plotter, response_data = cls._get_scene_plotter(
+        scene_visualizer, initial_frame, response_data = cls._get_scene_visualizer(
             cls,
             log_data=log_data,
             fov=fov,
@@ -278,9 +292,9 @@ class DebugLogger:
         agent_states = response_data["agent_states"]
         agent_properties = response_data["agent_properties"]
         recurrent_states = response_data["recurrent_states"]
-        traffic_lights_states = response_data["traffic_light_states"]
         light_recurrent_states = response_data["light_recurrent_states"]
 
+        frames = [initial_frame]
         for request_json in log_data["drive_requests"]:
             request = json.loads(request_json)
             response = iai.large_drive(
@@ -297,23 +311,19 @@ class DebugLogger:
             recurrent_states = response.recurrent_states
             traffic_lights_states = response.traffic_lights_states
             light_recurrent_states = response.light_recurrent_states
-            
-            scene_plotter.record_step(
-                agent_states=agent_states,
-                traffic_light_states=traffic_lights_states
-            )
 
+            frames.append(FrameData(
+                agents=agents_from_lists(
+                    agent_states=agent_states,
+                    agent_properties=agent_properties,
+                ),
+                traffic_light_states=traffic_lights_states
+            ))
         # save the visualization to disk
-        fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-        plt.axis('off')
-        scene_plotter.animate_scene(
+        scene_visualizer.visualize(
+            frames=frames,
             output_name=gif_name,
-            ax=ax,
-            direction_vec=False,
-            velocity_vec=False,
-            plot_frame_number=True,
         )
-        plt.close(fig)
 
     @classmethod
     def read_log_from_path(
