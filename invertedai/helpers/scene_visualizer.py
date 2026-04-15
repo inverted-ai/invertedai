@@ -40,7 +40,8 @@ class SceneVisualizerConfig:
     velocity_vec:
         Whether to draw a velocity arrow on each agent.
     display_agent_ids:
-        Agent IDs whose label should be rendered. ``None`` means no labels.
+        Agent IDs whose label should be rendered. ``None`` means all agents;
+        pass an empty list to suppress all labels.
     fov:
         Field of view in metres. When provided alongside ``location``, a new
         ``location_info`` call is made to fetch a correctly-cropped birdview image.
@@ -51,6 +52,9 @@ class SceneVisualizerConfig:
     location:
         IAI formatted map location string. Required when ``fov`` or ``xy_offset``
         are provided so that a new ``location_info`` call can be made.
+    display_waypoints:
+        Whether to draw waypoint markers for car agents.
+        Set to ``False`` to not displaywaypoints.
     ax:
         An optional ``matplotlib.axes.Axes`` to draw into. A new figure/axes is
         created when ``None``.
@@ -63,6 +67,7 @@ class SceneVisualizerConfig:
     velocity_vec: bool = False
     fov: float = 100.0
     display_agent_ids: Optional[List[str]] = None
+    display_waypoints: bool = True
     tag_styles: TagStyleConfig = field(default_factory=TagStyleConfig)
     xy_offset: Optional[Tuple[float, float]] = None
     location: Optional[str] = None
@@ -186,8 +191,6 @@ class SceneVisualizer:
             self._plot_single_frame(frames[0], output_name=output_name)
             return None
 
-        self._cfg.display_agent_ids = frames[0].agents.keys()
-
         self._initialize_plot(self._cfg.ax)
         fig = self.current_ax.figure
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
@@ -276,14 +279,14 @@ class SceneVisualizer:
             rect.set_visible(False)
 
     def _update_agents(self, frame: FrameData):
+        label_ids = self._cfg.display_agent_ids if self._cfg.display_agent_ids is not None else frame.agents.keys()
         for agent_id, agent_data in frame.agents.items():
             self._update_agent(
                 agent_id=agent_id,
                 agent_data=agent_data,
                 agent_tags=frame.agent_tags,
+                show_label=agent_id in label_ids,
             )
-            if self._cfg.display_agent_ids is not None and agent_id in self._cfg.display_agent_ids:
-                self._plot_waypoint(agent_id, agent_data)
 
     def _update_traffic_lights(self, frame: FrameData):
         for light_id, light_state in frame.traffic_lights.items():
@@ -332,6 +335,7 @@ class SceneVisualizer:
         agent_id: str,
         agent_data: AgentData,
         agent_tags: Optional[Dict[str, AgentTag]] = None,
+        show_label: bool = True,
     ):
         agent = agent_data.state
         agent_properties = agent_data.properties
@@ -389,7 +393,7 @@ class SceneVisualizer:
 
             self.v_lines[agent_id].set_visible(True)
 
-        if self._cfg.display_agent_ids is not None and agent_id in self._cfg.display_agent_ids:
+        if show_label:
             if agent_id not in self.box_labels:
                 self.box_labels[agent_id] = self.current_ax.text(
                     x,
@@ -406,6 +410,9 @@ class SceneVisualizer:
                 self.box_labels[agent_id].set_y(y)
 
             self.box_labels[agent_id].set_visible(True)
+
+        if show_label and self._cfg.display_waypoints and agent_properties.agent_type != "pedestrian":
+            self._plot_waypoint(agent_id, agent_data)
 
         lw = 1
         fc = None
