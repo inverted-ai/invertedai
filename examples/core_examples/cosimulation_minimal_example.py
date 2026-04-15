@@ -45,10 +45,10 @@ iai_simulation = iai.BasicCosimulation(
 location_info_response = iai.location_info(location=LOCATION)
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_visualizer = SceneVisualizer(
-    rendered_static_map,
-    location_info_response.map_fov,
-    (location_info_response.map_center.x, location_info_response.map_center.y),
-    location_info_response.static_actors,
+    map_image=rendered_static_map,
+    fov=location_info_response.map_fov,
+    xy_offset=(location_info_response.map_center.x, location_info_response.map_center.y),
+    static_actors=location_info_response.static_actors,
     cfg=SceneVisualizerConfig(direction_vec=False, velocity_vec=False, plot_frame_number=True),
 )
 frames = [FrameData(
@@ -88,10 +88,8 @@ print("Simulation finished, save visualization.")
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
 plt.axis('off')
 gif_name = 'cosimulation_minimal_example.gif'
-scene_visualizer.animate(
-    frames,
+scene_visualizer.visualize(
+    frames=frames,
     output_name = gif_name,
-    ax = ax,
-    agent_ids=[str(i) for i in range(len(iai_simulation.agent_states))],
 )
 print("Done")

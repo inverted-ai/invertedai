@@ -123,10 +123,10 @@ agent_properties = log_reader.agent_properties
 
 rendered_static_map = location_info_response_replay.birdview_image.decode()
 scene_visualizer_new = SceneVisualizer(
-    rendered_static_map,
-    location_info_response_replay.map_fov,
-    (location_info_response_replay.map_center.x, location_info_response_replay.map_center.y),
-    location_info_response_replay.static_actors,
+    map_image=rendered_static_map,
+    fov=location_info_response_replay.map_fov,
+    xy_offset=(location_info_response_replay.map_center.x, location_info_response_replay.map_center.y),
+    static_actors=location_info_response_replay.static_actors,
     cfg=SceneVisualizerConfig(direction_vec=True, velocity_vec=False, plot_frame_number=True),
 )
 frames_new = [FrameData(agents=agents_from_lists(log_reader.agent_states, agent_properties, agent_ids=log_reader.present_agent_ids))]
@@ -169,7 +169,7 @@ for _ in range(SIMULATION_LENGTH_EXTEND):
 gif_path_extended = os.path.join(os.getcwd(),f"scenario_log_example_extended.mp4")
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
 plt.axis('off')
-scene_visualizer_new.animate(
+scene_visualizer_new.visualize(
     frames_new,
     output_name=gif_path_extended,
     ax=ax,
@@ -188,10 +188,10 @@ agent_properties = log_reader.agent_properties
 
 rendered_static_map = location_info_response_replay.birdview_image.decode()
 scene_visualizer_branch = SceneVisualizer(
-    rendered_static_map,
-    location_info_response_replay.map_fov,
-    (location_info_response_replay.map_center.x, location_info_response_replay.map_center.y),
-    location_info_response_replay.static_actors,
+    map_image=rendered_static_map,
+    fov=location_info_response_replay.map_fov,
+    xy_offset=(location_info_response_replay.map_center.x, location_info_response_replay.map_center.y),
+    static_actors=location_info_response_replay.static_actors,
     cfg=SceneVisualizerConfig(direction_vec=True, velocity_vec=False, plot_frame_number=True),
 )
 frames_branch = [FrameData(agents=agents_from_lists(log_reader.agent_states, agent_properties))]

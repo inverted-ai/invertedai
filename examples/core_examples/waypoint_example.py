@@ -116,10 +116,8 @@ print("Simulation finished, save visualization.")
 # save the visualization to disk
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
 gif_name = f'{seed}_waypoint_example.gif'
-scene_visualizer.animate(
-    frames,
+scene_visualizer.visualize(
+    frames=frames,
     output_name=gif_name,
-    ax=ax,
-    agent_ids=agent_ids,
 )
 print("Done")

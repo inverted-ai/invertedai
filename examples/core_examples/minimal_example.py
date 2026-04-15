@@ -24,10 +24,10 @@ agent_properties = response.agent_properties  # get dimension and other attribut
 
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_visualizer = SceneVisualizer(
-    rendered_static_map,
-    location_info_response.map_fov,
-    (location_info_response.map_center.x, location_info_response.map_center.y),
-    location_info_response.static_actors,
+    map_image=rendered_static_map,
+    fov=location_info_response.map_fov,
+    xy_offset=(location_info_response.map_center.x, location_info_response.map_center.y),
+    static_actors=location_info_response.static_actors,
     cfg=SceneVisualizerConfig(direction_vec=False, velocity_vec=False, plot_frame_number=True),
 )
 frames = [FrameData(agents=agents_from_lists(response.agent_states, agent_properties))]
@@ -54,10 +54,8 @@ print("Simulation finished, save visualization.")
 # save the visualization to disk
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
 gif_name = 'minimal_example.gif'
-scene_visualizer.animate(
-    frames,
-    output_name=gif_name,
-    ax=ax,
-    agent_ids=[str(i) for i in range(len(response.agent_states))],
+scene_visualizer.visualize(
+    frames=frames,
+    output_name=gif_name
 )
 print("Done")
