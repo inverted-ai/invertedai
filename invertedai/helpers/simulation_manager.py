@@ -34,6 +34,26 @@ class SimulationManager:
         Configuration for enabling structured logging of the simulation
         If provided all initialize and drive steps will be recorded to a JSON log
     """
+    @staticmethod
+    def _scene_visualizer_cfg_from_scene_plotter_cfg(cfg: ScenePlotterConfig) -> SceneVisualizerConfig:
+        loc = cfg.location_info_response
+        map_image = loc.birdview_image.decode() if loc is not None else None
+        static_actors = loc.static_actors if loc is not None else None
+        fov = cfg.fov if cfg.fov is not None else (loc.map_fov if loc is not None else None)
+        visualization_center = cfg.xy_offset if cfg.xy_offset is not None else ((loc.map_center.x, loc.map_center.y) if loc is not None else None)
+        return SceneVisualizerConfig(
+            location=cfg.location,
+            map_image=map_image,
+            static_actors=static_actors,
+            fov=fov,
+            visualization_center=visualization_center,
+            left_hand_coordinates=cfg.location.split(":")[0] == "carla",
+            direction_vec=cfg.direction_vec,
+            velocity_vec=cfg.velocity_vec,
+            display_agent_ids=cfg.display_agent_ids,
+            tag_styles=cfg.tag_styles,
+        )
+
     def __init__(
             self,
             scene_visualizer_cfg: Optional[SceneVisualizerConfig] = None, # can optionally initialize a SceneVisualizer for visualization
@@ -43,6 +63,7 @@ class SimulationManager:
         ):
             if scene_plotter_cfg is not None:
                 warnings.warn('scene_plotter_cfg is deprecated. Use scene_visualizer_cfg instead.', category=DeprecationWarning)
+                scene_visualizer_cfg = self._scene_visualizer_cfg_from_scene_plotter_cfg(scene_plotter_cfg)
             self.scene_visualizer = None
             self._frames: List[FrameData] = []
             if scene_visualizer_cfg is not None:
@@ -59,30 +80,6 @@ class SimulationManager:
                     if scene_visualizer_cfg.visualization_center is None:
                         scene_visualizer_cfg.visualization_center = (_loc_info.map_center.x, _loc_info.map_center.y)
                 self.scene_visualizer = SceneVisualizer(cfg=scene_visualizer_cfg)
-            elif scene_plotter_cfg is not None:
-                if scene_plotter_cfg.fov or scene_plotter_cfg.xy_offset or scene_plotter_cfg.location_info_response is None:
-                    _loc_info = location_info(
-                        location=scene_plotter_cfg.location,
-                        rendering_fov=scene_plotter_cfg.fov,
-                        rendering_center=scene_plotter_cfg.xy_offset
-                    )
-                else:
-                    _loc_info = scene_plotter_cfg.location_info_response
-                _xy_offset = scene_plotter_cfg.xy_offset if scene_plotter_cfg.xy_offset else (_loc_info.map_center.x, _loc_info.map_center.y)
-                _fov = scene_plotter_cfg.fov if scene_plotter_cfg.fov else _loc_info.map_fov
-                _left_hand = scene_plotter_cfg.location.split(":")[0] == "carla"
-                _viz_cfg = SceneVisualizerConfig(
-                    map_image=_loc_info.birdview_image.decode(),
-                    static_actors=_loc_info.static_actors,
-                    fov=_fov,
-                    visualization_center=_xy_offset,
-                    left_hand_coordinates=_left_hand,
-                    direction_vec=scene_plotter_cfg.direction_vec,
-                    velocity_vec=scene_plotter_cfg.velocity_vec,
-                    display_agent_ids=scene_plotter_cfg.display_agent_ids,
-                    tag_styles=scene_plotter_cfg.tag_styles,
-                )
-                self.scene_visualizer = SceneVisualizer(cfg=_viz_cfg)
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
             self.agent_tags: Optional[dict] = None  # Dict[AgentID, AgentTag] — applied to every recorded frame
             self.waypoint_manager: Optional[WaypointManager] = None
