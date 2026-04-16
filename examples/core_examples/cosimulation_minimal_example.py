@@ -87,7 +87,7 @@ for _ in range(NUM_TIME_STEPS):  # How many simulation time steps to execute (10
 print("Simulation finished, save visualization.")
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
 plt.axis('off')
-gif_name = 'cosimulation_minimal_example.gif'
+gif_name = 'cosimulation_minimal_example.mp4'
 scene_visualizer.visualize(
     frames=frames,
     output_name = gif_name,

@@ -53,7 +53,7 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
 print("Simulation finished, save visualization.")
 # save the visualization to disk
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-gif_name = 'minimal_example.gif'
+gif_name = 'minimal_example.mp4'
 scene_visualizer.visualize(
     frames=frames,
     output_name=gif_name

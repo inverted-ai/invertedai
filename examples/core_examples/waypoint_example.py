@@ -115,7 +115,7 @@ for _ in range(simulation_length):  # how many simulation steps to execute (10 s
 print("Simulation finished, save visualization.")
 # save the visualization to disk
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-gif_name = f'{seed}_waypoint_example.gif'
+gif_name = f'{seed}_waypoint_example.mp4'
 scene_visualizer.visualize(
     frames=frames,
     output_name=gif_name,
