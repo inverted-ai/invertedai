@@ -33,8 +33,6 @@ from invertedai.api.initialize import initialize
 from invertedai import error
 from invertedai.future import to_thread
 from invertedai.error import InvertedAIError
-from dataclasses import dataclass, field
-from collections import defaultdict
 from invertedai.common import (
     AgentState, 
     AgentAttributes, 
@@ -49,6 +47,9 @@ from invertedai.common import (
     TrafficLightStatesDict,
     Point 
 )
+from invertedai.helpers.scene_visualizer import AgentTag, AgentTagStyle, TagStyleConfig, FrameData, agents_from_lists
+from dataclasses import dataclass, field
+from collections import defaultdict
 
 H_SCALE = 10
 text_x_offset = 0
@@ -73,9 +74,6 @@ STATUS_MESSAGE = {
 Color = Tuple[float,float,float]
 ColorList = List[Optional[Color]]
 ColorDict = Dict[str, Color]  # agent_id -> RGB color
-
-
-from invertedai.helpers.scene_visualizer import AgentTag, AgentTagStyle, TagStyleConfig, FrameData, agents_from_lists
 
 class Session:
     def __init__(self,debug_logger=None):
