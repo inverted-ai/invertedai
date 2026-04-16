@@ -59,11 +59,9 @@ class SimulationManager:
                 _xy_offset = scene_visualizer_cfg.xy_offset if scene_visualizer_cfg.xy_offset is not None else (_loc_info.map_center.x, _loc_info.map_center.y)
                 scene_visualizer_cfg.fov = _fov
                 scene_visualizer_cfg.xy_offset = _xy_offset
-                self.scene_visualizer = SceneVisualizer(
-                    map_image=_loc_info.birdview_image.decode(),
-                    static_actors=_loc_info.static_actors,
-                    cfg=scene_visualizer_cfg,
-                )
+                scene_visualizer_cfg.map_image = _loc_info.birdview_image.decode()
+                scene_visualizer_cfg.static_actors = _loc_info.static_actors
+                self.scene_visualizer = SceneVisualizer(cfg=scene_visualizer_cfg)
             elif scene_plotter_cfg is not None:
                 if scene_plotter_cfg.fov or scene_plotter_cfg.xy_offset or scene_plotter_cfg.location_info_response is None:
                     _loc_info = location_info(
@@ -77,6 +75,8 @@ class SimulationManager:
                 _fov = scene_plotter_cfg.fov if scene_plotter_cfg.fov else _loc_info.map_fov
                 _left_hand = scene_plotter_cfg.location.split(":")[0] == "carla"
                 _viz_cfg = SceneVisualizerConfig(
+                    map_image=_loc_info.birdview_image.decode(),
+                    static_actors=_loc_info.static_actors,
                     fov=_fov,
                     xy_offset=_xy_offset,
                     left_hand_coordinates=_left_hand,
@@ -85,11 +85,7 @@ class SimulationManager:
                     display_agent_ids=scene_plotter_cfg.display_agent_ids,
                     tag_styles=scene_plotter_cfg.tag_styles,
                 )
-                self.scene_visualizer = SceneVisualizer(
-                    map_image=_loc_info.birdview_image.decode(),
-                    static_actors=_loc_info.static_actors,
-                    cfg=_viz_cfg,
-                )
+                self.scene_visualizer = SceneVisualizer(cfg=_viz_cfg)
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
             self.agent_tags: Optional[dict] = None  # Dict[AgentID, AgentTag] — applied to every recorded frame
             self.waypoint_manager: Optional[WaypointManager] = None

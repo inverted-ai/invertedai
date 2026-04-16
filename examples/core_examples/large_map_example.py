@@ -51,9 +51,9 @@ def main(args):
                 init_response=response,
             )
             scene_visualizer = SceneVisualizer(
-                map_image=location_info_response.birdview_image.decode(),
-                static_actors=location_info_response.static_actors,
                 cfg=SceneVisualizerConfig(
+                    map_image=location_info_response.birdview_image.decode(),
+                    static_actors=location_info_response.static_actors,
                     fov=args.fov,
                     xy_offset=map_center,
                     direction_vec=True,

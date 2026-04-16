@@ -125,9 +125,9 @@ rendered_static_map = location_info_response_replay.birdview_image.decode()
 fig_new, ax_new = plt.subplots(constrained_layout=True, figsize=(50, 50))
 plt.axis('off')
 scene_visualizer_new = SceneVisualizer(
-    map_image=rendered_static_map,
-    static_actors=location_info_response_replay.static_actors,
     cfg=SceneVisualizerConfig(
+        map_image=rendered_static_map,
+        static_actors=location_info_response_replay.static_actors,
         fov=location_info_response_replay.map_fov,
         xy_offset=(location_info_response_replay.map_center.x, location_info_response_replay.map_center.y),
         direction_vec=True,
@@ -188,9 +188,9 @@ agent_properties = log_reader.agent_properties
 
 rendered_static_map = location_info_response_replay.birdview_image.decode()
 scene_visualizer_branch = SceneVisualizer(
-    map_image=rendered_static_map,
-    static_actors=location_info_response_replay.static_actors,
     cfg=SceneVisualizerConfig(
+        map_image=rendered_static_map,
+        static_actors=location_info_response_replay.static_actors,
         fov=location_info_response_replay.map_fov,
         xy_offset=(location_info_response_replay.map_center.x, location_info_response_replay.map_center.y),
         direction_vec=True,

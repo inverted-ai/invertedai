@@ -147,6 +147,12 @@ class SceneVisualizerConfig:
     location:
         IAI formatted map location string. Required when ``fov`` or ``xy_offset``
         are provided so that a new ``location_info`` call can be made.
+    map_image:
+        Background image decoded from the birdview map returned by
+        :func:`location_info`.
+    static_actors:
+        List of :class:`StaticMapActor` objects from
+        :func:`location_info`.
     display_waypoints:
         Whether to draw waypoint markers for car agents.
         Set to ``False`` to not displaywaypoints.
@@ -154,6 +160,8 @@ class SceneVisualizerConfig:
         An optional ``matplotlib.axes.Axes`` to draw into. A new figure/axes is
         created when ``None``.
     """
+    map_image: Optional[np.ndarray] = None
+    static_actors: Optional[List[StaticMapActor]] = None
     resolution: Tuple[int, int] = (2048, 2048)
     dpi: float = 100
     left_hand_coordinates: bool = False
@@ -180,14 +188,8 @@ class SceneVisualizer:
 
     Parameters
     ----------
-    map_image:
-        Background image decoded from the birdview map returned by
-        :func:`location_info`.
-    static_actors:
-        List of :class:`StaticMapActor` objects (e.g. traffic lights) from
-        :func:`location_info`.
     cfg:
-        Optional :class:`SceneVisualizerConfig`. Defaults are used when ``None``.
+        :class:`SceneVisualizerConfig` containing all rendering parameters
 
     See Also
     --------
@@ -196,11 +198,9 @@ class SceneVisualizer:
 
     def __init__(
         self,
-        map_image: np.ndarray,
-        static_actors: List[StaticMapActor],
-        cfg: Optional[SceneVisualizerConfig] = None,
+        cfg: SceneVisualizerConfig,
     ):
-        self._cfg = cfg if cfg is not None else SceneVisualizerConfig()
+        self._cfg = cfg
 
         self._left_hand_coordinates = self._cfg.left_hand_coordinates
         self.tag_styles = self._cfg.tag_styles
@@ -208,10 +208,10 @@ class SceneVisualizer:
         self._dpi_scale = 100 / self._dpi
         self._resolution = self._cfg.resolution
 
-        self.map_image = map_image
+        self.map_image = self._cfg.map_image
         self.fov = self._cfg.fov
         self.xy_offset = self._cfg.xy_offset
-        self.static_actors = static_actors
+        self.static_actors = self._cfg.static_actors or []
 
         self.traffic_lights = {
             actor.actor_id: actor

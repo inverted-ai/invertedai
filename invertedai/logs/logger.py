@@ -386,6 +386,8 @@ class LogBase():
             return agents_from_lists(states, props, agent_ids=[str(i) for i in present])
 
         cfg = SceneVisualizerConfig(
+            map_image=rendered_static_map,
+            static_actors=location_info_response.static_actors,
             fov=fov,
             xy_offset=map_center,
             resolution=resolution,
@@ -396,11 +398,7 @@ class LogBase():
             plot_frame_number=plot_frame_number,
             display_agent_ids=[str(aid) for aid in agent_ids] if agent_ids is not None else None,
         )
-        scene_visualizer = SceneVisualizer(
-            map_image=rendered_static_map,
-            static_actors=location_info_response.static_actors,
-            cfg=cfg,
-        )
+        scene_visualizer = SceneVisualizer(cfg=cfg)
 
         frames = []
         for ts in range(timestep_range[0], timestep_range[1] + 1):

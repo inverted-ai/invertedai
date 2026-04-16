@@ -45,9 +45,9 @@ iai_simulation = iai.BasicCosimulation(
 location_info_response = iai.location_info(location=LOCATION)
 rendered_static_map = location_info_response.birdview_image.decode()
 scene_visualizer = SceneVisualizer(
-    map_image=rendered_static_map,
-    static_actors=location_info_response.static_actors,
     cfg=SceneVisualizerConfig(
+        map_image=rendered_static_map,
+        static_actors=location_info_response.static_actors,
         fov=location_info_response.map_fov,
         xy_offset=(location_info_response.map_center.x, location_info_response.map_center.y),
         direction_vec=False,

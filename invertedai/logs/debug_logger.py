@@ -172,6 +172,8 @@ class DebugLogger:
         ] if lrs is not None else lrs
 
         cfg = SceneVisualizerConfig(
+            map_image=rendered_static_map,
+            static_actors=location_info_response.static_actors,
             fov=fov,
             xy_offset=map_center,
             resolution=(2048, 2048),
@@ -180,11 +182,7 @@ class DebugLogger:
             velocity_vec=False,
             plot_frame_number=True,
         )
-        scene_visualizer = SceneVisualizer(
-            map_image=rendered_static_map,
-            static_actors=location_info_response.static_actors,
-            cfg=cfg,
-        )
+        scene_visualizer = SceneVisualizer(cfg=cfg)
 
         initial_frame = FrameData(
             agents=agents_from_lists(
