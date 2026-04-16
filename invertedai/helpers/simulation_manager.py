@@ -6,7 +6,7 @@ from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, Recur
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
-from invertedai.utils import ScenePlotterConfig, WaypointsDict, AgentTag, FrameData
+from invertedai.utils import ScenePlotterConfig, AgentTag, FrameData
 from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
 from invertedai.large.initialize import large_initialize, get_regions_default, RegionsConfig
 from invertedai.large.drive import large_drive
@@ -315,18 +315,12 @@ class SimulationManager:
                 },
                 agent_tags=self.agent_tags,
             ))
-        if self.log_writer is not None:
-            if self.waypoint_manager is not None:
-                waypoints = {
-                    aid: new_properties[i].waypoints
-                    for i, aid in enumerate(all_agent_ids)
-                    if new_properties[i] is not None and new_properties[i].waypoints is not None
-                }
-            self.log_writer.initialize(  
-                location=self.log_writer_cfg.location,
-                location_info_response=self.log_writer_cfg.location_info_response,
-                init_response=response,
-                waypoints=waypoints 
+        if self.log_writer is not None or return_external_dict:
+            all_agents_dict = self._pack( # both internal+external agents
+                agent_ids=all_agent_ids,
+                states=response.agent_states,
+                properties=new_properties,
+                recurrent_states=response.recurrent_states,
             )
             if self.log_writer is not None:
                 self.log_writer.initialize(
@@ -431,19 +425,12 @@ class SimulationManager:
                 traffic_lights=response.traffic_lights_states,
                 agent_tags=self.agent_tags,
             ))
-        if self.log_writer is not None:
-            waypoints: Optional[WaypointsDict] = None
-            if self.waypoint_manager is not None:
-                waypoints = {
-                    aid: properties[i].waypoints
-                    for i, aid in enumerate(agent_ids)
-                    if properties[i] is not None and properties[i].waypoints is not None
-                }
-            current_present_indexes = list(range(len(agent_ids)))
-            self.log_writer.drive(
-                drive_response=response,
-                current_present_indexes=current_present_indexes,
-                waypoints=waypoints
+        if self.log_writer is not None or return_external_dict:
+            all_agents_dict = self._pack(
+                agent_ids=agent_ids,
+                states=response.agent_states,
+                properties=properties,
+                recurrent_states=response.recurrent_states,
             )
             if self.log_writer is not None:
                 self.log_writer.drive(
@@ -455,20 +442,20 @@ class SimulationManager:
             return response, external_dict
         return response
     
-    def visualize_data(self, **kwargs) -> FuncAnimation:
+    def visualize_data(self, output_name: Optional[str] = None, frames: Optional[List[FrameData]] = None) -> Optional[FuncAnimation]:
         """
-        Produce an animation of sequentially recorded steps. If a SceneVisualizer was configured during initialization,
-            recorded steps from each drive will be visualized using the birdview map and static actors.
+        Render recorded simulation steps. If only one frame is rendered a
+        still image is produced; otherwise a :class:`FuncAnimation` is returned.
 
-        A matplotlib animation object can be returned and/or a gif saved of the scene.
-
-        For kwargs, please see documentation from :func:`animate` in the SceneVisualizer class
-        If fov or xy_offset are provided, a new birdview image will be fetched from location_info
-        to match the updated view.
+        output_name:
+            Path to save the animation (``'.gif'`` or ``'.mp4'``). Ignored for
+            single-frame renders. If ``None`` the animation is returned but not saved.
+        frames:
+            Specific frames to render. If ``None``, all recorded frames are used.
         """
         if self.scene_visualizer is None:
-            raise ValueError("SceneVisualizer not initialized, failed to animate scene")
-        return self.scene_visualizer.animate(self._frames, **kwargs)
+            raise ValueError("SceneVisualizer not initialized, failed to visualize scene")
+        return self.scene_visualizer.visualize(frames if frames is not None else self._frames, output_name=output_name)
     
     def export_log(self, path: Optional[str] = None):
         """
