@@ -4,10 +4,10 @@ from pydantic import BaseModel, validate_arguments, model_validator
 from typing import List, Optional, Dict, Tuple, Any, Union
 from copy import deepcopy
 
-import matplotlib.pyplot as plt
 import json
 
-from invertedai.utils import ScenePlotter, agents_from_lists, WaypointsDict, convert_attributes_to_properties
+from invertedai.utils import agents_from_lists, WaypointsDict, convert_attributes_to_properties, FrameData
+from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
 from invertedai import location_info
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse
@@ -347,8 +347,8 @@ class LogBase():
         agent_ids: Optional[List[int]] = None
     ):
         """
-        Use the available internal tools to visualize the a specific range of time steps within the log and save it to a given location. If
-        an invalid time step range is given, the function will fail. Please refer to ScenePlotter for details on the visualization tool.
+        Use the available internal tools to visualize a specific range of time steps within the log and save it to a given location. If
+        an invalid time step range is given, the function will fail. Please refer to SceneVisualizer for details on the visualization tool.
         """
 
         def format_agent_properties(ts, agent_id):
@@ -385,41 +385,32 @@ class LogBase():
             props = [format_agent_properties(ts, i) for i in present]
             return agents_from_lists(states, props, agent_ids=[str(i) for i in present])
 
-        scene_plotter = ScenePlotter(
-            map_image=rendered_static_map,
+        cfg = SceneVisualizerConfig(
             fov=fov,
             xy_offset=map_center,
-            static_actors=location_info_response.static_actors,
             resolution=resolution,
             dpi=dpi,
-            left_hand_coordinates=left_hand_coordinates
-        )
-        scene_plotter.initialize_recording(
-            agents=_build_agents_dict(0),
-            traffic_light_states=traffic_lights_states[timestep_range[0]],
-        )
-
-        for ts in range(n_frames):
-            lights = traffic_lights_states[ts] if ts < len(traffic_lights_states) else None
-            scene_plotter.record_step(
-                agents=_build_agents_dict(ts),
-                traffic_light_states=lights,
-            )
-
-        fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-        plt.axis('off')
-        scene_plotter.animate_scene(
-            output_name=gif_path,
-            start_idx=timestep_range[0],
-            end_idx=timestep_range[1],
-            ax=ax,
+            left_hand_coordinates=left_hand_coordinates,
             direction_vec=direction_vec,
             velocity_vec=velocity_vec,
             plot_frame_number=plot_frame_number,
-            agent_ids=agent_ids
+            display_agent_ids=[str(aid) for aid in agent_ids] if agent_ids is not None else None,
+        )
+        scene_visualizer = SceneVisualizer(
+            map_image=rendered_static_map,
+            static_actors=location_info_response.static_actors,
+            cfg=cfg,
         )
 
-        plt.close(fig)
+        frames = []
+        for ts in range(timestep_range[0], timestep_range[1] + 1):
+            lights = traffic_lights_states[ts] if ts < len(traffic_lights_states) else None
+            frames.append(FrameData(
+                agents=_build_agents_dict(ts),
+                traffic_lights=lights,
+            ))
+
+        scene_visualizer.visualize(frames=frames, output_name=gif_path)
 
     @validate_arguments
     def visualize(
@@ -436,7 +427,7 @@ class LogBase():
         agent_ids: Optional[List[int]] = None
     ):
         """
-        Use the available internal tools to visualize the entire log and save it to a given location. Please refer to ScenePlotter for details on 
+        Use the available internal tools to visualize the entire log and save it to a given location. Please refer to SceneVisualizer for details on
         the visualization tool.
         """
 
@@ -783,16 +774,6 @@ class LogWriter(LogBase):
         if drive_response.traffic_lights_states is not None:
             self._scenario_log.traffic_lights_states.append(drive_response.traffic_lights_states)
         
-        waypoints = self._format_waypoints(
-            current_present_indexes = current_present_indexes,
-            agent_properties = agent_properties,
-            waypoints = waypoints
-        )
-        if self._scenario_log.waypoints_per_frame is not None:
-            self._scenario_log.waypoints_per_frame.append(waypoints)
-        elif waypoints:
-            self._scenario_log.waypoints_per_frame = [waypoints]
-
         self._scenario_log.drive_model_version = drive_response.api_model_version
         self._scenario_log.light_recurrent_states = drive_response.light_recurrent_states
         self._scenario_log.recurrent_states = drive_response.recurrent_states
