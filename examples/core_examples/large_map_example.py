@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai import AgentType
+from invertedai import AgentType, SceneVisualizer, SceneVisualizerConfig, FrameData, agents_from_lists
 
 import argparse
 import random
@@ -8,7 +8,9 @@ import time
 from tqdm import tqdm
 
 def main(args):
-    if args.model_version_drive == "None": 
+    if args.location == 'None':
+        raise ValueError("Please provide a location with --location, e.g. --location 'canada:vancouver:ubc'")
+    if args.model_version_drive == "None":
         model_version = None
     else:
         model_version = args.model_version_drive
@@ -46,8 +48,27 @@ def main(args):
             log_writer.initialize(
                 location=args.location,
                 location_info_response=location_info_response,
-                init_response=response
+                init_response=response,
             )
+            scene_visualizer = SceneVisualizer(
+                map_image=location_info_response.birdview_image.decode(),
+                fov=args.fov,
+                xy_offset=map_center,
+                static_actors=location_info_response.static_actors,
+                cfg=SceneVisualizerConfig(
+                    direction_vec=True,
+                    velocity_vec=False,
+                    plot_frame_number=True,
+                    left_hand_coordinates=args.location.split(":")[0] == "carla",
+                ),
+            )
+            frames = [FrameData(
+                agents=agents_from_lists(
+                    agent_states=response.agent_states,
+                    agent_properties=response.agent_properties,
+                ),
+                traffic_lights=response.traffic_lights_states,
+            )]
 
         total_num_agents = len(response.agent_states)
         print(f"Number of agents in simulation: {total_num_agents}")
@@ -56,38 +77,37 @@ def main(args):
         agent_properties = response.agent_properties
         for _ in tqdm(range(args.sim_length)):
             response = iai.large_drive(
-                location = args.location,
-                agent_states = response.agent_states,
-                agent_properties = agent_properties,
-                recurrent_states = response.recurrent_states,
-                light_recurrent_states = response.light_recurrent_states,
-                random_seed = drive_seed,
-                api_model_version = model_version,
-                get_infractions = args.get_infractions,
-                single_call_agent_limit = args.capacity,
-                async_api_calls = args.is_async
+                location=args.location,
+                agent_states=response.agent_states,
+                agent_properties=agent_properties,
+                recurrent_states=response.recurrent_states,
+                light_recurrent_states=response.light_recurrent_states,
+                random_seed=drive_seed,
+                api_model_version=model_version,
+                get_infractions=args.get_infractions,
+                single_call_agent_limit=args.capacity,
+                async_api_calls=args.is_async,
             )
 
-            if args.save_sim: 
-                log_writer.drive(
-                    drive_response=response
-                )
+            if args.save_sim:
+                log_writer.drive(drive_response=response)
+                frames.append(FrameData(
+                    agents=agents_from_lists(
+                        agent_states=response.agent_states,
+                        agent_properties=agent_properties,
+                    ),
+                    traffic_lights=response.traffic_lights_states,
+                ))
 
         if args.save_sim:
             print("Simulation finished, save visualization.")
             current_time = int(time.time())
-            gif_name = f'large_map_example_{current_time}_location-{args.location.split(":")[-1]}_density-{args.num_agents}_center-x{map_center[0]}y{map_center[1]}_width-{args.width}_height-{args.height}_initseed-{initialize_seed}_driveseed-{drive_seed}_modelversion-{model_version}.gif'
-            log_writer.visualize(
-                gif_path=gif_name,
-                fov = args.fov,
-                resolution = (2048,2048),
-                dpi = 300,
-                direction_vec = True,
-                velocity_vec = False,
-                plot_frame_number = True,
-                left_hand_coordinates = args.location.split(":")[0] == "carla"
+            gif_name = f'large_map_example_{current_time}_location-{args.location.split(":")[-1]}_density-{args.num_agents}_center-x{map_center[0]}y{map_center[1]}_width-{args.width}_height-{args.height}_initseed-{initialize_seed}_driveseed-{drive_seed}_modelversion-{model_version}.mp4'
+            scene_visualizer.visualize(
+                frames=frames,
+                output_name=gif_name,
             )
-            log_writer.export_to_file(log_path=gif_name.split(".gif")[0]+".json")
+            log_writer.export_to_file(log_path=gif_name.split(".mp4")[0]+".json")
         print("Done")
 
 if __name__ == '__main__':
