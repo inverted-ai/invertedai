@@ -29,7 +29,7 @@ scene_viz_cfg = SceneVisualizerConfig(
 )
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(log_path="simulation_manager_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
-simulation_manager = SimulationManager(location_info_response=location_info_response, scene_visualizer_cfg=scene_viz_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
+simulation_manager = SimulationManager(scene_visualizer_cfg=scene_viz_cfg, waypoint_cfg=waypoint_cfg, log_writer_cfg=log_cfg)
 regions_config = RegionsConfig(location=LOCATION, agent_count_dict={AgentType.car: NUM_AGENTS})
 regions = simulation_manager.form_regions(regions_config)
 response = simulation_manager.initialize(location=LOCATION, regions=regions)

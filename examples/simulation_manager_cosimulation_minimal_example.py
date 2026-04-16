@@ -36,6 +36,7 @@ location_info_response = iai.location_info(
 ego_agent_ids = [f"ego_{i}" for i in range(NUM_EGO_AGENTS)]
 fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
 scene_viz_cfg = SceneVisualizerConfig(
+    location=LOCATION,
     left_hand_coordinates=LOCATION.split(":")[0] == "carla",
     direction_vec=False,
     velocity_vec=False,
@@ -49,9 +50,8 @@ log_cfg = LogWriterConfig(
     location_info_response=location_info_response
 )
 simulation_manager = SimulationManager(
-    location_info_response=location_info_response,
-    scene_visualizer_cfg=scene_viz_cfg, 
-    waypoint_cfg=waypoint_cfg, 
+    scene_visualizer_cfg=scene_viz_cfg,
+    waypoint_cfg=waypoint_cfg,
     log_writer_cfg=log_cfg
 )
 ##########################################################################################################

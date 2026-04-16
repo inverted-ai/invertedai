@@ -36,31 +36,28 @@ class SimulationManager:
     """
     def __init__(
             self,
-            location_info_response: Optional[LocationResponse] = None, # location info response used to initialize the SceneVisualizer
             scene_visualizer_cfg: Optional[SceneVisualizerConfig] = None, # can optionally initialize a SceneVisualizer for visualization
-            scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # deprecated: use location_info_response + scene_visualizer_cfg instead
+            scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # deprecated: use scene_visualizer_cfg instead
             waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
             log_writer_cfg: Optional[LogWriterConfig] = None, # can optionally initialize a log_writer_cfg to write a json file log of the simulation
         ):
             if scene_plotter_cfg is not None:
-                warnings.warn('scene_plotter_cfg is deprecated. Pass location_info_response and scene_visualizer_cfg instead.', category=DeprecationWarning)
+                warnings.warn('scene_plotter_cfg is deprecated. Use scene_visualizer_cfg instead.', category=DeprecationWarning)
             self.scene_visualizer = None
             self._frames: List[FrameData] = []
-            if location_info_response is not None and scene_visualizer_cfg is not None:
-                if scene_visualizer_cfg.fov or scene_visualizer_cfg.visualization_center:
+            if scene_visualizer_cfg is not None:
+                if scene_visualizer_cfg.map_image is None:
                     _loc_info = location_info(
                         location=scene_visualizer_cfg.location,
                         rendering_fov=scene_visualizer_cfg.fov,
                         rendering_center=scene_visualizer_cfg.visualization_center
                     )
-                else:
-                    _loc_info = location_info_response
-                _fov = scene_visualizer_cfg.fov if scene_visualizer_cfg.fov is not None else _loc_info.map_fov
-                _visualization_center = scene_visualizer_cfg.visualization_center if scene_visualizer_cfg.visualization_center is not None else (_loc_info.map_center.x, _loc_info.map_center.y)
-                scene_visualizer_cfg.fov = _fov
-                scene_visualizer_cfg.visualization_center = _visualization_center
-                scene_visualizer_cfg.map_image = _loc_info.birdview_image.decode()
-                scene_visualizer_cfg.static_actors = _loc_info.static_actors
+                    scene_visualizer_cfg.map_image = _loc_info.birdview_image.decode()
+                    scene_visualizer_cfg.static_actors = _loc_info.static_actors
+                    if scene_visualizer_cfg.fov is None:
+                        scene_visualizer_cfg.fov = _loc_info.map_fov
+                    if scene_visualizer_cfg.visualization_center is None:
+                        scene_visualizer_cfg.visualization_center = (_loc_info.map_center.x, _loc_info.map_center.y)
                 self.scene_visualizer = SceneVisualizer(cfg=scene_visualizer_cfg)
             elif scene_plotter_cfg is not None:
                 if scene_plotter_cfg.fov or scene_plotter_cfg.xy_offset or scene_plotter_cfg.location_info_response is None:
