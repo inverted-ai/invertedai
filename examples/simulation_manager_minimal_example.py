@@ -19,10 +19,13 @@ if api_key is None:
 
 print("Begin initialization.")
 location_info_response = iai.location_info(location=LOCATION, include_map_source=True)
+fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
 scene_viz_cfg = SceneVisualizerConfig(
-    resolution=(640, 640),
     left_hand_coordinates=LOCATION.split(":")[0] == "carla",
     plot_frame_number=True,
+    location=LOCATION,
+    fov=location_info_response.map_fov,
+    ax=ax,
 )
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(log_path="simulation_manager_minimal_example_log.json",location=LOCATION, location_info_response=location_info_response)
@@ -40,11 +43,7 @@ for step in range(SIM_LENGTH):
 print("Simulation finished, save visualization.")
 
 fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
-simulation_manager.visualize_data(
-    output_name="simulation_manager_minimal_example.mp4",
-    ax=ax,
-    agent_ids=simulation_manager.get_agent_ids(),
-)
+simulation_manager.visualize_data(output_name="simulation_manager_minimal_example.mp4")
 print("Simulation finished, save to json log.")
 simulation_manager.export_log()
 print("Done")

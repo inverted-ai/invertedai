@@ -34,11 +34,13 @@ location_info_response = iai.location_info(
     include_map_source=True
 )
 ego_agent_ids = [f"ego_{i}" for i in range(NUM_EGO_AGENTS)]
+fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
 scene_viz_cfg = SceneVisualizerConfig(
     left_hand_coordinates=LOCATION.split(":")[0] == "carla",
     direction_vec=False,
     velocity_vec=False,
     display_agent_ids=ego_agent_ids,
+    ax=ax,
 )
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(
@@ -120,13 +122,7 @@ for step in range(SIM_LENGTH):
     )
 
 print("Simulation finished, save visualization.")
-
-fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
-simulation_manager.visualize_data(
-    output_name="simulation_manager_cosimulation_example.mp4",
-    ax=ax,
-    agent_ids=simulation_manager.get_agent_ids(),
-)
+simulation_manager.visualize_data(output_name="simulation_manager_cosimulation_example.mp4")
 print("Simulation finished, save to json log.")
 simulation_manager.export_log()
 print("Done")
