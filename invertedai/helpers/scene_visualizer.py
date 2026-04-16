@@ -121,7 +121,7 @@ class SceneVisualizer:
 
         self.map_image = map_image
         self.fov = fov if fov is not None else self._cfg.fov
-        self.xy_offset = xy_offset
+        self.xy_offset = xy_offset if xy_offset is not None else self._cfg.xy_offset
         self.static_actors = static_actors
 
         self.traffic_lights = {
