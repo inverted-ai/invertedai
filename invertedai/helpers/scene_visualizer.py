@@ -246,7 +246,7 @@ class SceneVisualizer:
         self.frame_label = None
         self.current_ax = None
 
-    # Public API
+    # Helper function for visualization
     def visualize(
         self,
         frames: List[FrameData],
