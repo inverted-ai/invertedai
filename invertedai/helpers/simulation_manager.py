@@ -57,10 +57,10 @@ class SimulationManager:
                     _loc_info = location_info_response
                 _fov = scene_visualizer_cfg.fov if scene_visualizer_cfg.fov is not None else _loc_info.map_fov
                 _xy_offset = scene_visualizer_cfg.xy_offset if scene_visualizer_cfg.xy_offset is not None else (_loc_info.map_center.x, _loc_info.map_center.y)
+                scene_visualizer_cfg.fov = _fov
+                scene_visualizer_cfg.xy_offset = _xy_offset
                 self.scene_visualizer = SceneVisualizer(
                     map_image=_loc_info.birdview_image.decode(),
-                    fov=_fov,
-                    xy_offset=_xy_offset,
                     static_actors=_loc_info.static_actors,
                     cfg=scene_visualizer_cfg,
                 )
@@ -77,6 +77,8 @@ class SimulationManager:
                 _fov = scene_plotter_cfg.fov if scene_plotter_cfg.fov else _loc_info.map_fov
                 _left_hand = scene_plotter_cfg.location.split(":")[0] == "carla"
                 _viz_cfg = SceneVisualizerConfig(
+                    fov=_fov,
+                    xy_offset=_xy_offset,
                     left_hand_coordinates=_left_hand,
                     direction_vec=scene_plotter_cfg.direction_vec,
                     velocity_vec=scene_plotter_cfg.velocity_vec,
@@ -85,8 +87,6 @@ class SimulationManager:
                 )
                 self.scene_visualizer = SceneVisualizer(
                     map_image=_loc_info.birdview_image.decode(),
-                    fov=_fov,
-                    xy_offset=_xy_offset,
                     static_actors=_loc_info.static_actors,
                     cfg=_viz_cfg,
                 )

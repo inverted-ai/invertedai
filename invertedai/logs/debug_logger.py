@@ -173,6 +173,7 @@ class DebugLogger:
 
         cfg = SceneVisualizerConfig(
             fov=fov,
+            xy_offset=map_center,
             resolution=(2048, 2048),
             dpi=300,
             direction_vec=False,
@@ -181,9 +182,7 @@ class DebugLogger:
         )
         scene_visualizer = SceneVisualizer(
             map_image=rendered_static_map,
-            xy_offset=map_center,
             static_actors=location_info_response.static_actors,
-            fov=fov,
             cfg=cfg,
         )
 

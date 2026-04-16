@@ -183,10 +183,6 @@ class SceneVisualizer:
     map_image:
         Background image decoded from the birdview map returned by
         :func:`location_info`.
-    fov:
-        Field of view in metres from :func:`location_info`.
-    xy_offset:
-        Map centre coordinates ``(x, y)`` in metres from :func:`location_info`.
     static_actors:
         List of :class:`StaticMapActor` objects (e.g. traffic lights) from
         :func:`location_info`.
@@ -201,9 +197,7 @@ class SceneVisualizer:
     def __init__(
         self,
         map_image: np.ndarray,
-        xy_offset: Tuple[float, float],
         static_actors: List[StaticMapActor],
-        fov: Optional[float],
         cfg: Optional[SceneVisualizerConfig] = None,
     ):
         self._cfg = cfg if cfg is not None else SceneVisualizerConfig()
@@ -215,8 +209,8 @@ class SceneVisualizer:
         self._resolution = self._cfg.resolution
 
         self.map_image = map_image
-        self.fov = fov if fov is not None else self._cfg.fov
-        self.xy_offset = xy_offset if xy_offset is not None else self._cfg.xy_offset
+        self.fov = self._cfg.fov
+        self.xy_offset = self._cfg.xy_offset
         self.static_actors = static_actors
 
         self.traffic_lights = {

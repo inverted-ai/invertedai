@@ -52,10 +52,10 @@ def main(args):
             )
             scene_visualizer = SceneVisualizer(
                 map_image=location_info_response.birdview_image.decode(),
-                fov=args.fov,
-                xy_offset=map_center,
                 static_actors=location_info_response.static_actors,
                 cfg=SceneVisualizerConfig(
+                    fov=args.fov,
+                    xy_offset=map_center,
                     direction_vec=True,
                     velocity_vec=False,
                     plot_frame_number=True,
