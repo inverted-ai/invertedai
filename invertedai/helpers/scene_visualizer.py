@@ -193,7 +193,11 @@ class SceneVisualizer:
 
         self._initialize_plot(self._cfg.ax)
         fig = self.current_ax.figure
-        fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
+        fig.set_size_inches(
+            w=self._resolution[0] / self._dpi,
+            h=self._resolution[1] / self._dpi,
+            forward=True,
+        )
 
         def init_func():
             return []
@@ -202,16 +206,21 @@ class SceneVisualizer:
             return self._update_frame_to(i, frames[i])
 
         ani = FuncAnimation(
-            fig=fig, 
-            func=animate_fn, 
+            fig=fig,
+            func=animate_fn,
             frames=np.arange(len(frames)),
-            init_func=init_func, 
-            interval=100, blit=True,
+            init_func=init_func,
+            interval=100,
+            blit=True,
         )
         if output_name is not None:
             ext = os.path.splitext(output_name)[1].lower()
             writer = "ffmpeg" if ext == ".mp4" else "pillow"
-            ani.save(output_name, writer=writer, dpi=self._dpi)
+            ani.save(
+                filename=output_name,
+                writer=writer,
+                dpi=self._dpi,
+            )
         return ani
 
     # Private helpers
@@ -223,16 +232,27 @@ class SceneVisualizer:
         self._initialize_plot(self._cfg.ax)
         if frame is not None:
             self._update_frame_to(0, frame)
-        plt.savefig(output_name if output_name is not None else self._cfg.location + "_single_frame.png")
+        plt.savefig(
+            fname=output_name if output_name is not None else self._cfg.location + "_single_frame.png",
+        )
 
     def _initialize_plot(self, ax=None):
         if ax is None:
             plt.clf()
             ax = plt.gca()
 
-        ax.imshow(self.map_image, extent=self.extent)
-        ax.set_xlim(*self.extent[0:2])
-        ax.set_ylim(*self.extent[2:4])
+        ax.imshow(
+            X=self.map_image,
+            extent=self.extent,
+        )
+        ax.set_xlim(
+            left=self.extent[0],
+            right=self.extent[1],
+        )
+        ax.set_ylim(
+            bottom=self.extent[2],
+            top=self.extent[3],
+        )
         self.current_ax = ax
 
         self.dir_lines = {}
@@ -290,15 +310,18 @@ class SceneVisualizer:
 
     def _update_traffic_lights(self, frame: FrameData):
         for light_id, light_state in frame.traffic_lights.items():
-            self._plot_traffic_light(light_id, light_state)
+            self._plot_traffic_light(
+                light_id=light_id,
+                light_state=light_state,
+            )
 
     def _update_frame_label(self, frame_idx: int):
         if self._cfg.plot_frame_number:
             if self.frame_label is None:
                 self.frame_label = self.current_ax.text(
-                    self.extent[0],
-                    self.extent[2],
-                    str(frame_idx),
+                    x=self.extent[0],
+                    y=self.extent[2],
+                    s=str(frame_idx),
                     c="r",
                     fontsize=18 * self._dpi_scale,
                 )
@@ -348,7 +371,10 @@ class SceneVisualizer:
         psi = agent.orientation
 
         if self._left_hand_coordinates:
-            x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+            x, psi = self._transform_point_to_left_hand_coordinate_frame(
+                x=x,
+                orientation=psi,
+            )
 
         if self._cfg.velocity_vec:
             box = np.array([
@@ -396,9 +422,9 @@ class SceneVisualizer:
         if show_label:
             if agent_id not in self.box_labels:
                 self.box_labels[agent_id] = self.current_ax.text(
-                    x,
-                    y,
-                    agent_id,
+                    x=x,
+                    y=y,
+                    s=agent_id,
                     c="w",
                     ha="center",
                     va="center",
@@ -412,7 +438,10 @@ class SceneVisualizer:
             self.box_labels[agent_id].set_visible(True)
 
         if show_label and self._cfg.display_waypoints and agent_properties.agent_type != "pedestrian":
-            self._plot_waypoint(agent_id, agent_data)
+            self._plot_waypoint(
+                agent_id=agent_id,
+                agent_data=agent_data,
+            )
 
         lw = 1
         fc = None
@@ -445,9 +474,9 @@ class SceneVisualizer:
             rect.set_linewidth(lw)
         else:
             rect = Rectangle(
-                (x - l / 2, y - w / 2),
-                l,
-                w,
+                xy=(x - l / 2, y - w / 2),
+                width=l,
+                height=w,
                 angle=psi * 180 / np.pi,
                 rotation_point="center",
                 fc=fc,
@@ -479,7 +508,10 @@ class SceneVisualizer:
         y = float(wp.y)
         psi = 0.0
         if self._left_hand_coordinates:
-            x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+            x, psi = self._transform_point_to_left_hand_coordinate_frame(
+                x=x,
+                orientation=psi,
+            )
         marker_offset = 0.0
         x_data = x + marker_offset * math.cos(psi)
         y_data = y + marker_offset * math.sin(psi)
@@ -527,7 +559,10 @@ class SceneVisualizer:
         l, w = max(light.length, 1.0), max(light.width, 1.0)
 
         if self._left_hand_coordinates:
-            x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
+            x, psi = self._transform_point_to_left_hand_coordinate_frame(
+                x=x,
+                orientation=psi,
+            )
 
         color = self.traffic_light_colors[light_state]
         if light_id in self.traffic_light_boxes:
@@ -535,9 +570,9 @@ class SceneVisualizer:
             self.traffic_light_boxes[light_id].set_visible(True)
         else:
             rect = Rectangle(
-                (x - l / 2, y - w / 2),
-                l,
-                w,
+                xy=(x - l / 2, y - w / 2),
+                width=l,
+                height=w,
                 angle=psi * 180 / np.pi,
                 rotation_point="center",
                 fc=color,
