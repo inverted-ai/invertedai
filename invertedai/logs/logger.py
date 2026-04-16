@@ -375,7 +375,7 @@ class LogBase():
         )
         rendered_static_map = location_info_response.birdview_image.decode()
         map_center = tuple([location_info_response.map_center.x, location_info_response.map_center.y]) if map_center is None else map_center
-        n_frames = len(self._scenario_log.agent_states)
+        n_frames = len(self._scenario_log.agent_data)
         traffic_lights_states = [None] * n_frames if self._scenario_log.traffic_lights_states is None else self._scenario_log.traffic_lights_states
 
         def _build_agents_dict(ts):
@@ -406,7 +406,7 @@ class LogBase():
         for ts in range(timestep_range[0], timestep_range[1] + 1):
             lights = traffic_lights_states[ts] if ts < len(traffic_lights_states) else None
             frames.append(FrameData(
-                agents=_build_agents_dict(ts),
+                agents=self._scenario_log.get_agents(ts),
                 traffic_lights=lights,
             ))
 
