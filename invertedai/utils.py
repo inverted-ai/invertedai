@@ -10,6 +10,8 @@ import numpy as np
 import warnings
 
 from typing import Dict, Optional, List, Tuple, Union, Any
+from dataclasses import dataclass, field
+from collections import defaultdict
 from copy import deepcopy
 from enum import Enum
 from pydantic import validate_call, validate_arguments, BaseModel, Field
@@ -48,8 +50,6 @@ from invertedai.common import (
     Point 
 )
 from invertedai.helpers.scene_visualizer import AgentTag, AgentTagStyle, TagStyleConfig, FrameData
-from dataclasses import dataclass, field
-from collections import defaultdict
 
 H_SCALE = 10
 text_x_offset = 0
