@@ -34,7 +34,7 @@ from invertedai.cosimulation import BasicCosimulation
 
 # --- Session and utilities ---
 from invertedai.utils import Jupyter_Render, IAILogger, Session, ScenePlotter, ScenePlotterConfig, get_default_agent_properties, FrameData, agents_from_lists
-from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
+from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig, AgentTag, AgentTagStyle, TagStyleConfig
 
 # --- Large-scale simulation ---
 from invertedai.large.initialize import (
@@ -180,6 +180,9 @@ __all__ = [
     "ScenePlotterConfig",
     "SceneVisualizer",
     "SceneVisualizerConfig",
+    "AgentTag",
+    "AgentTagStyle",
+    "TagStyleConfig",
     "FrameData",
     "agents_from_lists",
     "get_default_agent_properties",
