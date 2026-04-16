@@ -6,4 +6,5 @@ __all__ = [
     "WaypointManagerConfig",
     "SceneVisualizer",
     "SceneVisualizerConfig",
+    "SimulationAgentDict,"
 ]
