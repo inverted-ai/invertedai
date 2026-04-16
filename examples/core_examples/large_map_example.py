@@ -55,7 +55,7 @@ def main(args):
                     map_image=location_info_response.birdview_image.decode(),
                     static_actors=location_info_response.static_actors,
                     fov=args.fov,
-                    xy_offset=map_center,
+                    visualization_center=map_center,
                     direction_vec=True,
                     velocity_vec=False,
                     plot_frame_number=True,

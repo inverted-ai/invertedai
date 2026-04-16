@@ -142,10 +142,10 @@ class SceneVisualizerConfig:
         ``location_info`` call is made to fetch a correctly-cropped birdview image.
     tag_styles:
         Colour configuration for each :class:`AgentTag`.
-    xy_offset:
-        Map centre coordinates ``(x, y)`` in metres. Same behaviour as ``fov``.
+    visualization_center:
+        Map centre coordinates ``(x, y)`` in metres.
     location:
-        IAI formatted map location string. Required when ``fov`` or ``xy_offset``
+        IAI formatted map location string. Required when ``fov`` or ``visualization_center``
         are provided so that a new ``location_info`` call can be made.
     map_image:
         Background image decoded from the birdview map returned by
@@ -163,7 +163,7 @@ class SceneVisualizerConfig:
     map_image: Optional[np.ndarray] = None
     static_actors: Optional[List[StaticMapActor]] = None
     resolution: Tuple[int, int] = (2048, 2048)
-    dpi: float = 100
+    dpi: float = 300
     left_hand_coordinates: bool = False
     plot_frame_number: bool = True
     direction_vec: bool = True
@@ -172,7 +172,7 @@ class SceneVisualizerConfig:
     display_agent_ids: Optional[List[str]] = None
     display_waypoints: bool = True
     tag_styles: TagStyleConfig = field(default_factory=TagStyleConfig)
-    xy_offset: Optional[Tuple[float, float]] = None
+    visualization_center: Optional[Tuple[float, float]] = None
     location: Optional[str] = None
     ax: Optional[Axes] = None
 
@@ -210,7 +210,7 @@ class SceneVisualizer:
 
         self.map_image = self._cfg.map_image
         self.fov = self._cfg.fov
-        self.xy_offset = self._cfg.xy_offset
+        self.visualization_center = self._cfg.visualization_center
         self.static_actors = self._cfg.static_actors or []
 
         self.traffic_lights = {
@@ -220,10 +220,10 @@ class SceneVisualizer:
         }
 
         self.extent = (
-            -self.fov / 2 + self.xy_offset[0],
-            self.fov / 2 + self.xy_offset[0],
-            -self.fov / 2 + self.xy_offset[1],
-            self.fov / 2 + self.xy_offset[1],
+            -self.fov / 2 + self.visualization_center[0],
+            self.fov / 2 + self.visualization_center[0],
+            -self.fov / 2 + self.visualization_center[1],
+            self.fov / 2 + self.visualization_center[1],
         )
 
         self.traffic_light_colors = {
@@ -232,10 +232,10 @@ class SceneVisualizer:
             "yellow": (1.0, 0.8, 0.0),
         }
 
-        self.agent_c = (0.125, 0.29, 0.529)
-        self.agent_ped_c = (1.0, 0.75, 0.8)
-        self.dir_c = (0.392, 1.0, 1.0)
-        self.v_c = (0.2, 0.75, 0.2)
+        self.AGENT_COL = (0.125, 0.29, 0.529)
+        self.AGENT_PED_COL = (1.0, 0.75, 0.8)
+        self.DIRECTION_COL = (0.392, 1.0, 1.0)
+        self.VELOCITY_COL = (0.2, 0.75, 0.2)
 
         self.dir_lines = {}
         self.v_lines = {}
@@ -485,7 +485,7 @@ class SceneVisualizer:
                     marker=marker_data,
                     markersize=agent_properties.width * (400 / self.fov) * self._dpi_scale,
                     linestyle="None",
-                    c=self.dir_c,
+                    c=self.DIRECTION_COL,
                 )
             else:
                 self.dir_lines[agent_id][0].set_xdata([x_data])
@@ -500,7 +500,7 @@ class SceneVisualizer:
                     box[2:4, 0],
                     box[2:4, 1],
                     lw=1.5,
-                    c=self.v_c,
+                    c=self.VELOCITY_COL,
                 )[0]
             else:
                 self.v_lines[agent_id].set_xdata(box[2:4, 0])
@@ -542,9 +542,9 @@ class SceneVisualizer:
                 if tag_style is not None:
                     fc = tag_style.face_color
                 elif agent_properties.agent_type == "pedestrian":
-                    fc = self.agent_ped_c
+                    fc = self.AGENT_PED_COL
                 else:
-                    fc = self.agent_c
+                    fc = self.AGENT_COL
             if ec is None:
                 if tag_style is not None and tag_style.edge_color is not None:
                     ec = tag_style.edge_color
@@ -683,7 +683,7 @@ class SceneVisualizer:
         return self.tag_styles.get(tag)
 
     def _transform_point_to_left_hand_coordinate_frame(self, x, orientation):
-        t_x = 2 * self.xy_offset[0] - x
+        t_x = 2 * self.visualization_center[0] - x
         if orientation >= 0:
             t_orientation = -orientation + math.pi
         else:

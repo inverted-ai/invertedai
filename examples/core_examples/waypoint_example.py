@@ -73,7 +73,7 @@ scene_visualizer = SceneVisualizer(
         map_image = rendered_static_map,
         static_actors = location_info_response.static_actors,
         fov = fov,
-        xy_offset = (location_info_response.map_center.x, location_info_response.map_center.y),
+        visualization_center = (location_info_response.map_center.x, location_info_response.map_center.y),
         resolution = (2048, 2048),
         dpi = 300,
         left_hand_coordinates = location.split(":")[0] == "carla",

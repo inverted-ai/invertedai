@@ -389,7 +389,7 @@ class LogBase():
             map_image=rendered_static_map,
             static_actors=location_info_response.static_actors,
             fov=fov,
-            xy_offset=map_center,
+            visualization_center=map_center,
             resolution=resolution,
             dpi=dpi,
             left_hand_coordinates=left_hand_coordinates,

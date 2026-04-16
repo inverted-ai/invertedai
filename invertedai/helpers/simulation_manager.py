@@ -47,18 +47,18 @@ class SimulationManager:
             self.scene_visualizer = None
             self._frames: List[FrameData] = []
             if location_info_response is not None and scene_visualizer_cfg is not None:
-                if scene_visualizer_cfg.fov or scene_visualizer_cfg.xy_offset:
+                if scene_visualizer_cfg.fov or scene_visualizer_cfg.visualization_center:
                     _loc_info = location_info(
                         location=scene_visualizer_cfg.location,
                         rendering_fov=scene_visualizer_cfg.fov,
-                        rendering_center=scene_visualizer_cfg.xy_offset
+                        rendering_center=scene_visualizer_cfg.visualization_center
                     )
                 else:
                     _loc_info = location_info_response
                 _fov = scene_visualizer_cfg.fov if scene_visualizer_cfg.fov is not None else _loc_info.map_fov
-                _xy_offset = scene_visualizer_cfg.xy_offset if scene_visualizer_cfg.xy_offset is not None else (_loc_info.map_center.x, _loc_info.map_center.y)
+                _visualization_center = scene_visualizer_cfg.visualization_center if scene_visualizer_cfg.visualization_center is not None else (_loc_info.map_center.x, _loc_info.map_center.y)
                 scene_visualizer_cfg.fov = _fov
-                scene_visualizer_cfg.xy_offset = _xy_offset
+                scene_visualizer_cfg.visualization_center = _visualization_center
                 scene_visualizer_cfg.map_image = _loc_info.birdview_image.decode()
                 scene_visualizer_cfg.static_actors = _loc_info.static_actors
                 self.scene_visualizer = SceneVisualizer(cfg=scene_visualizer_cfg)
@@ -78,7 +78,7 @@ class SimulationManager:
                     map_image=_loc_info.birdview_image.decode(),
                     static_actors=_loc_info.static_actors,
                     fov=_fov,
-                    xy_offset=_xy_offset,
+                    visualization_center=_xy_offset,
                     left_hand_coordinates=_left_hand,
                     direction_vec=scene_plotter_cfg.direction_vec,
                     velocity_vec=scene_plotter_cfg.velocity_vec,

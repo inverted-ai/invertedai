@@ -175,7 +175,7 @@ class DebugLogger:
             map_image=rendered_static_map,
             static_actors=location_info_response.static_actors,
             fov=fov,
-            xy_offset=map_center,
+            visualization_center=map_center,
             resolution=(2048, 2048),
             dpi=300,
             direction_vec=False,
