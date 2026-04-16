@@ -9,7 +9,7 @@ from matplotlib.axes import Axes
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -442,116 +442,133 @@ class SceneVisualizer:
             artists.append(self.frame_label)
         return artists
 
-    def _update_agent(
+    def _get_agent_geometry(
         self,
-        agent_id: str,
         agent_data: AgentData,
-        agent_tags: Optional[Dict[str, AgentTag]] = None,
-        show_label: bool = True,
     ):
+        """Return (l, w, x, y, v, psi) for an agent, applying left-hand transform if needed."""
         agent = agent_data.state
         agent_properties = agent_data.properties
-
         l, w = agent_properties.length, agent_properties.width
         if agent_properties.agent_type == "pedestrian":
             l, w = 1.5, 1.5
         x, y = agent.center.x, agent.center.y
         v = agent.speed
         psi = agent.orientation
-
         if self._left_hand_coordinates:
             x, psi = self._transform_point_to_left_hand_coordinate_frame(
                 x=x,
                 orientation=psi,
             )
+        return l, w, x, y, v, psi
 
-        if self._cfg.velocity_vec:
-            box = np.array([
-                [0, 0], [l * 0.5, 0],
-                [0, 0], [v * 0.5, 0],
-            ])
-            box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
-
-        if self._cfg.direction_vec:
-            marker_offset = agent_properties.length / 4
-            x_data = x + marker_offset * math.cos(psi)
-            y_data = y + marker_offset * math.sin(psi)
-            marker_data = (3, 0, (-90 + 180 * psi / math.pi))
-
-            if agent_id not in self.dir_lines:
-                self.dir_lines[agent_id] = self.current_ax.plot(
-                    x_data,
-                    y_data,
-                    marker=marker_data,
-                    markersize=agent_properties.width * (400 / self.fov) * self._dpi_scale,
-                    linestyle="None",
-                    c=self.DIRECTION_COL,
-                )
-            else:
-                self.dir_lines[agent_id][0].set_xdata([x_data])
-                self.dir_lines[agent_id][0].set_ydata([y_data])
-                self.dir_lines[agent_id][0].set_marker(marker_data)
-
-            self.dir_lines[agent_id][0].set_visible(True)
-
-        if self._cfg.velocity_vec:
-            if agent_id not in self.v_lines:
-                self.v_lines[agent_id] = self.current_ax.plot(
-                    box[2:4, 0],
-                    box[2:4, 1],
-                    lw=1.5,
-                    c=self.VELOCITY_COL,
-                )[0]
-            else:
-                self.v_lines[agent_id].set_xdata(box[2:4, 0])
-                self.v_lines[agent_id].set_ydata(box[2:4, 1])
-
-            self.v_lines[agent_id].set_visible(True)
-
-        if show_label:
-            if agent_id not in self.box_labels:
-                self.box_labels[agent_id] = self.current_ax.text(
-                    x=x,
-                    y=y,
-                    s=agent_id,
-                    c="w",
-                    ha="center",
-                    va="center",
-                    fontsize=18 * self._dpi_scale * (150 / self.fov),
-                )
-                self.box_labels[agent_id].set_clip_on(True)
-            else:
-                self.box_labels[agent_id].set_x(x)
-                self.box_labels[agent_id].set_y(y)
-
-            self.box_labels[agent_id].set_visible(True)
-
-        if show_label and self._cfg.display_waypoints and agent_properties.agent_type != "pedestrian":
-            self._plot_waypoint(
-                agent_id=agent_id,
-                agent_data=agent_data,
+    def _update_direction_vec(
+        self,
+        agent_id: str,
+        x: float,
+        y: float,
+        psi: float,
+        agent_properties: AgentProperties,
+    ):
+        """Draw or update the directional arrow marker for an agent."""
+        marker_offset = agent_properties.length / 4
+        x_data = x + marker_offset * math.cos(psi)
+        y_data = y + marker_offset * math.sin(psi)
+        marker_data = (3, 0, (-90 + 180 * psi / math.pi))
+        if agent_id not in self.dir_lines:
+            self.dir_lines[agent_id] = self.current_ax.plot(
+                x_data,
+                y_data,
+                marker=marker_data,
+                markersize=agent_properties.width * (400 / self.fov) * self._dpi_scale,
+                linestyle="None",
+                c=self.DIRECTION_COL,
             )
+        else:
+            self.dir_lines[agent_id][0].set_xdata([x_data])
+            self.dir_lines[agent_id][0].set_ydata([y_data])
+            self.dir_lines[agent_id][0].set_marker(marker_data)
+        self.dir_lines[agent_id][0].set_visible(True)
 
+    def _update_velocity_vec(
+        self,
+        agent_id: str,
+        x: float,
+        y: float,
+        v: float,
+        psi: float,
+        l: float,
+    ):
+        """Draw or update the velocity arrow for an agent."""
+        box = np.array([
+            [0, 0], [l * 0.5, 0],
+            [0, 0], [v * 0.5, 0],
+        ])
+        box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
+        if agent_id not in self.v_lines:
+            self.v_lines[agent_id] = self.current_ax.plot(
+                box[2:4, 0],
+                box[2:4, 1],
+                lw=1.5,
+                c=self.VELOCITY_COL,
+            )[0]
+        else:
+            self.v_lines[agent_id].set_xdata(box[2:4, 0])
+            self.v_lines[agent_id].set_ydata(box[2:4, 1])
+        self.v_lines[agent_id].set_visible(True)
+
+    def _update_agent_label(
+        self,
+        agent_id: str,
+        x: float,
+        y: float,
+    ):
+        """Draw or update the agent ID text label."""
+        if agent_id not in self.box_labels:
+            self.box_labels[agent_id] = self.current_ax.text(
+                x=x,
+                y=y,
+                s=agent_id,
+                c="w",
+                ha="center",
+                va="center",
+                fontsize=18 * self._dpi_scale * (150 / self.fov),
+            )
+            self.box_labels[agent_id].set_clip_on(True)
+        else:
+            self.box_labels[agent_id].set_x(x)
+            self.box_labels[agent_id].set_y(y)
+        self.box_labels[agent_id].set_visible(True)
+
+    def _update_agent_box(
+        self,
+        agent_id: str,
+        x: float,
+        y: float,
+        l: float,
+        w: float,
+        psi: float,
+        agent_properties: AgentProperties,
+        agent_tags: Optional[Dict[str, AgentTag]],
+    ):
+        """Resolve agent colours and draw or update the bounding box rectangle."""
         lw = 1
         fc = None
         ec = None
-
-        if fc is None or ec is None:
-            tag_style = self._resolve_tag_style(agent_id, agent_tags)
-            if fc is None:
-                if tag_style is not None:
-                    fc = tag_style.face_color
-                elif agent_properties.agent_type == "pedestrian":
-                    fc = self.AGENT_PED_COL
-                else:
-                    fc = self.AGENT_COL
-            if ec is None:
-                if tag_style is not None and tag_style.edge_color is not None:
-                    ec = tag_style.edge_color
-                else:
-                    lw = 0
-                    ec = fc
-
+        tag_style = self._resolve_tag_style(agent_id, agent_tags)
+        if fc is None:
+            if tag_style is not None:
+                fc = tag_style.face_color
+            elif agent_properties.agent_type == "pedestrian":
+                fc = self.AGENT_PED_COL
+            else:
+                fc = self.AGENT_COL
+        if ec is None:
+            if tag_style is not None and tag_style.edge_color is not None:
+                ec = tag_style.edge_color
+            else:
+                lw = 0
+                ec = fc
         if agent_id in self.actor_boxes:
             rect = self.actor_boxes[agent_id]
             rect.set_xy((x - l / 2, y - w / 2))
@@ -575,8 +592,56 @@ class SceneVisualizer:
             rect.set_clip_on(True)
             self.current_ax.add_patch(rect)
             self.actor_boxes[agent_id] = rect
-
         rect.set_visible(True)
+
+    def _update_agent(
+        self,
+        agent_id: str,
+        agent_data: AgentData,
+        agent_tags: Optional[Dict[str, AgentTag]] = None,
+        show_label: bool = True,
+    ):
+        agent_properties = agent_data.properties
+        l, w, x, y, v, psi = self._get_agent_geometry(agent_data)
+
+        if self._cfg.direction_vec:
+            self._update_direction_vec(
+                agent_id=agent_id,
+                x=x,
+                y=y,
+                psi=psi,
+                agent_properties=agent_properties,
+            )
+        if self._cfg.velocity_vec:
+            self._update_velocity_vec(
+                agent_id=agent_id,
+                x=x,
+                y=y,
+                v=v,
+                psi=psi,
+                l=l,
+            )
+        if show_label:
+            self._update_agent_label(
+                agent_id=agent_id,
+                x=x,
+                y=y,
+            )
+        if show_label and self._cfg.display_waypoints and agent_properties.agent_type != "pedestrian":
+            self._plot_waypoint(
+                agent_id=agent_id,
+                agent_data=agent_data,
+            )
+        self._update_agent_box(
+            agent_id=agent_id,
+            x=x,
+            y=y,
+            l=l,
+            w=w,
+            psi=psi,
+            agent_properties=agent_properties,
+            agent_tags=agent_tags,
+        )
 
     def _plot_waypoint(self, agent_id: str, agent_data: AgentData):
         pos = self._get_waypoint_position(agent_data)
