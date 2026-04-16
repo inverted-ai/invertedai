@@ -1,6 +1,6 @@
 import invertedai as iai
 from invertedai import AgentType
-from invertedai import get_default_agent_properties, SceneVisualizer, SceneVisualizerConfig, FrameData, agents_from_lists
+from invertedai import get_default_agent_properties, SceneVisualizer, SceneVisualizerConfig, FrameData
 
 import os
 import matplotlib.pyplot as plt
@@ -136,7 +136,7 @@ scene_visualizer_new = SceneVisualizer(
         ax=ax_new,
     ),
 )
-frames_new = [FrameData(agents=agents_from_lists(log_reader.agent_states, agent_properties, agent_ids=log_reader.present_agent_ids))]
+frames_new = [FrameData(agents=FrameData.agents_from_lists(log_reader.agent_states, agent_properties, agent_ids=log_reader.present_agent_ids))]
 
 print("Stepping through simulation...")
 while True: # Log reader will return False when it has run out of simulation data
@@ -145,7 +145,7 @@ while True: # Log reader will return False when it has run out of simulation dat
         break
     agent_properties = log_reader.agent_properties
     frames_new.append(FrameData(
-        agents=agents_from_lists(log_reader.agent_states, agent_properties, agent_ids=log_reader.present_agent_ids),
+        agents=FrameData.agents_from_lists(log_reader.agent_states, agent_properties, agent_ids=log_reader.present_agent_ids),
         traffic_lights=log_reader.traffic_lights_states,
     ))
 
@@ -169,7 +169,7 @@ for _ in range(SIMULATION_LENGTH_EXTEND):
     light_recurrent_states = response.light_recurrent_states
 
     frames_new.append(FrameData(
-        agents=agents_from_lists(agent_states, agent_properties, agent_ids=agent_ids),
+        agents=FrameData.agents_from_lists(agent_states, agent_properties, agent_ids=agent_ids),
         traffic_lights=traffic_lights_states,
     ))
 
@@ -198,7 +198,7 @@ scene_visualizer_branch = SceneVisualizer(
         plot_frame_number=True,
     ),
 )
-frames_branch = [FrameData(agents=agents_from_lists(log_reader.agent_states, agent_properties))]
+frames_branch = [FrameData(agents=FrameData.agents_from_lists(log_reader.agent_states, agent_properties))]
 log_writer_branched.initialize(
     scenario_log=log_reader.return_scenario_log(
         timestep_range=(0,SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT)
@@ -210,7 +210,7 @@ for _ in range(SIMULATION_BEGIN_NEW_ROLLOUT):
     log_reader.drive()
     agent_properties = log_reader.agent_properties
     frames_branch.append(FrameData(
-        agents=agents_from_lists(log_reader.agent_states, agent_properties),
+        agents=FrameData.agents_from_lists(log_reader.agent_states, agent_properties),
         traffic_lights=log_reader.traffic_lights_states,
     ))
 
@@ -234,7 +234,7 @@ for _ in range(SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT):
     light_recurrent_states = response.light_recurrent_states
 
     frames_branch.append(FrameData(
-        agents=agents_from_lists(agent_states, agent_properties),
+        agents=FrameData.agents_from_lists(agent_states, agent_properties),
         traffic_lights=response.traffic_lights_states,
     ))
 

@@ -33,7 +33,7 @@ from invertedai.api.blame import blame, async_blame
 from invertedai.cosimulation import BasicCosimulation
 
 # --- Session and utilities ---
-from invertedai.utils import Jupyter_Render, IAILogger, Session, ScenePlotter, ScenePlotterConfig, get_default_agent_properties, FrameData, agents_from_lists
+from invertedai.utils import Jupyter_Render, IAILogger, Session, ScenePlotter, ScenePlotterConfig, get_default_agent_properties, FrameData
 from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig, AgentTag, AgentTagStyle, TagStyleConfig
 
 # --- Large-scale simulation ---
@@ -184,7 +184,6 @@ __all__ = [
     "AgentTagStyle",
     "TagStyleConfig",
     "FrameData",
-    "agents_from_lists",
     "get_default_agent_properties",
     "logger",
     # Logging and diagnostics

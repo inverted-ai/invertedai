@@ -47,7 +47,7 @@ from invertedai.common import (
     TrafficLightStatesDict,
     Point 
 )
-from invertedai.helpers.scene_visualizer import AgentTag, AgentTagStyle, TagStyleConfig, FrameData, agents_from_lists
+from invertedai.helpers.scene_visualizer import AgentTag, AgentTagStyle, TagStyleConfig, FrameData
 from dataclasses import dataclass, field
 from collections import defaultdict
 
@@ -975,7 +975,7 @@ class ScenePlotter():
                 warnings.warn('agent_attributes is deprecated. Please use agent_properties or agents.',category=DeprecationWarning)
             if agent_states is None or agent_properties is None:
                 raise ValueError("Either agents parameter or both agent_states and agent_properties parameter lists must be provided.")
-            agents = agents_from_lists(agent_states, agent_properties)
+            agents = FrameData.agents_from_lists(agent_states, agent_properties)
 
         self.default_agent_tags = agent_tags
         self.frames = [FrameData(agents=dict(agents), traffic_lights=traffic_light_states, agent_tags=None)]
@@ -1026,7 +1026,7 @@ class ScenePlotter():
                 if len(prev_props) != len(agent_states):
                     raise ValueError("agent_states length doesn't match previous frame's agent count. Provide agent_properties explicitly.")
                 agent_properties = prev_props
-            agents = agents_from_lists(agent_states, agent_properties)
+            agents = FrameData.agents_from_lists(agent_states, agent_properties)
 
         self.frames.append(FrameData(agents=dict(agents), traffic_lights=traffic_light_states, agent_tags=agent_tags))
 

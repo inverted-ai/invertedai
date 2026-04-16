@@ -6,7 +6,7 @@ from copy import deepcopy
 
 import json
 
-from invertedai.utils import agents_from_lists, WaypointsDict, convert_attributes_to_properties, FrameData
+from invertedai.utils import WaypointsDict, convert_attributes_to_properties, FrameData
 from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
 from invertedai import location_info
 from invertedai.api.location import LocationResponse
@@ -383,7 +383,7 @@ class LogBase():
             states = self._scenario_log.agent_states[ts]
             present = self._scenario_log.present_indexes[ts] if self._scenario_log.present_indexes is not None else list(range(len(states)))
             props = [format_agent_properties(ts, i) for i in present]
-            return agents_from_lists(states, props, agent_ids=[str(i) for i in present])
+            return FrameData.agents_from_lists(states, props, agent_ids=[str(i) for i in present])
 
         cfg = SceneVisualizerConfig(
             map_image=rendered_static_map,

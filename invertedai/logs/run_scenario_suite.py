@@ -5,6 +5,7 @@ import random
 import logging
 import invertedai as iai
 import matplotlib.pyplot as plt
+from invertedai import FrameData
 
 from invertedai.common import AgentState
 from invertedai.api.initialize import InitializeResponse
@@ -95,7 +96,7 @@ def _run_simulation(
             dpi=300
         )
         scene_plotter.initialize_recording(
-            agents=iai.agents_from_lists(
+            agents=FrameData.agents_from_lists(
                 scenario_tool.cosimulation.agent_states,
                 scenario_tool.cosimulation.agent_properties,
             ),
@@ -133,7 +134,7 @@ def _run_simulation(
 
         if is_visualize:
             scene_plotter.record_step(
-                agents=iai.agents_from_lists(
+                agents=FrameData.agents_from_lists(
                     scenario_tool.cosimulation.agent_states,
                     scenario_tool.cosimulation.agent_properties,
                 ),

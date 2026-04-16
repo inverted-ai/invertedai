@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai import AgentType, get_regions_default, get_default_agent_properties, SceneVisualizer, SceneVisualizerConfig, FrameData, agents_from_lists
+from invertedai import AgentType, get_regions_default, get_default_agent_properties, SceneVisualizer, SceneVisualizerConfig, FrameData
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -56,7 +56,7 @@ scene_visualizer = SceneVisualizer(
     ),
 )
 frames = [FrameData(
-    agents=agents_from_lists(iai_simulation.agent_states, iai_simulation.agent_properties),
+    agents=FrameData.agents_from_lists(iai_simulation.agent_states, iai_simulation.agent_properties),
     traffic_lights=ego_response.traffic_lights_states,
 )]
 
@@ -83,7 +83,7 @@ for _ in range(NUM_TIME_STEPS):  # How many simulation time steps to execute (10
 
     # Save the visualization with SceneVisualizer
     frames.append(FrameData(
-        agents=agents_from_lists(iai_simulation.agent_states, iai_simulation.agent_properties),
+        agents=FrameData.agents_from_lists(iai_simulation.agent_states, iai_simulation.agent_properties),
         traffic_lights=iai_simulation.light_states,
     ))
 

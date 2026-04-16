@@ -5,7 +5,7 @@ import os
 import invertedai as iai
 from invertedai.common import AgentState, AgentProperties, RecurrentState, LightRecurrentState, Image, StaticMapActor, Point
 from invertedai.api.location import LocationResponse
-from invertedai.utils import FrameData, agents_from_lists
+from invertedai.utils import FrameData
 from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
 
 from collections import defaultdict
@@ -185,7 +185,7 @@ class DebugLogger:
         scene_visualizer = SceneVisualizer(cfg=cfg)
 
         initial_frame = FrameData(
-            agents=agents_from_lists(
+            agents=FrameData.agents_from_lists(
                 agent_states=agent_states,
                 agent_properties=all_properties,
             ),
@@ -240,7 +240,7 @@ class DebugLogger:
             response = json.loads(response_json)
             agent_states = [AgentState.fromlist(s) for s in response["agent_states"]]
             frames.append(FrameData(
-                agents=agents_from_lists(
+                agents=FrameData.agents_from_lists(
                     agent_states=agent_states,
                     agent_properties=all_properties,
                 ),
@@ -310,11 +310,11 @@ class DebugLogger:
             light_recurrent_states = response.light_recurrent_states
 
             frames.append(FrameData(
-                agents=agents_from_lists(
+                agents=FrameData.agents_from_lists(
                     agent_states=agent_states,
                     agent_properties=agent_properties,
                 ),
-                traffic_light_states=traffic_lights_states
+                traffic_lights=traffic_lights_states,
             ))
         # save the visualization to disk
         scene_visualizer.visualize(

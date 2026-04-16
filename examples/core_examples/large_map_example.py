@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai import AgentType, SceneVisualizer, SceneVisualizerConfig, FrameData, agents_from_lists
+from invertedai import AgentType, SceneVisualizer, SceneVisualizerConfig, FrameData
 
 import argparse
 import random
@@ -63,7 +63,7 @@ def main(args):
                 ),
             )
             frames = [FrameData(
-                agents=agents_from_lists(
+                agents=FrameData.agents_from_lists(
                     agent_states=response.agent_states,
                     agent_properties=response.agent_properties,
                 ),
@@ -92,7 +92,7 @@ def main(args):
             if args.save_sim:
                 log_writer.drive(drive_response=response)
                 frames.append(FrameData(
-                    agents=agents_from_lists(
+                    agents=FrameData.agents_from_lists(
                         agent_states=response.agent_states,
                         agent_properties=agent_properties,
                     ),

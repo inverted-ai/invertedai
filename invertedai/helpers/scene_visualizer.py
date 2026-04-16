@@ -92,24 +92,24 @@ class FrameData:
     traffic_lights: Optional[Dict[int, TrafficLightState]] = None
     agent_tags: Optional[Dict[AgentID, AgentTag]] = None
 
+    @staticmethod
+    def agents_from_lists(
+        agent_states: List[AgentState],
+        agent_properties: List[AgentProperties],
+        agent_ids: Optional[List[str]] = None,
+    ) -> SimulationAgentDict:
+        """
+        Convert parallel lists to a keyed :class:`SimulationAgentDict`.
 
-def agents_from_lists(
-    agent_states: List[AgentState],
-    agent_properties: List[AgentProperties],
-    agent_ids: Optional[List[str]] = None,
-) -> SimulationAgentDict:
-    """
-    Convert parallel lists to a keyed :class:`SimulationAgentDict`.
-
-    Useful for callers that still receive parallel lists from API responses.
-    If ``agent_ids`` is ``None``, string indices (``"0"``, ``"1"``, …) are used
-    as keys to match the legacy JSON format.
-    """
-    ids = agent_ids or [str(i) for i in range(len(agent_states))]
-    return defaultdict(AgentData, {
-        aid: AgentData(state=s, properties=p)
-        for aid, s, p in zip(ids, agent_states, agent_properties)
-    })
+        Useful for callers that still receive parallel lists from API responses.
+        If ``agent_ids`` is ``None``, string indices (``"0"``, ``"1"``, …) are used
+        as keys to match the legacy JSON format.
+        """
+        ids = agent_ids or [str(i) for i in range(len(agent_states))]
+        return defaultdict(AgentData, {
+            aid: AgentData(state=s, properties=p)
+            for aid, s, p in zip(ids, agent_states, agent_properties)
+        })
 
 
 def rot(rotation):
