@@ -6,6 +6,7 @@ import invertedai as iai
 from invertedai.common import AgentState, AgentProperties, RecurrentState, LightRecurrentState, Image, StaticMapActor, Point
 from invertedai.api.location import LocationResponse
 from invertedai.utils import FrameData, agents_from_lists
+from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
 
 from collections import defaultdict
 from typing import Optional, Dict, Tuple
@@ -170,7 +171,6 @@ class DebugLogger:
             time_remaining=s[1]) for s in lrs
         ] if lrs is not None else lrs
 
-        from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig # avoid circular imports
         cfg = SceneVisualizerConfig(
             fov=fov,
             resolution=(2048, 2048),
