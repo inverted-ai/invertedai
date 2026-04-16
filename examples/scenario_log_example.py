@@ -186,19 +186,6 @@ location_info_response_replay = log_reader.location_info_response
 log_reader.initialize()
 agent_properties = log_reader.agent_properties
 
-rendered_static_map = location_info_response_replay.birdview_image.decode()
-scene_visualizer_branch = SceneVisualizer(
-    cfg=SceneVisualizerConfig(
-        map_image=rendered_static_map,
-        static_actors=location_info_response_replay.static_actors,
-        fov=location_info_response_replay.map_fov,
-        visualization_center=(location_info_response_replay.map_center.x, location_info_response_replay.map_center.y),
-        direction_vec=True,
-        velocity_vec=False,
-        plot_frame_number=True,
-    ),
-)
-frames_branch = [FrameData(agents=FrameData.agents_from_lists(log_reader.agent_states, agent_properties))]
 log_writer_branched.initialize(
     scenario_log=log_reader.return_scenario_log(
         timestep_range=(0,SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT)
@@ -209,10 +196,6 @@ print("Stepping through simulation...")
 for _ in range(SIMULATION_BEGIN_NEW_ROLLOUT):
     log_reader.drive()
     agent_properties = log_reader.agent_properties
-    frames_branch.append(FrameData(
-        agents=FrameData.agents_from_lists(log_reader.agent_states, agent_properties),
-        traffic_lights=log_reader.traffic_lights_states,
-    ))
 
 agent_states = log_reader.agent_states
 recurrent_states = log_reader.recurrent_states
@@ -232,11 +215,6 @@ for _ in range(SIMULATION_LENGTH-SIMULATION_BEGIN_NEW_ROLLOUT):
     agent_states = response.agent_states
     recurrent_states = response.recurrent_states
     light_recurrent_states = response.light_recurrent_states
-
-    frames_branch.append(FrameData(
-        agents=FrameData.agents_from_lists(agent_states, agent_properties),
-        traffic_lights=response.traffic_lights_states,
-    ))
 
 log_path_branched = os.path.join(os.getcwd(),f"scenario_log_example_branched.json")
 log_writer_branched.export_to_file(log_path=log_path_branched)

@@ -1,8 +1,5 @@
 import invertedai as iai
-from invertedai import AgentType, get_regions_default, get_default_agent_properties, SceneVisualizer, SceneVisualizerConfig, FrameData
-
-import numpy as np
-import matplotlib.pyplot as plt
+from invertedai import AgentType, get_regions_default, get_default_agent_properties
 
 from typing import List
 
@@ -41,24 +38,14 @@ iai_simulation = iai.BasicCosimulation(
     traffic_light_state_history = [ego_response.traffic_lights_states]
 )
 
-# Initialize the SceneVisualizer for scene visualization
+# Initialize the LogWriter for recording the simulation
 location_info_response = iai.location_info(location=LOCATION)
-rendered_static_map = location_info_response.birdview_image.decode()
-scene_visualizer = SceneVisualizer(
-    cfg=SceneVisualizerConfig(
-        map_image=rendered_static_map,
-        static_actors=location_info_response.static_actors,
-        fov=location_info_response.map_fov,
-        visualization_center=(location_info_response.map_center.x, location_info_response.map_center.y),
-        direction_vec=False,
-        velocity_vec=False,
-        plot_frame_number=True,
-    ),
+log_writer = iai.LogWriter()
+log_writer.initialize(
+    location=LOCATION,
+    location_info_response=location_info_response,
+    init_response=iai_simulation.init_response,
 )
-frames = [FrameData(
-    agents=FrameData.agents_from_lists(iai_simulation.agent_states, iai_simulation.agent_properties),
-    traffic_lights=ego_response.traffic_lights_states,
-)]
 
 print("Begin stepping through simulation.")
 for _ in range(NUM_TIME_STEPS):  # How many simulation time steps to execute (10 steps is 1 second)
@@ -81,19 +68,10 @@ for _ in range(NUM_TIME_STEPS):  # How many simulation time steps to execute (10
         traffic_lights_states = ego_response.traffic_lights_states,
     )
 
-    # Save the visualization with SceneVisualizer
-    frames.append(FrameData(
-        agents=FrameData.agents_from_lists(iai_simulation.agent_states, iai_simulation.agent_properties),
-        traffic_lights=iai_simulation.light_states,
-    ))
+    # Record this timestep in the log
+    log_writer.drive(drive_response=iai_simulation.response)
 
 # Save the visualization to disk
 print("Simulation finished, save visualization.")
-fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-plt.axis('off')
-gif_name = 'cosimulation_minimal_example.mp4'
-scene_visualizer.visualize(
-    frames=frames,
-    output_name = gif_name,
-)
+log_writer.visualize(gif_path='cosimulation_minimal_example.mp4')
 print("Done")

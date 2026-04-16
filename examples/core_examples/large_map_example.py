@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai import AgentType, SceneVisualizer, SceneVisualizerConfig, FrameData
+from invertedai import AgentType
 
 import argparse
 import random
@@ -50,25 +50,6 @@ def main(args):
                 location_info_response=location_info_response,
                 init_response=response,
             )
-            scene_visualizer = SceneVisualizer(
-                cfg=SceneVisualizerConfig(
-                    map_image=location_info_response.birdview_image.decode(),
-                    static_actors=location_info_response.static_actors,
-                    fov=args.fov,
-                    visualization_center=map_center,
-                    direction_vec=True,
-                    velocity_vec=False,
-                    plot_frame_number=True,
-                    left_hand_coordinates=args.location.split(":")[0] == "carla",
-                ),
-            )
-            frames = [FrameData(
-                agents=FrameData.agents_from_lists(
-                    agent_states=response.agent_states,
-                    agent_properties=response.agent_properties,
-                ),
-                traffic_lights=response.traffic_lights_states,
-            )]
 
         total_num_agents = len(response.agent_states)
         print(f"Number of agents in simulation: {total_num_agents}")
@@ -91,21 +72,17 @@ def main(args):
 
             if args.save_sim:
                 log_writer.drive(drive_response=response)
-                frames.append(FrameData(
-                    agents=FrameData.agents_from_lists(
-                        agent_states=response.agent_states,
-                        agent_properties=agent_properties,
-                    ),
-                    traffic_lights=response.traffic_lights_states,
-                ))
 
         if args.save_sim:
             print("Simulation finished, save visualization.")
             current_time = int(time.time())
             gif_name = f'large_map_example_{current_time}_location-{args.location.split(":")[-1]}_density-{args.num_agents}_center-x{map_center[0]}y{map_center[1]}_width-{args.width}_height-{args.height}_initseed-{initialize_seed}_driveseed-{drive_seed}_modelversion-{model_version}.mp4'
-            scene_visualizer.visualize(
-                frames=frames,
-                output_name=gif_name,
+            log_writer.visualize(
+                gif_path=gif_name,
+                fov=args.fov,
+                map_center=map_center,
+                direction_vec=True,
+                left_hand_coordinates=args.location.split(":")[0] == "carla",
             )
             log_writer.export_to_file(log_path=gif_name.split(".mp4")[0]+".json")
         print("Done")
