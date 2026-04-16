@@ -4,8 +4,7 @@ import time
 import random
 import logging
 import invertedai as iai
-import matplotlib.pyplot as plt
-from invertedai import FrameData
+from invertedai import FrameData, SceneVisualizer, SceneVisualizerConfig, AgentTag
 
 from invertedai.common import AgentState
 from invertedai.api.initialize import InitializeResponse
@@ -87,21 +86,28 @@ def _run_simulation(
 
     if is_visualize:
         rendered_static_map = scenario_tool.log_reader.location_info_response.birdview_image.decode()
-        scene_plotter = iai.ScenePlotter(
-            map_image=rendered_static_map,
-            fov=scenario_tool.scenario_log.rendering_fov,
-            xy_offset=scenario_tool.scenario_log.rendering_center,
-            static_actors=scenario_tool.log_reader.location_info_response.static_actors,
-            resolution=(2048,2048),
-            dpi=300
+        agent_tags = {str(i): AgentTag.ego for i in ego_indexes} if ego_indexes is not None else None
+        scene_visualizer = SceneVisualizer(
+            cfg=SceneVisualizerConfig(
+                map_image=rendered_static_map,
+                fov=scenario_tool.scenario_log.rendering_fov,
+                visualization_center=scenario_tool.scenario_log.rendering_center,
+                static_actors=scenario_tool.log_reader.location_info_response.static_actors,
+                resolution=(2048, 2048),
+                dpi=300,
+                direction_vec=True,
+                velocity_vec=False,
+                plot_frame_number=True,
+            )
         )
-        scene_plotter.initialize_recording(
+        frames = [FrameData(
             agents=FrameData.agents_from_lists(
                 scenario_tool.cosimulation.agent_states,
                 scenario_tool.cosimulation.agent_properties,
             ),
-            traffic_light_states=scenario_tool.cosimulation.light_states
-        )
+            traffic_lights=scenario_tool.cosimulation.light_states,
+            agent_tags=agent_tags,
+        )]
 
     random.seed(int(time.time()))
     drive_seed = random.randint(1,10000)
@@ -133,35 +139,23 @@ def _run_simulation(
         )
 
         if is_visualize:
-            scene_plotter.record_step(
+            frames.append(FrameData(
                 agents=FrameData.agents_from_lists(
                     scenario_tool.cosimulation.agent_states,
                     scenario_tool.cosimulation.agent_properties,
                 ),
-                traffic_light_states=scenario_tool.cosimulation.light_states
-            )
+                traffic_lights=scenario_tool.cosimulation.light_states,
+                agent_tags=agent_tags,
+            ))
 
     if is_visualize:
         logger.info(f"Simulation {scenario_name} finished, saving visualization.")
-        # save the visualization to disk
-        colour_dict = None
-        if ego_indexes is not None:
-            colour_dict = {str(i): (0.78, 0.0, 0.0) for i in ego_indexes}
-
-        fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-        plt.axis('off')
         current_time = int(time.time())
         gif_name = f'scenario_visualization_{current_time}_{scenario_name.split(".")[0]}.gif'
-        scene_plotter.animate_scene(
+        scene_visualizer.visualize(
+            frames=frames,
             output_name=gif_name,
-            ax=ax,
-            direction_vec=True,
-            velocity_vec=False,
-            plot_frame_number=True,
-            agent_face_colors=colour_dict,
-            agent_edge_colors=colour_dict
         )
-        plt.close(fig)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description=__doc__)
