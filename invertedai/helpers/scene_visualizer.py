@@ -6,16 +6,111 @@ from matplotlib.patches import Rectangle
 from matplotlib.animation import FuncAnimation
 from matplotlib.axes import Axes
 
+from collections import defaultdict
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-from invertedai.common import AgentData, AgentID, StaticMapActor, TrafficLightState
-from invertedai.utils import (
-    AgentTag,
-    AgentTagStyle,
-    TagStyleConfig,
-    FrameData,
-)
+from pydantic import BaseModel, Field
+
+from invertedai.common import AgentData, AgentID, AgentProperties, AgentState, SimulationAgentDict, StaticMapActor, TrafficLightState
+
+Color = Tuple[float, float, float]
+
+
+class AgentTag(str, Enum):
+    """
+    Visual tag that can be attached to an agent to control its rendering style.
+
+    Tags take precedence over agent-type-based colours (car/pedestrian defaults).
+    Agents whose ID is absent from :attr:`FrameData.agent_tags` are treated as
+    ``default``.
+
+    Values:
+    ego:
+        The primary agent of interest (e.g. the AV). Rendered with a distinct
+        colour defined in :class:`TagStyleConfig`.
+    scenario:
+        An agent that is part of a scenario. Uses the scenario colour from
+        :class:`TagStyleConfig`.
+    default:
+        Falls through to agent-type-based colouring (car/pedestrian defaults).
+    """
+    ego = "ego"
+    scenario = "scenario"
+    default = "default"
+
+
+class AgentTagStyle(BaseModel):
+    """
+    Face and optional edge colour for :class:`AgentTag`.
+
+    Attributes:
+    face_color:
+        RGB tuple with values in ``[0, 1]`` used to fill the agent rectangle.
+    edge_color:
+        RGB tuple for the rectangle border. ``None`` means no border (``lw=0``).
+    """
+    face_color: Color
+    edge_color: Optional[Color] = None
+
+
+class TagStyleConfig(BaseModel):
+    """
+    Per-tag colour configuration used by :class:`SceneVisualizer`.
+
+    Attributes:
+    ego:
+        Style for agents tagged :attr:`AgentTag.ego` — red by default.
+    scenario:
+        Style for agents tagged :attr:`AgentTag.scenario` — blue by default.
+    default:
+        Style for agents explicitly tagged :attr:`AgentTag.default` — blue.
+    """
+    ego: AgentTagStyle = Field(
+        default_factory=lambda: AgentTagStyle(
+            face_color=(0.78, 0.0, 0.0),
+            edge_color=(0.78, 0.0, 0.0),
+        )
+    )
+    scenario: AgentTagStyle = Field(
+        default_factory=lambda: AgentTagStyle(face_color=(0.125, 0.29, 0.529))
+    )
+    default: AgentTagStyle = Field(
+        default_factory=lambda: AgentTagStyle(face_color=(0.125, 0.29, 0.529))
+    )
+
+    def get(self, tag: AgentTag) -> AgentTagStyle:
+        """Return the :class:`AgentTagStyle` for *tag*."""
+        return getattr(self, tag.value)
+
+
+@dataclass
+class FrameData:
+    """Data for a single animation frame."""
+    agents: Dict[AgentID, AgentData]
+    traffic_lights: Optional[Dict[int, TrafficLightState]] = None
+    agent_tags: Optional[Dict[AgentID, AgentTag]] = None
+
+
+def agents_from_lists(
+    agent_states: List[AgentState],
+    agent_properties: List[AgentProperties],
+    agent_ids: Optional[List[str]] = None,
+) -> SimulationAgentDict:
+    """
+    Convert parallel lists to a keyed :class:`SimulationAgentDict`.
+
+    Useful for callers that still receive parallel lists from API responses.
+    If ``agent_ids`` is ``None``, string indices (``"0"``, ``"1"``, …) are used
+    as keys to match the legacy JSON format.
+    """
+    ids = agent_ids or [str(i) for i in range(len(agent_states))]
+    return defaultdict(AgentData, {
+        aid: AgentData(state=s, properties=p)
+        for aid, s, p in zip(ids, agent_states, agent_properties)
+    })
+
 
 def rot(rotation):
     """Rotate in 2d"""
