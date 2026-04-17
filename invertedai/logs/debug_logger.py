@@ -175,8 +175,6 @@ class DebugLogger:
             static_actors=location_info_response.static_actors,
             fov=fov,
             visualization_center=map_center,
-            resolution=(2048, 2048),
-            dpi=300,
             direction_vec=False,
             velocity_vec=False,
             plot_frame_number=True,
