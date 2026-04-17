@@ -68,10 +68,7 @@ class TagStyleConfig(BaseModel):
         Style for agents explicitly tagged :attr:`AgentTag.default` — blue.
     """
     ego: AgentTagStyle = Field(
-        default_factory=lambda: AgentTagStyle(
-            face_color=(0.78, 0.0, 0.0),
-            edge_color=(0.78, 0.0, 0.0),
-        )
+        default_factory=lambda: AgentTagStyle(face_color=(0.78, 0.0, 0.0))
     )
     scenario: AgentTagStyle = Field(
         default_factory=lambda: AgentTagStyle(face_color=(0.125, 0.29, 0.529))
