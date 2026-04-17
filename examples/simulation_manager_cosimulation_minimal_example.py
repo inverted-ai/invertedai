@@ -37,6 +37,7 @@ ego_agent_ids = [f"ego_{i}" for i in range(NUM_EGO_AGENTS)]
 fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
 scene_viz_cfg = SceneVisualizerConfig(
     location=LOCATION,
+    fov = location_info_response.map_fov,
     left_hand_coordinates=LOCATION.split(":")[0] == "carla",
     direction_vec=False,
     velocity_vec=False,
@@ -91,21 +92,28 @@ response = simulation_manager.initialize(
     external_agent_data=external_agent_data
 )
 
-print("initialized agents with ids ", simulation_manager.get_agent_ids())
+print("initialized npc agents with ids ", simulation_manager.get_agent_ids())
 print("Begin stepping through simulation.")
 for step in range(SIM_LENGTH):
 ##########################################################################################################    
     # INSERT YOUR OWN EGO PREDICTIONS FOR THIS TIME STEP
+    # Fetch current NPC state from SimulationManager so egos are aware of background agents
+    npc_states = simulation_manager.get_states()
+    npc_props = simulation_manager.get_properties()
+    npc_recurrent = simulation_manager.get_recurrent_states()
     ego_props = ego_waypoint_manager.update(
         response=ego_response,
         agent_properties=ego_props
     )
+    # Drive ego agents with NPC appended so the model sees all agents
     ego_response= iai.drive(
         location=LOCATION,
-        agent_states=ego_response.agent_states,
-        agent_properties=ego_props,
-        recurrent_states=ego_response.recurrent_states, 
+        agent_states=ego_response.agent_states + npc_states,
+        agent_properties=ego_props + npc_props,
+        recurrent_states=ego_response.recurrent_states + npc_recurrent, 
     )
+    ego_response.agent_states = ego_response.agent_states[:NUM_EGO_AGENTS]
+    ego_response.recurrent_states = ego_response.recurrent_states[:NUM_EGO_AGENTS]
     external_agent_data = {
         ego_agent_ids[i]: AgentData(
             state=ego_response.agent_states[i],
