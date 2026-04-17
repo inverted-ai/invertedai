@@ -5,8 +5,7 @@ import os
 import invertedai as iai
 from invertedai.common import AgentState, AgentProperties, RecurrentState, LightRecurrentState, Image, StaticMapActor, Point
 from invertedai.api.location import LocationResponse
-from invertedai.utils import FrameData
-from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
+from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig, FrameData
 
 from collections import defaultdict
 from typing import Optional, Dict, Tuple

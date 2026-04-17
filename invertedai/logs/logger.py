@@ -6,8 +6,8 @@ from copy import deepcopy
 
 import json
 
-from invertedai.utils import WaypointsDict, convert_attributes_to_properties, FrameData
-from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
+from invertedai.utils import WaypointsDict, convert_attributes_to_properties
+from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig, FrameData
 from invertedai import location_info
 from invertedai.api.location import LocationResponse
 from invertedai.api.initialize import InitializeResponse

@@ -6,8 +6,8 @@ from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, Recur
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
-from invertedai.utils import ScenePlotterConfig, AgentTag, FrameData
-from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
+from invertedai.utils import ScenePlotterConfig
+from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig, FrameData, AgentTag
 from invertedai.large.initialize import large_initialize, get_regions_default, RegionsConfig
 from invertedai.large.drive import large_drive
 from invertedai.logs.logger import LogWriterConfig, LogWriter
