@@ -79,9 +79,12 @@ def main(args):
             gif_name = f'large_map_example_{current_time}_location-{args.location.split(":")[-1]}_density-{args.num_agents}_center-x{map_center[0]}y{map_center[1]}_width-{args.width}_height-{args.height}_initseed-{initialize_seed}_driveseed-{drive_seed}_modelversion-{model_version}.mp4'
             log_writer.visualize(
                 gif_path=gif_name,
-                fov=args.fov,
-                map_center=map_center,
-                direction_vec=True,
+                fov = args.fov,
+                resolution = (2048,2048),
+                dpi = 300,
+                direction_vec = True,
+                velocity_vec = False,
+                plot_frame_number = True,
                 left_hand_coordinates=args.location.split(":")[0] == "carla",
             )
             log_writer.export_to_file(log_path=gif_name.split(".mp4")[0]+".json")
