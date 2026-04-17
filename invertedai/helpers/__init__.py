@@ -1,9 +1,9 @@
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
-from invertedai.helpers.simulation_manager import SimulationAgentDict, SimulationManager
+from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig
 
 __all__ = [
     "WaypointManager",
     "WaypointManagerConfig",
-    "SimulationAgentDict",
-    "SimulationManager",
+    "SceneVisualizer",
+    "SceneVisualizerConfig",
 ]

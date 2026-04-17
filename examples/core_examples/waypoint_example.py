@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai import get_default_agent_properties, AgentType
+from invertedai import get_default_agent_properties, AgentType, SceneVisualizer, SceneVisualizerConfig, FrameData
 
 import matplotlib.pyplot as plt
 import os
@@ -49,12 +49,12 @@ wp_manager = iai.WaypointManager(
     )
 )
 
-#The update() function must be called to fill in the AgentProperties of every agent. 
+#The update() function must be called to fill in the AgentProperties of every agent.
 #In the most simple case, the update function only needs the InitializeResponse or DriveResponse object.
 #The WaypointManager will update and return a list of waypoints in the AgentProperties in 3 different cases depending on the value of the waypoints field:
 # 1. waypoints is None: The WaypointManager assumes the agent needs to be initialized with a waypoint route for 2 different cases:
 # 1.a. target_paths is not defined: The WaypointManager finds an arbitrary route in the map resembling realistic traffic.
-# 1.b. target_paths is defined: The WaypointManager generates a route between the given waypoints. The returned list of waypoints may contain secondary 
+# 1.b. target_paths is defined: The WaypointManager generates a route between the given waypoints. The returned list of waypoints may contain secondary
 #       waypoints between the given points in the target path. If the target_paths field is defined, the list must be the same size as the given list of
 #       of agents. If any other agents should not have a target path, set the respective index to a value of None.
 # 2. waypoints is an empty list: This is the case where it has achieved its given path. By default, the WaypointManager will generate a new route.
@@ -66,20 +66,22 @@ agent_properties = wp_manager.update(
     agent_properties = response.agent_properties,
 )
 
+agent_ids = [str(i) for i in range(num_agents)]
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.ScenePlotter(
-    map_image = rendered_static_map,
-    fov = fov,
-    xy_offset = (location_info_response.map_center.x, location_info_response.map_center.y),
-    static_actors = location_info_response.static_actors,
-    resolution = (2048,2048),
-    dpi = 300,
-    left_hand_coordinates = location.split(":")[0] == "carla"
+scene_visualizer = SceneVisualizer(
+    cfg = SceneVisualizerConfig(
+        map_image = rendered_static_map,
+        static_actors = location_info_response.static_actors,
+        fov = fov,
+        visualization_center = (location_info_response.map_center.x, location_info_response.map_center.y),
+        left_hand_coordinates = location.split(":")[0] == "carla",
+        direction_vec = False,
+        velocity_vec = False,
+        plot_frame_number = True,
+        display_agent_ids = agent_ids,
+    ),
 )
-scene_plotter.initialize_recording(
-    agent_states=response.agent_states,
-    agent_properties=agent_properties,
-)
+frames = [FrameData(agents=FrameData.agents_from_lists(response.agent_states, agent_properties, agent_ids=agent_ids))]
 
 print("Begin stepping through simulation.")
 for _ in range(simulation_length):  # how many simulation steps to execute (10 steps is 1 second)
@@ -101,24 +103,19 @@ for _ in range(simulation_length):  # how many simulation steps to execute (10 s
         response = response,
         agent_properties = agent_properties,
     )
-    
+
     # save the visualization
-    scene_plotter.record_step(
-        agent_states=response.agent_states,
-        agent_properties=agent_properties, #This is important to capture the new waypoints every time step
-        traffic_light_states=response.traffic_lights_states
-    )
+    frames.append(FrameData(
+        agents=FrameData.agents_from_lists(response.agent_states, agent_properties, agent_ids=agent_ids),  # capture new waypoints each step
+        traffic_lights=response.traffic_lights_states,
+    ))
 
 print("Simulation finished, save visualization.")
 # save the visualization to disk
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-gif_name = f'{seed}_waypoint_example.gif'
-scene_plotter.animate_scene(
+gif_name = f'{seed}_waypoint_example.mp4'
+scene_visualizer.visualize(
+    frames=frames,
     output_name=gif_name,
-    ax=ax,
-    direction_vec=False,
-    velocity_vec=False,
-    plot_frame_number=True,
-    numbers = list(range(num_agents))
 )
 print("Done")

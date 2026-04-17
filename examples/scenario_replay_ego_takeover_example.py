@@ -131,7 +131,7 @@ def main(args):
         print("Simulation finished, save visualization.")
         current_time = int(time.time())
         log_name = args.log_path.split("/")[-1].split(".json")[0]
-        gif_name = f'safety_critical_scenario_{log_name}_{current_time}_seed-{random_seed}_modelversion-{model_version}.gif'
+        gif_name = f'safety_critical_scenario_{log_name}_{current_time}_seed-{random_seed}_modelversion-{model_version}.mp4'
         log_writer.visualize(
             gif_path=gif_name,
             fov = args.fov,
@@ -144,7 +144,7 @@ def main(args):
             left_hand_coordinates = location.split(":")[0] == "carla",
             agent_ids = list(range(len(agent_properties)))
         )
-        log_writer.export_to_file(log_path=gif_name.split(".gif")[0]+".json")
+        log_writer.export_to_file(log_path=gif_name.split(".mp4")[0]+".json")
     print("Done")
 
     

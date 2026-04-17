@@ -1,5 +1,5 @@
 import invertedai as iai
-from invertedai import get_default_agent_properties, AgentType
+from invertedai import get_default_agent_properties, AgentType, SceneVisualizer, SceneVisualizerConfig, FrameData
 
 import matplotlib.pyplot as plt
 import os
@@ -23,16 +23,18 @@ response = iai.initialize(
 agent_properties = response.agent_properties  # get dimension and other attributes of NPCs
 
 rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.ScenePlotter(
-    rendered_static_map,
-    location_info_response.map_fov,
-    (location_info_response.map_center.x, location_info_response.map_center.y),
-    location_info_response.static_actors
+scene_visualizer = SceneVisualizer(
+    cfg=SceneVisualizerConfig(
+        map_image=rendered_static_map,
+        static_actors=location_info_response.static_actors,
+        fov=location_info_response.map_fov,
+        visualization_center=(location_info_response.map_center.x, location_info_response.map_center.y),
+        direction_vec=False,
+        velocity_vec=False,
+        plot_frame_number=True,
+    ),
 )
-scene_plotter.initialize_recording(
-    agent_states=response.agent_states,
-    agent_properties=agent_properties,
-)
+frames = [FrameData(agents=FrameData.agents_from_lists(response.agent_states, agent_properties))]
 
 print("Begin stepping through simulation.")
 for _ in range(100):  # how many simulation steps to execute (10 steps is 1 second)
@@ -47,17 +49,17 @@ for _ in range(100):  # how many simulation steps to execute (10 steps is 1 seco
     )
 
     # save the visualization
-    scene_plotter.record_step(response.agent_states,response.traffic_lights_states)
+    frames.append(FrameData(
+        agents=FrameData.agents_from_lists(response.agent_states, agent_properties),
+        traffic_lights=response.traffic_lights_states,
+    ))
 
 print("Simulation finished, save visualization.")
 # save the visualization to disk
 fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-gif_name = 'minimal_example.gif'
-scene_plotter.animate_scene(
-    output_name=gif_name,
-    ax=ax,
-    direction_vec=False,
-    velocity_vec=False,
-    plot_frame_number=True
+gif_name = 'minimal_example.mp4'
+scene_visualizer.visualize(
+    frames=frames,
+    output_name=gif_name
 )
 print("Done")

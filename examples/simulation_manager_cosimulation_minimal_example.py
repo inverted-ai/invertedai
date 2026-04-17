@@ -9,11 +9,12 @@ from invertedai import (
 )
 from invertedai import SimulationManager
 from invertedai import (
-    ScenePlotterConfig,
+    SceneVisualizerConfig,
     get_default_agent_properties,
 )
 from invertedai import LogWriterConfig
 from invertedai import RegionsConfig
+from invertedai import AgentTag
 import matplotlib.pyplot as plt
 import os
 import uuid
@@ -29,22 +30,29 @@ if api_key is None:
     iai.add_apikey("<INSERT_KEY_HERE>")
 print("Begin initialization.")
 location_info_response = iai.location_info(
-    location=LOCATION, 
+    location=LOCATION,
     include_map_source=True
 )
-scene_plotter_cfg = ScenePlotterConfig(
-    location=LOCATION, 
-    location_info_response=location_info_response
+ego_agent_ids = [f"ego_{i}" for i in range(NUM_EGO_AGENTS)]
+fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
+scene_viz_cfg = SceneVisualizerConfig(
+    location=LOCATION,
+    fov = location_info_response.map_fov,
+    left_hand_coordinates=LOCATION.split(":")[0] == "carla",
+    direction_vec=False,
+    velocity_vec=False,
+    display_agent_ids=ego_agent_ids,
+    ax=ax,
 )
 waypoint_cfg = WaypointManagerConfig(lanelet_map = location_info_response.get_lanelet_map())
 log_cfg = LogWriterConfig(
-    log_path="keyed_minimal_example_log.json",
+    log_path="simulation_manager_cosimulation_example.json",
     location=LOCATION, 
     location_info_response=location_info_response
 )
 simulation_manager = SimulationManager(
-    scene_plotter_cfg=scene_plotter_cfg, 
-    waypoint_cfg=waypoint_cfg, 
+    scene_visualizer_cfg=scene_viz_cfg,
+    waypoint_cfg=waypoint_cfg,
     log_writer_cfg=log_cfg
 )
 ##########################################################################################################
@@ -66,36 +74,46 @@ regions_config = RegionsConfig(
     map_center=(location_info_response.map_center.x, location_info_response.map_center.y),
 )
 regions = simulation_manager.form_regions(regions_config)
-ego_agent_ids = [f"ego_agent_{i}_{str(uuid.uuid4())[:8]}" for i in range(NUM_EGO_AGENTS)]
+# set the AgentTag for agents using their ids
+simulation_manager.agent_tags = {
+    agent_id: AgentTag.ego for agent_id in ego_agent_ids
+}
 external_agent_data = {
     ego_agent_ids[i]: AgentData(
         state=ego_response.agent_states[i],
         properties=ego_props[i],
-        recurrent=None, 
+        recurrent=None,
     )
     for i in range(NUM_EGO_AGENTS)
 }
 response = simulation_manager.initialize(
-    location=LOCATION, 
-    regions=regions, 
+    location=LOCATION,
+    regions=regions,
     external_agent_data=external_agent_data
 )
 
-print("initialized agents with ids ", simulation_manager.get_agent_ids())
+print("initialized npc agents with ids ", simulation_manager.get_agent_ids())
 print("Begin stepping through simulation.")
 for step in range(SIM_LENGTH):
 ##########################################################################################################    
     # INSERT YOUR OWN EGO PREDICTIONS FOR THIS TIME STEP
+    # Fetch current NPC state from SimulationManager so egos are aware of background agents
+    npc_states = simulation_manager.get_states()
+    npc_props = simulation_manager.get_properties()
+    npc_recurrent = simulation_manager.get_recurrent_states()
     ego_props = ego_waypoint_manager.update(
         response=ego_response,
         agent_properties=ego_props
     )
+    # Drive ego agents with NPC appended so the model sees all agents
     ego_response= iai.drive(
         location=LOCATION,
-        agent_states=ego_response.agent_states,
-        agent_properties=ego_props,
-        recurrent_states=ego_response.recurrent_states, 
+        agent_states=ego_response.agent_states + npc_states,
+        agent_properties=ego_props + npc_props,
+        recurrent_states=ego_response.recurrent_states + npc_recurrent, 
     )
+    ego_response.agent_states = ego_response.agent_states[:NUM_EGO_AGENTS]
+    ego_response.recurrent_states = ego_response.recurrent_states[:NUM_EGO_AGENTS]
     external_agent_data = {
         ego_agent_ids[i]: AgentData(
             state=ego_response.agent_states[i],
@@ -112,16 +130,7 @@ for step in range(SIM_LENGTH):
     )
 
 print("Simulation finished, save visualization.")
-
-fig, ax = plt.subplots(constrained_layout=True, figsize=(10, 10))
-simulation_manager.visualize_data(
-    output_name="simulation_manager_cosimulation_example.gif",
-    ax=ax,
-    direction_vec=False,
-    velocity_vec=False,
-    plot_frame_number=True,
-    numbers = list(range(NUM_AGENTS + NUM_EGO_AGENTS))
-)
+simulation_manager.visualize_data(output_name="simulation_manager_cosimulation_example.mp4")
 print("Simulation finished, save to json log.")
 simulation_manager.export_log()
 print("Done")
