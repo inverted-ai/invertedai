@@ -1676,4 +1676,3 @@ class ScenePlotter():
                 )
 
         return None
-    
