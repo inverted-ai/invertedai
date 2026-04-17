@@ -40,7 +40,6 @@ class SimulationManager:
             scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # deprecated: use scene_visualizer_cfg instead
             waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
             log_writer_cfg: Optional[LogWriterConfig] = None, # can optionally initialize a log_writer_cfg to write a json file log of the simulation
-            remove_offroad_agents: bool = False, # if True, agents whose waypoints are empty after update (off-road/end-of-map) will be removed
         ):
             if scene_plotter_cfg is not None:
                 warnings.warn('scene_plotter_cfg is deprecated. Use scene_visualizer_cfg instead.', category=DeprecationWarning)
@@ -64,6 +63,7 @@ class SimulationManager:
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
             self.agent_tags: Optional[dict] = None  # Dict[AgentID, AgentTag] — applied to every recorded frame
             self.waypoint_manager: Optional[WaypointManager] = None
+            self.remove_offroad_agents = waypoint_cfg.remove_end_of_road_agents if waypoint_cfg else False
             if waypoint_cfg:
                 self.waypoint_manager = WaypointManager(cfg=waypoint_cfg)
             self.log_writer = None

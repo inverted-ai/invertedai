@@ -37,6 +37,7 @@ class WaypointManagerConfig(BaseModel):
     random_seed: int = int(time.time()) #Pseudo-random seed for repeatability
     log_level: Optional[int] = logging.DEBUG #Configure the level of the logger for convenience 
     fail_soft: Optional[bool] = False #If an error is experienced, the manager will continue in a fail soft state instead of raising an Exception
+    remove_end_of_road_agents: bool = False #Whether to remove agents that have reached the end of the road and have no more lanes to follow
 
 class EndOfMapException(Exception):
     """
