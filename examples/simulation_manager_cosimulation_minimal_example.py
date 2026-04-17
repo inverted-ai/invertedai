@@ -14,7 +14,7 @@ from invertedai import (
 )
 from invertedai import LogWriterConfig
 from invertedai import RegionsConfig
-from invertedai.utils import AgentTag
+from invertedai import AgentTag
 import matplotlib.pyplot as plt
 import os
 import uuid
