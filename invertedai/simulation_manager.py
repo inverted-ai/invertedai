@@ -34,26 +34,6 @@ class SimulationManager:
         Configuration for enabling structured logging of the simulation
         If provided all initialize and drive steps will be recorded to a JSON log
     """
-    @staticmethod
-    def _scene_visualizer_cfg_from_scene_plotter_cfg(cfg: ScenePlotterConfig) -> SceneVisualizerConfig:
-        loc = cfg.location_info_response
-        map_image = loc.birdview_image.decode() if loc is not None else None
-        static_actors = loc.static_actors if loc is not None else None
-        fov = cfg.fov if cfg.fov is not None else (loc.map_fov if loc is not None else None)
-        visualization_center = cfg.xy_offset if cfg.xy_offset is not None else ((loc.map_center.x, loc.map_center.y) if loc is not None else None)
-        return SceneVisualizerConfig(
-            location=cfg.location,
-            map_image=map_image,
-            static_actors=static_actors,
-            fov=fov,
-            visualization_center=visualization_center,
-            left_hand_coordinates=cfg.location.split(":")[0] == "carla",
-            direction_vec=cfg.direction_vec,
-            velocity_vec=cfg.velocity_vec,
-            display_agent_ids=cfg.display_agent_ids,
-            tag_styles=cfg.tag_styles,
-        )
-
     def __init__(
             self,
             scene_visualizer_cfg: Optional[SceneVisualizerConfig] = None, # can optionally initialize a SceneVisualizer for visualization
@@ -63,7 +43,7 @@ class SimulationManager:
         ):
             if scene_plotter_cfg is not None:
                 warnings.warn('scene_plotter_cfg is deprecated. Use scene_visualizer_cfg instead.', category=DeprecationWarning)
-                scene_visualizer_cfg = self._scene_visualizer_cfg_from_scene_plotter_cfg(scene_plotter_cfg)
+                scene_visualizer_cfg = SceneVisualizerConfig.from_scene_plotter_cfg(scene_plotter_cfg)
             self.scene_visualizer = None
             self._frames: List[FrameData] = []
             if scene_visualizer_cfg is not None:
