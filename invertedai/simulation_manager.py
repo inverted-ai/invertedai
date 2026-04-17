@@ -279,10 +279,7 @@ class SimulationManager:
         )
         if self.scene_visualizer is not None:
             self._frames.append(FrameData(
-                agents={
-                    aid: AgentData(state=s, properties=p)
-                    for aid, s, p in zip(all_agent_ids, response.agent_states, new_properties)
-                },
+                agents=FrameData.agents_from_lists(response.agent_states, new_properties, all_agent_ids),
                 agent_tags=self.agent_tags,
             ))
         if self.log_writer is not None or return_external_dict:
@@ -388,10 +385,7 @@ class SimulationManager:
         )
         if self.scene_visualizer is not None:
             self._frames.append(FrameData(
-                agents={
-                    aid: AgentData(state=s, properties=p)
-                    for aid, s, p in zip(agent_ids, response.agent_states, properties)
-                },
+                agents=FrameData.agents_from_lists(response.agent_states, properties, agent_ids),
                 traffic_lights=response.traffic_lights_states,
                 agent_tags=self.agent_tags,
             ))
