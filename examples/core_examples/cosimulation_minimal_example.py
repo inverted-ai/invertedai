@@ -1,9 +1,6 @@
 import invertedai as iai
 from invertedai import AgentType, get_regions_default, get_default_agent_properties
 
-import numpy as np
-import matplotlib.pyplot as plt
-
 from typing import List
 
 print("Begin initialization.")
@@ -32,7 +29,7 @@ regions = get_regions_default(
     agent_count_dict = {AgentType.car: NUM_NPC_AGENTS}
 )
 # Instantiate a stateful wrapper for Inverted AI API
-iai_simulation = iai.BasicCosimulation(  
+iai_simulation = iai.BasicCosimulation(
     location = LOCATION,
     conditional_agent_properties = ego_agent_properties+predefined_agent_properties,
     conditional_agent_agent_states = ego_response.agent_states,
@@ -41,20 +38,13 @@ iai_simulation = iai.BasicCosimulation(
     traffic_light_state_history = [ego_response.traffic_lights_states]
 )
 
-# Initialize the ScenePlotter for scene visualization
+# Initialize the LogWriter for recording the simulation
 location_info_response = iai.location_info(location=LOCATION)
-rendered_static_map = location_info_response.birdview_image.decode()
-scene_plotter = iai.ScenePlotter(
-    rendered_static_map,
-    location_info_response.map_fov,
-    (location_info_response.map_center.x, location_info_response.map_center.y),
-    location_info_response.static_actors
-)
-scene_plotter.initialize_recording(
-    agent_states = iai_simulation.agent_states,
-    agent_properties = iai_simulation.agent_properties,
-    conditional_agents = list(range(NUM_EGO_AGENTS)),
-    traffic_light_states = ego_response.traffic_lights_states
+log_writer = iai.LogWriter()
+log_writer.initialize(
+    location=LOCATION,
+    location_info_response=location_info_response,
+    init_response=iai_simulation.init_response,
 )
 
 print("Begin stepping through simulation.")
@@ -78,19 +68,10 @@ for _ in range(NUM_TIME_STEPS):  # How many simulation time steps to execute (10
         traffic_lights_states = ego_response.traffic_lights_states,
     )
 
-    # Save the visualization with ScenePlotter
-    scene_plotter.record_step(iai_simulation.agent_states,iai_simulation.light_states)
+    # Record this timestep in the log
+    log_writer.drive(drive_response=iai_simulation.response)
 
 # Save the visualization to disk
 print("Simulation finished, save visualization.")
-fig, ax = plt.subplots(constrained_layout=True, figsize=(50, 50))
-plt.axis('off')
-gif_name = 'cosimulation_minimal_example.gif'
-scene_plotter.animate_scene(
-    output_name = gif_name,
-    ax = ax,
-    direction_vec = False,
-    velocity_vec = False,
-    plot_frame_number = True
-)
+log_writer.visualize(gif_path='cosimulation_minimal_example.mp4')
 print("Done")
