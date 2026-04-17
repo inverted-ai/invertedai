@@ -10,11 +10,8 @@ import numpy as np
 import warnings
 
 from typing import Dict, Optional, List, Tuple, Union, Any
-from dataclasses import dataclass, field
-from collections import defaultdict
 from copy import deepcopy
-from enum import Enum
-from pydantic import validate_call, validate_arguments, BaseModel, Field
+from pydantic import validate_call, validate_arguments, BaseModel
 
 import requests
 from requests import Response
@@ -39,17 +36,13 @@ from invertedai.common import (
     AgentState, 
     AgentAttributes, 
     AgentProperties, 
-    AgentData,
-    AgentID,
     AgentType,
     RecurrentState,
-    SimulationAgentDict,
     StaticMapActor,
     TrafficLightState, 
     TrafficLightStatesDict,
     Point 
 )
-from invertedai.helpers.scene_visualizer import AgentTag, AgentTagStyle, TagStyleConfig, FrameData
 
 H_SCALE = 10
 text_x_offset = 0
@@ -73,7 +66,6 @@ STATUS_MESSAGE = {
 
 Color = Tuple[float,float,float]
 ColorList = List[Optional[Color]]
-ColorDict = Dict[str, Color]  # agent_id -> RGB color
 
 class Session:
     def __init__(self,debug_logger=None):
@@ -782,42 +774,29 @@ def rot(rot):
 
 class ScenePlotterConfig(BaseModel):
     """
-    Configuration for initializing a :class:`ScenePlotter` from a location string.
+    Configuration for initializing a ScenePlotter instance.
 
+    Parameters:
     location:
-        IAI formatted map location string
+        Location name in IAI format
     location_info_response:
-        :class:`LocationResponse` from :func:`location_info`
+        Response from :func:`location_info` containing the birdview image, map FOV, map center, and static actors
+    map_center:
+        The (x, y) coordinates of the center of the birdview image in meters.
+        If not provided, defaults to the map_center from location_info_response.
+        Use this to specify the actual rendering center if a custom rendering_center
+        was passed to :func:`location_info`.
     fov:
-        Field of view in metres. Used to override the fov from `location_info_response` if provided.
-    xy_offset:
-        Coordinates of the map center in metres. Used to override the xy_offset from `location_info_response` if provided.
-    display_agent_ids:
-        Agent IDs whose label (ID string) should be rendered on the plot. `None`
-        means no labels are drawn.
-    direction_vec:
-        Whether to draw a directional arrow on each agent. Default `True`.
-    velocity_vec:
-        Whether to draw a velocity arrow on each agent. Default `False`.
-    tag_styles:
-        Colour configuration for each :class:`AgentTag`.  The defaults match
-        the colours built into :class:`ScenePlotter`.
+        The field of view in meters of the birdview image.
+        If not provided, defaults to map_fov from location_info_response.
+        Use this to specify the actual rendering FOV if a custom rendering_fov
+        was passed to :func:`location_info`.
     """
     location: str
-    location_info_response: Optional[LocationResponse] = None
-    fov: Optional[float] = None
-    xy_offset: Optional[Tuple[float,float]] = None
-    display_agent_ids: Optional[List[str]] = None
-    direction_vec: bool = True
-    velocity_vec: bool = False
-    tag_styles: TagStyleConfig = Field(default_factory=TagStyleConfig)
-
+    location_info_response: LocationResponse
 
 class ScenePlotter():
     """
-    deprecated::
-        Use :class:`invertedai.SceneVisualizer` instead
-
     A class providing features for handling the data visualization of a scene involving IAI data.
 
     Arguments
@@ -865,18 +844,10 @@ class ScenePlotter():
         resolution: Tuple[int,int] = (640, 480), 
         dpi: float = 100,
         left_hand_coordinates: bool = False,
-        tag_styles: Optional[TagStyleConfig] = None,
-        default_direction_vec: bool = False,
-        default_velocity_vec: bool = False,
-        default_display_agent_ids: Optional[List[str]] = None,
         **kwargs
     ):
 
         self._left_hand_coordinates = left_hand_coordinates
-        self.tag_styles = tag_styles if tag_styles is not None else TagStyleConfig()
-        self._default_direction_vec = default_direction_vec
-        self._default_velocity_vec = default_velocity_vec
-        self._default_display_agent_ids = default_display_agent_ids
         
         self._open_drive = open_drive
         self._dpi = dpi
@@ -913,156 +884,143 @@ class ScenePlotter():
         self.box_labels = {}
         self.frame_label = None
         self.current_ax = None
-        self.default_agent_tags: Optional[Dict[str, AgentTag]] = None
 
-        self.display_agent_ids = None
+        self.numbers = None
 
         self.reset_recording()
         
     def reset_recording(self):
         """
-        Explicitly reset the recording and remove all previously recorded frame data and agent style data.
+        Explicitly reset the recording and remove the previous agent state, agent attribute, traffic light, and agent style data.
         """
-        self.frames: List[FrameData] = []
+
+        self.agent_states_history = None
+        self.traffic_lights_history = None
+        self.agent_properties = None
+        self.waypoints_per_frame = None
+        
         self.agent_face_colors = None 
         self.agent_edge_colors = None 
 
+    @validate_arguments
     def initialize_recording(
         self,
-        agents: Optional[Dict[str, AgentData]] = None,
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None,
-        agent_tags: Optional[Dict[str, AgentTag]] = None,
-        # Legacy parameters for backwards compatibility
-        agent_states: Optional[List[AgentState]] = None,
+        agent_states: List[AgentState], 
         agent_attributes: Optional[List[AgentAttributes]] = None, 
         agent_properties: Optional[List[AgentProperties]] = None,
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None
     ):
         """
-        Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording.
+        Record the initial state of the scene to be visualized. This function also acts as an implicit reset of the recording and removes previous 
+        agent state, agent attribute, traffic light, and agent style data.
 
         Arguments
         ----------
-        agents:
-            A dictionary mapping agent IDs to AgentData objects for the initial time step.
+        agent_states:
+            A list of AgentState objects corresponding to the initial time step to be visualized.
+        agent_attributes:
+            Static attributes of the agents present in the initial step of the simulation. We assume every agent is a rectangle obeying a kinematic 
+            bicycle model. The attributes of each agent respectively may not change but if agents are added or removed from the simulation, this 
+            list will change.
+        agent_properties:
+            Static properties of the agent (with the AgentProperties data type), present in the initial step of the simulation. We assume every 
+            agent is a rectangle obeying a kinematic bicycle model. The properties of each agent respectively may not change but if agents are added
+            or removed from the simulation, this list will change.
         traffic_light_states:
             Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter 
             should only be used if the corresponding map contains traffic light static actors.
-        agent_states:
-            Deprecated. Use agents parameter instead.
-            A list of AgentState objects corresponding to the initial time step to be visualized.
-        agent_attributes:
-            Deprecated. Use agents parameter instead.
-            Static properties of the agent (with the AgentProperties data type), present in the initial step of the simulation. We assume every 
-            agent is a rectangle obeying a kinematic bicycle model. The properties of each agent respectively may not change but if agents are added
-            or removed from the simulation, this list will change.
-        agent_properties:
-            Deprecated. Use agents parameter instead.
-            Static properties of the agent (with the AgentProperties data type), present in the initial step of the simulation. We assume every 
-            agent is a rectangle obeying a kinematic bicycle model. The properties of each agent respectively may not change but if agents are added
-            or removed from the simulation, this list will change.
         """
-        # Legacy
-        if agents is not None and isinstance(agents, list):
-            agent_states = agents
-            agents = None
 
-        if agents is None:
-            # Legacy path: convert parallel lists to keyed dict
-            assert (agent_attributes is not None) ^ (agent_properties is not None), \
-                "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
-            if agent_attributes is not None:
-                agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
-                warnings.warn('agent_attributes is deprecated. Please use agent_properties or agents.',category=DeprecationWarning)
-            if agent_states is None or agent_properties is None:
-                raise ValueError("Either agents parameter or both agent_states and agent_properties parameter lists must be provided.")
-            agents = FrameData.agents_from_lists(agent_states, agent_properties)
+        assert (agent_attributes is not None) ^ (agent_properties is not None), \
+            "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
 
-        self.default_agent_tags = agent_tags
-        self.frames = [FrameData(agents=dict(agents), traffic_lights=traffic_light_states, agent_tags=None)]
+        if agent_attributes is not None:
+            self.agent_properties = [[convert_attributes_to_properties(attr) for attr in agent_attributes]]
+            warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
+        else:
+            self.agent_properties = [agent_properties]
+
+        self._validate_timestep_agents(
+            agent_states=agent_states,
+            agent_properties=self.agent_properties[0]
+        )
+
+        self.agent_states_history = [agent_states]
+        self.traffic_lights_history = [traffic_light_states]
+
         self.agent_face_colors = None
         self.agent_edge_colors = None
+        self.waypoints_per_frame = [[prop.waypoints for prop in agent_properties]]
 
+    @validate_arguments
     def record_step(
         self,
-        agents: Optional[Dict[str, AgentData]] = None,
+        agent_states: List[AgentState], 
         traffic_light_states: Optional[Dict[int, TrafficLightState]] = None,
-        agent_tags: Optional[Dict[str, AgentTag]] = None,
-        # Legacy parameters for backward compatibility
-        agent_states: Optional[List[AgentState]] = None,
-        agent_properties: Optional[List[AgentProperties]] = None,
+        agent_properties: Optional[List[AgentProperties]] = None
     ):
         """
         Record a single timestep of scene data to be used in a visualization.
 
         Arguments
         ----------
-        agents:
-            A dictionary mapping agent IDs to AgentData objects for this time step.
-            Preferred over the legacy agent_states/agent_properties parameters.
-        traffic_light_states:
-            Optional parameter containing the state of the traffic lights for this time step. This parameter should
-            only be used if the corresponding map contains traffic light static actors.
         agent_states:
-            Deprecated. Use agents parameter instead.
             A list of AgentState objects corresponding to the initial time step to be visualized.
+        traffic_light_states:
+            Optional parameter containing the state of the traffic lights corresponding to the initial time step to be visualized. This parameter should
+            only be used if the corresponding map contains traffic light static actors.
         agent_properties:
-            Deprecated. Use agents parameter instead. If omitted with agent_states, previous frame's properties are reused.
             A list of AgentProperties for the agents present during this time step. The indexes of these properties will be matched with corresponding
             indexes of the states given in the agent_states parameter. If no argument is given, it is assumed the agent properties have not changed since
             the previous time step, including which agents are present.
         """
-        # Detect legacy positional usage: record_step(agent_states_list, traffic_lights)
-        if agents is not None and isinstance(agents, list):
-            agent_states = agents
-            agents = None
 
-        if agents is None:
-            if agent_states is None:
-                raise ValueError("Either 'agents' dict or 'agent_states' list must be provided.")
-            if agent_properties is None:
-                # Carry forward properties from previous frame
-                prev_agents = self.frames[-1].agents
-                prev_props = [data.properties for data in prev_agents.values()]
-                if len(prev_props) != len(agent_states):
-                    raise ValueError("agent_states length doesn't match previous frame's agent count. Provide agent_properties explicitly.")
-                agent_properties = prev_props
-            agents = FrameData.agents_from_lists(agent_states, agent_properties)
+        self.agent_states_history.append(agent_states)
+        self.traffic_lights_history.append(traffic_light_states)
 
-        self.frames.append(FrameData(agents=dict(agents), traffic_lights=traffic_light_states, agent_tags=agent_tags))
+        if agent_properties is None:
+            agent_properties = self.agent_properties[-1]
+        self._validate_timestep_agents(
+            agent_states=agent_states,
+            agent_properties=agent_properties
+        )
+        self.agent_properties.append(agent_properties)
+        self.waypoints_per_frame.append([prop.waypoints for prop in agent_properties])
 
+    @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def plot_scene(
         self,
-        agents: Optional[Dict[str, AgentData]] = None,
-        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None,
+        agent_states: List[AgentState], 
+        agent_attributes: Optional[List[AgentAttributes]] = None, 
+        agent_properties: Optional[List[AgentProperties]] = None, 
+        traffic_light_states: Optional[Dict[int, TrafficLightState]] = None, 
         ax: Optional[Axes] = None,
-        agent_ids: Optional[List[str]] = None,
-        numbers: Optional[List[int]] = None,  # Deprecated: use agent_ids instead
-        direction_vec: bool = True,
+        numbers: Optional[List[int]] = None, 
+        direction_vec: bool = True, 
         velocity_vec: bool = False,
-        agent_face_colors: Optional[Union[ColorDict, ColorList]] = None,
-        agent_edge_colors: Optional[Union[ColorDict, ColorList]] = None,
-        # Legacy parameters for backwards compatibility
-        agent_states: Optional[List[AgentState]] = None,
-        agent_attributes: Optional[List[AgentAttributes]] = None,
-        agent_properties: Optional[List[AgentProperties]] = None,
+        agent_face_colors: Optional[ColorList] = None,
+        agent_edge_colors: Optional[ColorList] = None,
     ):
         """
         Plot a single timestep of data then reset the recording. 
 
         Arguments
         ----------
-        agents:
-            A dictionary mapping agent IDs to AgentData objects to be visualized.
-            Preferred over the legacy agent_states/agent_properties parameters.
-        traffic_light_states:
-            Optional parameter containing the state of the traffic lights to be visualized. This parameter should only be used if the 
+        agent_states:
+            A list of agents to be visualized in the image.
+        agent_attributes: 
+            Static attributes of the agent, which don't change over the course of a simulation. We assume every agent is a rectangle obeying a kinematic
+            bicycle model.
+        agent_properties:
+            Static attributes of the agent (with the AgentProperties data type), which don't change over the course of a simulation. We assume every 
+            agent is a rectangle obeying a kinematic bicycle model.
+        traffic_light_states: 
+            Optional parameter containing the state of the traffic lights to be visualized in the image. This parameter should only be used if the 
             corresponding map contains traffic light static actors.
-        ax:
-            A matplotlib Axes object used to plot the image.
-        agent_ids:
-            A list of agent IDs that should be labeled in the image.By default this value is set to None.
+        ax: 
+            A matplotlib Axes object used to plot the image. By default, an Axes object is created if a value of None is passed.
         numbers: 
-            Deprecated: use agent_ids instead
+            A list of agent ID's that should be plotted in the image. By default this value is set to None.
         direction_vec:
             Flag to determine if a vector showing the vehicles direction should be plotted in the image. By default this flag is set to True.
         velocity_vec: 
@@ -1073,30 +1031,20 @@ class ScenePlotter():
         agent_edge_colors:
             An optional parameter containing a list of either RGB tuples indicating the desired color of a border around the agent with the corresponding 
             index ID. A value of None in this list will use the default color.
-        agent_states:
-            Deprecated. Use agents parameter instead.
-        agent_attributes:
-            Deprecated. Use agents parameter instead.
-        agent_properties:
-            Deprecated. Use agents parameter instead.
-        """
-        if agents is None:
-            #Legacy path
-            assert (agent_attributes is not None) ^ (agent_properties is not None), \
-            "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
-        # Backward compat: convert legacy 'numbers' 
-        if agent_ids is None and numbers is not None:
-            agent_ids = [str(n) for n in numbers]
 
-        agent_face_colors = self._normalize_color_input(agent_face_colors)
-        agent_edge_colors = self._normalize_color_input(agent_edge_colors)
+        """
+
+        assert (agent_attributes is not None) ^ (agent_properties is not None), \
+            "Either agent_attributes or agent_properties is populated. Populating both or neither field is invalid."
+
+        if agent_attributes is not None:
+            agent_properties = [convert_attributes_to_properties(attr) for attr in agent_attributes]
+            warnings.warn('agent_attributes is deprecated. Please use agent_properties.',category=DeprecationWarning)
 
         self.initialize_recording(
-            agents=agents,
-            traffic_light_states=traffic_light_states,
             agent_states=agent_states, 
-            agent_attributes=agent_attributes,
             agent_properties=agent_properties,
+            traffic_light_states=traffic_light_states,
         )
 
         self._validate_agent_style_data(
@@ -1107,7 +1055,7 @@ class ScenePlotter():
         self._plot_frame(
             idx=0, 
             ax=ax, 
-            agent_ids=agent_ids,
+            numbers=numbers, 
             direction_vec=direction_vec,
             velocity_vec=velocity_vec, 
             plot_frame_number=False
@@ -1115,22 +1063,22 @@ class ScenePlotter():
 
         self.reset_recording()
 
+    @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def animate_scene(
         self,
         output_name: Optional[str] = None,
         start_idx: int = 0, 
         end_idx: int = -1,
         ax: Optional[Axes] = None,
-        agent_ids: Optional[List[str]] = None,
-        numbers: Optional[List[int]] = None,  # Deprecated: use agent_ids instead
-        direction_vec: bool = True,
+        numbers: Optional[List[int]] = None, 
+        direction_vec: bool = True, 
         velocity_vec: bool = False,
-        plot_frame_number: bool = False,
-        agent_face_colors: Optional[Union[ColorDict, List[ColorDict], ColorList, List[ColorList]]] = None,
-        agent_edge_colors: Optional[Union[ColorDict, List[ColorDict], ColorList, List[ColorList]]] = None,
+        plot_frame_number: bool = False, 
+        agent_face_colors: Optional[Union[ColorList,List[ColorList]]] = None,
+        agent_edge_colors: Optional[Union[ColorList,List[ColorList]]] = None,
     ) -> FuncAnimation:
         """
-        Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif/mp4 saved of the scene.
+        Produce an animation of sequentially recorded steps. A matplotlib animation object can be returned and/or a gif saved of the scene.
 
         Parameters
         ----------
@@ -1141,9 +1089,9 @@ class ScenePlotter():
         end_idx:
             The index of the time step from which the animation will end. By default it is assumed all recorded steps are desired to be animated.
         ax: 
-            A matplotlib Axes object used to plot the animation.
-        agent_ids:
-            A list of agent IDs that should be labeled in the animation.
+            A matplotlib Axes object used to plot the animation. By default, an Axes object is created if a value of None is passed.
+        numbers: 
+            A list of agent ID's that should be plotted in the image. By default this value is set to None.
         direction_vec: 
             Flag to determine if a vector showing the vehicles direction should be plotted in the animation. By default this flag is set to True.
         velocity_vec:
@@ -1151,8 +1099,9 @@ class ScenePlotter():
         plot_frame_number: 
             Flag to determine if the frame numbers should be plotted in the animation. By default this flag is set to False.
         agent_face_colors:
-            Optional dict mapping agent IDs to RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
-            of None in this list will use the default color, or a list of such dicts (one per frame).
+            An optional parameter containing a list of RGB tuples indicating the desired color of the agent with the corresponding index ID. A value 
+            of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent must 
+            be specified per time step.
         agent_edge_colors:
             An optional parameter containing a list of RGB tuples indicating the desired color of a border around the agent with the corresponding index
             ID. A value of None in this list will use the default color. If the number of agents change throughout the simulation, the color of each agent
@@ -1163,14 +1112,6 @@ class ScenePlotter():
             Optional override for the map center coordinates (x, y) in meters. If not provided, the value from initialization is used.
         """
 
-        # Backward compat: convert legacy 'numbers'
-        if agent_ids is None and numbers is not None:
-            agent_ids = [str(n) for n in numbers]
-
-        # Backward compat: convert legacy ColorList
-        agent_face_colors = self._normalize_color_input(agent_face_colors)
-        agent_edge_colors = self._normalize_color_input(agent_edge_colors)
-
         self._validate_agent_style_data(
             agent_face_colors=agent_face_colors,
             agent_edge_colors=agent_edge_colors
@@ -1178,78 +1119,60 @@ class ScenePlotter():
 
         self._initialize_plot(
             ax=ax, 
-            agent_ids=agent_ids,
+            numbers=numbers, 
             direction_vec=direction_vec,
-            velocity_vec=velocity_vec,
+            velocity_vec=velocity_vec, 
             plot_frame_number=plot_frame_number
         )
-        end_idx = len(self.frames) if end_idx == -1 else end_idx
+        end_idx = len(self.agent_states_history) if end_idx == -1 else end_idx
         fig = self.current_ax.figure
         fig.set_size_inches(self._resolution[0] / self._dpi, self._resolution[1] / self._dpi, True)
 
-        def init_func():
-            return []
-
         def animate(i):
-            return self._update_frame_to(i)
+            self._update_frame_to(i)
 
         ani = FuncAnimation(
-            fig, animate, np.arange(start_idx, end_idx),
-            init_func=init_func, interval=100, blit=True)
+            fig, animate, np.arange(start_idx, end_idx), interval=100)
         if output_name is not None:
-            ext = os.path.splitext(output_name)[1].lower()
-            writer = 'ffmpeg' if ext == '.mp4' else 'pillow' #
-            ani.save(output_name, writer=writer, dpi=self._dpi)
+            ani.save(f'{output_name}', writer='pillow', dpi=self._dpi)
         return ani
 
-    def _normalize_color_input(self, colors):
-        """Convert legacy ColorList (index-based) to ColorDict (keyed by agent ID).
+    def _validate_agent_style_data_helper(self,agent_colors,agent_color_type):
+        if agent_colors is None:
+            agent_colors = [None]*len(self.agent_properties)
+        else:
+            if type(agent_colors) == ColorList:
+                agent_colors = [agent_colors]*len(self.agent_properties)
+            else:
+                assert len(self.agent_properties) == len(agent_colors), f"Number of {agent_color_type} time steps does not match number of simulation time steps."
 
-        All paths:
-        - None -> None (pass through)
-        - ColorDict -> pass through
-        - List[ColorDict] -> pass through
-        - ColorList (List[Optional[Color]]) -> ColorDict using string indices
-        - List[ColorList] -> List[ColorDict] using string indices
-        """
-        if colors is None:
-            return None
-        if isinstance(colors, dict):
-            return colors
-        if isinstance(colors, list) and len(colors) > 0:
-            first = colors[0]
-            if isinstance(first, dict):
-                return colors
-            if isinstance(first, list):
-                # List[ColorList] -> List[Dict]
-                return [
-                    {str(i): c for i, c in enumerate(cl) if c is not None} if cl is not None else None
-                    for cl in colors
-                ]
-            # ColorList (List[Optional[Color]])
-            if first is None or isinstance(first, tuple):
-                return {str(i): c for i, c in enumerate(colors) if c is not None}
-        return colors
+        for i, (props_ts, colors_ts) in enumerate(zip(self.agent_properties,agent_colors)):
+            if colors_ts is not None:
+                assert len(colors_ts) == len(props_ts), f"Number of {agent_color_type} does not match number of agents at time step {i}."
 
-    def _validate_agent_style_data(self, agent_face_colors, agent_edge_colors):
-        """Normalize color inputs to List[Optional[Dict[str, Color]]], one entry per frame."""
-        if not self.frames:
-            raise Exception("No frames recorded, cannot validate agent colors.")
+        return agent_colors
 
-        self.agent_face_colors = self._normalize_colors(agent_face_colors, "agent face colors")
-        self.agent_edge_colors = self._normalize_colors(agent_edge_colors, "agent edge colors")
+    def _validate_agent_style_data(self,agent_face_colors,agent_edge_colors):
+        if self.agent_properties is not None: 
+            self.agent_face_colors = self._validate_agent_style_data_helper(
+                agent_colors=agent_face_colors,
+                agent_color_type="agent face colors"
+            )
 
-    def _normalize_colors(self, colors, label):
-        """Convert color input to a list of optional dicts, one per frame."""
-        n_frames = len(self.frames)
-        if colors is None:
-            return [None] * n_frames
-        if isinstance(colors, dict):
-            return [colors] * n_frames
-        if isinstance(colors, list):
-            assert len(colors) == n_frames, f"Number of {label} time steps does not match number of frames."
-            return colors
-        raise ValueError(f"Unexpected type for {label}: {type(colors)}")
+            self.agent_edge_colors = self._validate_agent_style_data_helper(
+                agent_colors=agent_edge_colors,
+                agent_color_type="agent face colors"
+            )
+
+        else:
+            raise Exception("No agent properties found, cannot validate agent face or edge colours.")
+
+    def _validate_timestep_agents(
+        self,
+        agent_states: List[AgentState],
+        agent_properties: List[AgentProperties]
+    ): 
+        assert len(agent_states) == len(agent_properties), "Number of given agent states and agent properties is unequal."
 
     def _transform_point_to_left_hand_coordinate_frame(self,x,orientation):
         t_x = 2*self.xy_offset[0] - x
@@ -1264,14 +1187,14 @@ class ScenePlotter():
         self, 
         idx, 
         ax=None, 
-        agent_ids=None, 
+        numbers=None, 
         direction_vec=True,
         velocity_vec=False, 
         plot_frame_number=False
     ):
         self._initialize_plot(
             ax=ax, 
-            agent_ids=agent_ids, 
+            numbers=numbers, 
             direction_vec=direction_vec,
             velocity_vec=velocity_vec, 
             plot_frame_number=plot_frame_number
@@ -1281,7 +1204,7 @@ class ScenePlotter():
     def _initialize_plot(
         self, 
         ax=None, 
-        agent_ids=None, 
+        numbers=None, 
         direction_vec=True,
         velocity_vec=False, 
         plot_frame_number=False
@@ -1289,11 +1212,8 @@ class ScenePlotter():
         if ax is None:
             plt.clf()
             ax = plt.gca()
-
         if self._open_drive is None:
             ax.imshow(self.map_image, extent=self.extent)
-            ax.set_xlim(*self.extent[0:2])
-            ax.set_ylim(*self.extent[2:4])
         else:
             self._draw_xodr_map(ax)
             self.extent = (self.xy_offset[0] - self.fov / 2, self.xy_offset[0] + self.fov / 2) +\
@@ -1311,29 +1231,31 @@ class ScenePlotter():
         self.waypoint_markers = {}
         self.frame_label = None
 
-        self.display_agent_ids = agent_ids
+        self.numbers = numbers
         self.direction_vec = direction_vec
         self.velocity_vec = velocity_vec
         self.plot_frame_number = plot_frame_number
 
+        self._update_frame_to(0)
+
     def _get_color(
         self,
-        agent_id: str,
-        color_dict: Optional[Dict[str, Color]]
+        agent_idx,
+        color_list
     ):
-        if color_dict is None or agent_id not in color_dict:
-            return None
-        c = color_dict[agent_id]
-        if c is None:
-            return None
-        is_good = isinstance(c, tuple) and len(c) == 3 and all(isinstance(v, float) and 0.0 <= v <= 1.0 for v in c)
-        if not is_good:
-            raise Exception(f"Expected color format is Tuple[float,float,float] with 0 <= float <= 1 but received {c}.")
+        c = None
+        if color_list and color_list[agent_idx]:
+            is_good_color_format = isinstance(color_list[agent_idx],tuple)
+            for pc in color_list[agent_idx]:
+                is_good_color_format *= isinstance(pc,float) and (0.0 <= pc <= 1.0)
+            
+            if not is_good_color_format:
+                raise Exception(f"Expected color format is Tuple[float,float,float] with 0 <= float <= 1 but received {color_list[agent_idx]}.")
+            c = color_list[agent_idx]
+
         return c
 
     def _update_frame_to(self, frame_idx):
-        frame = self.frames[frame_idx]
-
         for rect in self.actor_boxes.values():
             rect.set_visible(False)
         for marker in self.waypoint_markers.values():
@@ -1357,24 +1279,20 @@ class ScenePlotter():
                 lines.set_visible(False)
         for label in self.box_labels.values():
             label.set_visible(False)
-        for rect in self.traffic_light_boxes.values():
-            rect.set_visible(False)
 
-        for agent_id, agent_data in frame.agents.items():
+        for i in range(len(self.agent_properties[frame_idx])):
             self._update_agent(
-                agent_idx=agent_id,
-                agent_data=agent_data,
-                frame_idx=frame_idx,
-                agent_tags=frame.agent_tags,
+                agent_idx=i,
+                frame_idx=frame_idx
             )
-            if self.display_agent_ids is not None and agent_id in self.display_agent_ids:
+            if self.numbers is not None and i in self.numbers:
                 self._plot_waypoint(
-                    agent_idx=agent_id,
-                    agent_data=agent_data,
+                    agent_idx=i,
+                    frame_idx=frame_idx
                 )
 
-        if frame.traffic_lights is not None:
-            for light_id, light_state in frame.traffic_lights.items():
+        if self.traffic_lights_history[frame_idx] is not None:
+            for light_id, light_state in self.traffic_lights_history[frame_idx].items():
                 self._plot_traffic_light(light_id, light_state)
 
         if self.plot_frame_number:
@@ -1388,57 +1306,18 @@ class ScenePlotter():
                 )
             else:
                 self.frame_label.set_text(str(frame_idx))
-        
-        # cache everything for blitting
-        artists = list(self.actor_boxes.values())
-        artists.extend(self.traffic_light_boxes.values())
-        for lines in self.dir_lines.values():
-            if isinstance(lines, list):
-                artists.extend(lines)
-            else:
-                artists.append(lines)
-        for lines in self.v_lines.values():
-            if isinstance(lines, list):
-                artists.extend(lines)
-            else:
-                artists.append(lines)
-        artists.extend(self.box_labels.values())
-        for m in self.waypoint_markers.values():
-            elem = m["marker"]
-            if isinstance(elem, list):
-                artists.extend(elem)
-            else:
-                artists.append(elem)
-            artists.append(m["text"])
-        if self.frame_label is not None:
-            artists.append(self.frame_label)
-        return artists
 
-    def _resolve_tag_style(
-        self,
-        agent_id: str,
-        agent_tags: Optional[Dict[str, AgentTag]],
-    ) -> Optional[AgentTagStyle]:
-        """Return the :class:`AgentTagStyle` for agent_id or `None` if untagged.
-        Per-frame agent_tags take priority over default_agent_tags set at initialize_recording."""
-        tag = None
-        if agent_tags is not None:
-            tag = agent_tags.get(agent_id)
-        if tag is None and self.default_agent_tags is not None:
-            tag = self.default_agent_tags.get(agent_id)
-        if tag is None:
-            return None
-        return self.tag_styles.get(tag)
+        if self._open_drive is None:
+            self.current_ax.set_xlim(*self.extent[0:2])
+            self.current_ax.set_ylim(*self.extent[2:4])
 
     def _update_agent(
         self, 
-        agent_idx: str,
-        agent_data: AgentData,
-        frame_idx: int,
-        agent_tags: Optional[Dict[str, AgentTag]] = None,
+        agent_idx, 
+        frame_idx
     ):
-        agent = agent_data.state
-        agent_properties = agent_data.properties
+        agent = self.agent_states_history[frame_idx][agent_idx]
+        agent_properties = self.agent_properties[frame_idx][agent_idx]
 
         l, w = agent_properties.length, agent_properties.width
         if agent_properties.agent_type == "pedestrian":
@@ -1450,13 +1329,12 @@ class ScenePlotter():
         if self._left_hand_coordinates:
             x, psi = self._transform_point_to_left_hand_coordinate_frame(x,psi)
 
-        if self.velocity_vec:
-            box = np.array([
-                [0, 0], [l * 0.5, 0],  # direction vector
-                [0, 0], [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
-            ])
-            box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
+        box = np.array([
+            [0, 0], [l * 0.5, 0],  # direction vector
+            [0, 0], [v * 0.5, 0],  # speed vector at (0.5 m / s ) / m
+        ])
 
+        box = np.matmul(rot(psi), box.T).T + np.array([[x, y]])
         if self.direction_vec:
             marker_offset = agent_properties.length/4
             x_data = x + marker_offset*math.cos(psi)
@@ -1491,15 +1369,15 @@ class ScenePlotter():
                 self.v_lines[agent_idx].set_xdata(box[2:4, 0])
                 self.v_lines[agent_idx].set_ydata(box[2:4, 1])
 
-            self.v_lines[agent_idx].set_visible(True)
-
-        if self.display_agent_ids is not None and agent_idx in self.display_agent_ids:
+            self.v_lines[agent_idx][0].set_visible(True)
+        
+        if self.numbers is not None and agent_idx in self.numbers:
             if agent_idx not in self.box_labels:
                 self.box_labels[agent_idx] = self.current_ax.text(
                     x, 
                     y, 
-                    agent_idx,
-                    c="w",
+                    str(agent_idx), 
+                    c="r",
                     ha='center',
                     va='center',
                     fontsize=18*self._dpi_scale* (110/self.fov),
@@ -1512,62 +1390,44 @@ class ScenePlotter():
             self.box_labels[agent_idx].set_visible(True)
 
         lw = 1
-        fc = self._get_color(agent_idx, self.agent_face_colors[frame_idx])
-        ec = self._get_color(agent_idx, self.agent_edge_colors[frame_idx])
-        # Priority: per-agent color > tag style > agent type > default
-        if fc is None or ec is None:
-            tag_style = self._resolve_tag_style(agent_idx, agent_tags)
-            if fc is None:
-                if tag_style is not None:
-                    fc = tag_style.face_color
-                elif agent_properties.agent_type == "pedestrian":
-                    fc = self.agent_ped_c
-                else:
-                    fc = self.agent_c
-            if ec is None:
-                if tag_style is not None and tag_style.edge_color is not None:
-                    ec = tag_style.edge_color
-                else:
-                    lw = 0
-                    ec = fc
+        fc = self._get_color(agent_idx,self.agent_face_colors[frame_idx])
+        if fc is None:
+            fc = self.agent_c
+        ec = self._get_color(agent_idx,self.agent_edge_colors[frame_idx])
+        if ec is None:
+            lw = 0
+            ec = fc
+
+        rect = Rectangle(
+            (x - l / 2, y - w / 2), 
+            l, 
+            w, 
+            angle=psi * 180 / np.pi, 
+            rotation_point='center', 
+            fc=fc, 
+            ec=ec, 
+            lw=lw
+        )
 
         if agent_idx in self.actor_boxes:
-            rect = self.actor_boxes[agent_idx]
-            rect.set_xy((x - l / 2, y - w / 2))
-            rect.set_width(l)
-            rect.set_height(w)
-            rect.set_angle(psi * 180 / np.pi)
-            rect.set_facecolor(fc)
-            rect.set_edgecolor(ec)
-            rect.set_linewidth(lw)
-        else:
-            rect = Rectangle(
-                (x - l / 2, y - w / 2), 
-                l, 
-                w, 
-                angle=psi * 180 / np.pi, 
-                rotation_point='center', 
-                fc=fc, 
-                ec=ec, 
-                lw=lw
-            )
-            rect.set_clip_on(True)
-            self.current_ax.add_patch(rect)
-            self.actor_boxes[agent_idx] = rect
-
-        rect.set_visible(True)
+            self.actor_boxes[agent_idx].remove()
+        self.actor_boxes[agent_idx] = rect
+        self.actor_boxes[agent_idx].set_clip_on(True)
+        self.current_ax.add_patch(self.actor_boxes[agent_idx])
+        self.actor_boxes[agent_idx].set_visible(True)
 
     def _plot_waypoint(
-        self,
-        agent_idx: str,
-        agent_data: AgentData,
+        self, 
+        agent_idx, 
+        frame_idx
     ):
-        wps = agent_data.properties.waypoints if agent_data.properties else None
+        wps = self.waypoints_per_frame[frame_idx][agent_idx]
         if wps is not None and wps: #Ensure list is not empty
             wp = wps[0]
             x = float(wp.x)
             y = float(wp.y)
             psi = 0.0
+        
             if self._left_hand_coordinates:
                 x, psi = self._transform_point_to_left_hand_coordinate_frame(x, psi)
 
@@ -1590,7 +1450,7 @@ class ScenePlotter():
                 self.waypoint_markers[agent_idx]["text"] = self.current_ax.text(
                     x=x_data,
                     y=y_data,
-                    s=agent_idx,
+                    s=str(agent_idx),
                     c='w',
                     ha='center',
                     va='center',
@@ -1623,22 +1483,19 @@ class ScenePlotter():
         if self._left_hand_coordinates:
             x, psi = self._transform_point_to_left_hand_coordinate_frame(x,psi)
 
-        color = self.traffic_light_colors[light_state]
+        rect = Rectangle(
+            (x - l / 2, y - w / 2),
+            l,
+            w,
+            angle=psi * 180 / np.pi,
+            rotation_point="center",
+            fc=self.traffic_light_colors[light_state],
+            lw=0,
+        )
         if light_id in self.traffic_light_boxes:
-            self.traffic_light_boxes[light_id].set_facecolor(color)
-            self.traffic_light_boxes[light_id].set_visible(True)
-        else:
-            rect = Rectangle(
-                (x - l / 2, y - w / 2),
-                l,
-                w,
-                angle=psi * 180 / np.pi,
-                rotation_point="center",
-                fc=color,
-                lw=0,
-            )
-            self.current_ax.add_patch(rect)
-            self.traffic_light_boxes[light_id] = rect
+            self.traffic_light_boxes[light_id].remove()
+        self.current_ax.add_patch(rect)
+        self.traffic_light_boxes[light_id] = rect
 
     def _draw_xodr_map(self, ax, extras=False):
         """
@@ -1819,4 +1676,3 @@ class ScenePlotter():
                 )
 
         return None
-
