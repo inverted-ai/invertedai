@@ -355,11 +355,11 @@ class SimulationManager:
         if not self.agents_dict and not external_agent_data:
             raise ValueError("No agents remaining in simulation. All agents have been removed.")
 
-        # dont include end of road agents in DRIVE call
         on_road = (
             {k: v for k, v in self.agents_dict.items()
              if k not in self.end_of_road_handler._end_of_road_ids}
-            if self.end_of_road_handler else self.agents_dict
+            if (self.end_of_road_handler and self.end_of_road_handler.cfg.remove_agent)
+            else self.agents_dict
         )
         agent_ids, states, properties, recurrent_states = self._unpack(on_road)
         if len(recurrent_states) > 0: 
@@ -401,8 +401,14 @@ class SimulationManager:
                 external_ids=external_ids,
             )
 
+        #no more waypoints fro agents that have reached end of road even if they still in simulation
+        if self.end_of_road_handler:
+            for i, aid in enumerate(agent_ids):
+                if aid in self.end_of_road_handler._end_of_road_ids:
+                    properties[i].waypoints = None
+
         if self.waypoint_manager:
-            agents_mask = (
+            agents_mask = ( # mask for end-of-road agents
                 self.end_of_road_handler.get_agents_mask(agent_ids)
                 if self.end_of_road_handler else None
             )
@@ -422,16 +428,8 @@ class SimulationManager:
         )
 
         if self.scene_visualizer is not None:
-            frame_states = list(response.agent_states)
-            frame_props = list(properties)
-            frame_ids = list(agent_ids)
-            if self.end_of_road_handler and not self.end_of_road_handler.cfg.remove_agent:
-                for fid, fdata in self.end_of_road_handler.get_frozen_agents().items():
-                    frame_ids.append(fid)
-                    frame_states.append(fdata.state)
-                    frame_props.append(fdata.properties)
             self._frames.append(FrameData(
-                agents=FrameData.agents_from_lists(frame_states, frame_props, frame_ids),
+                agents=FrameData.agents_from_lists(response.agent_states, properties, agent_ids),
                 traffic_lights=response.traffic_lights_states,
                 agent_tags=self.agent_tags,
             ))
@@ -442,8 +440,6 @@ class SimulationManager:
                 properties=properties,
                 recurrent_states=response.recurrent_states,
             )
-            if self.end_of_road_handler and not self.end_of_road_handler.cfg.remove_agent:
-                all_agents_dict.update(self.end_of_road_handler.get_frozen_agents())
             if self.log_writer is not None:
                 self.log_writer.drive(
                     drive_response=response,
