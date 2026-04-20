@@ -26,10 +26,9 @@ class EndOfRoadConfig(BaseModel):
         no successors and whose distance to that lanelet's endpoint is less than
         this value is considered to be at the end of the road.
     remove_agent : bool
-        If True, end-of-road agents are dropped from the simulation entirely 
+        If True, end-of-road agents are dropped from the simulation entirely —
         they will not appear in subsequent drive calls, visualization, or logs.
-        If False, agents are frozen at their last known position and
-        continue to appear in visualization and logs.
+        If False, agents remain in drive calls but waypoint generation stops for them.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
     lanelet_map: lanelet2.core.LaneletMapLayers
@@ -39,26 +38,25 @@ class EndOfRoadConfig(BaseModel):
 
 class EndOfRoadHandler:
     """
-    Detects agents approaching the end of the road
+    Detects agents approaching the end of the road.
 
-    Detection uses only the lanelet routing graph and agent states
-    
-    SimulationManager calls :func:`update` before
-    calling WaypointManager so frozen agents retain their last valid waypoints,
-    and passes the resulting IDs as an ``agents_mask`` to
-    WaypointManager to stop waypoint generation for those agents.
+    Detection uses only the lanelet routing graph and agent states.
+
+    SimulationManager calls :func:`update` before calling WaypointManager,
+    and passes the resulting IDs as an ``agents_mask`` to WaypointManager
+    to stop waypoint generation for end-of-road agents.
     """
 
     def __init__(self, cfg: EndOfRoadConfig):
         self.cfg = cfg
         self._routing_graph = lanelet2.routing.RoutingGraph(cfg.lanelet_map, _traffic_rules)
         self._end_of_road_ids: set = set()
-        self._frozen_agents: SimulationAgentDict = {}
+        self._end_of_road_agents: SimulationAgentDict = {}
 
     def is_end_of_road(self, state: AgentState) -> bool:
         """
         Returns True if the agent is near the end of a lanelet with
-        no following lanelets in the routing graph
+        no following lanelets in the routing graph.
 
         inspired by 'func:generate_lane_ids_from_lanelet_map' in helpers/waypoints.py
         """
@@ -102,40 +100,38 @@ class EndOfRoadHandler:
         external_ids: set,
     ) -> None:
         """
-        Detect new end of road agents and update internal state
+        Detect new end-of-road agents and record their state snapshot.
 
-        Must be called with pre waypoint update agent_properties so frozen agents
-        retain their last valid waypoints rather than the empty list that
-        results from a failed generation attempt.
+        Must be called with pre waypoint update agent_properties so that
+        the recorded snapshot retains the last valid waypoints.
         """
-        print("offroad agents", self._end_of_road_ids)
         for i, aid in enumerate(agent_ids):
             if aid in external_ids or aid in self._end_of_road_ids:
-                print(f"Skipping end of road check for agent {aid} since it is already marked as end of road or external")
                 continue
             if self.is_end_of_road(agent_states[i]):
                 self._end_of_road_ids.add(aid)
-                if not self.cfg.remove_agent:
-                    self._frozen_agents[aid] = AgentData(
-                        state=agent_states[i],
-                        properties=properties[i],
-                        recurrent=recurrent_states[i],
-                    )
+                self._end_of_road_agents[aid] = AgentData(
+                    state=agent_states[i],
+                    properties=properties[i],
+                    recurrent=recurrent_states[i],
+                )
 
     def get_agents_mask(self, agent_ids: List[str]) -> List[bool]:
         """
-        Returns a boolean mask for WaypointManager.update() to skips
-        waypoint generation for all end of road agents.
+        Returns a boolean mask for WaypointManager.update() to skip
+        waypoint generation for all end-of-road agents.
         """
         return [aid not in self._end_of_road_ids for aid in agent_ids]
 
-    def get_frozen_agents(self) -> SimulationAgentDict:
-        """Returns the frozen agent dict for visualization frames and logs"""
-        return self._frozen_agents
+    def get_end_of_road_agents(self) -> SimulationAgentDict:
+        """
+        Returns a SimulationAgentDict of every agent that has reached end-of-road,
+        keyed by agent ID, with state/properties/recurrent at time of detection.
+        """
+        return self._end_of_road_agents
 
     def remove_agents(self, agent_ids: List[str]) -> None:
-        """Clean up handler state when agents are manually removed"""
+        """Clean up handler state when agents are manually removed."""
         for aid in agent_ids:
             self._end_of_road_ids.discard(aid)
-            self._frozen_agents.pop(aid, None)
-
+            self._end_of_road_agents.pop(aid, None)
