@@ -54,6 +54,7 @@ from invertedai.logs.debug_logger import DebugLogger
 
 # --- Helpers ---
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
+from invertedai.helpers.end_of_road_handler import EndOfRoadConfig, EndOfRoadHandler
 from invertedai.simulation_manager import SimulationManager
 
 # --- Common data types ---
@@ -169,6 +170,8 @@ __all__ = [
     "AgentID",
     "SimulationAgentDict",
     "SimulationManager",
+    "EndOfRoadConfig",
+    "EndOfRoadHandler",
     # Session and utilities
     "session",
     "add_apikey",
