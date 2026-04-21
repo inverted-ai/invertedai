@@ -32,6 +32,7 @@ scene_viz_cfg = SceneVisualizerConfig(
     ax=ax,
 )
 waypoint_cfg = WaypointManagerConfig(lanelet_map=location_info_response.get_lanelet_map())
+# for open maps it is recommended to use EndOfRoadHandler to prevent unrealistic behavior at the end of roads
 end_of_road_cfg = EndOfRoadConfig(
     lanelet_map=location_info_response.get_lanelet_map(), 
     remove_agent=True
