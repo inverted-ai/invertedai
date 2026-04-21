@@ -6,7 +6,7 @@ import lanelet2
 import numpy as np
 
 from invertedai.common import AgentState, AgentProperties, AgentData, RecurrentState, SimulationAgentDict
-from invertedai.helpers.waypoints import _find_direction_and_nearest_points
+from invertedai.helpers.waypoints import _find_aligned_lanelets
 
 _traffic_rules = lanelet2.traffic_rules.create(
     lanelet2.traffic_rules.Locations.Germany,
@@ -61,25 +61,7 @@ class EndOfRoadHandler:
         inspired by 'func:generate_lane_ids_from_lanelet_map' in helpers/waypoints.py
         """
         x, y, yaw = state.center.x, state.center.y, state.orientation
-        filtered_lanelets = []
-        for radius in [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]:
-            starting_lanelets = lanelet2.geometry.findWithin2d(
-                self.cfg.lanelet_map.laneletLayer,
-                lanelet2.core.BasicPoint2d(x, y),
-                radius
-            )
-            for _, ll in sorted(starting_lanelets, key=lambda l: l[1].id):
-                a, b = _find_direction_and_nearest_points(
-                    ll.centerline,
-                    lanelet2.core.BasicPoint3d(x, y, 0)
-                )
-                lane_orientation = np.arctan2(b.y - a.y, b.x - a.x)
-                angle = np.absolute((yaw - lane_orientation + np.pi) % (2 * np.pi) - np.pi)
-                if angle < 75 * np.pi / 180:
-                    filtered_lanelets.append((ll, angle))
-            if filtered_lanelets:
-                break
-
+        filtered_lanelets = _find_aligned_lanelets(self.cfg.lanelet_map, x, y, yaw)
         if not filtered_lanelets:
             return False
 
