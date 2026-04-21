@@ -36,7 +36,7 @@ class WaypointManagerConfig(BaseModel):
     waypoint_spacing: float = 30.0 #Distance in meters between waypoints along a path to an end goal
     random_seed: int = int(time.time()) #Pseudo-random seed for repeatability
     log_level: Optional[int] = logging.DEBUG #Configure the level of the logger for convenience 
-    fail_soft: Optional[bool] = False #If an error is experienced, the manager will continue in a fail soft state instead of raising an Exception
+    fail_soft: Optional[bool] = True #If an error is experienced, the manager will continue in a fail soft state instead of raising an Exception
 
 class WaypointUpdateFlags(Enum):
     UNINITIALIZE_WAYPOINTS = 0
@@ -489,34 +489,20 @@ def generate_lane_ids_from_lanelet_map(
     rng = np.random.default_rng(seed)
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
-    filtered_lanelets = []
-    radius_to_check = [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]
     beta = 5.0 # parameter for lane change probability
-    for radius in radius_to_check:
-        starting_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(x, y), radius)
-        for _, lanelet in sorted(starting_lanelets, key=lambda lanelet: lanelet[1].id): # laneletLayer is backed by an unordered_map, so we sort by id to have deterministic behavior
-            a, b = _find_direction_and_nearest_points(lanelet.centerline, lanelet2.core.BasicPoint3d(x, y, 0))
-            lane_orientation = np.arctan2(b.y - a.y, b.x - a.x)
-            angle = np.absolute((yaw - lane_orientation + np.pi) % (2 * np.pi) - np.pi)
-            if angle < 75 * np.pi / 180:
-                filtered_lanelets.append((lanelet, angle))
-        if len(filtered_lanelets) > 0:
-            break
-    if len(starting_lanelets) == 0:
-        msg = f"Warning: Could not find any lanes in the starting position."
-        if logger is not None: logger.log(
-            level=logger.getEffectiveLevel(),
-            msg=msg
-        )
+    filtered_lanelets, any_found = _find_aligned_lanelets(lanelet_map, x, y, yaw)
+    if not any_found:
+        if logger is not None:
+            logger.log(level=logger.getEffectiveLevel(), msg="Warning: Could not find any lanes in the starting position.")
         return []
-    if len(filtered_lanelets) == 0:
-        if logger is not None: 
-            msg = f"Warning: Could not find any lanes aligned with the agent's orientation."
+    if not filtered_lanelets:
+        if logger is not None:
             logger.log(
                 level=logger.getEffectiveLevel(),
-                msg=msg
+                msg="Warning: Could not find any lanes aligned with the agent's orientation."
             )
         return []
+
     if destination_waypoint is not None:
         ending_lanelets = lanelet2.geometry.findWithin2d(lanelet_map.laneletLayer, lanelet2.core.BasicPoint2d(destination_waypoint.x, destination_waypoint.y), 0)
         possible_routes = []
@@ -608,6 +594,37 @@ def _find_direction_and_nearest_points(
         point_b, point_a = linestring[second_closest_point_idx], linestring[closest_point_idx]
 
     return point_a, point_b
+
+def _find_aligned_lanelets(
+    lanelet_map: lanelet2.core.LaneletMapLayers,
+    x: float,
+    y: float,
+    yaw: float,
+) -> Tuple[List[Tuple], bool]:
+    """Search expanding radii for lanelets whose heading is within 75° of yaw.
+
+    Returns (filtered_lanelets, any_found) where any_found is True if any
+    lanelets were found within any radius
+    """
+    filtered_lanelets = []
+    any_found = False
+    for radius in [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]:
+        starting_lanelets = lanelet2.geometry.findWithin2d(
+            lanelet_map.laneletLayer,
+            lanelet2.core.BasicPoint2d(x, y),
+            radius
+        )
+        if starting_lanelets:
+            any_found = True
+        for _, lanelet in sorted(starting_lanelets, key=lambda l: l[1].id):
+            a, b = _find_direction_and_nearest_points(lanelet.centerline, lanelet2.core.BasicPoint3d(x, y, 0))
+            lane_orientation = np.arctan2(b.y - a.y, b.x - a.x)
+            angle = np.absolute((yaw - lane_orientation + np.pi) % (2 * np.pi) - np.pi)
+            if angle < 75 * np.pi / 180:
+                filtered_lanelets.append((lanelet, angle))
+        if filtered_lanelets:
+            break
+    return filtered_lanelets, any_found
 
 def _hermite_spline(
     p0: np.ndarray, 

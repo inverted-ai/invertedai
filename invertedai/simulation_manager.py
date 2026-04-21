@@ -6,6 +6,7 @@ from invertedai.common import RECURRENT_SIZE, AgentState, AgentProperties, Recur
 from invertedai.api.initialize import InitializeResponse
 from invertedai.api.drive import DriveResponse
 from invertedai.helpers.waypoints import WaypointManagerConfig, WaypointManager
+from invertedai.helpers.end_of_road_handler import EndOfRoadConfig, EndOfRoadHandler
 from invertedai.utils import ScenePlotterConfig
 from invertedai.helpers.scene_visualizer import SceneVisualizer, SceneVisualizerConfig, FrameData, AgentTag
 from invertedai.large.initialize import large_initialize, get_regions_default, RegionsConfig
@@ -33,6 +34,9 @@ class SimulationManager:
     log_writer_cfg : Optional[LogWriterConfig]
         Configuration for enabling structured logging of the simulation
         If provided all initialize and drive steps will be recorded to a JSON log
+    end_of_road_cfg : Optional[EndOfRoadConfig]
+        Configuration for enabling end-of-road detection and handling
+        If provided, agents approaching the end of the road will be automatically detected and handled according to the configuration
     """
     def __init__(
             self,
@@ -40,6 +44,7 @@ class SimulationManager:
             scene_plotter_cfg: Optional[ScenePlotterConfig] = None, # deprecated: use scene_visualizer_cfg instead
             waypoint_cfg : Optional[WaypointManagerConfig] = None, # can optionally initialize a waypointManager to manage waypoints
             log_writer_cfg: Optional[LogWriterConfig] = None, # can optionally initialize a log_writer_cfg to write a json file log of the simulation
+            end_of_road_cfg: Optional[EndOfRoadConfig] = None,
         ):
             if scene_plotter_cfg is not None:
                 warnings.warn('scene_plotter_cfg is deprecated. Use scene_visualizer_cfg instead.', category=DeprecationWarning)
@@ -63,8 +68,12 @@ class SimulationManager:
             self.agents_dict: SimulationAgentDict = defaultdict(AgentData)
             self.agent_tags: Optional[dict] = None  # Dict[AgentID, AgentTag] — applied to every recorded frame
             self.waypoint_manager: Optional[WaypointManager] = None
+            self.end_of_road_handler: Optional[EndOfRoadHandler] = None
             if waypoint_cfg:
                 self.waypoint_manager = WaypointManager(cfg=waypoint_cfg)
+            if end_of_road_cfg:
+                self.end_of_road_handler=EndOfRoadHandler(end_of_road_cfg)
+            self.agents_mask: Optional[List[bool]] = None
             self.log_writer = None
             self.log_writer_cfg = log_writer_cfg
             if log_writer_cfg:
@@ -137,11 +146,16 @@ class SimulationManager:
         KeyError
             If any AgentID does not exist in self.agents_dict
         """
-        missing = [aid for aid in agent_ids if aid not in self.agents_dict]
+        all_ids = set(self.agents_dict.keys())
+        if self.end_of_road_handler:
+            all_ids = all_ids.union(self.end_of_road_handler._end_of_road_ids) # need to check both sets of ids
+        missing = [aid for aid in agent_ids if aid not in all_ids]
         if missing:
             raise KeyError(f"Agents do not exist: {missing}. Cannot be removed.")
         for aid in agent_ids:
-            self.agents_dict.pop(aid)
+            self.agents_dict.pop(aid, None)
+        if self.end_of_road_handler:
+            self.end_of_road_handler.remove_agents(agent_ids)
     
     def _unpack(
         self,
@@ -153,7 +167,7 @@ class SimulationManager:
         List[RecurrentState],
     ]:
         # agents with both properties and states will be placed at the front of the list
-        # Separate agents into two groups: with states & without states
+        # separate agents into two groups: with states & without states
         agents_with_states = []
         agents_without_states = []
         if agent_dict is None:
@@ -262,9 +276,11 @@ class SimulationManager:
 
         new_properties = response.agent_properties
         if self.waypoint_manager:
+            self.agents_mask = [True] * len(all_agent_ids)  # default to all True
             new_properties = self.waypoint_manager.update(
                 response = response,
                 agent_properties = response.agent_properties,
+                agents_mask = self.agents_mask
             )
         internal_indices = []
         for i, aid in enumerate(all_agent_ids):
@@ -339,9 +355,18 @@ class SimulationManager:
             if overlap:
                 raise ValueError(f"External agent IDs conflict with internal agents: {overlap}")
             
-        agent_ids, states, properties, recurrent_states = self._unpack(self.agents_dict)
+        if not self.agents_dict and not external_agent_data:
+            raise ValueError("No agents remaining in simulation. All agents have been removed.")
+
+        on_road = (
+            {k: v for k, v in self.agents_dict.items()
+             if k not in self.end_of_road_handler._end_of_road_ids}
+            if (self.end_of_road_handler and self.end_of_road_handler.cfg.remove_agent)
+            else self.agents_dict
+        )
+        agent_ids, states, properties, recurrent_states = self._unpack(on_road)
         if len(recurrent_states) > 0: 
-             internal_recur_size = len(recurrent_states[0].packed)
+            internal_recur_size = len(recurrent_states[0].packed)
         else: 
             internal_recur_size = RECURRENT_SIZE
         if external_agent_data:
@@ -368,21 +393,38 @@ class SimulationManager:
             recurrent_states=recurrent_states,
             **kwargs
         )
+
+        # detect end of road before waypoint update so agents retain their last valid waypoints
+        if self.end_of_road_handler:
+            self.end_of_road_handler.update(
+                agent_ids=agent_ids,
+                agent_states=response.agent_states,
+                properties=properties,
+                recurrent_states=response.recurrent_states,
+                external_ids=external_ids,
+            )
+        #stop generating waypoints for agents that have reached end of road
+            for i, aid in enumerate(agent_ids):
+                if aid in self.end_of_road_handler._end_of_road_ids:
+                    properties[i].waypoints = None
+            self.agents_mask = self.end_of_road_handler.get_agents_mask(agent_ids)
+
         if self.waypoint_manager:
             properties = self.waypoint_manager.update(
-                response = response,
-                agent_properties = properties,
+                response=response,
+                agent_properties=properties,
+                agents_mask=self.agents_mask,
             )
-        internal_indices = []
-        for i, aid in enumerate(agent_ids):
-            if aid not in external_ids:
-                internal_indices.append(i)
+
+        remove_ids = self.end_of_road_handler._end_of_road_ids if (self.end_of_road_handler and self.end_of_road_handler.cfg.remove_agent) else set()
+        internal_indices = [i for i, aid in enumerate(agent_ids) if aid not in external_ids and aid not in remove_ids]
         self.agents_dict = self._pack(
             agent_ids=[agent_ids[i] for i in internal_indices],
             states=[response.agent_states[i] for i in internal_indices],
             properties=[properties[i] for i in internal_indices],
             recurrent_states=[response.recurrent_states[i] for i in internal_indices],
         )
+
         if self.scene_visualizer is not None:
             self._frames.append(FrameData(
                 agents=FrameData.agents_from_lists(response.agent_states, properties, agent_ids),

@@ -388,6 +388,7 @@ class SceneVisualizer:
                     m.set_visible(False)
             else:
                 elem.set_visible(False)
+            marker["text"].set_visible(False)
         for lines in self.dir_lines.values():
             if isinstance(lines, list):
                 for line in lines:
