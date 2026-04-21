@@ -61,7 +61,7 @@ class EndOfRoadHandler:
         inspired by 'func:generate_lane_ids_from_lanelet_map' in helpers/waypoints.py
         """
         x, y, yaw = state.center.x, state.center.y, state.orientation
-        filtered_lanelets = _find_aligned_lanelets(self.cfg.lanelet_map, x, y, yaw)
+        filtered_lanelets, _ = _find_aligned_lanelets(self.cfg.lanelet_map, x, y, yaw)
         if not filtered_lanelets:
             return False
 

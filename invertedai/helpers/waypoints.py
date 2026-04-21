@@ -490,7 +490,11 @@ def generate_lane_ids_from_lanelet_map(
     routing_graph = lanelet2.routing.RoutingGraph(lanelet_map, traffic_rules)
     x, y, yaw = start_state.center.x, start_state.center.y, start_state.orientation
     beta = 5.0 # parameter for lane change probability
-    filtered_lanelets = _find_aligned_lanelets(lanelet_map, x, y, yaw)
+    filtered_lanelets, any_found = _find_aligned_lanelets(lanelet_map, x, y, yaw)
+    if not any_found:
+        if logger is not None:
+            logger.log(level=logger.getEffectiveLevel(), msg="Warning: Could not find any lanes in the starting position.")
+        return []
     if not filtered_lanelets:
         if logger is not None:
             logger.log(
@@ -596,15 +600,22 @@ def _find_aligned_lanelets(
     x: float,
     y: float,
     yaw: float,
-) -> List[Tuple]:
-    """Search expanding radii for lanelets whose heading is within 75° of yaw."""
+) -> Tuple[List[Tuple], bool]:
+    """Search expanding radii for lanelets whose heading is within 75° of yaw.
+
+    Returns (filtered_lanelets, any_found) where any_found is True if any
+    lanelets were found within any radius
+    """
     filtered_lanelets = []
+    any_found = False
     for radius in [0.0, 0.1, 0.5, 1.0, 2.0, 5.0]:
         starting_lanelets = lanelet2.geometry.findWithin2d(
             lanelet_map.laneletLayer,
             lanelet2.core.BasicPoint2d(x, y),
             radius
         )
+        if starting_lanelets:
+            any_found = True
         for _, lanelet in sorted(starting_lanelets, key=lambda l: l[1].id):
             a, b = _find_direction_and_nearest_points(lanelet.centerline, lanelet2.core.BasicPoint3d(x, y, 0))
             lane_orientation = np.arctan2(b.y - a.y, b.x - a.x)
@@ -613,7 +624,7 @@ def _find_aligned_lanelets(
                 filtered_lanelets.append((lanelet, angle))
         if filtered_lanelets:
             break
-    return filtered_lanelets
+    return filtered_lanelets, any_found
 
 def _hermite_spline(
     p0: np.ndarray, 
