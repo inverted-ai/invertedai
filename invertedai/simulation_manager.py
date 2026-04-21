@@ -400,9 +400,7 @@ class SimulationManager:
                 recurrent_states=response.recurrent_states,
                 external_ids=external_ids,
             )
-
-        #no more waypoints fro agents that have reached end of road even if they still in simulation
-        if self.end_of_road_handler:
+        #stop generating waypoints for agents that have reached end of road
             for i, aid in enumerate(agent_ids):
                 if aid in self.end_of_road_handler._end_of_road_ids:
                     properties[i].waypoints = None
