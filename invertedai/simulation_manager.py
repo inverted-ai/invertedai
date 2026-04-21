@@ -73,6 +73,7 @@ class SimulationManager:
                 self.waypoint_manager = WaypointManager(cfg=waypoint_cfg)
             if end_of_road_cfg:
                 self.end_of_road_handler=EndOfRoadHandler(end_of_road_cfg)
+            self.agents_mask: Optional[List[bool]] = None
             self.log_writer = None
             self.log_writer_cfg = log_writer_cfg
             if log_writer_cfg:
@@ -275,9 +276,11 @@ class SimulationManager:
 
         new_properties = response.agent_properties
         if self.waypoint_manager:
+            self.agents_mask = [True] * len(all_agent_ids)  # default to all True
             new_properties = self.waypoint_manager.update(
                 response = response,
                 agent_properties = response.agent_properties,
+                agents_mask = self.agents_mask
             )
         internal_indices = []
         for i, aid in enumerate(all_agent_ids):
@@ -404,16 +407,13 @@ class SimulationManager:
             for i, aid in enumerate(agent_ids):
                 if aid in self.end_of_road_handler._end_of_road_ids:
                     properties[i].waypoints = None
+            self.agents_mask = self.end_of_road_handler.get_agents_mask(agent_ids)
 
         if self.waypoint_manager:
-            agents_mask = ( # mask for end-of-road agents
-                self.end_of_road_handler.get_agents_mask(agent_ids)
-                if self.end_of_road_handler else None
-            )
             properties = self.waypoint_manager.update(
                 response=response,
                 agent_properties=properties,
-                agents_mask=agents_mask,
+                agents_mask=self.agents_mask,
             )
 
         remove_ids = self.end_of_road_handler._end_of_road_ids if (self.end_of_road_handler and self.end_of_road_handler.cfg.remove_agent) else set()
