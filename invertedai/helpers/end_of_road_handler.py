@@ -21,7 +21,7 @@ class EndOfRoadConfig(BaseModel):
     Parameters:
     lanelet_map : lanelet2.core.LaneletMapLayers
         Projected lanelet map used to check for following lanelets.
-    waypoint_spacing : float
+    end_of_lanelet_spacing : float
         Distance threshold in meters. An agent whose best-aligned lanelet has
         no successors and whose distance to that lanelet's endpoint is less than
         this value is considered to be at the end of the road.
@@ -32,7 +32,7 @@ class EndOfRoadConfig(BaseModel):
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
     lanelet_map: lanelet2.core.LaneletMapLayers
-    waypoint_spacing: float = 3.0
+    end_of_lanelet_spacing: float = 3.0
     remove_agent: bool = True
 
 
@@ -89,7 +89,7 @@ class EndOfRoadHandler:
 
         end_point = best_lanelet.centerline[-1]
         dist_to_end = np.sqrt((x - end_point.x) ** 2 + (y - end_point.y) ** 2)
-        return dist_to_end < self.cfg.waypoint_spacing
+        return dist_to_end < self.cfg.end_of_lanelet_spacing
 
     def update(
         self,
