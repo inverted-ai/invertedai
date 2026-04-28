@@ -131,6 +131,7 @@ const std::string Session::request(
   req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
   req.set("Accept-Encoding", "gzip");
   req.set("accept", "application/json");
+  req.set(http::field::content_type, "application/json");
   req.set("x-api-key", this->api_key_);
   req.set("x-client-version", INVERTEDAI_VERSION);
   req.set("Connection","keep-alive");
