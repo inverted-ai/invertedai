@@ -140,4 +140,29 @@ cc_binary(
     visibility = ["//visibility:public"],
 )
 
+cc_binary(
+    name = "scenario_replay_ego_takeover_example",
+    srcs = ["scenario_replay_ego_takeover_example.cc"],
+    data = [
+        "carla_Town10HD_log.json",
+    ],
+    deps = [
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:logger",
+        "//invertedai:visualize",
+        "//invertedai:location_info_request",
+        "//invertedai:location_info_response",
+        "//invertedai:drive_request",
+        "//invertedai:drive_response",
+        "//invertedai:initialize_request",
+        "//invertedai:initialize_response",
+        "//large/large_drive:large_drive_lib",
+        "//large/large_initialize:large_initialize_lib",
+        "//invertedai/externals:json",
+        "@boost//:asio",
+        "@opencv//:opencv",
+    ],
+    visibility = ["//visibility:public"],
+)
 
