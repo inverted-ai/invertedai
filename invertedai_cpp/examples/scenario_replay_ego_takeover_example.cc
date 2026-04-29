@@ -1,8 +1,12 @@
+#include <algorithm>
+#include <cstddef>
 #include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <optional>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -58,6 +62,71 @@ using namespace invertedai;
 
 namespace {
 
+// reinit_cfg.regions must not request NPC sampling, otherwise large_initialize
+// will spawn extra agents on top of the caller's intended population.
+void update_agent_population(
+    std::vector<AgentState> &agent_states,
+    std::vector<AgentProperties> &agent_properties,
+    std::vector<std::vector<double>> &recurrent_states,
+    LargeInitializeConfig &reinit_cfg,
+    const std::vector<std::size_t> &agent_ids_to_remove = {},
+    const std::vector<AgentState> &agent_states_to_add = {},
+    const std::vector<AgentProperties> &agent_properties_to_add = {}
+) {
+    if (agent_states_to_add.size() != agent_properties_to_add.size()) {
+        throw std::invalid_argument(
+            "agent_states_to_add and agent_properties_to_add must be the same length"
+        );
+    }
+    if (agent_ids_to_remove.empty() && agent_states_to_add.empty()) {
+        return;
+    }
+
+    // Erase from the highest index down so earlier indices stay valid.
+    std::vector<std::size_t> sorted_ids = agent_ids_to_remove;
+    std::sort(
+        sorted_ids.begin(),
+        sorted_ids.end(),
+        std::greater<std::size_t>()
+    );
+    auto unique_end = std::unique(
+        sorted_ids.begin(),
+        sorted_ids.end()
+    );
+    sorted_ids.erase(
+        unique_end,
+        sorted_ids.end()
+    );
+    for (std::size_t id : sorted_ids) {
+        if (id >= agent_states.size()) {
+            throw std::out_of_range(
+                "agent_id_to_remove " + std::to_string(id) + " is out of range"
+            );
+        }
+        agent_states.erase(agent_states.begin() + id);
+        agent_properties.erase(agent_properties.begin() + id);
+        recurrent_states.erase(recurrent_states.begin() + id);
+    }
+
+    agent_states.insert(
+        agent_states.end(),
+        agent_states_to_add.begin(),
+        agent_states_to_add.end()
+    );
+    agent_properties.insert(
+        agent_properties.end(),
+        agent_properties_to_add.begin(),
+        agent_properties_to_add.end()
+    );
+
+    reinit_cfg.agent_states = agent_states;
+    reinit_cfg.agent_properties = agent_properties;
+    InitializeResponse response = large_initialize(reinit_cfg);
+    agent_states = response.agent_states();
+    agent_properties = response.agent_properties();
+    recurrent_states = response.recurrent_states();
+}
+
 void print_usage(const char *bin) {
     std::cout << "Usage: " << bin << " [options]\n\n"
               << "Options:\n"
@@ -78,15 +147,18 @@ void print_usage(const char *bin) {
 
 } // namespace
 
-int main(int argc, char **argv) {
+int main(
+    int argc,
+    char **argv
+) {
     std::string log_path = "examples/carla_Town10HD_log.json";
     int num_agents = 1;
     int sim_length = 100;
     int takeover_timestep = 1;
     int ego_id = 0;
-    int fov = 100;
-    int width = 100;
-    int height = 100;
+    int fov = 200;
+    int width = 200;
+    int height = 200;
     std::optional<float> scenario_center_x = std::nullopt;
     std::optional<float> scenario_center_y = std::nullopt;
     bool get_infractions = false;
@@ -142,11 +214,17 @@ int main(int argc, char **argv) {
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    int seed = std::uniform_int_distribution<>(1, 1000000)(gen);
+    int seed = std::uniform_int_distribution<>(
+        1,
+        1000000
+    )(gen);
 
     boost::asio::io_context ioc;
     ssl::context ctx(ssl::context::tlsv12_client);
-    Session session(ioc, ctx);
+    Session session(
+        ioc,
+        ctx
+    );
     session.set_api_key(API_KEY);
     session.connect();
 
@@ -174,9 +252,15 @@ int main(int argc, char **argv) {
     li_req.set_include_map_source(true);
     li_req.set_rendering_fov(fov);
     if (scenario_center_x.has_value() && scenario_center_y.has_value()) {
-        li_req.set_rendering_center(std::make_pair<double, double>(*scenario_center_x, *scenario_center_y));
+        li_req.set_rendering_center(std::make_pair<double, double>(
+            *scenario_center_x,
+            *scenario_center_y
+        ));
     }
-    LocationInfoResponse li_res = location_info(li_req, &session);
+    LocationInfoResponse li_res = location_info(
+        li_req,
+        &session
+    );
 
     std::pair<float, float> scenario_center;
     if (scenario_center_x.has_value() && scenario_center_y.has_value()) {
@@ -198,11 +282,15 @@ int main(int argc, char **argv) {
             session,
             std::pair<float, float>{width / 2.f, height / 2.f},
             scenario_center,
-            seed);
+            seed
+        );
         std::cout << "Generated " << regions.size() << " regions for " << num_agents << " sampled NPCs.\n";
     } else {
         Point2d center{scenario_center.first, scenario_center.second};
-        regions.push_back(Region::create_square_region(center, static_cast<double>(fov)));
+        regions.push_back(Region::create_square_region(
+            center,
+            static_cast<double>(fov)
+        ));
         std::cout << "No NPCs requested; using a single square region of size " << fov << " around the scenario center.\n";
     }
 
@@ -216,6 +304,21 @@ int main(int argc, char **argv) {
     init_cfg.random_seed = seed;
     init_cfg.api_model_version = model_version_or_nullopt;
     init_cfg.return_exact_agents = true;
+
+    LargeInitializeConfig reinit_cfg(session);
+    reinit_cfg.location = location;
+    reinit_cfg.regions = {Region::create_square_region(
+        Point2d{scenario_center.first, scenario_center.second},
+        std::max({
+            static_cast<double>(width),
+            static_cast<double>(height),
+            static_cast<double>(fov)
+        })
+    )};
+    reinit_cfg.get_infractions = get_infractions;
+    reinit_cfg.random_seed = seed;
+    reinit_cfg.api_model_version = model_version_or_nullopt;
+    reinit_cfg.return_exact_agents = true;
 
     std::cout << "Calling large_initialize...\n";
     InitializeResponse init_response = large_initialize(init_cfg);
@@ -240,12 +343,21 @@ int main(int argc, char **argv) {
         seed,
         seed,
         model_version_or_nullopt,
-        std::nullopt);
+        std::nullopt
+    );
 
     bool flip_x_for_carla = (location.rfind("carla:", 0) == 0);
-    ScenePlotter scene_plotter(li_res, flip_x_for_carla);
-    const std::string video_path = "scenario_replay_ego_takeover.avi";
-    scene_plotter.initialize_video(video_path, 10);
+    ScenePlotter scene_plotter(
+        li_res,
+        flip_x_for_carla,
+        static_cast<double>(fov),
+        2048
+    );
+    const std::string video_path = "scenario_replay_ego_takeover.mp4";
+    scene_plotter.initialize_video(
+        video_path,
+        10
+    );
 
     std::cout << "Stepping through simulation for " << sim_length << " timesteps...\n";
     for (int ts = 0; ts < sim_length; ++ts) {
@@ -279,7 +391,10 @@ int main(int argc, char **argv) {
         if (ts < LOG_LENGTH) {
             log_reader.drive();
             const std::vector<AgentState> log_states = log_reader.current_agent_states();
-            const size_t bound = std::min(NUM_LOG_AGENTS, log_states.size());
+            const size_t bound = std::min(
+                NUM_LOG_AGENTS,
+                log_states.size()
+            );
             for (size_t i = 0; i < bound; ++i) {
                 if (static_cast<int>(i) == ego_id && ts >= takeover_timestep) {
                     continue;
@@ -290,7 +405,24 @@ int main(int argc, char **argv) {
         }
 
         log_writer.drive(drive_response);
-        scene_plotter.render_step(agent_states, agent_properties, traffic_lights_out);
+        scene_plotter.render_step(
+            agent_states,
+            agent_properties,
+            traffic_lights_out
+        );
+
+        std::vector<std::size_t> agent_ids_to_remove;
+        std::vector<AgentState> agent_states_to_add;
+        std::vector<AgentProperties> agent_properties_to_add;
+        update_agent_population(
+            agent_states,
+            agent_properties,
+            recurrent_states,
+            reinit_cfg,
+            agent_ids_to_remove,
+            agent_states_to_add,
+            agent_properties_to_add
+        );
 
         if ((ts + 1) % 10 == 0 || ts + 1 == sim_length) {
             std::cout << "  step " << (ts + 1) << "/" << sim_length << "\n";
@@ -300,7 +432,11 @@ int main(int argc, char **argv) {
     scene_plotter.close();
 
     const std::string output_log_path = "scenario_replay_ego_takeover_output.json";
-    log_writer.export_to_file(output_log_path, std::nullopt, li_res);
+    log_writer.export_to_file(
+        output_log_path,
+        std::nullopt,
+        li_res
+    );
 
     std::cout << "\nDone. Created:\n"
               << "  - " << video_path << "\n"

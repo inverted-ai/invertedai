@@ -42,8 +42,8 @@ void ScenePlotter::draw_traffic_lights(
         if (!actor) continue;
         double length_m = std::max(1.0, actor->length.value_or(1.0));
         double width_m = std::max(1.0, actor->width.value_or(1.0));
-        double pixel_length = length_m * 875/this->li_res_.rendering_fov();
-        double pixel_width = width_m * 625/this->li_res_.rendering_fov();
+        double pixel_length = length_m * projector_.scale;
+        double pixel_width = width_m * projector_.scale;
         double psi_deg = -actor->orientation * 180.0 / CV_PI;
         if (flip_x_)
             psi_deg = 180.0 - psi_deg;
@@ -53,7 +53,8 @@ void ScenePlotter::draw_traffic_lights(
         cv::fillConvexPoly(
             frame,
             std::vector<cv::Point>{pts[0], pts[1], pts[2], pts[3]},
-            color
+            color,
+            cv::LINE_AA
         );
     }
 }
@@ -68,12 +69,13 @@ void ScenePlotter::draw_agent(
     double psi = s.orientation;
     double length_m = p.length.value_or(5.0);
     double width_m = p.width.value_or(2.0);
-    if (p.agent_type == "pedestrian") {
+    const bool is_pedestrian = (p.agent_type == "pedestrian");
+    if (is_pedestrian) {
         length_m = width_m = 1.5;
     }
     double half_length = length_m * 0.5;
     double half_width = width_m * 0.5;
-    double cos_h  = std::cos(psi);
+    double cos_h = std::cos(psi);
     double sin_h = std::sin(psi);
     auto rot = [&](double px, double py){
         return cv::Point2d(
@@ -85,38 +87,93 @@ void ScenePlotter::draw_agent(
     cv::Point2d front_right_world = rot( half_length, -half_width );
     cv::Point2d rear_right_world  = rot(-half_length, -half_width );
     cv::Point2d rear_left_world   = rot(-half_length,  half_width );
-    cv::Point polygon[4] = {
+    std::vector<cv::Point> body{
         projector_(front_left_world.x,  front_left_world.y),
         projector_(front_right_world.x, front_right_world.y),
         projector_(rear_right_world.x,  rear_right_world.y),
         projector_(rear_left_world.x,   rear_left_world.y)
     };
-    cv::fillConvexPoly(frame, polygon, 4, cv::Scalar(255,0,0));
+
+    // Colors are written into a buffer that has already been cvtColor'd
+    // BGR->RGB, but the VideoWriter / MP4 player interpret the encoded bytes
+    // as BGR, so the net rendering convention here is BGR. To match Python's
+    // matplotlib RGB tuples, swap (R,G,B)->(B,G,R) when constructing cv::Scalar.
+    // Python (utils.py): agent_c = (0.125, 0.29, 0.529), agent_ped_c = (1.0, 0.75, 0.8).
+    cv::Scalar fill_color = is_pedestrian
+        ? cv::Scalar(204, 191, 255)
+        : cv::Scalar(135, 74, 32);
+    cv::Scalar edge_color(20, 20, 20);
+    int edge_thickness = std::max(1, static_cast<int>(std::round(projector_.scale * 0.08)));
+
+    cv::fillConvexPoly(frame, body, fill_color, cv::LINE_AA);
+    cv::polylines(frame, body, true, edge_color, edge_thickness, cv::LINE_AA);
+
+    if (!is_pedestrian) {
+        // Equilateral direction marker centered at length/4 forward of the
+        // agent centroid, side proportional to width, pointing along heading.
+        // Matches the Python visualizer (utils.py: marker_offset = length / 4,
+        // numsides=3, c = dir_c = (0.392, 1.0, 1.0) cyan).
+        const double centroid_offset = length_m * 0.25;
+        const double side = width_m * 0.8;
+        const double sqrt3 = std::sqrt(3.0);
+        const double tip_dx = side * sqrt3 / 3.0;
+        const double base_dx = -side * sqrt3 / 6.0;
+        const double base_dy = side * 0.5;
+        cv::Point2d tip_w = rot(centroid_offset + tip_dx,  0.0);
+        cv::Point2d bl_w  = rot(centroid_offset + base_dx,  base_dy);
+        cv::Point2d br_w  = rot(centroid_offset + base_dx, -base_dy);
+        std::vector<cv::Point> tri{
+            projector_(tip_w.x, tip_w.y),
+            projector_(bl_w.x,  bl_w.y),
+            projector_(br_w.x,  br_w.y)
+        };
+        // Python utils.py: dir_c = (0.392, 1.0, 1.0); written here as BGR.
+        cv::fillConvexPoly(frame, tri, cv::Scalar(255, 255, 100), cv::LINE_AA);
+    }
 }
 
 ScenePlotter::ScenePlotter(
-    const LocationInfoResponse& li_res, 
-    bool flip_x
-) :    
-    li_res_(li_res),
-    flip_x_(flip_x)
- {
+    const LocationInfoResponse& li_res,
+    bool flip_x,
+    std::optional<double> rendering_fov_override,
+    int target_resolution
+) :
+    flip_x_(flip_x),
+    li_res_(li_res)
+{
     static_actors_ = li_res.static_actors();
     background_ = cv::imdecode(li_res.birdview_image(), cv::IMREAD_COLOR);
-    int image_height = background_.rows;
-    int image_width  = background_.cols;
     cv::cvtColor(background_, background_, cv::COLOR_BGR2RGB);
 
+    if (target_resolution > 0 &&
+        (background_.rows != target_resolution || background_.cols != target_resolution)) {
+        cv::Mat resized;
+        cv::resize(
+            background_,
+            resized,
+            cv::Size(target_resolution, target_resolution),
+            0, 0,
+            cv::INTER_CUBIC
+        );
+        background_ = resized;
+    }
+
+    rendering_fov_ = rendering_fov_override.value_or(
+        static_cast<double>(li_res.rendering_fov())
+    );
+
+    int image_height = background_.rows;
+    int image_width  = background_.cols;
     double center_x = li_res.rendering_center().x;
     double center_y = li_res.rendering_center().y;
-    double half = li_res.rendering_fov() * 0.5;
+    double half = rendering_fov_ * 0.5;
 
     projector_ = {
-        .cx    = center_x,
-        .cy    = center_y,
-        .min_x = center_x - half,
-        .max_y = center_y + half,
-        .scale = double(image_height) / li_res.rendering_fov(),
+        .cx     = center_x,
+        .cy     = center_y,
+        .min_x  = center_x - half,
+        .max_y  = center_y + half,
+        .scale  = double(image_height) / rendering_fov_,
         .flip_x = flip_x,
         .width  = image_width,
         .height = image_height
@@ -132,7 +189,7 @@ void ScenePlotter::initialize_video(
         throw std::runtime_error("ScenePlotter: background image is empty.");
     writer_ = cv::VideoWriter(
         filename,
-        cv::VideoWriter::fourcc('M','J','P','G'),
+        cv::VideoWriter::fourcc('m','p','4','v'),
         fps,
         cv::Size(background_.cols, background_.rows)
     );
