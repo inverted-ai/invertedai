@@ -166,3 +166,18 @@ cc_binary(
     visibility = ["//visibility:public"],
 )
 
+cc_binary(
+    name = "changing_agents_example",
+    srcs = ["changing_agents_example.cc"],
+    deps = [
+        "//invertedai:api",
+        "//invertedai:session",
+        "//invertedai:visualize",
+        "//large/large_drive:large_drive_lib",
+        "//large/large_initialize:large_initialize_lib",
+        "@boost//:asio",
+        "@opencv//:opencv",
+    ],
+    visibility = ["//visibility:public"],
+)
+

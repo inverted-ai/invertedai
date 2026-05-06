@@ -4,6 +4,7 @@ from invertedai import AgentType
 import argparse
 import random
 import time
+import os
 
 from tqdm import tqdm
 
@@ -14,6 +15,7 @@ def main(args):
         model_version = None
     else:
         model_version = args.model_version_drive
+    iai.add_apikey(os.getenv('IAI_API_KEY'), url="https://staging-api.inverted.ai/staging/aws/m1")
     for i in range(args.num_simulations):
         initialize_seed = random.randint(1,10000)
         drive_seed = random.randint(1,10000)
