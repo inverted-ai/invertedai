@@ -58,10 +58,12 @@ struct Cli {
   int timesteps_per_stage = 20;
   std::optional<double> region_center_x = std::nullopt;
   std::optional<double> region_center_y = std::nullopt;
-  double region_size = 100.0;
+  double fov = 200.0;
   bool get_infractions = false;
   std::string output = "changing_agents_demo.avi";
 };
+
+constexpr int kVideoResolution = 2048;
 
 static void print_usage(
     const char* bin
@@ -75,9 +77,9 @@ static void print_usage(
       << "  --location <str>             Map location (default: carla:Town03)\n"
       << "  --num-agents <int>           Initial agent count (default: 10)\n"
       << "  --timesteps-per-stage <int>  Drive steps per stage (default: 20)\n"
-      << "  --region-center-x <float>    Region center x (default: location_info().map_origin().x)\n"
-      << "  --region-center-y <float>    Region center y (default: location_info().map_origin().y)\n"
-      << "  --region-size <float>        Square region edge length in meters (default: 100)\n"
+      << "  --region-center-x <float>    Region/visualization center x (default: location_info().rendering_center().x)\n"
+      << "  --region-center-y <float>    Region/visualization center y (default: location_info().rendering_center().y)\n"
+      << "  --fov <float>                Field of view in meters; used for both spawn region and visualization framing (default: 200)\n"
       << "  --get-infractions            Capture infraction data (default: off)\n"
       << "  --output <str>               Output video filename (default: changing_agents_demo.avi)\n"
       << "  --help, -h                   Print this message\n";
@@ -103,8 +105,8 @@ static Cli parse_args(
       cli.region_center_x = std::stod(argv[++i]);
     } else if (arg == "--region-center-y" && i + 1 < argc) {
       cli.region_center_y = std::stod(argv[++i]);
-    } else if (arg == "--region-size" && i + 1 < argc) {
-      cli.region_size = std::stod(argv[++i]);
+    } else if (arg == "--fov" && i + 1 < argc) {
+      cli.fov = std::stod(argv[++i]);
     } else if (arg == "--get-infractions") {
       cli.get_infractions = true;
     } else if (arg == "--output" && i + 1 < argc) {
@@ -335,8 +337,9 @@ int main(
   session.set_api_key(api_key);
   session.connect();
 
-  // Resolve region center: CLI overrides; otherwise fall back to map_origin.
-  // The probe call is skipped when both coords come from CLI.
+  // Resolve simulation center: CLI overrides; otherwise fall back to the
+  // location's natural rendering_center reported by location_info(). One
+  // location_info() call is enough when both coords come from CLI.
   double region_cx;
   double region_cy;
   if (cli.region_center_x.has_value() && cli.region_center_y.has_value()) {
@@ -349,35 +352,40 @@ int main(
         probe_req,
         &session
     );
-    region_cx = cli.region_center_x.value_or(probe.map_origin().x);
-    region_cy = cli.region_center_y.value_or(probe.map_origin().y);
+    region_cx = cli.region_center_x.value_or(probe.rendering_center().x);
+    region_cy = cli.region_center_y.value_or(probe.rendering_center().y);
   }
   Point2d region_center{region_cx, region_cy};
-  std::cout
-      << "Location: " << cli.location
-      << " | region center: (" << region_cx << ", " << region_cy
-      << ") | region size: " << cli.region_size << " m"
-      << " | seed: " << seed << "\n";
 
-  // Second location_info call — this one is framed on the region so the
-  // ScenePlotter background lines up with the agents we will render.
+  // The API renders the birdview at the requested rendering_center / _fov but
+  // the response's rendering_center() / rendering_fov() always return the
+  // location's natural map_center / map_fov. We pass the requested values
+  // directly to ScenePlotter as overrides so its projector aligns with the
+  // birdview the API actually drew.
   LocationInfoRequest li_req("{}");
   li_req.set_location(cli.location);
   li_req.set_rendering_center(
       std::make_pair(region_cx, region_cy)
   );
-  li_req.set_rendering_fov(static_cast<int>(std::lround(cli.region_size)));
+  li_req.set_rendering_fov(static_cast<int>(std::lround(cli.fov)));
   li_req.set_include_map_source(true);
   LocationInfoResponse li_res = location_info(
       li_req,
       &session
   );
+  std::cout
+      << "Location: " << cli.location
+      << " | center: (" << region_cx << ", " << region_cy
+      << ") | fov: " << cli.fov << " m"
+      << " | seed: " << seed << "\n";
 
   bool flip_x = (cli.location.rfind("carla:", 0) == 0);
   ScenePlotter plotter(
       li_res,
       flip_x,
-      cli.region_size
+      cli.fov,
+      kVideoResolution,
+      region_center
   );
   plotter.initialize_video(
       cli.output,
@@ -400,7 +408,7 @@ int main(
       session,
       cli.location,
       region_center,
-      cli.region_size,
+      cli.fov,
       cli.num_agents,
       /*existing_states=*/{},
       /*existing_properties=*/{},
@@ -420,7 +428,7 @@ int main(
       session,
       cli.location,
       region_center,
-      cli.region_size,
+      cli.fov,
       agent_states,
       agent_properties,
       seed
@@ -467,7 +475,7 @@ int main(
       session,
       cli.location,
       region_center,
-      cli.region_size,
+      cli.fov,
       /*num_agents_to_add=*/1,
       agent_states,
       agent_properties,
@@ -478,7 +486,7 @@ int main(
       session,
       cli.location,
       region_center,
-      cli.region_size,
+      cli.fov,
       agent_states,
       agent_properties,
       seed
@@ -531,7 +539,7 @@ int main(
       session,
       cli.location,
       region_center,
-      cli.region_size,
+      cli.fov,
       agent_states,
       agent_properties,
       seed

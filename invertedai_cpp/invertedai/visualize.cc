@@ -136,7 +136,8 @@ ScenePlotter::ScenePlotter(
     const LocationInfoResponse& li_res,
     bool flip_x,
     std::optional<double> rendering_fov_override,
-    int target_resolution
+    int target_resolution,
+    std::optional<Point2d> rendering_center_override
 ) :
     flip_x_(flip_x),
     li_res_(li_res)
@@ -164,8 +165,9 @@ ScenePlotter::ScenePlotter(
 
     int image_height = background_.rows;
     int image_width  = background_.cols;
-    double center_x = li_res.rendering_center().x;
-    double center_y = li_res.rendering_center().y;
+    Point2d center = rendering_center_override.value_or(li_res.rendering_center());
+    double center_x = center.x;
+    double center_y = center.y;
     double half = rendering_fov_ * 0.5;
 
     projector_ = {

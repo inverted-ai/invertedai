@@ -41,11 +41,18 @@ class ScenePlotter {
         // target_resolution: if > 0, the birdview is upscaled to this square
         // resolution so agent rectangles render with sharper edges. Defaults
         // to 0 (use the API's native birdview size).
+        // rendering_center_override: the world-coords center the birdview was
+        // actually rendered at. LocationInfoResponse::rendering_center() returns
+        // the map's natural map_center, which is not generally the center
+        // requested when fetching the birdview, so callers should pass the
+        // value they used in LocationInfoRequest::set_rendering_center() to
+        // keep agents aligned with the background.
         ScenePlotter(
             const LocationInfoResponse& li_res,
             bool flip_x = false,
             std::optional<double> rendering_fov_override = std::nullopt,
-            int target_resolution = 0
+            int target_resolution = 0,
+            std::optional<Point2d> rendering_center_override = std::nullopt
         );
 
         void initialize_video(const std::string& filename, int fps = 10);
